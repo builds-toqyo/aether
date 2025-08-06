@@ -1,3 +1,4 @@
+"use client"
 import { invoke } from "@tauri-apps/api/core";
 
 export default function Home() {
