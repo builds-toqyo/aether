@@ -1,0 +1,29 @@
+{
+  "name": "aether",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "tauri": "tauri"
+  },
+  "workspaces": [
+    "src/"
+  ],
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
+    "@tauri-apps/api": "^2.7.0",
+    "next": "latest",
+    "postcss": "^8.5.6",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwindcss": "^4.1.11"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.7.0",
+    "@types/node": "24.2.0",
+    "@types/react": "^19.1.9",
+    "typescript": "latest"
+  }
+}

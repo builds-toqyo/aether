@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "src-tauri",
+    "src-tauri/crates/aether_core",
+    "src-tauri/crates/aether_api",
+    "src-tauri/crates/aether_types",
+    "src-tauri/crates/aether_cli"
+]
+resolver = "2"
