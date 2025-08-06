@@ -12,10 +12,13 @@
     "src/"
   ],
   "dependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
     "@tauri-apps/api": "^2.7.0",
     "next": "latest",
+    "postcss": "^8.5.6",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "tailwindcss": "^4.1.11"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.7.0",
