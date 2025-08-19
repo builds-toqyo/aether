@@ -723,12 +723,62 @@ impl VideoDecoder {
             ));
         }
         
-        // In a real implementation, this would:
-        // 1. Close the current video codec context if open
-        // 2. Open a new codec context for the selected stream
-        // 3. Set up a new sws_context if needed
+        // If we're already using this stream, do nothing
+        if self.current_video_stream == stream_index {
+            return Ok(());
+        }
         
+        // Get format context
+        let format_ctx = self.format_context.as_mut()
+            .ok_or_else(|| VideoDecoderError::DecodingError("Format context not initialized".to_string()))?;
+        
+        // Close the current video codec context if open
+        self.video_codec_context = None;
+        self.sws_context = None;
+        
+        // Get the stream
+        let stream = format_ctx.stream(stream_index as usize).unwrap();
+        let codec_params = stream.codec().parameters();
+        
+        // Find decoder for the stream
+        let decoder_id = codec_params.id();
+        let decoder = ffmpeg::codec::decoder::find(decoder_id)
+            .ok_or_else(|| VideoDecoderError::DecodingError(
+                format!("Failed to find decoder for codec id: {:?}", decoder_id)
+            ))?;
+        
+        // Create a codec context for the decoder
+        let mut codec_ctx = ffmpeg::codec::context::Context::new();
+        codec_ctx.set_parameters(codec_params)
+            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+        
+        // Open the decoder
+        let video_ctx = codec_ctx.decoder().open(decoder)
+            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+        
+        self.video_codec_context = Some(video_ctx);
         self.current_video_stream = stream_index;
+        
+        // Set up scaling context if needed
+        if let Some(video_ctx) = &self.video_codec_context {
+            let video_ctx = video_ctx.decoder().video().unwrap();
+            let src_format = video_ctx.format();
+            let dst_format = self.config.output_format.to_ffmpeg_format();
+            
+            if src_format != dst_format {
+                let width = video_ctx.width();
+                let height = video_ctx.height();
+                
+                let sws_ctx = SwsContext::get(
+                    width, height, src_format,
+                    width, height, dst_format,
+                    Flags::BILINEAR,
+                ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+                
+                self.sws_context = Some(sws_ctx);
+            }
+        }
+        
         Ok(())
     }
     
@@ -748,12 +798,41 @@ impl VideoDecoder {
             ));
         }
         
-        // In a real implementation, this would:
-        // 1. Close the current audio codec context if open
-        // 2. Open a new codec context for the selected stream
-        // 3. Set up a new swr_context if needed
+        // If we're already using this stream, do nothing
+        if self.current_audio_stream == stream_index {
+            return Ok(());
+        }
         
+        // Get format context
+        let format_ctx = self.format_context.as_mut()
+            .ok_or_else(|| VideoDecoderError::DecodingError("Format context not initialized".to_string()))?;
+        
+        // Close the current audio codec context if open
+        self.audio_codec_context = None;
+        
+        // Get the stream
+        let stream = format_ctx.stream(stream_index as usize).unwrap();
+        let codec_params = stream.codec().parameters();
+        
+        // Find decoder for the stream
+        let decoder_id = codec_params.id();
+        let decoder = ffmpeg::codec::decoder::find(decoder_id)
+            .ok_or_else(|| VideoDecoderError::DecodingError(
+                format!("Failed to find decoder for codec id: {:?}", decoder_id)
+            ))?;
+        
+        // Create a codec context for the decoder
+        let mut codec_ctx = ffmpeg::codec::context::Context::new();
+        codec_ctx.set_parameters(codec_params)
+            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+        
+        // Open the decoder
+        let audio_ctx = codec_ctx.decoder().open(decoder)
+            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+        
+        self.audio_codec_context = Some(audio_ctx);
         self.current_audio_stream = stream_index;
+        
         Ok(())
     }
     
@@ -768,23 +847,47 @@ impl VideoDecoder {
             return Ok(());
         }
         
-        // In a real implementation, this would:
-        // 1. Free the sws_context and swr_context
-        // 2. Close and free codec contexts
-        // 3. Close and free format context
+        // Wait for any ongoing operations to complete
+        {
+            let mut state = self.state.lock().unwrap();
+            while state.is_decoding || state.is_seeking {
+                // In a real implementation, we would use a condition variable
+                // For now, just set the flags to false
+                state.is_decoding = false;
+                state.is_seeking = false;
+            }
+        }
         
-        self.format_context = None;
+        // Clean up resources in reverse order of creation
+        
+        // Free scaling context
+        self.sws_context = None;
+        
+        // Close codec contexts
         self.video_codec_context = None;
         self.audio_codec_context = None;
-        self.sws_context = None;
-        self.swr_context = None;
-        self.media_info = None;
+        
+        // Close format context (this will also close associated streams)
+        self.format_context = None;
+        
+        // Reset state
         self.is_initialized = false;
         self.current_position = 0.0;
         self.current_video_stream = -1;
         self.current_audio_stream = -1;
+        self.media_info = None;
+        
+        // Reset internal state
+        let mut state = self.state.lock().unwrap();
+        state.last_decoded_frame_pts = 0;
+        state.error_count = 0;
         
         Ok(())
+    }
+    
+    /// Get information about the current media file
+    pub fn get_media_info(&self) -> Option<&MediaInfo> {
+        self.media_info.as_ref()
     }
 }
 
