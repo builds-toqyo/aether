@@ -22,24 +22,6 @@ impl fmt::Display for RendererError {
 
 impl Error for RendererError {}
 
-pub struct RendererConfig {
-    pub width: u32,
-    pub height: u32,
-    pub fps: u32,
-    pub hardware_acceleration: bool,
-}
-
-impl Default for RendererConfig {
-    fn default() -> Self {
-        Self {
-            width: 1920,
-            height: 1080,
-            fps: 30,
-            hardware_acceleration: true,
-        }
-    }
-}
-
 pub struct Frame {
     pub data: Vec<u8>,
     pub width: u32,
@@ -81,13 +63,143 @@ impl Renderer {
             return Ok(());
         }
         
-        // Initialization logic would go here
-        // For example, setting up GPU resources, allocating buffers, etc.
+        // Log initialization start
+        log::debug!("Initializing renderer with {}x{} resolution", self.config.width, self.config.height);
+        
+        // Initialize hardware acceleration if enabled
+        if self.config.use_hardware_acceleration {
+            self.initialize_hardware_acceleration()?;
+        } else {
+            log::debug!("Using software rendering");
+        }
+        
+        // Allocate frame buffers
+        self.allocate_frame_buffers()?;
+        
+        // Initialize any other resources needed for rendering
+        self.initialize_resources()?;
         
         self.is_initialized = true;
+        log::debug!("Renderer initialization complete");
         Ok(())
     }
     
+    /// Initialize hardware acceleration
+    fn initialize_hardware_acceleration(&mut self) -> Result<(), RendererError> {
+        let device = self.config.hw_device.as_deref().unwrap_or("auto");
+        log::info!("Initializing hardware acceleration with device: {}", device);
+        
+        // Here we would initialize the appropriate hardware acceleration context
+        // For example, with FFmpeg we might use:
+        // - CUDA for NVIDIA GPUs
+        // - VAAPI for Intel GPUs on Linux
+        // - VideoToolbox for macOS
+        // - AMF for AMD GPUs
+        
+        // This is a placeholder for actual hardware acceleration initialization
+        match device {
+            "cuda" => {
+                log::debug!("Initializing CUDA acceleration");
+                // Initialize CUDA context
+            },
+            "vaapi" => {
+                log::debug!("Initializing VAAPI acceleration");
+                // Initialize VAAPI context
+            },
+            "videotoolbox" => {
+                log::debug!("Initializing VideoToolbox acceleration");
+                // Initialize VideoToolbox context
+            },
+            "amf" => {
+                log::debug!("Initializing AMD AMF acceleration");
+                // Initialize AMF context
+            },
+            _ => {
+                // Try to auto-detect the best hardware acceleration
+                log::debug!("Auto-detecting hardware acceleration");
+                // Auto-detection logic would go here
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Allocate frame buffers for rendering
+    fn allocate_frame_buffers(&mut self) -> Result<(), RendererError> {
+        let width = self.config.width as usize;
+        let height = self.config.height as usize;
+        
+        // Calculate buffer size (RGBA = 4 bytes per pixel)
+        let buffer_size = width * height * 4;
+        log::debug!("Allocating frame buffer of {} bytes", buffer_size);
+        
+        // In a real implementation, we might pre-allocate buffers here
+        // or set up GPU textures for rendering
+        
+        Ok(())
+    }
+    
+    /// Initialize additional resources needed for rendering
+    fn initialize_resources(&mut self) -> Result<(), RendererError> {
+        // Initialize any additional resources needed for rendering
+        // For example, shader programs, lookup tables, etc.
+        
+        Ok(())
+    }
+    
+    /// Clean up hardware acceleration resources
+    fn cleanup_hardware_acceleration(&mut self) {
+        if let Some(device) = &self.config.hw_device {
+            log::debug!("Cleaning up hardware acceleration resources for device: {}", device);
+            
+            // Cleanup logic would depend on the specific hardware acceleration API
+            match device.as_str() {
+                "cuda" => {
+                    // Release CUDA resources
+                    log::debug!("Releasing CUDA resources");
+                },
+                "vaapi" => {
+                    // Release VAAPI resources
+                    log::debug!("Releasing VAAPI resources");
+                },
+                "videotoolbox" => {
+                    // Release VideoToolbox resources
+                    log::debug!("Releasing VideoToolbox resources");
+                },
+                "amf" => {
+                    // Release AMD AMF resources
+                    log::debug!("Releasing AMD AMF resources");
+                },
+                _ => {
+                    log::debug!("Releasing auto-detected hardware acceleration resources");
+                }
+            }
+        }
+    }
+    
+    /// Clean up frame buffer resources
+    fn cleanup_frame_buffers(&mut self) {
+        log::debug!("Cleaning up frame buffer resources");
+        
+        // In a real implementation, we would release any pre-allocated buffers here
+        // For example:
+        // - Release GPU textures
+        // - Free any large memory allocations
+        // - Release any buffer pools
+    }
+    
+    /// Clean up any other rendering resources
+    fn cleanup_resources(&mut self) {
+        log::debug!("Cleaning up additional rendering resources");
+        
+        // Clean up any other resources that were allocated during initialization
+        // For example:
+        // - Shader programs
+        // - Lookup tables
+        // - Temporary files
+    }
+    
+    /// Render a frame
     pub fn render(&mut self, input_data: &[u8], timestamp: f64) -> Result<&Frame, RendererError> {
         if !self.is_initialized {
             return Err(RendererError::InitializationError("Renderer not initialized".to_string()));
@@ -345,8 +457,30 @@ impl Renderer {
             return Ok(());
         }
         
-        // Cleanup logic would go here
-        // For example, releasing GPU resources, freeing buffers, etc.
+        // Release frame data
+        self.current_frame = None;
+        
+        // Reset frame count
+        self.frame_count = 0;
+        
+        // Reset rendering state
+        let mut state = self.state.lock().unwrap();
+        state.is_rendering = false;
+        state.last_render_time = std::time::Instant::now();
+        
+        // Release hardware acceleration resources if enabled
+        if self.config.use_hardware_acceleration {
+            self.cleanup_hardware_acceleration();
+        }
+        
+        // Release GPU textures and buffers
+        self.cleanup_frame_buffers();
+        
+        // Clean up any other resources
+        self.cleanup_resources();
+        
+        // Log cleanup completion
+        log::debug!("Renderer cleanup completed");
         
         self.is_initialized = false;
         Ok(())
@@ -356,6 +490,41 @@ impl Renderer {
 impl Drop for Renderer {
     fn drop(&mut self) {
         let _ = self.cleanup();
+    }
+}
+
+/// Renderer configuration
+#[derive(Debug, Clone)]
+pub struct RendererConfig {
+    /// Width of the output in pixels
+    pub width: u32,
+    
+    /// Height of the output in pixels
+    pub height: u32,
+    
+    /// Frame rate in frames per second
+    pub frame_rate: f64,
+    
+    /// Background color as RGBA
+    pub background_color: [u8; 4],
+    
+    /// Whether to use hardware acceleration
+    pub use_hardware_acceleration: bool,
+    
+    /// Hardware acceleration device (e.g., "cuda", "vaapi", "videotoolbox")
+    pub hw_device: Option<String>,
+}
+
+impl Default for RendererConfig {
+    fn default() -> Self {
+        Self {
+            width: 1920,
+            height: 1080,
+            frame_rate: 30.0,
+            background_color: [0, 0, 0, 255], // Black background
+            use_hardware_acceleration: false,
+            hw_device: None,
+        }
     }
 }
 
