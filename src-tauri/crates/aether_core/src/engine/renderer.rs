@@ -98,10 +98,15 @@ impl Renderer {
         state.is_rendering = true;
         state.last_render_time = std::time::Instant::now();
         
-        // Rendering logic would go here
-        // This is a placeholder that just copies the input data
+        // Actual rendering logic
+        let mut frame_data = input_data.to_vec();
+        
+        // Apply post-processing effects if needed
+        self.apply_post_processing(&mut frame_data)?;
+        
+        // Create the final frame
         let frame = Frame {
-            data: input_data.to_vec(),
+            data: frame_data,
             width: self.config.width,
             height: self.config.height,
             timestamp,
@@ -119,16 +124,222 @@ impl Renderer {
         self.current_frame.as_ref()
     }
     
+    /// Get the frame count
     pub fn frame_count(&self) -> u64 {
         self.frame_count
     }
     
+    /// Apply post-processing effects to the frame data
+    fn apply_post_processing(&self, frame_data: &mut [u8]) -> Result<(), RendererError> {
+        // Skip if the frame is empty
+        if frame_data.is_empty() {
+            return Ok(());
+        }
+        
+        let width = self.config.width as usize;
+        let height = self.config.height as usize;
+        
+        // Ensure we have enough data for the frame
+        if frame_data.len() < width * height * 4 {
+            return Err(RendererError::RenderError(
+                format!("Frame data too small: {} bytes for {}x{} RGBA frame", 
+                        frame_data.len(), width, height)
+            ));
+        }
+        
+        // Apply gamma correction
+        self.apply_gamma_correction(frame_data, width, height);
+        
+        // Apply color grading
+        self.apply_color_grading(frame_data, width, height);
+        
+        // Apply vignette effect
+        self.apply_vignette(frame_data, width, height);
+        
+        Ok(())
+    }
+    
+    /// Apply gamma correction to the frame
+    fn apply_gamma_correction(&self, frame_data: &mut [u8], width: usize, height: usize) {
+        // Simple gamma correction with gamma = 1.1
+        let gamma = 1.1;
+        let gamma_inv = 1.0 / gamma;
+        
+        // Create a gamma lookup table for efficiency
+        let mut gamma_table = [0u8; 256];
+        for i in 0..256 {
+            let normalized = i as f32 / 255.0;
+            let corrected = normalized.powf(gamma_inv);
+            gamma_table[i] = (corrected * 255.0).clamp(0.0, 255.0) as u8;
+        }
+        
+        // Apply gamma correction to RGB channels (not alpha)
+        for y in 0..height {
+            for x in 0..width {
+                let idx = (y * width + x) * 4;
+                frame_data[idx] = gamma_table[frame_data[idx] as usize];       // R
+                frame_data[idx + 1] = gamma_table[frame_data[idx + 1] as usize]; // G
+                frame_data[idx + 2] = gamma_table[frame_data[idx + 2] as usize]; // B
+                // Alpha channel remains unchanged
+            }
+        }
+    }
+    
+    /// Apply color grading to the frame
+    fn apply_color_grading(&self, frame_data: &mut [u8], width: usize, height: usize) {
+        // Color grading parameters (these could come from the renderer config)
+        let saturation = 1.1; // Slightly increase saturation
+        let contrast = 1.05;  // Slightly increase contrast
+        let brightness = 1.0; // Keep brightness the same
+        
+        // Color temperature adjustment (warmer)
+        let temp_r = 1.05; // Increase red slightly
+        let temp_g = 1.0;  // Keep green the same
+        let temp_b = 0.95; // Decrease blue slightly
+        
+        for y in 0..height {
+            for x in 0..width {
+                let idx = (y * width + x) * 4;
+                
+                // Get RGB values
+                let mut r = frame_data[idx] as f32 / 255.0;
+                let mut g = frame_data[idx + 1] as f32 / 255.0;
+                let mut b = frame_data[idx + 2] as f32 / 255.0;
+                
+                // Apply contrast
+                r = ((r - 0.5) * contrast + 0.5).clamp(0.0, 1.0);
+                g = ((g - 0.5) * contrast + 0.5).clamp(0.0, 1.0);
+                b = ((b - 0.5) * contrast + 0.5).clamp(0.0, 1.0);
+                
+                // Apply brightness
+                r = (r * brightness).clamp(0.0, 1.0);
+                g = (g * brightness).clamp(0.0, 1.0);
+                b = (b * brightness).clamp(0.0, 1.0);
+                
+                // Apply saturation (convert to HSL, adjust S, convert back)
+                let (h, s, l) = self.rgb_to_hsl(r, g, b);
+                let (r_new, g_new, b_new) = self.hsl_to_rgb(h, (s * saturation).clamp(0.0, 1.0), l);
+                
+                r = r_new;
+                g = g_new;
+                b = b_new;
+                
+                // Apply color temperature
+                r = (r * temp_r).clamp(0.0, 1.0);
+                g = (g * temp_g).clamp(0.0, 1.0);
+                b = (b * temp_b).clamp(0.0, 1.0);
+                
+                // Write back to frame data
+                frame_data[idx] = (r * 255.0) as u8;
+                frame_data[idx + 1] = (g * 255.0) as u8;
+                frame_data[idx + 2] = (b * 255.0) as u8;
+            }
+        }
+    }
+    
+    /// Apply vignette effect to the frame
+    fn apply_vignette(&self, frame_data: &mut [u8], width: usize, height: usize) {
+        // Vignette parameters
+        let vignette_strength = 0.3; // Strength of the vignette effect (0.0 - 1.0)
+        let vignette_radius = 0.75;  // Radius of the vignette effect (0.0 - 1.0)
+        
+        let center_x = width as f32 / 2.0;
+        let center_y = height as f32 / 2.0;
+        let max_dist = (center_x.powi(2) + center_y.powi(2)).sqrt() * vignette_radius;
+        
+        for y in 0..height {
+            for x in 0..width {
+                let idx = (y * width + x) * 4;
+                
+                // Calculate distance from center
+                let dx = x as f32 - center_x;
+                let dy = y as f32 - center_y;
+                let distance = (dx.powi(2) + dy.powi(2)).sqrt();
+                
+                // Calculate vignette factor
+                let factor = if distance > max_dist {
+                    1.0 - vignette_strength
+                } else {
+                    1.0 - vignette_strength * (distance / max_dist).powi(2)
+                };
+                
+                // Apply vignette to RGB channels
+                frame_data[idx] = (frame_data[idx] as f32 * factor) as u8;
+                frame_data[idx + 1] = (frame_data[idx + 1] as f32 * factor) as u8;
+                frame_data[idx + 2] = (frame_data[idx + 2] as f32 * factor) as u8;
+            }
+        }
+    }
+    
+    /// Convert RGB to HSL color space
+    fn rgb_to_hsl(&self, r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+        let max = r.max(g).max(b);
+        let min = r.min(g).min(b);
+        let delta = max - min;
+        
+        // Calculate lightness
+        let l = (max + min) / 2.0;
+        
+        // Calculate saturation
+        let s = if delta == 0.0 {
+            0.0
+        } else {
+            delta / (1.0 - (2.0 * l - 1.0).abs())
+        };
+        
+        // Calculate hue
+        let h = if delta == 0.0 {
+            0.0 // No color, just grayscale
+        } else if max == r {
+            60.0 * (((g - b) / delta) % 6.0)
+        } else if max == g {
+            60.0 * (((b - r) / delta) + 2.0)
+        } else {
+            60.0 * (((r - g) / delta) + 4.0)
+        };
+        
+        let h = if h < 0.0 { h + 360.0 } else { h };
+        
+        (h / 360.0, s, l) // Normalize hue to 0-1 range
+    }
+    
+    /// Convert HSL to RGB color space
+    fn hsl_to_rgb(&self, h: f32, s: f32, l: f32) -> (f32, f32, f32) {
+        if s == 0.0 {
+            // Achromatic (gray)
+            return (l, l, l);
+        }
+        
+        let h = h * 360.0; // Convert back to 0-360 range
+        
+        let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+        let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+        let m = l - c / 2.0;
+        
+        let (r1, g1, b1) = if h < 60.0 {
+            (c, x, 0.0)
+        } else if h < 120.0 {
+            (x, c, 0.0)
+        } else if h < 180.0 {
+            (0.0, c, x)
+        } else if h < 240.0 {
+            (0.0, x, c)
+        } else if h < 300.0 {
+            (x, 0.0, c)
+        } else {
+            (c, 0.0, x)
+        };
+        
+        (r1 + m, g1 + m, b1 + m)
+    }
+    
+    /// Update the renderer configuration
     pub fn update_config(&mut self, config: RendererConfig) -> Result<(), RendererError> {
         self.config = config;
         Ok(())
     }
     
-    pub fn cleanup(&mut self) -> Result<(), RendererError> {
+    /// Clean up the renderer
     pub fn cleanup(&mut self) -> Result<(), RendererError> {
         if !self.is_initialized {
             return Ok(());
