@@ -29,9 +29,140 @@ pub struct Frame {
     pub timestamp: f64,
 }
 
+/// Hardware acceleration context types
+#[derive(Debug)]
+enum HardwareContext {
+    #[cfg(feature = "cuda")]
+    Cuda { context: *mut std::ffi::c_void },
+    
+    #[cfg(all(feature = "vaapi", target_os = "linux"))]
+    Vaapi { display: *mut std::ffi::c_void },
+    
+    #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+    VideoToolbox { session: *mut std::ffi::c_void },
+    
+    #[cfg(feature = "amf")]
+    Amf { factory: *mut std::ffi::c_void, context: *mut std::ffi::c_void },
+    
+    Software,
+}
+
+/// Shader programs for different hardware backends
+#[derive(Debug)]
+enum Shaders {
+    #[cfg(feature = "cuda")]
+    Cuda { module: *mut std::ffi::c_void, kernel: *mut std::ffi::c_void },
+    
+    #[cfg(all(feature = "vaapi", target_os = "linux"))]
+    Vaapi { config: VaapiConfig },
+    
+    #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+    VideoToolbox { config: VideoToolboxConfig },
+    
+    #[cfg(feature = "amf")]
+    Amf { components: Vec<*mut std::ffi::c_void> },
+    
+    Software { functions: Vec<Box<dyn Fn(&[u8], &mut [u8], usize, usize) + Send>> },
+}
+
+/// GPU buffer types for different hardware backends
+#[derive(Debug)]
+enum GpuBuffers {
+    #[cfg(feature = "cuda")]
+    Cuda { input: *mut std::ffi::c_void, output: *mut std::ffi::c_void, size: usize },
+    
+    #[cfg(all(feature = "vaapi", target_os = "linux"))]
+    Vaapi { surfaces: Vec<*mut std::ffi::c_void> },
+    
+    #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+    VideoToolbox { pixel_buffers: Vec<*mut std::ffi::c_void> },
+    
+    #[cfg(feature = "amf")]
+    Amf { surfaces: Vec<*mut std::ffi::c_void> },
+}
+
+/// CPU buffers for software rendering
+#[derive(Debug)]
+struct CpuBuffers {
+    input: Vec<u8>,
+    output: Vec<u8>,
+}
+
+/// Lookup tables for various effects
+#[derive(Debug)]
+struct LookupTables {
+    gamma: Vec<u8>,
+    vignette: Vec<u8>,
+    // color_3d: Vec<u8>,
+}
+
+/// Post-processing pipeline stages
+#[derive(Debug, Clone, Copy)]
+enum PostProcessStage {
+    ColorCorrection,
+    ColorGrading,
+    Vignette,
+    Blur,
+    Sharpen,
+    Denoise,
+    Custom(usize), // Index into custom effects
+}
+
+/// Post-processing pipeline
+#[derive(Debug)]
+struct PostProcessPipeline {
+    stages: Vec<PostProcessStage>,
+}
+
+#[cfg(all(feature = "vaapi", target_os = "linux"))]
+#[derive(Debug, Clone)]
+struct VaapiConfig {
+    // VAAPI specific configuration
+    brightness: f32,
+    contrast: f32,
+    saturation: f32,
+    hue: f32,
+}
+
+#[cfg(all(feature = "vaapi", target_os = "linux"))]
+impl Default for VaapiConfig {
+    fn default() -> Self {
+        Self {
+            brightness: 0.0,
+            contrast: 1.0,
+            saturation: 1.0,
+            hue: 0.0,
+        }
+    }
+}
+
+#[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+#[derive(Debug, Clone)]
+struct VideoToolboxConfig {
+    // VideoToolbox specific configuration
+    color_space: u32,
+    pixel_format: u32,
+}
+
+#[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+impl Default for VideoToolboxConfig {
+    fn default() -> Self {
+        Self {
+            color_space: 1, // kCVImageBufferColorSpace_ITU_R_709_2
+            pixel_format: 32, // kCVPixelFormatType_32BGRA
+        }
+    }
+}
+
 pub struct Renderer {
     config: RendererConfig,
     is_initialized: bool,
+    hw_context: Option<HardwareContext>,
+    shaders: Option<Shaders>,
+    gpu_buffers: Option<GpuBuffers>,
+    cpu_buffers: Option<CpuBuffers>,
+    lookup_tables: Option<LookupTables>,
+    post_process_pipeline: Option<PostProcessPipeline>,
     current_frame: Option<Frame>,
     frame_count: u64,
     state: Arc<Mutex<RendererState>>,
@@ -414,9 +545,274 @@ impl Renderer {
     
     /// Initialize additional resources needed for rendering
     fn initialize_resources(&mut self) -> Result<(), RendererError> {
-        // Initialize any additional resources needed for rendering
-        // For example, shader programs, lookup tables, etc.
+        log::debug!("Initializing rendering resources");
         
+        // Initialize shader programs for GPU rendering
+        if self.config.use_hardware_acceleration {
+            self.initialize_shader_programs()?;
+        }
+        
+        // Initialize lookup tables for color grading and effects
+        self.initialize_lookup_tables()?;
+        
+        // Pre-allocate GPU textures and buffers
+        self.allocate_gpu_resources()?;
+        
+        // Initialize post-processing pipeline
+        self.initialize_post_processing()?;
+        
+        log::info!("Rendering resources initialized successfully");
+        Ok(())
+    }
+    
+    /// Initialize shader programs for GPU rendering
+    fn initialize_shader_programs(&mut self) -> Result<(), RendererError> {
+        log::debug!("Initializing shader programs");
+        
+        // In a real implementation, we would load and compile shader programs
+        // For different hardware acceleration backends, we'd use different APIs:
+        
+        if let Some(hw_context) = &self.hw_context {
+            match hw_context {
+                #[cfg(feature = "cuda")]
+                HardwareContext::Cuda { .. } => {
+                    // Load CUDA kernels for video processing
+                    let vertex_shader = include_str!("../shaders/cuda/vertex.cu");
+                    let fragment_shader = include_str!("../shaders/cuda/fragment.cu");
+                    
+                    // Compile shaders
+                    // let module = cuda::cuModuleLoadData(vertex_shader.as_ptr() as *const c_void);
+                    // let kernel = cuda::cuModuleGetFunction(module, "process_frame");
+                    // self.shaders = Some(Shaders::Cuda { module, kernel });
+                },
+                
+                #[cfg(all(feature = "vaapi", target_os = "linux"))]
+                HardwareContext::Vaapi { .. } => {
+                    // VAAPI uses fixed-function processing, no shader compilation needed
+                    // But we might set up specific processing parameters
+                    // self.shaders = Some(Shaders::Vaapi { config: VaapiConfig::default() });
+                },
+                
+                #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+                HardwareContext::VideoToolbox { .. } => {
+                    // VideoToolbox uses fixed-function processing, no shader compilation needed
+                    // But we might set up specific processing parameters
+                    // self.shaders = Some(Shaders::VideoToolbox { config: VideoToolboxConfig::default() });
+                },
+                
+                #[cfg(feature = "amf")]
+                HardwareContext::Amf { .. } => {
+                    // Load AMF processing components
+                    // self.shaders = Some(Shaders::Amf { components: Vec::new() });
+                },
+                
+                _ => {
+                    // Software fallback shaders
+                    // self.shaders = Some(Shaders::Software { functions: Vec::new() });
+                }
+            }
+        } else {
+            // Software rendering fallback
+            log::info!("No hardware context available, using software shaders");
+            // self.shaders = Some(Shaders::Software { functions: Vec::new() });
+        }
+        
+        log::debug!("Shader programs initialized");
+        Ok(())
+    }
+    
+    /// Initialize lookup tables for color grading and effects
+    fn initialize_lookup_tables(&mut self) -> Result<(), RendererError> {
+        log::debug!("Initializing lookup tables");
+        
+        // Create lookup tables for common operations
+        // 1. Gamma correction LUT
+        let gamma = self.config.gamma;
+        let gamma_lut = (0..256).map(|i| {
+            let normalized = i as f32 / 255.0;
+            let corrected = normalized.powf(1.0 / gamma);
+            (corrected * 255.0).round() as u8
+        }).collect::<Vec<u8>>();
+        
+        // 2. Color grading 3D LUT (17x17x17 is standard size)
+        // In a real implementation, we would allocate a 3D LUT here
+        // let color_lut_size = 17;
+        // let mut color_lut = vec![0u8; color_lut_size * color_lut_size * color_lut_size * 3];
+        // fill_identity_lut(&mut color_lut, color_lut_size);
+        
+        // 3. Vignette effect LUT
+        let width = self.config.width as usize;
+        let height = self.config.height as usize;
+        let mut vignette_lut = vec![0u8; width * height];
+        
+        let center_x = width as f32 / 2.0;
+        let center_y = height as f32 / 2.0;
+        let max_dist = (center_x.powi(2) + center_y.powi(2)).sqrt();
+        
+        for y in 0..height {
+            for x in 0..width {
+                let dx = x as f32 - center_x;
+                let dy = y as f32 - center_y;
+                let distance = (dx.powi(2) + dy.powi(2)).sqrt();
+                let factor = 1.0 - (distance / max_dist).powi(2);
+                vignette_lut[y * width + x] = (factor * 255.0).round() as u8;
+            }
+        }
+        
+        // Store the LUTs
+        self.lookup_tables = Some(LookupTables {
+            gamma: gamma_lut,
+            vignette: vignette_lut,
+            // color_3d: color_lut,
+        });
+        
+        log::debug!("Lookup tables initialized");
+        Ok(())
+    }
+    
+    /// Allocate GPU resources for rendering
+    fn allocate_gpu_resources(&mut self) -> Result<(), RendererError> {
+        log::debug!("Allocating GPU resources");
+        
+        let width = self.config.width as usize;
+        let height = self.config.height as usize;
+        
+        if self.config.use_hardware_acceleration {
+            if let Some(hw_context) = &self.hw_context {
+                match hw_context {
+                    #[cfg(feature = "cuda")]
+                    HardwareContext::Cuda { .. } => {
+                        // Allocate CUDA device memory for input and output frames
+                        // unsafe {
+                        //     let input_size = width * height * 4; // RGBA
+                        //     let mut d_input = std::ptr::null_mut();
+                        //     cuda::cuMemAlloc(&mut d_input, input_size);
+                        //     
+                        //     let mut d_output = std::ptr::null_mut();
+                        //     cuda::cuMemAlloc(&mut d_output, input_size);
+                        //     
+                        //     self.gpu_buffers = Some(GpuBuffers::Cuda {
+                        //         input: d_input,
+                        //         output: d_output,
+                        //         size: input_size,
+                        //     });
+                        // }
+                    },
+                    
+                    #[cfg(all(feature = "vaapi", target_os = "linux"))]
+                    HardwareContext::Vaapi { .. } => {
+                        // Allocate VAAPI surfaces
+                        // let mut surfaces = Vec::new();
+                        // for _ in 0..3 { // Triple buffering
+                        //     let surface = vaapi::vaCreateSurface(...);
+                        //     surfaces.push(surface);
+                        // }
+                        // 
+                        // self.gpu_buffers = Some(GpuBuffers::Vaapi { surfaces });
+                    },
+                    
+                    #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+                    HardwareContext::VideoToolbox { .. } => {
+                        // Allocate CVPixelBuffers for VideoToolbox
+                        // let mut pixel_buffers = Vec::new();
+                        // for _ in 0..3 { // Triple buffering
+                        //     let mut buffer: CVPixelBufferRef = std::ptr::null_mut();
+                        //     CVPixelBufferCreate(
+                        //         kCFAllocatorDefault,
+                        //         width as size_t,
+                        //         height as size_t,
+                        //         kCVPixelFormatType_32BGRA,
+                        //         options,
+                        //         &mut buffer
+                        //     );
+                        //     pixel_buffers.push(buffer);
+                        // }
+                        // 
+                        // self.gpu_buffers = Some(GpuBuffers::VideoToolbox { pixel_buffers });
+                    },
+                    
+                    #[cfg(feature = "amf")]
+                    HardwareContext::Amf { .. } => {
+                        // Allocate AMF surfaces
+                        // let mut surfaces = Vec::new();
+                        // for _ in 0..3 { // Triple buffering
+                        //     let mut surface: *mut amf::AMFSurface = std::ptr::null_mut();
+                        //     context.AllocSurface(
+                        //         amf::AMF_MEMORY_TYPE::AMF_MEMORY_DX11,
+                        //         amf::AMF_SURFACE_FORMAT::AMF_SURFACE_BGRA,
+                        //         width as amf_int32,
+                        //         height as amf_int32,
+                        //         &mut surface
+                        //     );
+                        //     surfaces.push(surface);
+                        // }
+                        // 
+                        // self.gpu_buffers = Some(GpuBuffers::Amf { surfaces });
+                    },
+                    
+                    _ => {
+                        // Fallback to CPU buffers
+                        log::warn!("Unknown hardware context type, falling back to CPU buffers");
+                        self.allocate_cpu_buffers(width, height)?;
+                    }
+                }
+            } else {
+                // No hardware context, fall back to CPU buffers
+                log::warn!("No hardware context available, falling back to CPU buffers");
+                self.allocate_cpu_buffers(width, height)?;
+            }
+        } else {
+            // Software rendering, use CPU buffers
+            self.allocate_cpu_buffers(width, height)?;
+        }
+        
+        log::debug!("GPU resources allocated");
+        Ok(())
+    }
+    
+    /// Allocate CPU buffers for software rendering
+    fn allocate_cpu_buffers(&mut self, width: usize, height: usize) -> Result<(), RendererError> {
+        // Calculate buffer size (RGBA = 4 bytes per pixel)
+        let buffer_size = width * height * 4;
+        
+        // Allocate input and output buffers
+        let input_buffer = vec![0u8; buffer_size];
+        let output_buffer = vec![0u8; buffer_size];
+        
+        // Store the buffers
+        self.cpu_buffers = Some(CpuBuffers {
+            input: input_buffer,
+            output: output_buffer,
+        });
+        
+        log::debug!("CPU buffers allocated: {} bytes each", buffer_size);
+        Ok(())
+    }
+    
+    /// Initialize post-processing pipeline
+    fn initialize_post_processing(&mut self) -> Result<(), RendererError> {
+        log::debug!("Initializing post-processing pipeline");
+        
+        // Create post-processing stages based on configuration
+        let mut stages = Vec::new();
+        
+        if self.config.enable_color_correction {
+            stages.push(PostProcessStage::ColorCorrection);
+        }
+        
+        if self.config.enable_color_grading {
+            stages.push(PostProcessStage::ColorGrading);
+        }
+        
+        if self.config.enable_vignette {
+            stages.push(PostProcessStage::Vignette);
+        }
+        
+        // Add more stages as needed
+        
+        self.post_process_pipeline = Some(PostProcessPipeline { stages });
+        
+        log::debug!("Post-processing pipeline initialized with {} stages", stages.len());
         Ok(())
     }
     
