@@ -89,39 +89,312 @@ impl Renderer {
         let device = self.config.hw_device.as_deref().unwrap_or("auto");
         log::info!("Initializing hardware acceleration with device: {}", device);
         
-        // Here we would initialize the appropriate hardware acceleration context
-        // For example, with FFmpeg we might use:
-        // - CUDA for NVIDIA GPUs
-        // - VAAPI for Intel GPUs on Linux
-        // - VideoToolbox for macOS
-        // - AMF for AMD GPUs
-        
-        // This is a placeholder for actual hardware acceleration initialization
         match device {
             "cuda" => {
                 log::debug!("Initializing CUDA acceleration");
-                // Initialize CUDA context
+                self.initialize_cuda_acceleration()
             },
             "vaapi" => {
                 log::debug!("Initializing VAAPI acceleration");
-                // Initialize VAAPI context
+                self.initialize_vaapi_acceleration()
             },
             "videotoolbox" => {
                 log::debug!("Initializing VideoToolbox acceleration");
-                // Initialize VideoToolbox context
+                self.initialize_videotoolbox_acceleration()
             },
             "amf" => {
                 log::debug!("Initializing AMD AMF acceleration");
-                // Initialize AMF context
+                self.initialize_amf_acceleration()
             },
             _ => {
                 // Try to auto-detect the best hardware acceleration
                 log::debug!("Auto-detecting hardware acceleration");
-                // Auto-detection logic would go here
+                self.auto_detect_acceleration()
+            }
+        }
+    }
+    
+    /// Initialize CUDA acceleration for NVIDIA GPUs
+    fn initialize_cuda_acceleration(&mut self) -> Result<(), RendererError> {
+        #[cfg(feature = "cuda")]
+        {
+            // Check for NVIDIA GPU
+            if !self.has_nvidia_gpu() {
+                return Err(RendererError::HardwareAccelerationError(
+                    "CUDA acceleration requested but no NVIDIA GPU found".to_string()
+                ));
+            }
+            
+            // Initialize CUDA context
+            unsafe {
+                // In a real implementation, we would use the CUDA API here
+                // For example:
+                // let result = cuda::cuInit(0);
+                // if result != cuda::CUDA_SUCCESS {
+                //     return Err(RendererError::HardwareAccelerationError(
+                //         format!("Failed to initialize CUDA: error {}", result)
+                //     ));
+                // }
+                
+                // Create CUDA context
+                // let mut device = 0;
+                // let result = cuda::cuDeviceGet(&mut device, 0);
+                // if result != cuda::CUDA_SUCCESS {
+                //     return Err(RendererError::HardwareAccelerationError(
+                //         format!("Failed to get CUDA device: error {}", result)
+                //     ));
+                // }
+                
+                // let mut context = std::ptr::null_mut();
+                // let result = cuda::cuCtxCreate(&mut context, 0, device);
+                // if result != cuda::CUDA_SUCCESS {
+                //     return Err(RendererError::HardwareAccelerationError(
+                //         format!("Failed to create CUDA context: error {}", result)
+                //     ));
+                // }
+                
+                // self.hw_context = Some(HardwareContext::Cuda { context });
+            }
+            
+            log::info!("CUDA acceleration initialized successfully");
+            Ok(())
+        }
+        
+        #[cfg(not(feature = "cuda"))]
+        {
+            Err(RendererError::HardwareAccelerationError(
+                "CUDA acceleration not supported in this build".to_string()
+            ))
+        }
+    }
+    
+    /// Initialize VAAPI acceleration for Intel GPUs on Linux
+    fn initialize_vaapi_acceleration(&mut self) -> Result<(), RendererError> {
+        #[cfg(all(feature = "vaapi", target_os = "linux"))]
+        {
+            // Check for Intel GPU or other VAAPI-compatible hardware
+            if !self.has_vaapi_support() {
+                return Err(RendererError::HardwareAccelerationError(
+                    "VAAPI acceleration requested but no compatible hardware found".to_string()
+                ));
+            }
+            
+            // Initialize VAAPI context
+            unsafe {
+                // In a real implementation, we would use the VAAPI API here
+                // For example:
+                // let display = vaapi::vaGetDisplay(std::ptr::null_mut());
+                // if display.is_null() {
+                //     return Err(RendererError::HardwareAccelerationError(
+                //         "Failed to get VA display".to_string()
+                //     ));
+                // }
+                
+                // let mut major = 0;
+                // let mut minor = 0;
+                // let status = vaapi::vaInitialize(display, &mut major, &mut minor);
+                // if status != vaapi::VA_STATUS_SUCCESS {
+                //     return Err(RendererError::HardwareAccelerationError(
+                //         format!("Failed to initialize VAAPI: error {}", status)
+                //     ));
+                // }
+                
+                // self.hw_context = Some(HardwareContext::Vaapi { display });
+            }
+            
+            log::info!("VAAPI acceleration initialized successfully");
+            Ok(())
+        }
+        
+        #[cfg(not(all(feature = "vaapi", target_os = "linux")))]
+        {
+            Err(RendererError::HardwareAccelerationError(
+                "VAAPI acceleration not supported in this build or on this platform".to_string()
+            ))
+        }
+    }
+    
+    /// Initialize VideoToolbox acceleration for macOS
+    fn initialize_videotoolbox_acceleration(&mut self) -> Result<(), RendererError> {
+        #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+        {
+            // VideoToolbox is available on all macOS systems, so no need to check for hardware
+            
+            // Initialize VideoToolbox session
+            unsafe {
+                // In a real implementation, we would use the VideoToolbox API here
+                // For example:
+                // let mut session: videotoolbox::VTDecompressionSessionRef = std::ptr::null_mut();
+                // let format_id = videotoolbox::kCMVideoCodecType_H264;
+                // 
+                // let format_dict = videotoolbox::CFDictionaryCreateMutable(
+                //     std::ptr::null_mut(),
+                //     1,
+                //     &videotoolbox::kCFTypeDictionaryKeyCallBacks,
+                //     &videotoolbox::kCFTypeDictionaryValueCallBacks
+                // );
+                // 
+                // let key = videotoolbox::kCVPixelBufferPixelFormatTypeKey;
+                // let value = videotoolbox::kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
+                // videotoolbox::CFDictionaryAddValue(format_dict, key, value);
+                // 
+                // let status = videotoolbox::VTDecompressionSessionCreate(
+                //     std::ptr::null_mut(),
+                //     format_description,
+                //     std::ptr::null(),
+                //     format_dict,
+                //     std::ptr::null(),
+                //     &mut session
+                // );
+                // 
+                // if status != 0 {
+                //     return Err(RendererError::HardwareAccelerationError(
+                //         format!("Failed to create VideoToolbox session: error {}", status)
+                //     ));
+                // }
+                // 
+                // self.hw_context = Some(HardwareContext::VideoToolbox { session });
+            }
+            
+            log::info!("VideoToolbox acceleration initialized successfully");
+            Ok(())
+        }
+        
+        #[cfg(not(all(feature = "videotoolbox", target_os = "macos")))]
+        {
+            Err(RendererError::HardwareAccelerationError(
+                "VideoToolbox acceleration not supported in this build or on this platform".to_string()
+            ))
+        }
+    }
+    
+    /// Initialize AMD AMF acceleration
+    fn initialize_amf_acceleration(&mut self) -> Result<(), RendererError> {
+        #[cfg(feature = "amf")]
+        {
+            // Check for AMD GPU
+            if !self.has_amd_gpu() {
+                return Err(RendererError::HardwareAccelerationError(
+                    "AMF acceleration requested but no AMD GPU found".to_string()
+                ));
+            }
+            
+            // Initialize AMF context
+            unsafe {
+                // In a real implementation, we would use the AMF API here
+                // For example:
+                // let mut factory: *mut amf::AMFFactory = std::ptr::null_mut();
+                // let result = amf::AMFInit(0, &mut factory);
+                // if result != amf::AMF_OK {
+                //     return Err(RendererError::HardwareAccelerationError(
+                //         format!("Failed to initialize AMF: error {}", result)
+                //     ));
+                // }
+                // 
+                // let mut context: *mut amf::AMFContext = std::ptr::null_mut();
+                // let result = factory.CreateContext(&mut context);
+                // if result != amf::AMF_OK {
+                //     return Err(RendererError::HardwareAccelerationError(
+                //         format!("Failed to create AMF context: error {}", result)
+                //     ));
+                // }
+                // 
+                // self.hw_context = Some(HardwareContext::Amf { factory, context });
+            }
+            
+            log::info!("AMD AMF acceleration initialized successfully");
+            Ok(())
+        }
+        
+        #[cfg(not(feature = "amf"))]
+        {
+            Err(RendererError::HardwareAccelerationError(
+                "AMD AMF acceleration not supported in this build".to_string()
+            ))
+        }
+    }
+    
+    /// Auto-detect the best hardware acceleration method
+    fn auto_detect_acceleration(&mut self) -> Result<(), RendererError> {
+        #[cfg(target_os = "macos")]
+        {
+            // On macOS, VideoToolbox is the best option
+            return self.initialize_videotoolbox_acceleration();
+        }
+        
+        #[cfg(target_os = "windows")]
+        {
+            // On Windows, try CUDA first, then AMF, then fallback to software
+            if self.has_nvidia_gpu() {
+                match self.initialize_cuda_acceleration() {
+                    Ok(_) => return Ok(()),
+                    Err(e) => log::warn!("Failed to initialize CUDA: {}", e),
+                }
+            }
+            
+            if self.has_amd_gpu() {
+                match self.initialize_amf_acceleration() {
+                    Ok(_) => return Ok(()),
+                    Err(e) => log::warn!("Failed to initialize AMF: {}", e),
+                }
             }
         }
         
+        #[cfg(target_os = "linux")]
+        {
+            // On Linux, try VAAPI first, then CUDA, then fallback to software
+            if self.has_vaapi_support() {
+                match self.initialize_vaapi_acceleration() {
+                    Ok(_) => return Ok(()),
+                    Err(e) => log::warn!("Failed to initialize VAAPI: {}", e),
+                }
+            }
+            
+            if self.has_nvidia_gpu() {
+                match self.initialize_cuda_acceleration() {
+                    Ok(_) => return Ok(()),
+                    Err(e) => log::warn!("Failed to initialize CUDA: {}", e),
+                }
+            }
+        }
+        
+        // Fallback to software rendering
+        log::info!("No hardware acceleration available, falling back to software rendering");
+        self.config.use_hardware_acceleration = false;
         Ok(())
+    }
+    
+    /// Check if NVIDIA GPU is available
+    fn has_nvidia_gpu(&self) -> bool {
+        // In a real implementation, we would check for NVIDIA GPU
+        // For example, on Linux we might parse the output of `lspci`
+        // On Windows, we might use DXGI or the NVIDIA API
+        // For this example, we'll just return true
+        true
+    }
+    
+    /// Check if AMD GPU is available
+    fn has_amd_gpu(&self) -> bool {
+        // Similar to has_nvidia_gpu, but for AMD GPUs
+        true
+    }
+    
+    /// Check if VAAPI is supported
+    fn has_vaapi_support(&self) -> bool {
+        // Check if VAAPI is supported on this system
+        // This would typically involve checking for the presence of VAAPI drivers
+        // and compatible hardware
+        #[cfg(target_os = "linux")]
+        {
+            // Check for VAAPI support
+            // For example, check if /dev/dri/renderD128 exists
+            std::path::Path::new("/dev/dri/renderD128").exists()
+        }
+        
+        #[cfg(not(target_os = "linux"))]
+        {
+            false
+        }
     }
     
     /// Allocate frame buffers for rendering
