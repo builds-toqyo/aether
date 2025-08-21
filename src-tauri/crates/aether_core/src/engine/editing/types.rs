@@ -55,17 +55,47 @@ impl From<gstreamer::glib::BoolError> for EditingError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MediaInfo {
+    /// Path to the media file
     pub path: PathBuf,
     
+    /// Duration in nanoseconds
     pub duration: i64,
     
+    /// Title from metadata if available
     pub title: Option<String>,
     
+    /// Type of media (video, audio, image, etc.)
     pub media_type: MediaType,
     
+    /// Information about video streams
     pub video_streams: Vec<VideoStreamInfo>,
     
+    /// Information about audio streams
     pub audio_streams: Vec<AudioStreamInfo>,
+    
+    /// Creation date if available
+    pub creation_date: Option<String>,
+    
+    /// Artist/author if available
+    pub artist: Option<String>,
+    
+    /// Copyright information if available
+    pub copyright: Option<String>,
+    
+    /// Comment/description if available
+    pub comment: Option<String>,
+    
+    /// Album/collection if available (for audio)
+    pub album: Option<String>,
+    
+    /// Genre if available (for audio)
+    pub genre: Option<String>,
+    
+    /// File size in bytes
+    pub file_size: Option<u64>,
+    
+    /// Container format (mp4, mkv, etc.)
+    pub container_format: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -89,6 +119,12 @@ pub struct VideoStreamInfo {
     pub codec_name: String,
     
     pub pixel_format: String,
+    
+    /// Aspect ratio (width/height) if available
+    pub aspect_ratio: Option<f64>,
+    
+    /// Bitrate in bits per second if available
+    pub bitrate: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
