@@ -174,7 +174,7 @@ pub enum AudioFormat {
 }
 
 impl AudioFormat {
-=    pub fn to_ffmpeg_name(&self) -> &'static str {
+   pub fn to_ffmpeg_name(&self) -> &'static str {
         match self {
             AudioFormat::Aac => "aac",
             AudioFormat::Mp3 => "libmp3lame",
