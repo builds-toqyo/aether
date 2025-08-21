@@ -49,9 +49,12 @@ impl Default for ExportOptions {
             container_format: ContainerFormat::Mp4,
             video_format: VideoFormat::H264,
             audio_format: AudioFormat::Aac,
-            video_bitrate: 0,
-            audio_bitrate: 0,
-            frame_rate: 0.0,
+            // Set a reasonable default video bitrate (2 Mbps)
+            video_bitrate: 2_000_000,
+            // Set a reasonable default audio bitrate (128 kbps)
+            audio_bitrate: 128_000,
+            // Set a standard default frame rate
+            frame_rate: 30.0,
             width: 0,
             height: 0,
             encoder_preset: EncoderPreset::Medium,
@@ -332,9 +335,20 @@ impl Exporter {
                 None
             };
             
-            let mut decoded = ffmpeg::frame::Video::empty();
+            // Create frames with proper allocation
+            let mut decoded = ffmpeg::frame::Video::new(
+                video_decoder.format(),
+                video_decoder.width(),
+                video_decoder.height(),
+            );
+            
+            let mut encoded = ffmpeg::frame::Video::new(
+                ffmpeg::format::pixel::Pixel::YUV420P,
+                if options.width > 0 { options.width } else { width as u32 },
+                if options.height > 0 { options.height } else { height as u32 },
+            );
+            
             let mut audio_decoded = ffmpeg::frame::Audio::empty();
-            let mut encoded = ffmpeg::frame::Video::empty();
             let mut audio_encoded = ffmpeg::frame::Audio::empty();
             let mut packet = ffmpeg::packet::Packet::empty();
             
@@ -347,17 +361,25 @@ impl Exporter {
                     return Err(EditingError::ExportError(error_msg));
                 }
                 
-=                if let Some(stream_index) = video_stream_index {
+                if let Some(stream_index) = video_stream_index {
                     if packet.stream() == stream_index {
                         video_decoder.send_packet(&packet)?;
                         
                         while video_decoder.receive_frame(&mut decoded).is_ok() {
+                            // Clear the encoded frame before reuse
+                            encoded = ffmpeg::frame::Video::new(
+                                ffmpeg::format::pixel::Pixel::YUV420P,
+                                if options.width > 0 { options.width } else { width as u32 },
+                                if options.height > 0 { options.height } else { height as u32 },
+                            );
+                            
                             scaler.run(&decoded, &mut encoded)?;
                             
                             let time_base = input_context.stream(stream_index).unwrap().time_base();
-                            let pts = packet.pts().unwrap_or(ffmpeg::util::format::Rational::new(0, 1));
-                            let pts_seconds = pts.numerator() as f64 * f64::from(time_base) / pts.denominator() as f64;
+                            let pts = packet.pts().unwrap_or(0);
+                            let pts_seconds = pts as f64 * f64::from(time_base);
                             
+                            // Set proper PTS for the encoded frame
                             encoded.set_pts(Some(frame_count as i64));
                             
                             let out_stream = output_context.stream(0).unwrap();
@@ -396,31 +418,79 @@ impl Exporter {
                     if let Some(audio_stream_out) = audio_stream_index_out {
                         if packet.stream() == audio_index {
                             if let Some(ref mut audio_decoder) = audio_decoder {
-                                audio_decoder.send_packet(&packet)?;
+                                // Check for cancellation during audio processing too
+                                if *cancel_flag.lock().unwrap() {
+                                    let error_msg = "Export cancelled during audio processing".to_string();
+                                    Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                    return Err(EditingError::ExportError(error_msg));
+                                }
                                 
-                                while audio_decoder.receive_frame(&mut audio_decoded).is_ok() {
+                                // Handle potential error in send_packet
+                                if let Err(e) = audio_decoder.send_packet(&packet) {
+                                    let error_msg = format!("Audio decoder error: {}", e);
+                                    Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                    return Err(EditingError::ExportError(error_msg));
+                                }
+                                
+                                // Create a new audio frame for each iteration
+                                let mut audio_frame_result = audio_decoder.receive_frame(&mut audio_decoded);
+                                
+                                while audio_frame_result.is_ok() {
+                                    // Create a new audio encoded frame with proper parameters
+                                    audio_encoded = ffmpeg::frame::Audio::empty();
+                                    
+                                    // Handle resampling with proper error propagation
                                     if let Some(ref mut resampler) = resampler {
-                                        resampler.run(&audio_decoded, &mut audio_encoded)?;
+                                        if let Err(e) = resampler.run(&audio_decoded, &mut audio_encoded) {
+                                            let error_msg = format!("Audio resampling error: {}", e);
+                                            Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                            return Err(EditingError::ExportError(error_msg));
+                                        }
                                     } else {
                                         audio_encoded = audio_decoded.clone();
                                     }
                                     
                                     let out_stream = output_context.stream(audio_stream_out).unwrap();
                                     let mut out_codec = out_stream.codec();
-                                    let mut encoder = out_codec.encoder().audio()?;
+                                    let mut encoder = match out_codec.encoder().audio() {
+                                        Ok(enc) => enc,
+                                        Err(e) => {
+                                            let error_msg = format!("Audio encoder error: {}", e);
+                                            Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                            return Err(EditingError::ExportError(error_msg));
+                                        }
+                                    };
                                     
-                                    encoder.send_frame(&audio_encoded)?;
+                                    // Send frame with error handling
+                                    if let Err(e) = encoder.send_frame(&audio_encoded) {
+                                        let error_msg = format!("Audio encoding error: {}", e);
+                                        Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                        return Err(EditingError::ExportError(error_msg));
+                                    }
                                     
                                     let mut out_packet = ffmpeg::packet::Packet::empty();
-                                    while encoder.receive_packet(&mut out_packet).is_ok() {
+                                    let mut packet_result = encoder.receive_packet(&mut out_packet);
+                                    
+                                    while packet_result.is_ok() {
                                         out_packet.set_stream(audio_stream_out);
                                         out_packet.rescale_ts(
                                             encoder.time_base(),
                                             out_stream.time_base(),
                                         );
                                         
-                                        output_context.write_packet(&out_packet)?;
+                                        // Write packet with error handling
+                                        if let Err(e) = output_context.write_packet(&out_packet) {
+                                            let error_msg = format!("Error writing audio packet: {}", e);
+                                            Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                            return Err(EditingError::ExportError(error_msg));
+                                        }
+                                        
+                                        // Get next packet
+                                        packet_result = encoder.receive_packet(&mut out_packet);
                                     }
+                                    
+                                    // Get next frame
+                                    audio_frame_result = audio_decoder.receive_frame(&mut audio_decoded);
                                 }
                             }
                         }
@@ -506,11 +576,34 @@ impl Exporter {
         *self.cancel_flag.lock().unwrap() = true;
         
         if let Some(handle) = self.export_thread.take() {
-            if !handle.is_finished() {
+            // Set a timeout for joining the thread
+            const MAX_JOIN_ATTEMPTS: u8 = 10;
+            let mut attempts = 0;
+            
+            // Try to join with timeout to avoid blocking indefinitely
+            while !handle.is_finished() && attempts < MAX_JOIN_ATTEMPTS {
                 thread::sleep(Duration::from_millis(100));
-                
-                // If it's still not finished, we'll just let it run in the background
-                // It will eventually notice the cancellation flag and terminate
+                attempts += 1;
+            }
+            
+            // Try to join the thread to ensure proper cleanup
+            match handle.join() {
+                Ok(_) => {
+                    // Thread joined successfully
+                },
+                Err(e) => {
+                    // Thread panicked, log the error but continue
+                    let error_msg = format!("Export thread panicked: {:?}", e);
+                    let mut progress = self.progress.lock().unwrap();
+                    progress.error = Some(error_msg.clone());
+                    
+                    if let Some(callback) = &self.progress_callback {
+                        callback.lock().unwrap()(progress.clone());
+                    }
+                    
+                    // Return the error but don't panic
+                    return Err(EditingError::ExportError(error_msg));
+                }
             }
         }
         
