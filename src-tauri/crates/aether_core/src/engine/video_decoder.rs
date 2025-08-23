@@ -19,7 +19,6 @@ use ffmpeg::util::log as ffmpeg_log;
 use log::{debug, error, info, warn};
 use thiserror::Error;
 
-/// Error type for video decoder operations
 #[derive(Debug, Error)]
 pub enum VideoDecoderError {
     #[error("Initialization error: {0}")]
@@ -44,7 +43,6 @@ pub enum VideoDecoderError {
     InvalidParameter(String),
 }
 
-/// Video format enum
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum VideoFormat {
     RGB24,
