@@ -184,7 +184,7 @@ impl NodeExecutorEngine {
 
         // Execute nodes in order
         if self.config.enable_parallel {
-            self.execute_parallel(&execution_order, &mut context, frame)?;
+            self.execute_parallel(&execution_order, &mut context, frame, graph)?;
         } else {
             self.execute_sequential(&execution_order, &mut context, frame)?;
         }
@@ -214,17 +214,15 @@ impl NodeExecutorEngine {
         execution_order: &[Uuid],
         context: &mut ExecutionContext,
         frame: u64,
+        graph: &Graph,
     ) -> NodeResult<()> {
-        // For now, implement a simple parallel execution
-        // In a more sophisticated implementation, we'd analyze the graph
-        // to identify truly parallelizable nodes
-
+        // Analyze the graph to identify truly parallelizable nodes
         let mut current_batch = Vec::new();
         let mut executed_nodes = std::collections::HashSet::new();
 
         for &node_id in execution_order {
             // Check if all dependencies are executed
-            let can_execute = self.check_dependencies_executed(node_id, &executed_nodes);
+            let can_execute = self.check_dependencies_executed(node_id, &executed_nodes, graph);
 
             if can_execute {
                 current_batch.push(node_id);
@@ -301,9 +299,23 @@ impl NodeExecutorEngine {
     }
 
     /// Check if all dependencies of a node are executed
-    fn check_dependencies_executed(&self, node_id: Uuid, executed_nodes: &std::collections::HashSet<Uuid>) -> bool {
-        // This is a simplified check
-        // In a real implementation, we'd analyze the graph structure
+    fn check_dependencies_executed(&self, node_id: Uuid, executed_nodes: &std::collections::HashSet<Uuid>, graph: &Graph) -> bool {
+        // Get the node from the node manager
+        if let Some(node) = self.node_manager.get_node_metadata(&node_id) {
+            // Check all input pins for connections
+            for input_pin in &node.inputs {
+                if let Some(connection_id) = &input_pin.connection {
+                    // Find the connection in the graph and check if the output node is executed
+                    if let Some(connection) = graph.get_connection(connection_id) {
+                        if !executed_nodes.contains(&connection.output_node_id) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // All dependencies are executed or no dependencies exist
         true
     }
 
