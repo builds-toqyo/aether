@@ -179,14 +179,14 @@ impl NodeManager {
     }
     
     pub fn remove_node(&mut self, node_id: &Uuid) -> NodeResult<Box<dyn NodeExecutor + Send + Sync>> {
-        self.nodes.remove(node_id)
+        // Remove and return the actual executor
+        let executor = self.nodes.remove(node_id)
             .ok_or_else(|| NodeError::NodeNotFound(*node_id))?;
         
+        // Also remove the metadata
         self.node_metadata.remove(node_id);
         
-        // Return a dummy executor since we can't return the actual one
-        // In practice, this would be handled differently
-        Ok(Box::new(DummyNode))
+        Ok(executor)
     }
     
     pub fn get_node(&self, node_id: &Uuid) -> Option<&dyn NodeExecutor> {
