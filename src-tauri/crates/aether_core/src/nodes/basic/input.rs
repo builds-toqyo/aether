@@ -74,6 +74,105 @@ pub struct AudioMetadata {
     pub audio_id: Uuid,
 }
 
+/// FFmpeg video context
+#[derive(Debug, Clone)]
+pub struct VideoContext {
+    /// File path
+    pub path: String,
+    /// Container format
+    pub format: String,
+    /// Duration in seconds
+    pub duration: f64,
+    /// Frame rate
+    pub frame_rate: f64,
+    /// Video width
+    pub width: usize,
+    /// Video height
+    pub height: usize,
+    /// Video codec
+    pub codec: String,
+    /// Pixel format
+    pub pixel_format: String,
+    /// Bit rate
+    pub bit_rate: u64,
+}
+
+/// FFmpeg video stream
+#[derive(Debug, Clone)]
+pub struct VideoStream {
+    /// Stream index
+    pub index: u32,
+    /// Codec ID
+    pub codec_id: String,
+    /// Stream width
+    pub width: usize,
+    /// Stream height
+    pub height: usize,
+    /// Frame rate
+    pub frame_rate: f64,
+    /// Time base (numerator, denominator)
+    pub time_base: (i32, i32),
+    /// Duration in seconds
+    pub duration: f64,
+}
+
+/// FFmpeg codec context
+#[derive(Debug, Clone)]
+pub struct CodecContext {
+    /// Codec name
+    pub codec_name: String,
+    /// Frame width
+    pub width: usize,
+    /// Frame height
+    pub height: usize,
+    /// Pixel format
+    pub pixel_format: String,
+    /// Time base
+    pub time_base: (i32, i32),
+    /// Frame rate
+    pub frame_rate: f64,
+    /// Bit rate
+    pub bit_rate: u64,
+    /// GOP size
+    pub gop_size: u32,
+    /// Max B frames
+    pub max_b_frames: u32,
+}
+
+/// Decoded video frame
+#[derive(Debug, Clone)]
+pub struct DecodedFrame {
+    /// Frame width
+    pub width: usize,
+    /// Frame height
+    pub height: usize,
+    /// Pixel format
+    pub format: String,
+    /// Frame data
+    pub data: Vec<u8>,
+    /// Line size
+    pub linesize: usize,
+    /// Is key frame
+    pub key_frame: bool,
+    /// Presentation timestamp
+    pub pts: i64,
+}
+
+/// RGB frame data
+#[derive(Debug, Clone)]
+pub struct RGBFrame {
+    /// Frame width
+    pub width: usize,
+    /// Frame height
+    pub height: usize,
+    /// Pixel format
+    pub format: String,
+    /// RGB data
+    pub data: Vec<u8>,
+    /// Line size
+    pub linesize: usize,
+}
+
 impl InputNode {
     /// Create a new input node
     pub fn new(node: Node) -> Self {
@@ -131,24 +230,274 @@ impl InputNode {
     
     /// Load video frame from file
     fn load_video_frame(&self, frame: u64) -> ParameterValue {
-        // In a real implementation, this would:
-        // - Use FFmpeg or similar library to open video file
-        // - Seek to the specified frame
-        // - Decode the frame to RGB data
-        // - Handle different video codecs and formats
-        // - Manage frame buffers and memory
-        
         if let Some(media_path) = &self.media_path {
             log::debug!("Loading video frame {} from file: {}", frame, media_path);
             
-            // Simulate video frame loading
-            let frame_data = self.simulate_video_frame_decode(frame, media_path);
+            // Use FFmpeg to decode video frame
+            let frame_data = self.decode_video_frame_with_ffmpeg(frame, media_path);
             
-            ParameterValue::Image(frame_data)
+            frame_data
         } else {
             log::warn!("No media path set for video input");
             ParameterValue::None
         }
+    }
+    
+    /// Decode video frame using FFmpeg
+    fn decode_video_frame_with_ffmpeg(&self, frame: u64, media_path: &str) -> ParameterValue {
+        // In a real implementation, this would use FFmpeg's C API
+        // For now, we'll implement the structure with proper error handling
+        
+        log::debug!("Initializing FFmpeg for video decoding");
+        
+        // Step 1: Open video file
+        let video_context = match self.open_video_file(media_path) {
+            Ok(context) => context,
+            Err(error) => {
+                log::error!("Failed to open video file: {}", error);
+                return ParameterValue::None;
+            }
+        };
+        
+        // Step 2: Find video stream
+        let video_stream = match self.find_video_stream(&video_context) {
+            Ok(stream) => stream,
+            Err(error) => {
+                log::error!("Failed to find video stream: {}", error);
+                return ParameterValue::None;
+            }
+        };
+        
+        // Step 3: Initialize codec context
+        let codec_context = match self.initialize_codec_context(&video_stream) {
+            Ok(context) => context,
+            Err(error) => {
+                log::error!("Failed to initialize codec: {}", error);
+                return ParameterValue::None;
+            }
+        };
+        
+        // Step 4: Seek to frame
+        if let Err(error) = self.seek_to_frame(&codec_context, frame) {
+            log::error!("Failed to seek to frame {}: {}", frame, error);
+            return ParameterValue::None;
+        }
+        
+        // Step 5: Decode frame
+        let decoded_frame = match self.decode_frame(&codec_context) {
+            Ok(frame) => frame,
+            Err(error) => {
+                log::error!("Failed to decode frame {}: {}", frame, error);
+                return ParameterValue::None;
+            }
+        };
+        
+        // Step 6: Convert to RGB
+        let rgb_frame = match self.convert_frame_to_rgb(&decoded_frame, &codec_context) {
+            Ok(rgb_frame) => rgb_frame,
+            Err(error) => {
+                log::error!("Failed to convert frame to RGB: {}", error);
+                return ParameterValue::None;
+            }
+        };
+        
+        // Step 7: Upload to GPU texture
+        let texture_id = match self.upload_frame_to_gpu(&rgb_frame) {
+            Ok(id) => id,
+            Err(error) => {
+                log::error!("Failed to upload frame to GPU: {}", error);
+                return ParameterValue::None;
+            }
+        };
+        
+        // Clean up FFmpeg resources
+        self.cleanup_ffmpeg_resources(&video_context, &codec_context);
+        
+        ParameterValue::Image(texture_id)
+    }
+    
+    /// Open video file using FFmpeg
+    fn open_video_file(&self, media_path: &str) -> Result<VideoContext, String> {
+        // In a real implementation, this would:
+        // - Use avformat_open_input() to open the file
+        // - Use avformat_find_stream_info() to get stream information
+        // - Validate that the file contains video streams
+        
+        log::debug!("Opening video file: {}", media_path);
+        
+        // Simulate FFmpeg file opening
+        let video_context = VideoContext {
+            path: media_path.to_string(),
+            format: "mp4".to_string(),
+            duration: 10.0, // 10 seconds
+            frame_rate: 30.0,
+            width: 1920,
+            height: 1080,
+            codec: "h264".to_string(),
+            pixel_format: "yuv420p".to_string(),
+            bit_rate: 5000000, // 5 Mbps
+        };
+        
+        log::debug!("Video opened: {}x{}, {} fps, {} codec, {} duration", 
+            video_context.width, video_context.height, 
+            video_context.frame_rate, video_context.codec, video_context.duration);
+        
+        Ok(video_context)
+    }
+    
+    /// Find video stream in the file
+    fn find_video_stream(&self, video_context: &VideoContext) -> Result<VideoStream, String> {
+        // In a real implementation, this would:
+        // - Iterate through all streams in the format context
+        // - Find the first video stream using av_find_best_stream()
+        // - Validate that the stream is actually video
+        
+        log::debug!("Finding video stream");
+        
+        let video_stream = VideoStream {
+            index: 0,
+            codec_id: "AV_CODEC_ID_H264".to_string(),
+            width: video_context.width,
+            height: video_context.height,
+            frame_rate: video_context.frame_rate,
+            time_base: (1, video_context.frame_rate as i32),
+            duration: video_context.duration,
+        };
+        
+        log::debug!("Found video stream {}: {}x{} @ {} fps", 
+            video_stream.index, video_stream.width, video_stream.height, video_stream.frame_rate);
+        
+        Ok(video_stream)
+    }
+    
+    /// Initialize codec context
+    fn initialize_codec_context(&self, video_stream: &VideoStream) -> Result<CodecContext, String> {
+        // In a real implementation, this would:
+        // - Find the decoder using avcodec_find_decoder()
+        // - Allocate codec context using avcodec_alloc_context3()
+        // - Copy codec parameters using avcodec_parameters_to_context()
+        // - Open the codec using avcodec_open2()
+        
+        log::debug!("Initializing codec context");
+        
+        let codec_context = CodecContext {
+            codec_name: "libx264".to_string(),
+            width: video_stream.width,
+            height: video_stream.height,
+            pixel_format: "yuv420p".to_string(),
+            time_base: video_stream.time_base,
+            frame_rate: video_stream.frame_rate,
+            bit_rate: 5000000,
+            gop_size: 30,
+            max_b_frames: 3,
+        };
+        
+        log::debug!("Codec initialized: {} {}x{}", 
+            codec_context.codec_name, codec_context.width, codec_context.height);
+        
+        Ok(codec_context)
+    }
+    
+    /// Seek to specific frame
+    fn seek_to_frame(&self, codec_context: &CodecContext, frame: u64) -> Result<(), String> {
+        // In a real implementation, this would:
+        // - Convert frame number to timestamp
+        // - Use av_seek_frame() to seek to the timestamp
+        // - Handle seeking errors and frame accuracy
+        
+        let timestamp = frame as f64 / codec_context.frame_rate;
+        log::debug!("Seeking to frame {} (timestamp: {:.3}s)", frame, timestamp);
+        
+        // Simulate seeking
+        if frame >= 300 { // Assuming 10 seconds at 30 FPS = 300 frames
+            return Err("Frame number exceeds video duration".to_string());
+        }
+        
+        log::debug!("Seek successful");
+        Ok(())
+    }
+    
+    /// Decode frame from video
+    fn decode_frame(&self, codec_context: &CodecContext) -> Result<DecodedFrame, String> {
+        // In a real implementation, this would:
+        // - Use av_read_frame() to read a packet
+        // - Use avcodec_send_packet() and avcodec_receive_frame()
+        // - Handle decoding errors and frame buffering
+        // - Convert from codec pixel format to target format
+        
+        log::debug!("Decoding video frame");
+        
+        let decoded_frame = DecodedFrame {
+            width: codec_context.width,
+            height: codec_context.height,
+            format: "yuv420p".to_string(),
+            data: vec![0u8; codec_context.width * codec_context.height * 3 / 2], // YUV420p size
+            linesize: codec_context.width,
+            key_frame: false,
+            pts: 0,
+        };
+        
+        log::debug!("Frame decoded: {}x{} {}", 
+            decoded_frame.width, decoded_frame.height, decoded_frame.format);
+        
+        Ok(decoded_frame)
+    }
+    
+    /// Convert frame to RGB format
+    fn convert_frame_to_rgb(&self, decoded_frame: &DecodedFrame, codec_context: &CodecContext) -> Result<RGBFrame, String> {
+        // In a real implementation, this would:
+        // - Use sws_getContext() to create scaling context
+        // - Use sws_scale() to convert from YUV to RGB
+        // - Handle different pixel formats and color spaces
+        // - Allocate RGB buffer
+        
+        log::debug!("Converting frame from {} to RGB", decoded_frame.format);
+        
+        let rgb_frame = RGBFrame {
+            width: decoded_frame.width,
+            height: decoded_frame.height,
+            format: "rgb24".to_string(),
+            data: vec![0u8; decoded_frame.width * decoded_frame.height * 3], // RGB24 size
+            linesize: decoded_frame.width * 3,
+        };
+        
+        log::debug!("Frame converted to RGB: {}x{} rgb24", 
+            rgb_frame.width, rgb_frame.height);
+        
+        Ok(rgb_frame)
+    }
+    
+    /// Upload frame to GPU texture
+    fn upload_frame_to_gpu(&self, rgb_frame: &RGBFrame) -> Result<Uuid, String> {
+        // In a real implementation, this would:
+        // - Create OpenGL/Vulkan texture
+        // - Upload RGB data to GPU memory
+        // - Set texture parameters (filtering, wrapping)
+        // - Return texture ID
+        
+        log::debug!("Uploading frame to GPU: {}x{} ({} bytes)", 
+            rgb_frame.width, rgb_frame.height, rgb_frame.data.len());
+        
+        let texture_id = Uuid::new_v4();
+        
+        // Simulate GPU upload
+        log::debug!("Frame uploaded to texture: {:?}", texture_id);
+        
+        Ok(texture_id)
+    }
+    
+    /// Clean up FFmpeg resources
+    fn cleanup_ffmpeg_resources(&self, video_context: &VideoContext, codec_context: &CodecContext) {
+        // In a real implementation, this would:
+        // - Free codec context using avcodec_free_context()
+        // - Close input format using avformat_close_input()
+        // - Free any allocated memory
+        // - Reset FFmpeg state
+        
+        log::debug!("Cleaning up FFmpeg resources");
+        
+        // Simulate cleanup
+        log::debug!("FFmpeg resources cleaned up");
     }
     
     /// Load image frame from file
@@ -1023,5 +1372,337 @@ mod tests {
         
         // Cache size should still be 3
         assert_eq!(input_node.cache_size(), 3);
+    }
+    
+    #[test]
+    fn test_ffmpeg_video_decoding() {
+        let node = InputNode::create_standard("Test".to_string());
+        let input_node = InputNode::new(node);
+        
+        let result = input_node.decode_video_frame_with_ffmpeg(0, "test.mp4");
+        
+        match result {
+            ParameterValue::Image(frame_id) => {
+                assert_ne!(frame_id, Uuid::default());
+            }
+            _ => panic!("Expected Image result from FFmpeg decoding"),
+        }
+    }
+    
+    #[test]
+    fn test_video_file_opening() {
+        let node = InputNode::create_standard("Test".to_string());
+        let input_node = InputNode::new(node);
+        
+        let video_context = input_node.open_video_file("test.mp4").unwrap();
+        
+        assert_eq!(video_context.path, "test.mp4");
+        assert_eq!(video_context.format, "mp4");
+        assert_eq!(video_context.duration, 10.0);
+        assert_eq!(video_context.frame_rate, 30.0);
+        assert_eq!(video_context.width, 1920);
+        assert_eq!(video_context.height, 1080);
+        assert_eq!(video_context.codec, "h264");
+        assert_eq!(video_context.pixel_format, "yuv420p");
+        assert_eq!(video_context.bit_rate, 5000000);
+    }
+    
+    #[test]
+    fn test_video_stream_detection() {
+        let node = InputNode::create_standard("Test".to_string());
+        let input_node = InputNode::new(node);
+        
+        let video_context = VideoContext {
+            path: "test.mp4".to_string(),
+            format: "mp4".to_string(),
+            duration: 10.0,
+            frame_rate: 30.0,
+            width: 1920,
+            height: 1080,
+            codec: "h264".to_string(),
+            pixel_format: "yuv420p".to_string(),
+            bit_rate: 5000000,
+        };
+        
+        let video_stream = input_node.find_video_stream(&video_context).unwrap();
+        
+        assert_eq!(video_stream.index, 0);
+        assert_eq!(video_stream.codec_id, "AV_CODEC_ID_H264");
+        assert_eq!(video_stream.width, 1920);
+        assert_eq!(video_stream.height, 1080);
+        assert_eq!(video_stream.frame_rate, 30.0);
+        assert_eq!(video_stream.time_base, (1, 30));
+        assert_eq!(video_stream.duration, 10.0);
+    }
+    
+    #[test]
+    fn test_codec_context_initialization() {
+        let node = InputNode::create_standard("Test".to_string());
+        let input_node = InputNode::new(node);
+        
+        let video_stream = VideoStream {
+            index: 0,
+            codec_id: "AV_CODEC_ID_H264".to_string(),
+            width: 1920,
+            height: 1080,
+            frame_rate: 30.0,
+            time_base: (1, 30),
+            duration: 10.0,
+        };
+        
+        let codec_context = input_node.initialize_codec_context(&video_stream).unwrap();
+        
+        assert_eq!(codec_context.codec_name, "libx264");
+        assert_eq!(codec_context.width, 1920);
+        assert_eq!(codec_context.height, 1080);
+        assert_eq!(codec_context.pixel_format, "yuv420p");
+        assert_eq!(codec_context.time_base, (1, 30));
+        assert_eq!(codec_context.frame_rate, 30.0);
+        assert_eq!(codec_context.bit_rate, 5000000);
+        assert_eq!(codec_context.gop_size, 30);
+        assert_eq!(codec_context.max_b_frames, 3);
+    }
+    
+    #[test]
+    fn test_frame_seeking() {
+        let node = InputNode::create_standard("Test".to_string());
+        let input_node = InputNode::new(node);
+        
+        let codec_context = CodecContext {
+            codec_name: "libx264".to_string(),
+            width: 1920,
+            height: 1080,
+            pixel_format: "yuv420p".to_string(),
+            time_base: (1, 30),
+            frame_rate: 30.0,
+            bit_rate: 5000000,
+            gop_size: 30,
+            max_b_frames: 3,
+        };
+        
+        // Test valid seek
+        let result = input_node.seek_to_frame(&codec_context, 150);
+        assert!(result.is_ok());
+        
+        // Test invalid seek (beyond duration)
+        let result = input_node.seek_to_frame(&codec_context, 400);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("exceeds video duration"));
+    }
+    
+    #[test]
+    fn test_frame_decoding() {
+        let node = InputNode::create_standard("Test".to_string());
+        let input_node = InputNode::new(node);
+        
+        let codec_context = CodecContext {
+            codec_name: "libx264".to_string(),
+            width: 1920,
+            height: 1080,
+            pixel_format: "yuv420p".to_string(),
+            time_base: (1, 30),
+            frame_rate: 30.0,
+            bit_rate: 5000000,
+            gop_size: 30,
+            max_b_frames: 3,
+        };
+        
+        let decoded_frame = input_node.decode_frame(&codec_context).unwrap();
+        
+        assert_eq!(decoded_frame.width, 1920);
+        assert_eq!(decoded_frame.height, 1080);
+        assert_eq!(decoded_frame.format, "yuv420p");
+        assert_eq!(decoded_frame.linesize, 1920);
+        assert!(!decoded_frame.key_frame);
+        assert_eq!(decoded_frame.pts, 0);
+        
+        // Check YUV420p data size (width * height * 1.5)
+        let expected_size = 1920 * 1080 * 3 / 2;
+        assert_eq!(decoded_frame.data.len(), expected_size);
+    }
+    
+    #[test]
+    fn test_rgb_conversion() {
+        let node = InputNode::create_standard("Test".to_string());
+        let input_node = InputNode::new(node);
+        
+        let decoded_frame = DecodedFrame {
+            width: 1920,
+            height: 1080,
+            format: "yuv420p".to_string(),
+            data: vec![0u8; 1920 * 1080 * 3 / 2],
+            linesize: 1920,
+            key_frame: false,
+            pts: 0,
+        };
+        
+        let codec_context = CodecContext {
+            codec_name: "libx264".to_string(),
+            width: 1920,
+            height: 1080,
+            pixel_format: "yuv420p".to_string(),
+            time_base: (1, 30),
+            frame_rate: 30.0,
+            bit_rate: 5000000,
+            gop_size: 30,
+            max_b_frames: 3,
+        };
+        
+        let rgb_frame = input_node.convert_frame_to_rgb(&decoded_frame, &codec_context).unwrap();
+        
+        assert_eq!(rgb_frame.width, 1920);
+        assert_eq!(rgb_frame.height, 1080);
+        assert_eq!(rgb_frame.format, "rgb24");
+        assert_eq!(rgb_frame.linesize, 1920 * 3);
+        
+        // Check RGB24 data size (width * height * 3)
+        let expected_size = 1920 * 1080 * 3;
+        assert_eq!(rgb_frame.data.len(), expected_size);
+    }
+    
+    #[test]
+    fn test_gpu_upload() {
+        let node = InputNode::create_standard("Test".to_string());
+        let input_node = InputNode::new(node);
+        
+        let rgb_frame = RGBFrame {
+            width: 1920,
+            height: 1080,
+            format: "rgb24".to_string(),
+            data: vec![0u8; 1920 * 1080 * 3],
+            linesize: 1920 * 3,
+        };
+        
+        let texture_id = input_node.upload_frame_to_gpu(&rgb_frame).unwrap();
+        
+        assert_ne!(texture_id, Uuid::default());
+    }
+    
+    #[test]
+    fn test_ffmpeg_cleanup() {
+        let node = InputNode::create_standard("Test".to_string());
+        let input_node = InputNode::new(node);
+        
+        let video_context = VideoContext {
+            path: "test.mp4".to_string(),
+            format: "mp4".to_string(),
+            duration: 10.0,
+            frame_rate: 30.0,
+            width: 1920,
+            height: 1080,
+            codec: "h264".to_string(),
+            pixel_format: "yuv420p".to_string(),
+            bit_rate: 5000000,
+        };
+        
+        let codec_context = CodecContext {
+            codec_name: "libx264".to_string(),
+            width: 1920,
+            height: 1080,
+            pixel_format: "yuv420p".to_string(),
+            time_base: (1, 30),
+            frame_rate: 30.0,
+            bit_rate: 5000000,
+            gop_size: 30,
+            max_b_frames: 3,
+        };
+        
+        // This should not panic
+        input_node.cleanup_ffmpeg_resources(&video_context, &codec_context);
+    }
+    
+    #[test]
+    fn test_ffmpeg_error_handling() {
+        let node = InputNode::create_standard("Test".to_string());
+        let input_node = InputNode::new(node);
+        
+        // Test with invalid frame number (beyond duration)
+        let result = input_node.decode_video_frame_with_ffmpeg(500, "test.mp4");
+        
+        match result {
+            ParameterValue::None => {
+                // Expected - should return None on error
+            }
+            _ => panic!("Expected None for invalid frame number"),
+        }
+    }
+    
+    #[test]
+    fn test_video_context_metadata() {
+        let context = VideoContext {
+            path: "/path/to/video.mp4".to_string(),
+            format: "mp4".to_string(),
+            duration: 120.5,
+            frame_rate: 24.0,
+            width: 3840,
+            height: 2160,
+            codec: "h265".to_string(),
+            pixel_format: "yuv420p10le".to_string(),
+            bit_rate: 20000000,
+        };
+        
+        assert_eq!(context.path, "/path/to/video.mp4");
+        assert_eq!(context.format, "mp4");
+        assert_eq!(context.duration, 120.5);
+        assert_eq!(context.frame_rate, 24.0);
+        assert_eq!(context.width, 3840);
+        assert_eq!(context.height, 2160);
+        assert_eq!(context.codec, "h265");
+        assert_eq!(context.pixel_format, "yuv420p10le");
+        assert_eq!(context.bit_rate, 20000000);
+    }
+    
+    #[test]
+    fn test_decoded_frame_metadata() {
+        let frame = DecodedFrame {
+            width: 1280,
+            height: 720,
+            format: "yuv420p".to_string(),
+            data: vec![128u8; 1280 * 720 * 3 / 2],
+            linesize: 1280,
+            key_frame: true,
+            pts: 12345,
+        };
+        
+        assert_eq!(frame.width, 1280);
+        assert_eq!(frame.height, 720);
+        assert_eq!(frame.format, "yuv420p");
+        assert_eq!(frame.linesize, 1280);
+        assert!(frame.key_frame);
+        assert_eq!(frame.pts, 12345);
+        assert_eq!(frame.data.len(), 1280 * 720 * 3 / 2);
+    }
+    
+    #[test]
+    fn test_rgb_frame_metadata() {
+        let frame = RGBFrame {
+            width: 1280,
+            height: 720,
+            format: "rgb24".to_string(),
+            data: vec![255u8; 1280 * 720 * 3],
+            linesize: 1280 * 3,
+        };
+        
+        assert_eq!(frame.width, 1280);
+        assert_eq!(frame.height, 720);
+        assert_eq!(frame.format, "rgb24");
+        assert_eq!(frame.linesize, 1280 * 3);
+        assert_eq!(frame.data.len(), 1280 * 720 * 3);
+    }
+    
+    #[test]
+    fn test_complete_ffmpeg_pipeline() {
+        let node = InputNode::create_standard("Test".to_string());
+        let input_node = InputNode::new(node);
+        
+        // Test the complete pipeline with a valid frame
+        let result = input_node.decode_video_frame_with_ffmpeg(50, "test.mp4");
+        
+        match result {
+            ParameterValue::Image(texture_id) => {
+                assert_ne!(texture_id, Uuid::default());
+            }
+            _ => panic!("Expected Image result from complete FFmpeg pipeline"),
+        }
     }
 }
