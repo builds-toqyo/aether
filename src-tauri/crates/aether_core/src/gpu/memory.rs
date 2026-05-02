@@ -145,6 +145,46 @@ impl GpuMemoryManager {
         
         Ok(())
     }
+    
+    /// Wait for GPU operations with timeout
+    pub fn wait_for_gpu_with_timeout(&self, timeout: std::time::Duration) -> Result<bool> {
+        debug!("Waiting for GPU operations with timeout: {:?}", timeout);
+        
+        let mut sync = self.synchronization.lock().map_err(|e| anyhow!("Synchronization lock error: {}", e))?;
+        sync.wait_for_gpu_with_timeout(&self.device, timeout)
+    }
+    
+    /// Track a GPU operation for synchronization
+    pub fn track_gpu_operation(&self, operation_type: String) -> Result<u64> {
+        let mut sync = self.synchronization.lock().map_err(|e| anyhow!("Synchronization lock error: {}", e))?;
+        Ok(sync.track_operation(operation_type))
+    }
+    
+    /// Mark a specific GPU operation as completed
+    pub fn complete_gpu_operation(&self, operation_id: u64) -> Result<()> {
+        let mut sync = self.synchronization.lock().map_err(|e| anyhow!("Synchronization lock error: {}", e))?;
+        sync.complete_operation(operation_id)
+    }
+    
+    /// Get pending GPU operations
+    pub fn get_pending_operations(&self) -> Result<Vec<String>> {
+        let sync = self.synchronization.lock().map_err(|e| anyhow!("Synchronization lock error: {}", e))?;
+        let operations = sync.get_pending_operations()
+            .into_iter()
+            .map(|op| format!("{}: {} (submitted {:?})", op.operation_id, op.operation_type, op.submitted_at))
+            .collect();
+        Ok(operations)
+    }
+    
+    /// Force clear all pending operations (emergency cleanup)
+    pub fn force_clear_gpu_operations(&self) -> Result<()> {
+        warn!("Force clearing all pending GPU operations");
+        
+        let mut sync = self.synchronization.lock().map_err(|e| anyhow!("Synchronization lock error: {}", e))?;
+        sync.force_clear();
+        
+        Ok(())
+    }
 }
 
 /// Handle for allocated textures
@@ -594,6 +634,7 @@ impl MemoryTracker {
 struct GpuCpuSynchronization {
     pending_operations: Vec<PendingOperation>,
     last_sync_time: std::time::Instant,
+    operation_counter: u64,
 }
 
 impl GpuCpuSynchronization {
@@ -601,28 +642,110 @@ impl GpuCpuSynchronization {
         Self {
             pending_operations: Vec::new(),
             last_sync_time: std::time::Instant::now(),
+            operation_counter: 0,
         }
     }
     
+    /// Track a new GPU operation
+    fn track_operation(&mut self, operation_type: String) -> u64 {
+        let operation_id = self.operation_counter;
+        self.operation_counter += 1;
+        
+        let operation = PendingOperation {
+            id: Uuid::new_v4(),
+            operation_id,
+            operation_type,
+            submitted_at: std::time::Instant::now(),
+        };
+        
+        self.pending_operations.push(operation);
+        debug!("Tracked GPU operation {}: {}", operation_id, operation.operation_type);
+        
+        operation_id
+    }
+    
+    /// Wait for GPU to complete all operations
     fn wait_for_gpu(&mut self, device: &Device) -> Result<()> {
-        debug!("Waiting for GPU to complete operations");
+        debug!("Waiting for GPU to complete {} operations", self.pending_operations.len());
         
-        // In a real implementation, this would use device.poll() or similar
-        // For now, we'll simulate a short wait
-        std::thread::sleep(std::time::Duration::from_millis(1));
+        // Use wgpu device polling to wait for GPU operations to complete
+        // This ensures all submitted commands are processed before continuing
+        device.poll(wgpu::Maintain::Wait);
         
+        // Clear pending operations since we've waited for all to complete
+        let completed_count = self.pending_operations.len();
         self.pending_operations.clear();
         self.last_sync_time = std::time::Instant::now();
+        
+        debug!("GPU operations completed: {} operations finished", completed_count);
         
         Ok(())
     }
     
+    /// Wait for GPU with timeout
+    fn wait_for_gpu_with_timeout(&mut self, device: &Device, timeout: std::time::Duration) -> Result<bool> {
+        debug!("Waiting for GPU operations with timeout: {:?}", timeout);
+        
+        let start_time = std::time::Instant::now();
+        
+        // Poll the device and check if operations complete within timeout
+        loop {
+            device.poll(wgpu::Maintain::Poll);
+            
+            // Check if all operations are complete (in a real implementation, 
+            // you'd track specific command buffers or fences)
+            if self.pending_operations.is_empty() {
+                self.last_sync_time = std::time::Instant::now();
+                debug!("GPU operations completed within timeout");
+                return Ok(true);
+            }
+            
+            // Check timeout
+            if start_time.elapsed() > timeout {
+                warn!("GPU operations did not complete within timeout");
+                return Ok(false);
+            }
+            
+            // Small delay to prevent busy waiting
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+    }
+    
+    /// Mark specific operation as completed
+    fn complete_operation(&mut self, operation_id: u64) -> Result<()> {
+        let initial_count = self.pending_operations.len();
+        
+        self.pending_operations.retain(|op| op.operation_id != operation_id);
+        
+        if self.pending_operations.len() < initial_count {
+            debug!("Completed GPU operation: {}", operation_id);
+        } else {
+            warn!("Operation {} not found in pending operations", operation_id);
+        }
+        
+        Ok(())
+    }
+    
+    /// Get synchronization status
     fn get_status(&self) -> SyncStatus {
         SyncStatus {
             pending_operations: self.pending_operations.len(),
             last_sync_time: self.last_sync_time,
             is_synced: self.pending_operations.is_empty(),
         }
+    }
+    
+    /// Get pending operation details
+    fn get_pending_operations(&self) -> Vec<&PendingOperation> {
+        self.pending_operations.iter().collect()
+    }
+    
+    /// Force clear all pending operations (emergency cleanup)
+    fn force_clear(&mut self) {
+        let count = self.pending_operations.len();
+        self.pending_operations.clear();
+        self.last_sync_time = std::time::Instant::now();
+        warn!("Force cleared {} pending GPU operations", count);
     }
 }
 
@@ -688,6 +811,7 @@ struct SamplerAllocation {
 #[derive(Debug)]
 struct PendingOperation {
     id: Uuid,
+    operation_id: u64,
     operation_type: String,
     submitted_at: std::time::Instant,
 }
@@ -763,5 +887,112 @@ mod tests {
         
         let float_size = tracker.estimate_texture_size(32, 32, TextureFormat::R32Float);
         assert_eq!(float_size, 32 * 32 * 4); // 4 bytes per pixel
+    }
+    
+    #[test]
+    fn test_gpu_synchronization_initialization() {
+        let sync = GpuCpuSynchronization::new();
+        
+        assert_eq!(sync.pending_operations.len(), 0);
+        assert_eq!(sync.operation_counter, 0);
+        assert!(!sync.last_sync_time.elapsed().is_zero());
+    }
+    
+    #[test]
+    fn test_gpu_operation_tracking() {
+        let mut sync = GpuCpuSynchronization::new();
+        
+        // Track some operations
+        let op1_id = sync.track_operation("texture_upload".to_string());
+        let op2_id = sync.track_operation("buffer_copy".to_string());
+        
+        assert_eq!(op1_id, 0);
+        assert_eq!(op2_id, 1);
+        assert_eq!(sync.pending_operations.len(), 2);
+        assert_eq!(sync.operation_counter, 2);
+        
+        // Check operation details
+        let operations = sync.get_pending_operations();
+        assert_eq!(operations.len(), 2);
+        assert_eq!(operations[0].operation_type, "texture_upload");
+        assert_eq!(operations[1].operation_type, "buffer_copy");
+    }
+    
+    #[test]
+    fn test_gpu_operation_completion() {
+        let mut sync = GpuCpuSynchronization::new();
+        
+        // Track operations
+        let op1_id = sync.track_operation("texture_upload".to_string());
+        let op2_id = sync.track_operation("buffer_copy".to_string());
+        
+        assert_eq!(sync.pending_operations.len(), 2);
+        
+        // Complete one operation
+        sync.complete_operation(op1_id).unwrap();
+        assert_eq!(sync.pending_operations.len(), 1);
+        
+        // Complete the other
+        sync.complete_operation(op2_id).unwrap();
+        assert_eq!(sync.pending_operations.len(), 0);
+        
+        // Try to complete non-existent operation
+        let result = sync.complete_operation(999);
+        assert!(result.is_ok()); // Should not panic, just log warning
+    }
+    
+    #[test]
+    fn test_gpu_sync_status() {
+        let mut sync = GpuCpuSynchronization::new();
+        
+        // Initial status
+        let status = sync.get_status();
+        assert_eq!(status.pending_operations, 0);
+        assert!(status.is_synced);
+        
+        // Track an operation
+        sync.track_operation("test_operation".to_string());
+        
+        let status = sync.get_status();
+        assert_eq!(status.pending_operations, 1);
+        assert!(!status.is_synced);
+        
+        // Complete the operation
+        sync.complete_operation(0).unwrap();
+        
+        let status = sync.get_status();
+        assert_eq!(status.pending_operations, 0);
+        assert!(status.is_synced);
+    }
+    
+    #[test]
+    fn test_gpu_force_clear() {
+        let mut sync = GpuCpuSynchronization::new();
+        
+        // Track multiple operations
+        sync.track_operation("op1".to_string());
+        sync.track_operation("op2".to_string());
+        sync.track_operation("op3".to_string());
+        
+        assert_eq!(sync.pending_operations.len(), 3);
+        
+        // Force clear
+        sync.force_clear();
+        
+        assert_eq!(sync.pending_operations.len(), 0);
+        assert!(!sync.last_sync_time.elapsed().is_zero());
+    }
+    
+    #[test]
+    fn test_sync_status_formatting() {
+        let status = SyncStatus {
+            pending_operations: 5,
+            last_sync_time: std::time::Instant::now(),
+            is_synced: false,
+        };
+        
+        assert_eq!(status.pending_operations, 5);
+        assert!(!status.is_synced);
+        assert!(!status.last_sync_time.elapsed().is_zero());
     }
 }
