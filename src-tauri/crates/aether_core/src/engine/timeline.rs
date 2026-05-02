@@ -319,7 +319,7 @@ impl Timeline {
     
     /// Get all tracks in the timeline
     pub fn tracks(&self) -> &HashMap<String, Track> {
-        &self.tracks
+        &self.tracks    
     }
     
     /// Check if the timeline is currently playing
