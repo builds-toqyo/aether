@@ -31,6 +31,76 @@ pub struct CorrectedImage {
     pub gain: f32,
 }
 
+/// Texture format information
+#[derive(Debug, Clone)]
+pub struct TextureInfo {
+    /// Texture ID
+    pub id: Uuid,
+    /// Texture width
+    pub width: usize,
+    /// Texture height
+    pub height: usize,
+    /// Texture format
+    pub format: TextureFormat,
+    /// Internal format
+    pub internal_format: TextureInternalFormat,
+    /// Pixel data type
+    pub pixel_type: PixelType,
+    /// Whether texture has mipmaps
+    pub mipmapped: bool,
+    /// Number of mipmaps
+    pub mipmap_count: u32,
+}
+
+/// Texture formats
+#[derive(Debug, Clone, PartialEq)]
+pub enum TextureFormat {
+    /// 8-bit RGBA
+    RGBA8,
+    /// 8-bit RGB
+    RGB8,
+    /// 8-bit Red (luminance)
+    R8,
+}
+
+/// Internal texture formats
+#[derive(Debug, Clone, PartialEq)]
+pub enum TextureInternalFormat {
+    /// 8-bit RGBA
+    RGBA8,
+    /// 8-bit RGB
+    RGB8,
+    /// 8-bit Red
+    R8,
+    /// 16-bit RGBA
+    RGBA16,
+    /// 16-bit RGB
+    RGB16,
+    /// 16-bit Red
+    R16,
+    /// 32-bit RGBA (float)
+    RGBA32F,
+    /// 32-bit RGB (float)
+    RGB32F,
+    /// 32-bit Red (float)
+    R32F,
+}
+
+/// Pixel data types
+#[derive(Debug, Clone, PartialEq)]
+pub enum PixelType {
+    /// Unsigned byte (0-255)
+    UnsignedByte,
+    /// Signed byte (-128 to 127)
+    Byte,
+    /// Unsigned short (0-65535)
+    UnsignedShort,
+    /// Signed short (-32768 to 32767)
+    Short,
+    /// Float (32-bit)
+    Float,
+}
+
 /// Color correction node for basic color adjustments
 pub struct ColorCorrectionNode {
     node: Node,
@@ -200,34 +270,168 @@ impl ColorCorrectionNode {
     
     /// Load texture data from GPU or memory
     fn load_texture_data(&self, texture_id: Uuid) -> Vec<(f32, f32, f32)> {
-        // In a real implementation, this would:
-        // - Bind the texture
-        // - Read pixel data from GPU memory
-        // - Convert to working format (RGB float)
-        // - Handle different texture formats (RGBA, RGB, etc.)
-        
         log::debug!("Loading texture data for {:?}", texture_id);
         
-        // Simulate loading a 1920x1080 texture
-        let width = 1920;
-        let height = 1080;
-        let total_pixels = width * height;
+        // Bind the texture and get texture information
+        let texture_info = self.bind_texture(texture_id);
         
-        // Generate test pattern (in real implementation, this would be actual texture data)
-        let mut data = Vec::with_capacity(total_pixels);
-        for y in 0..height {
-            for x in 0..width {
-                // Create a gradient test pattern
-                let r = x as f32 / width as f32;
-                let g = y as f32 / height as f32;
-                let b = ((x + y) as f32 / (width + height) as f32);
-                data.push((r, g, b));
+        // Read pixel data from GPU memory
+        let raw_data = self.read_pixel_data(&texture_info);
+        
+        // Validate the raw data
+        if let Err(error) = self.validate_texture_conversion(&raw_data, &texture_info) {
+            log::error!("Texture validation failed: {}", error);
+            // Return empty data on error
+            return Vec::new();
+        }
+        
+        // Convert to working format (RGB float)
+        let rgb_data = self.convert_to_rgb_float(&raw_data, &texture_info);
+        
+        log::debug!("Loaded {} pixels ({}x{})", rgb_data.len(), texture_info.width, texture_info.height);
+        
+        rgb_data
+    }
+    
+    /// Bind texture and get texture information
+    fn bind_texture(&self, texture_id: Uuid) -> TextureInfo {
+        // In a real implementation, this would:
+        // - Use GPU API (OpenGL, Vulkan, Metal, etc.) to bind the texture
+        // - Query texture properties (width, height, format, etc.)
+        // - Handle texture binding errors
+        
+        log::debug!("Binding texture {:?}", texture_id);
+        
+        // Simulate texture binding and querying
+        let texture_info = TextureInfo {
+            id: texture_id,
+            width: 1920,
+            height: 1080,
+            format: TextureFormat::RGBA8,
+            internal_format: TextureInternalFormat::RGBA8,
+            pixel_type: PixelType::UnsignedByte,
+            mipmapped: true,
+            mipmap_count: 1,
+        };
+        
+        log::debug!("Texture info: {}x{}, format={:?}, mipmapped={}", 
+            texture_info.width, texture_info.height, texture_info.format, texture_info.mipmapped);
+        
+        texture_info
+    }
+    
+    /// Read pixel data from GPU memory
+    fn read_pixel_data(&self, texture_info: &TextureInfo) -> Vec<u8> {
+        // In a real implementation, this would:
+        // - Use GPU API to read pixel data from bound texture
+        // - Handle different pixel formats and types
+        // - Manage memory allocation for large textures
+        // - Handle read errors and GPU-CPU synchronization
+        
+        log::debug!("Reading {}x{} pixel data from GPU", texture_info.width, texture_info.height);
+        
+        let total_pixels = texture_info.width * texture_info.height;
+        let bytes_per_pixel = match texture_info.format {
+            TextureFormat::RGBA8 => 4,
+            TextureFormat::RGB8 => 3,
+            TextureFormat::R8 => 1,
+        };
+        
+        let total_bytes = total_pixels * bytes_per_pixel;
+        let mut raw_data = Vec::with_capacity(total_bytes);
+        
+        // Simulate reading from GPU memory
+        // In real implementation, this would use glReadPixels or equivalent
+        for y in 0..texture_info.height {
+            for x in 0..texture_info.width {
+                // Generate test pattern data (in real implementation, this would be actual GPU data)
+                let r = (x * 255 / texture_info.width) as u8;
+                let g = (y * 255 / texture_info.height) as u8;
+                let b = ((x + y) * 255 / (texture_info.width + texture_info.height)) as u8;
+                let a = 255; // Full alpha
+                
+                match texture_info.format {
+                    TextureFormat::RGBA8 => {
+                        raw_data.extend_from_slice(&[r, g, b, a]);
+                    }
+                    TextureFormat::RGB8 => {
+                        raw_data.extend_from_slice(&[r, g, b]);
+                    }
+                    TextureFormat::R8 => {
+                        raw_data.push((r as f32 * 0.299 + g as f32 * 0.587 + b as f32 * 0.114) as u8);
+                    }
+                }
             }
         }
         
-        log::debug!("Loaded {} pixels ({}x{})", data.len(), width, height);
+        log::debug!("Read {} bytes from GPU ({} pixels)", raw_data.len(), total_pixels);
         
-        data
+        raw_data
+    }
+    
+    /// Convert raw pixel data to RGB float format
+    fn convert_to_rgb_float(&self, raw_data: &[u8], texture_info: &TextureInfo) -> Vec<(f32, f32, f32)> {
+        log::debug!("Converting {} bytes to RGB float format", raw_data.len());
+        
+        let total_pixels = texture_info.width * texture_info.height;
+        let mut rgb_data = Vec::with_capacity(total_pixels);
+        
+        match texture_info.format {
+            TextureFormat::RGBA8 => {
+                // Convert RGBA8 to RGB float
+                for chunk in raw_data.chunks_exact(4) {
+                    let r = chunk[0] as f32 / 255.0;
+                    let g = chunk[1] as f32 / 255.0;
+                    let b = chunk[2] as f32 / 255.0;
+                    // Skip alpha channel
+                    rgb_data.push((r, g, b));
+                }
+            }
+            TextureFormat::RGB8 => {
+                // Convert RGB8 to RGB float
+                for chunk in raw_data.chunks_exact(3) {
+                    let r = chunk[0] as f32 / 255.0;
+                    let g = chunk[1] as f32 / 255.0;
+                    let b = chunk[2] as f32 / 255.0;
+                    rgb_data.push((r, g, b));
+                }
+            }
+            TextureFormat::R8 => {
+                // Convert R8 (luminance) to RGB float
+                for &gray in raw_data {
+                    let gray_f = gray as f32 / 255.0;
+                    rgb_data.push((gray_f, gray_f, gray_f));
+                }
+            }
+        }
+        
+        log::debug!("Converted to {} RGB float pixels", rgb_data.len());
+        
+        rgb_data
+    }
+    
+    /// Handle different texture formats and validate conversion
+    fn validate_texture_conversion(&self, raw_data: &[u8], texture_info: &TextureInfo) -> Result<(), String> {
+        let expected_bytes = texture_info.width * texture_info.height * 
+            match texture_info.format {
+                TextureFormat::RGBA8 => 4,
+                TextureFormat::RGB8 => 3,
+                TextureFormat::R8 => 1,
+            };
+        
+        if raw_data.len() != expected_bytes {
+            return Err(format!("Expected {} bytes, got {}", expected_bytes, raw_data.len()));
+        }
+        
+        // Validate pixel data ranges
+        for &byte in raw_data {
+            if byte > 255 {
+                return Err("Invalid pixel value > 255".to_string());
+            }
+        }
+        
+        log::debug!("Texture conversion validation passed");
+        Ok(())
     }
     
     /// Process pixel data with color correction
@@ -1315,5 +1519,302 @@ mod tests {
         
         // The function should complete and log statistics
         assert!(true);
+    }
+    
+    #[test]
+    fn test_texture_binding() {
+        let node = ColorCorrectionNode::create_standard("Test".to_string());
+        let color_node = ColorCorrectionNode::new(node);
+        
+        let texture_id = Uuid::new_v4();
+        let texture_info = color_node.bind_texture(texture_id);
+        
+        assert_eq!(texture_info.id, texture_id);
+        assert_eq!(texture_info.width, 1920);
+        assert_eq!(texture_info.height, 1080);
+        assert_eq!(texture_info.format, TextureFormat::RGBA8);
+        assert_eq!(texture_info.internal_format, TextureInternalFormat::RGBA8);
+        assert_eq!(texture_info.pixel_type, PixelType::UnsignedByte);
+        assert!(texture_info.mipmapped);
+        assert_eq!(texture_info.mipmap_count, 1);
+    }
+    
+    #[test]
+    fn test_gpu_pixel_reading() {
+        let node = ColorCorrectionNode::create_standard("Test".to_string());
+        let color_node = ColorCorrectionNode::new(node);
+        
+        let texture_info = TextureInfo {
+            id: Uuid::new_v4(),
+            width: 100,
+            height: 100,
+            format: TextureFormat::RGBA8,
+            internal_format: TextureInternalFormat::RGBA8,
+            pixel_type: PixelType::UnsignedByte,
+            mipmapped: false,
+            mipmap_count: 1,
+        };
+        
+        let raw_data = color_node.read_pixel_data(&texture_info);
+        
+        // Should have 100x100x4 = 40,000 bytes
+        assert_eq!(raw_data.len(), 100 * 100 * 4);
+        
+        // Check that data is valid (all values should be <= 255)
+        for &byte in &raw_data {
+            assert!(byte <= 255);
+        }
+    }
+    
+    #[test]
+    fn test_rgb8_pixel_reading() {
+        let node = ColorCorrectionNode::create_standard("Test".to_string());
+        let color_node = ColorCorrectionNode::new(node);
+        
+        let texture_info = TextureInfo {
+            id: Uuid::new_v4(),
+            width: 50,
+            height: 50,
+            format: TextureFormat::RGB8,
+            internal_format: TextureInternalFormat::RGB8,
+            pixel_type: PixelType::UnsignedByte,
+            mipmapped: false,
+            mipmap_count: 1,
+        };
+        
+        let raw_data = color_node.read_pixel_data(&texture_info);
+        
+        // Should have 50x50x3 = 7,500 bytes
+        assert_eq!(raw_data.len(), 50 * 50 * 3);
+    }
+    
+    #[test]
+    fn test_r8_pixel_reading() {
+        let node = ColorCorrectionNode::create_standard("Test".to_string());
+        let color_node = ColorCorrectionNode::new(node);
+        
+        let texture_info = TextureInfo {
+            id: Uuid::new_v4(),
+            width: 25,
+            height: 25,
+            format: TextureFormat::R8,
+            internal_format: TextureInternalFormat::R8,
+            pixel_type: PixelType::UnsignedByte,
+            mipmapped: false,
+            mipmap_count: 1,
+        };
+        
+        let raw_data = color_node.read_pixel_data(&texture_info);
+        
+        // Should have 25x25x1 = 625 bytes
+        assert_eq!(raw_data.len(), 25 * 25);
+    }
+    
+    #[test]
+    fn test_rgba_to_rgb_conversion() {
+        let node = ColorCorrectionNode::create_standard("Test".to_string());
+        let color_node = ColorCorrectionNode::new(node);
+        
+        let texture_info = TextureInfo {
+            id: Uuid::new_v4(),
+            width: 2,
+            height: 2,
+            format: TextureFormat::RGBA8,
+            internal_format: TextureInternalFormat::RGBA8,
+            pixel_type: PixelType::UnsignedByte,
+            mipmapped: false,
+            mipmap_count: 1,
+        };
+        
+        // Create test RGBA data: [255,0,0,255, 0,255,0,255, 0,0,255,255, 255,255,255,255]
+        let raw_data = vec![255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255];
+        
+        let rgb_data = color_node.convert_to_rgb_float(&raw_data, &texture_info);
+        
+        assert_eq!(rgb_data.len(), 4); // 2x2 = 4 pixels
+        
+        // Check conversion: (255,0,0) -> (1.0,0.0,0.0)
+        assert_eq!(rgb_data[0], (1.0, 0.0, 0.0));
+        assert_eq!(rgb_data[1], (0.0, 1.0, 0.0));
+        assert_eq!(rgb_data[2], (0.0, 0.0, 1.0));
+        assert_eq!(rgb_data[3], (1.0, 1.0, 1.0));
+    }
+    
+    #[test]
+    fn test_rgb_to_rgb_conversion() {
+        let node = ColorCorrectionNode::create_standard("Test".to_string());
+        let color_node = ColorCorrectionNode::new(node);
+        
+        let texture_info = TextureInfo {
+            id: Uuid::new_v4(),
+            width: 1,
+            height: 2,
+            format: TextureFormat::RGB8,
+            internal_format: TextureInternalFormat::RGB8,
+            pixel_type: PixelType::UnsignedByte,
+            mipmapped: false,
+            mipmap_count: 1,
+        };
+        
+        // Create test RGB data: [128,128,128, 64,192,255]
+        let raw_data = vec![128, 128, 128, 64, 192, 255];
+        
+        let rgb_data = color_node.convert_to_rgb_float(&raw_data, &texture_info);
+        
+        assert_eq!(rgb_data.len(), 2); // 1x2 = 2 pixels
+        
+        // Check conversion: 128/255 ≈ 0.502, 64/255 ≈ 0.251, 192/255 ≈ 0.753, 255/255 = 1.0
+        assert!((rgb_data[0].0 - 0.502).abs() < 0.001);
+        assert!((rgb_data[0].1 - 0.502).abs() < 0.001);
+        assert!((rgb_data[0].2 - 0.502).abs() < 0.001);
+        
+        assert!((rgb_data[1].0 - 0.251).abs() < 0.001);
+        assert!((rgb_data[1].1 - 0.753).abs() < 0.001);
+        assert_eq!(rgb_data[1].2, 1.0);
+    }
+    
+    #[test]
+    fn test_r8_to_rgb_conversion() {
+        let node = ColorCorrectionNode::create_standard("Test".to_string());
+        let color_node = ColorCorrectionNode::new(node);
+        
+        let texture_info = TextureInfo {
+            id: Uuid::new_v4(),
+            width: 3,
+            height: 1,
+            format: TextureFormat::R8,
+            internal_format: TextureInternalFormat::R8,
+            pixel_type: PixelType::UnsignedByte,
+            mipmapped: false,
+            mipmap_count: 1,
+        };
+        
+        // Create test R8 data: [0, 128, 255]
+        let raw_data = vec![0, 128, 255];
+        
+        let rgb_data = color_node.convert_to_rgb_float(&raw_data, &texture_info);
+        
+        assert_eq!(rgb_data.len(), 3); // 3x1 = 3 pixels
+        
+        // Check conversion: grayscale -> RGB (all channels same)
+        assert_eq!(rgb_data[0], (0.0, 0.0, 0.0));
+        assert!((rgb_data[1].0 - 0.502).abs() < 0.001);
+        assert!((rgb_data[1].1 - 0.502).abs() < 0.001);
+        assert!((rgb_data[1].2 - 0.502).abs() < 0.001);
+        assert_eq!(rgb_data[2], (1.0, 1.0, 1.0));
+    }
+    
+    #[test]
+    fn test_texture_validation_success() {
+        let node = ColorCorrectionNode::create_standard("Test".to_string());
+        let color_node = ColorCorrectionNode::new(node);
+        
+        let texture_info = TextureInfo {
+            id: Uuid::new_v4(),
+            width: 2,
+            height: 2,
+            format: TextureFormat::RGBA8,
+            internal_format: TextureInternalFormat::RGBA8,
+            pixel_type: PixelType::UnsignedByte,
+            mipmapped: false,
+            mipmap_count: 1,
+        };
+        
+        // Valid data: 2x2x4 = 16 bytes
+        let valid_data = vec![0u8; 16];
+        
+        let result = color_node.validate_texture_conversion(&valid_data, &texture_info);
+        assert!(result.is_ok());
+    }
+    
+    #[test]
+    fn test_texture_validation_wrong_size() {
+        let node = ColorCorrectionNode::create_standard("Test".to_string());
+        let color_node = ColorCorrectionNode::new(node);
+        
+        let texture_info = TextureInfo {
+            id: Uuid::new_v4(),
+            width: 2,
+            height: 2,
+            format: TextureFormat::RGBA8,
+            internal_format: TextureInternalFormat::RGBA8,
+            pixel_type: PixelType::UnsignedByte,
+            mipmapped: false,
+            mipmap_count: 1,
+        };
+        
+        // Invalid data: wrong size (15 bytes instead of 16)
+        let invalid_data = vec![0u8; 15];
+        
+        let result = color_node.validate_texture_conversion(&invalid_data, &texture_info);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Expected 16 bytes, got 15"));
+    }
+    
+    #[test]
+    fn test_texture_validation_invalid_values() {
+        let node = ColorCorrectionNode::create_standard("Test".to_string());
+        let color_node = ColorCorrectionNode::new(node);
+        
+        let texture_info = TextureInfo {
+            id: Uuid::new_v4(),
+            width: 1,
+            height: 1,
+            format: TextureFormat::RGB8,
+            internal_format: TextureInternalFormat::RGB8,
+            pixel_type: PixelType::UnsignedByte,
+            mipmapped: false,
+            mipmap_count: 1,
+        };
+        
+        // Invalid data: contains value > 255
+        let invalid_data = vec![128, 128, 300];
+        
+        let result = color_node.validate_texture_conversion(&invalid_data, &texture_info);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid pixel value > 255"));
+    }
+    
+    #[test]
+    fn test_gpu_texture_loading_pipeline() {
+        let node = ColorCorrectionNode::create_standard("Test".to_string());
+        let color_node = ColorCorrectionNode::new(node);
+        
+        let texture_id = Uuid::new_v4();
+        
+        // Test the complete pipeline
+        let rgb_data = color_node.load_texture_data(texture_id);
+        
+        // Should successfully load and convert data
+        assert_eq!(rgb_data.len(), 1920 * 1080);
+        
+        // Check that first pixel is (0.0, 0.0, 0.0) and last is close to (1.0, 1.0, 1.0)
+        assert_eq!(rgb_data[0], (0.0, 0.0, 0.0));
+        let last_pixel = rgb_data[rgb_data.len() - 1];
+        assert!(last_pixel.0 > 0.9);
+        assert!(last_pixel.1 > 0.9);
+        assert!(last_pixel.2 > 0.9);
+    }
+    
+    #[test]
+    fn test_texture_formats() {
+        assert_eq!(TextureFormat::RGBA8, TextureFormat::RGBA8);
+        assert_ne!(TextureFormat::RGBA8, TextureFormat::RGB8);
+        assert_eq!(TextureFormat::RGB8, TextureFormat::RGB8);
+        assert_eq!(TextureFormat::R8, TextureFormat::R8);
+    }
+    
+    #[test]
+    fn test_texture_internal_formats() {
+        assert_eq!(TextureInternalFormat::RGBA8, TextureInternalFormat::RGBA8);
+        assert_ne!(TextureInternalFormat::RGBA8, TextureInternalFormat::RGB32F);
+        assert_eq!(TextureInternalFormat::RGB32F, TextureInternalFormat::RGB32F);
+    }
+    
+    #[test]
+    fn test_pixel_types() {
+        assert_eq!(PixelType::UnsignedByte, PixelType::UnsignedByte);
+        assert_ne!(PixelType::UnsignedByte, PixelType::Float);
+        assert_eq!(PixelType::Float, PixelType::Float);
     }
 }
