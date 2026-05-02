@@ -3,6 +3,16 @@ use aether_types::{Node, NodeType, PinDataType, ParameterValue};
 use std::collections::HashMap;
 use uuid::Uuid;
 
+pub use super::basic::{
+    InputNode, OutputNode, MergeNode, TransformNode, ColorCorrectionNode, BlurNode,
+    VideoInputNode, ImageInputNode, SequenceInputNode,
+    VideoOutputNode, ImageSequenceOutputNode,
+    TwoInputMergeNode, MultiInputMergeNode, AdditiveMergeNode, ScreenMergeNode,
+    Transform2DNode, PositionNode, ScaleNode, RotationNode,
+    BasicColorCorrectionNode, WhiteBalanceNode,
+    GaussianBlurNode, MotionBlurNode, RadialBlurNode,
+};
+
 /// Core node implementations for basic functionality
 pub struct CoreNodes;
 
@@ -502,6 +512,7 @@ impl CoreNodeFactory {
             NodeType::Transform => Ok(CoreNodes::create_transform_node(node)),
             NodeType::Merge => Ok(CoreNodes::create_merge_node(node)),
             NodeType::ColorCorrection => Ok(Box::new(ColorCorrectionNode::new(node))),
+            NodeType::Blur => Ok(Box::new(BlurNode::new(node))),
             _ => Err(NodeError::ExecutionFailed(format!("Unsupported node type: {:?}", node_type))),
         }
     }
@@ -531,6 +542,11 @@ impl CoreNodeFactory {
         registry.register_node_type(NodeType::ColorCorrection, || {
             let node = aether_types::Node::new(NodeType::ColorCorrection, "Color Correction".to_string());
             Box::new(ColorCorrectionNode::new(node))
+        });
+        
+        registry.register_node_type(NodeType::Blur, || {
+            let node = aether_types::Node::new(NodeType::Blur, "Blur".to_string());
+            Box::new(BlurNode::new(node))
         });
     }
 }
