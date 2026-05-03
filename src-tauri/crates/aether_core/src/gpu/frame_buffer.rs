@@ -75,8 +75,8 @@ impl FrameBufferManager {
             texture: Arc::new(texture),
             view: Arc::new(view),
             created_at: std::time::Instant::now(),
-            last_used: std::time::Instant::now(),
-            access_count: 0,
+            last_used: std::sync::Mutex::new(std::time::Instant::now()),
+            access_count: std::sync::atomic::AtomicU64::new(0),
         };
         
         // Store frame buffer
@@ -185,12 +185,17 @@ impl FrameBufferManager {
     pub fn recycle_frame_buffer(&self, frame_buffer_id: &Uuid) -> Result<()> {
         debug!("Recycling frame buffer: {}", frame_buffer_id);
         
-        let mut frame_buffers = self.frame_buffers.lock().map_err(|e| anyhow!("Frame buffer lock error: {}", e))?;
+        let frame_buffers = self.frame_buffers.lock().map_err(|e| anyhow!("Frame buffer lock error: {}", e))?;
         
-        if let Some(frame_buffer) = frame_buffers.get_mut(frame_buffer_id) {
-            frame_buffer.last_used = std::time::Instant::now();
-            frame_buffer.access_count += 1;
-            debug!("Frame buffer recycled: {} (access count: {})", frame_buffer_id, frame_buffer.access_count);
+        if let Some(frame_buffer) = frame_buffers.get(frame_buffer_id) {
+            // Update last used time
+            if let Ok(mut last_used) = frame_buffer.last_used.lock() {
+                *last_used = std::time::Instant::now();
+            }
+            
+            // Increment access count
+            let access_count = frame_buffer.access_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            debug!("Frame buffer recycled: {} (access count: {})", frame_buffer_id, access_count);
         }
         
         Ok(())
@@ -226,8 +231,10 @@ impl FrameBufferManager {
         let mut to_remove = Vec::new();
         
         for (id, frame_buffer) in &frame_buffers {
-            if frame_buffer.last_used.elapsed() > max_age {
-                to_remove.push(*id);
+            if let Ok(last_used) = frame_buffer.last_used.lock() {
+                if last_used.elapsed() > max_age {
+                    to_remove.push(*id);
+                }
             }
         }
         
@@ -333,7 +340,7 @@ impl Default for FrameBufferConfig {
 }
 
 /// Frame buffer entry
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FrameBuffer {
     pub id: Uuid,
     pub width: u32,
@@ -342,8 +349,8 @@ pub struct FrameBuffer {
     pub texture: Arc<Texture>,
     pub view: Arc<TextureView>,
     pub created_at: std::time::Instant,
-    pub last_used: std::time::Instant,
-    pub access_count: u64,
+    pub last_used: std::sync::Mutex<std::time::Instant>,
+    pub access_count: std::sync::atomic::AtomicU64,
 }
 
 /// Handle for a frame buffer
@@ -381,8 +388,13 @@ impl FrameBufferHandle {
     
     /// Mark as used
     pub fn mark_used(&self) {
-        // This would need interior mutability in a real implementation
-        // For now, the manager handles this
+        // Update last used time
+        if let Ok(mut last_used) = self.frame_buffer.last_used.lock() {
+            *last_used = std::time::Instant::now();
+        }
+        
+        // Increment access count
+        self.frame_buffer.access_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
