@@ -5,10 +5,12 @@
 
 pub mod pools;
 pub mod sync;
+pub mod shaders;
 
 // Re-export main GPU memory management types
 pub use pools::{TexturePool, BufferPool, TextureHandle, BufferHandle};
 pub use sync::{GpuCpuSynchronization, MemoryTracker, MemoryStats, SyncStatus, SamplerHandle};
+pub use shaders::{ShaderSystem, ShaderSystemStats};
 
 /// GPU memory manager for handling textures, buffers, and synchronization
 pub struct GpuMemoryManager {
