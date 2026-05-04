@@ -2,9 +2,11 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { TimelineCanvas } from './TimelineCanvas';
+import { TimelineControls } from './TimelineControls';
 import { TimelineRuler } from './TimelineRuler';
 import { TimelineProvider, useTimeline } from './TimelineContext';
 import { Play, Pause, SkipBack, SkipForward, Scissors } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 
 // Types
 interface TimelineClip {
@@ -62,25 +64,94 @@ export const TimelineEditor: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
-    const localTracks: TimelineTrack[] = [];
-    setState(prev => ({ ...prev, tracks: localTracks }));
+    const initializeTimeline = async () => {
+      try {
+        const timelineData = await invoke<any>('get_timeline_info');
+        console.log('Timeline initialized:', timelineData);
+        
+        // Load existing timeline if available
+        if (timelineData && timelineData.tracks) {
+          setState(prev => ({
+            ...prev,
+            tracks: timelineData.tracks,
+            duration: timelineData.duration || prev.duration,
+            currentTime: timelineData.currentTime || prev.currentTime
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to initialize timeline:', error);
+        // Start with empty timeline if backend fails
+        console.log('Starting with empty timeline');
+      }
+    };
+    
+    initializeTimeline();
   }, []);
 
-  const handlePlay = useCallback(() => {
-    setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
+  const handlePlay = useCallback(async () => {
+    try {
+      // Call backend to start/stop playback
+      const action = state.isPlaying ? 'pause' : 'play';
+      await invoke('timeline_playback_control', { action, currentTime: state.currentTime });
+      
+      // Update local state immediately for responsiveness
+      setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
+      console.log(`Timeline ${action} successfully`);
+    } catch (error) {
+      console.error('Failed to control playback:', error);
+      // Fallback to local state update
+      setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
+    }
+  }, [state.isPlaying, state.currentTime]);
+
+  const handleStop = useCallback(async () => {
+    try {
+      // Call backend to stop playback
+      await invoke('timeline_playback_control', { action: 'stop' });
+      
+      // Update local state
+      setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
+      console.log('Timeline stopped successfully');
+    } catch (error) {
+      console.error('Failed to stop timeline:', error);
+      // Fallback to local state update
+      setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
+    }
   }, []);
 
-  const handleStop = useCallback(() => {
-    setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
-  }, []);
+  const handleSkipBack = useCallback(async () => {
+    try {
+      const newTime = Math.max(0, state.currentTime - 10);
+      
+      // Call backend to seek to new time
+      await invoke('timeline_seek', { time: newTime });
+      
+      // Update local state
+      setState(prev => ({ ...prev, currentTime: newTime }));
+      console.log(`Timeline seeked to ${newTime}s`);
+    } catch (error) {
+      console.error('Failed to seek backward:', error);
+      // Fallback to local state update
+      setState(prev => ({ ...prev, currentTime: Math.max(0, prev.currentTime - 10) }));
+    }
+  }, [state.currentTime]);
 
-  const handleSkipBack = useCallback(() => {
-    setState(prev => ({ ...prev, currentTime: Math.max(0, prev.currentTime - 10) }));
-  }, []);
-
-  const handleSkipForward = useCallback(() => {
-    setState(prev => ({ ...prev, currentTime: Math.min(prev.duration, prev.currentTime + 10) }));
-  }, []);
+  const handleSkipForward = useCallback(async () => {
+    try {
+      const newTime = Math.min(state.duration, state.currentTime + 10);
+      
+      // Call backend to seek to new time
+      await invoke('timeline_seek', { time: newTime });
+      
+      // Update local state
+      setState(prev => ({ ...prev, currentTime: newTime }));
+      console.log(`Timeline seeked to ${newTime}s`);
+    } catch (error) {
+      console.error('Failed to seek forward:', error);
+      // Fallback to local state update
+      setState(prev => ({ ...prev, currentTime: Math.min(prev.duration, prev.currentTime + 10) }));
+    }
+  }, [state.currentTime, state.duration]);
 
   // Zoom controls
   const handleZoomIn = useCallback(() => {
@@ -107,44 +178,84 @@ export const TimelineEditor: React.FC = () => {
     }));
   }, []);
 
-  const handleClipMove = useCallback((clipId: string, newTime: number, newTrackId?: string) => {
-    setState(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => ({
-        ...track,
-        clips: track.clips.map(clip => {
-          if (clip.id === clipId) {
-            const updatedClip = { ...clip, startTime: newTime };
-            if (newTrackId) {
-              updatedClip.trackId = newTrackId;
-            }
-            return updatedClip;
-          }
-          return clip;
-        })
-      }))
-    }));
+  const handleClipMove = useCallback(async (clipId: string, newTime: number, newTrackId?: string) => {
+    try {
+      // Call backend to move clip
+      await invoke('timeline_move_clip', { 
+        clipId, 
+        newTime, 
+        newTrackId: newTrackId || null 
+      });
+      
+      // Update local state
+      setState(prev => ({
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip => 
+            clip.id === clipId 
+              ? { ...clip, startTime: newTime, trackId: newTrackId || clip.trackId }
+              : clip
+          )
+        }))
+      }));
+      
+      console.log(`Clip ${clipId} moved to time ${newTime}`);
+    } catch (error) {
+      console.error('Failed to move clip:', error);
+      // Fallback to local state update
+      setState(prev => ({
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip => 
+            clip.id === clipId 
+              ? { ...clip, startTime: newTime, trackId: newTrackId || clip.trackId }
+              : clip
+          )
+        }))
+      }));
+    }
   }, []);
 
-  const handleClipTrim = useCallback((clipId: string, edge: 'start' | 'end', newTime: number) => {
-    setState(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => ({
-        ...track,
-        clips: track.clips.map(clip => {
-          if (clip.id === clipId) {
-            if (edge === 'start') {
-              const duration = clip.duration - (newTime - clip.startTime);
-              return { ...clip, startTime: newTime, duration: Math.max(1, duration) };
-            } else {
-              const duration = newTime - clip.startTime;
-              return { ...clip, duration: Math.max(1, duration) };
-            }
-          }
-          return clip;
-        })
-      }))
-    }));
+  const handleClipTrim = useCallback(async (clipId: string, edge: 'start' | 'end', newTime: number) => {
+    try {
+      // Call backend to trim clip
+      await invoke('timeline_trim_clip', { clipId, edge, newTime });
+      
+      // Update local state
+      setState(prev => ({
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip => 
+            clip.id === clipId 
+              ? edge === 'start'
+                ? { ...clip, startTime: newTime, duration: clip.duration - (newTime - clip.startTime) }
+                : { ...clip, duration: newTime - clip.startTime }
+              : clip
+          )
+        }))
+      }));
+      
+      console.log(`Clip ${clipId} trimmed at ${edge} to ${newTime}`);
+    } catch (error) {
+      console.error('Failed to trim clip:', error);
+      // Fallback to local state update
+      setState(prev => ({
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip => 
+            clip.id === clipId 
+              ? edge === 'start'
+                ? { ...clip, startTime: newTime, duration: clip.duration - (newTime - clip.startTime) }
+                : { ...clip, duration: newTime - clip.startTime }
+              : clip
+          )
+        }))
+      }));
+    }
   }, []);
 
   const handleClipSplit = useCallback((clipId: string, splitTime: number) => {
