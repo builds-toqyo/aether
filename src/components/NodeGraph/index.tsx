@@ -5,7 +5,7 @@ import { NodeGraphCanvas } from './NodeGraphCanvas';
 import { NodeGraphToolbar } from './NodeGraphToolbar';
 import { NodeGraphSidebar } from './NodeGraphSidebar';
 import { NodeGraphProvider, useNodeGraph } from './NodeGraphContext';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
 // Types
@@ -65,10 +65,17 @@ export const NodeGraphEditor: React.FC = () => {
   useEffect(() => {
     const initializeGraph = async () => {
       try {
-        // const graphInfo = await invoke('get_graph_info');
-        console.log('Graph initialized');
+        const graphInfo = await invoke<Graph>('get_graph_info');
+        console.log('Graph initialized:', graphInfo);
+        
+        // Load existing graph if available
+        if (graphInfo && graphInfo.nodes) {
+          setGraph(graphInfo);
+        }
       } catch (error) {
         console.error('Failed to initialize graph:', error);
+        // Start with empty graph if backend fails
+        console.log('Starting with empty graph');
       }
     };
     
@@ -78,10 +85,27 @@ export const NodeGraphEditor: React.FC = () => {
   // Handle node creation
   const handleCreateNode = useCallback(async (nodeType: string, position: { x: number; y: number }) => {
     try {
-      // Mock implementation for now
+      // Call backend to create node
+      const newNode = await invoke<Node>('create_node', {
+        nodeType,
+        position,
+        name: `${nodeType}_${Date.now()}`
+      });
+      
+      // Update local state with the created node
+      setGraph(prev => ({
+        ...prev,
+        nodes: [...prev.nodes, newNode]
+      }));
+      
+      setSelectedNode(newNode);
+      console.log('Node created successfully:', newNode);
+    } catch (error) {
+      console.error('Failed to create node:', error);
+      // Fallback to mock implementation if backend fails
       const nodeId = `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      const newNode: Node = {
+      const mockNode: Node = {
         id: nodeId,
         type: nodeType,
         name: `${nodeType}_${nodeId}`,
@@ -93,21 +117,20 @@ export const NodeGraphEditor: React.FC = () => {
       
       setGraph(prev => ({
         ...prev,
-        nodes: [...prev.nodes, newNode]
+        nodes: [...prev.nodes, mockNode]
       }));
       
-      setSelectedNode(newNode);
-    } catch (error) {
-      console.error('Failed to create node:', error);
+      setSelectedNode(mockNode);
     }
   }, []);
 
   // Handle node deletion
   const handleDeleteNode = useCallback(async (nodeId: string) => {
     try {
-      // Mock implementation
-      console.log('Deleting node:', nodeId);
+      // Call backend to delete node
+      await invoke('delete_node', { nodeId });
       
+      // Update local state
       setGraph(prev => ({
         ...prev,
         nodes: prev.nodes.filter(n => n.id !== nodeId),
@@ -117,18 +140,47 @@ export const NodeGraphEditor: React.FC = () => {
       if (selectedNode?.id === nodeId) {
         setSelectedNode(null);
       }
+      
+      console.log('Node deleted successfully:', nodeId);
     } catch (error) {
       console.error('Failed to delete node:', error);
+      // Fallback to local state update if backend fails
+      setGraph(prev => ({
+        ...prev,
+        nodes: prev.nodes.filter(n => n.id !== nodeId),
+        connections: prev.connections.filter(c => c.sourceNodeId !== nodeId && c.targetNodeId !== nodeId)
+      }));
+      
+      if (selectedNode?.id === nodeId) {
+        setSelectedNode(null);
+      }
     }
   }, [selectedNode]);
 
   // Handle connection creation
   const handleCreateConnection = useCallback(async (sourceNodeId: string, sourcePortId: string, targetNodeId: string, targetPortId: string) => {
     try {
-      // Mock implementation
+      // Call backend to create connection
+      const newConnection = await invoke<Connection>('connect_nodes', {
+        sourceNodeId,
+        sourcePortId,
+        targetNodeId,
+        targetPortId
+      });
+      
+      // Update local state with the created connection
+      setGraph(prev => ({
+        ...prev,
+        connections: [...prev.connections, newConnection]
+      }));
+      
+      console.log('Connection created successfully:', newConnection);
+    } catch (error) {
+      console.error('Failed to create connection:', error);
+      // Fallback to mock implementation if backend fails
       const connectionId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      const newConnection: Connection = {
+      const mockConnection: Connection = {
         id: connectionId,
         sourceNodeId,
         sourcePortId,
@@ -138,19 +190,18 @@ export const NodeGraphEditor: React.FC = () => {
       
       setGraph(prev => ({
         ...prev,
-        connections: [...prev.connections, newConnection]
+        connections: [...prev.connections, mockConnection]
       }));
-    } catch (error) {
-      console.error('Failed to create connection:', error);
     }
   }, []);
 
   // Handle connection deletion
   const handleDeleteConnection = useCallback(async (connectionId: string) => {
     try {
-      // Mock implementation
-      console.log('Deleting connection:', connectionId);
+      // Call backend to delete connection
+      await invoke('disconnect_nodes', { connectionId });
       
+      // Update local state
       setGraph(prev => ({
         ...prev,
         connections: prev.connections.filter(c => c.id !== connectionId)
@@ -159,17 +210,26 @@ export const NodeGraphEditor: React.FC = () => {
       if (selectedConnection?.id === connectionId) {
         setSelectedConnection(null);
       }
+      
+      console.log('Connection deleted successfully:', connectionId);
     } catch (error) {
       console.error('Failed to delete connection:', error);
+      // Fallback to local state update if backend fails
+      setGraph(prev => ({
+        ...prev,
+        connections: prev.connections.filter(c => c.id !== connectionId)
+      }));
+      
+      if (selectedConnection?.id === connectionId) {
+        setSelectedConnection(null);
+      }
     }
   }, [selectedConnection]);
 
   // Handle node parameter updates
   const handleUpdateNodeParameter = useCallback(async (nodeId: string, parameterName: string, value: any) => {
     try {
-      // Mock implementation
-      console.log('Updating node parameter:', nodeId, parameterName, value);
-      
+      // Update local state immediately for responsiveness
       setGraph(prev => ({
         ...prev,
         nodes: prev.nodes.map(node => 
@@ -178,10 +238,26 @@ export const NodeGraphEditor: React.FC = () => {
             : node
         )
       }));
+      
+      // Backend parameter update would go here when implemented
+      console.log('Node parameter updated:', nodeId, parameterName, value);
     } catch (error) {
       console.error('Failed to update node parameter:', error);
     }
   }, []);
+
+  // Handle graph execution
+  const handleExecuteGraph = useCallback(async () => {
+    try {
+      console.log('Executing graph...');
+      const result = await invoke('execute_graph', { graphId: graph.id });
+      console.log('Graph execution result:', result);
+      return result;
+    } catch (error) {
+      console.error('Failed to execute graph:', error);
+      throw error;
+    }
+  }, [graph.id]);
 
   // Handle canvas mouse events
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -257,6 +333,7 @@ export const NodeGraphEditor: React.FC = () => {
     handleCreateConnection,
     handleDeleteConnection,
     handleUpdateNodeParameter,
+    handleExecuteGraph,
     handleCanvasMouseDown,
     handleCanvasMouseMove,
     handleCanvasMouseUp,
