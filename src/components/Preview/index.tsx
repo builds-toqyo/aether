@@ -6,6 +6,7 @@ import { PreviewControls } from './PreviewControls';
 import { PreviewSettings } from './PreviewSettings';
 import { PreviewProvider, usePreview } from './PreviewContext';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, Settings } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 
 // Types
 interface PreviewFrame {
@@ -85,21 +86,70 @@ export const PreviewWindow: React.FC = () => {
   }, [state.isPlaying, state.showSettings, controlsTimeout]);
 
   // Playback controls
-  const handlePlay = useCallback(() => {
-    setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
+  const handlePlay = useCallback(async () => {
+    try {
+      // Call backend to control preview playback
+      const action = state.isPlaying ? 'pause' : 'play';
+      await invoke('preview_playback_control', { action, currentTime: state.currentTime });
+      
+      // Update local state immediately for responsiveness
+      setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
+      console.log(`Preview ${action} successfully`);
+    } catch (error) {
+      console.error('Failed to control preview playback:', error);
+      // Fallback to local state update
+      setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
+    }
+  }, [state.isPlaying, state.currentTime]);
+
+  const handleStop = useCallback(async () => {
+    try {
+      // Call backend to stop preview playback
+      await invoke('preview_playback_control', { action: 'stop' });
+      
+      // Update local state
+      setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
+      console.log('Preview stopped successfully');
+    } catch (error) {
+      console.error('Failed to stop preview:', error);
+      // Fallback to local state update
+      setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
+    }
   }, []);
 
-  const handleStop = useCallback(() => {
-    setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
-  }, []);
+  const handleSkipBack = useCallback(async () => {
+    try {
+      const newTime = Math.max(0, state.currentTime - 10);
+      
+      // Call backend to seek preview
+      await invoke('preview_seek', { time: newTime });
+      
+      // Update local state
+      setState(prev => ({ ...prev, currentTime: newTime }));
+      console.log(`Preview seeked to ${newTime}s`);
+    } catch (error) {
+      console.error('Failed to seek preview backward:', error);
+      // Fallback to local state update
+      setState(prev => ({ ...prev, currentTime: Math.max(0, prev.currentTime - 10) }));
+    }
+  }, [state.currentTime]);
 
-  const handleSkipBack = useCallback(() => {
-    setState(prev => ({ ...prev, currentTime: Math.max(0, prev.currentTime - 10) }));
-  }, []);
-
-  const handleSkipForward = useCallback(() => {
-    setState(prev => ({ ...prev, currentTime: Math.min(prev.duration, prev.currentTime + 10) }));
-  }, []);
+  const handleSkipForward = useCallback(async () => {
+    try {
+      const newTime = Math.min(state.duration, state.currentTime + 10);
+      
+      // Call backend to seek preview
+      await invoke('preview_seek', { time: newTime });
+      
+      // Update local state
+      setState(prev => ({ ...prev, currentTime: newTime }));
+      console.log(`Preview seeked to ${newTime}s`);
+    } catch (error) {
+      console.error('Failed to seek preview forward:', error);
+      // Fallback to local state update
+      setState(prev => ({ ...prev, currentTime: Math.min(prev.duration, prev.currentTime + 10) }));
+    }
+  }, [state.currentTime, state.duration]);
 
   const handleTimeChange = useCallback((newTime: number) => {
     setState(prev => ({ ...prev, currentTime: Math.max(0, Math.min(prev.duration, newTime)) }));
@@ -193,23 +243,41 @@ export const PreviewWindow: React.FC = () => {
     setState(prev => ({ ...prev, playbackRate: rate }));
   }, []);
 
-  // Frame loading simulation
+  // Frame loading from backend
   const loadFrame = useCallback(async (timestamp: number) => {
     setState(prev => ({ ...prev, isLoading: true }));
     
-    // Simulate frame loading
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
-    const mockFrame: PreviewFrame = {
-      id: `frame-${timestamp}`,
-      timestamp,
-      width: 1920,
-      height: 1080,
-      data: null,
-      url: `https://picsum.photos/seed/${timestamp}/1920/1080.jpg`
-    };
-    
-    setState(prev => ({ ...prev, currentFrame: mockFrame, isLoading: false }));
+    try {
+      // Call backend to get frame at timestamp
+      const frameData = await invoke<any>('preview_get_frame', { timestamp });
+      
+      const previewFrame: PreviewFrame = {
+        id: frameData.id || `frame-${timestamp}`,
+        timestamp,
+        width: frameData.width || 1920,
+        height: frameData.height || 1080,
+        data: frameData.data || null,
+        url: frameData.url || null
+      };
+      
+      setState(prev => ({ ...prev, currentFrame: previewFrame, isLoading: false }));
+      console.log(`Frame loaded at timestamp ${timestamp}`);
+    } catch (error) {
+      console.error('Failed to load frame from backend:', error);
+      // Fallback to mock implementation
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      const mockFrame: PreviewFrame = {
+        id: `frame-${timestamp}`,
+        timestamp,
+        width: 1920,
+        height: 1080,
+        data: null,
+        url: `https://picsum.photos/seed/${timestamp}/1920/1080.jpg`
+      };
+      
+      setState(prev => ({ ...prev, currentFrame: mockFrame, isLoading: false }));
+    }
   }, []);
 
   // Load frame when time changes
