@@ -1,5 +1,9 @@
 pub mod engine;
 pub mod modules;
 pub mod nodes;
+pub mod scopes;
 
 pub use engine::VideoFormat;
+pub use scopes::{VectorscopeProcessor, VectorscopeAnalyzer, ColorDistribution, TargetCompliance, 
+                 HistogramProcessor, HistogramAnalyzer, HistogramStatistics, ExposureAnalysis, ColorBalanceAnalysis,
+                 BaseScopeProcessor, ColorConverter, ImageRenderer, FrameProcessor, Statistics, ChannelStatistics};
