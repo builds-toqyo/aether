@@ -62,6 +62,7 @@ interface NodeGraphContextType {
   handleCreateConnection: (sourceNodeId: string, sourcePortId: string, targetNodeId: string, targetPortId: string) => Promise<void>;
   handleDeleteConnection: (connectionId: string) => Promise<void>;
   handleUpdateNodeParameter: (nodeId: string, parameterName: string, value: any) => Promise<void>;
+  handleExecuteGraph: () => Promise<any>;
   handleCanvasMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
   handleCanvasMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
   handleCanvasMouseUp: () => void;
