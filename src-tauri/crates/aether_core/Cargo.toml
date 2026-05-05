@@ -35,5 +35,9 @@ num_cpus = "1.17.0"      # For CPU count detection
 # Internal dependencies
 aether_types = { path = "../aether_types" }
 
+# ACES/OpenColorIO dependencies for professional color pipeline
+ocio-sys = "0.3"  # OpenColorIO bindings
+ocio = "0.3"      # High-level OpenColorIO wrapper
+
 [dev-dependencies]
 env_logger = "0.11.10"   # For test logging
