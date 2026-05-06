@@ -5,14 +5,17 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use crate::animation::interpolation::{InterpolationMethod, EasingFunction};
 
 /// Core keyframe structure representing a point in time with a value
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Keyframe<T> {
     pub time: f64,
     pub value: T,
-    pub interpolation: crate::animation::interpolation::InterpolationMethod,
-    pub easing: crate::animation::interpolation::EasingFunction,
+    /// Interpolation method to use for this keyframe
+    pub interpolation: InterpolationMethod,
+    /// Easing function for smooth transitions
+    pub easing: EasingFunction,
 }
 
 impl<T> Keyframe<T> {
@@ -21,8 +24,8 @@ impl<T> Keyframe<T> {
         Self {
             time,
             value,
-            interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
-            easing: crate::animation::interpolation::EasingFunction::Linear,
+            interpolation: InterpolationMethod::Linear,
+            easing: EasingFunction::Linear,
         }
     }
     
@@ -30,13 +33,13 @@ impl<T> Keyframe<T> {
     pub fn with_interpolation(
         time: f64,
         value: T,
-        interpolation: crate::animation::interpolation::InterpolationMethod,
+        interpolation: InterpolationMethod,
     ) -> Self {
         Self {
             time,
             value,
             interpolation,
-            easing: crate::animation::interpolation::EasingFunction::Linear,
+            easing: EasingFunction::Linear,
         }
     }
     
@@ -44,8 +47,8 @@ impl<T> Keyframe<T> {
     pub fn with_easing(
         time: f64,
         value: T,
-        interpolation: crate::animation::interpolation::InterpolationMethod,
-        easing: crate::animation::interpolation::EasingFunction,
+        interpolation: InterpolationMethod,
+        easing: EasingFunction,
     ) -> Self {
         Self {
             time,
@@ -56,12 +59,12 @@ impl<T> Keyframe<T> {
     }
     
     /// Set interpolation method
-    pub fn set_interpolation(&mut self, interpolation: crate::animation::interpolation::InterpolationMethod) {
+    pub fn set_interpolation(&mut self, interpolation: InterpolationMethod) {
         self.interpolation = interpolation;
     }
     
     /// Set easing function
-    pub fn set_easing(&mut self, easing: crate::animation::interpolation::EasingFunction) {
+    pub fn set_easing(&mut self, easing: EasingFunction) {
         self.easing = easing;
     }
     
@@ -115,7 +118,7 @@ impl KeyframeData {
     }
     
     /// Get the interpolation method
-    pub fn interpolation(&self) -> crate::animation::interpolation::InterpolationMethod {
+    pub fn interpolation(&self) -> InterpolationMethod {
         match self {
             KeyframeData::Float(k) => k.interpolation,
             KeyframeData::Vector2(k) => k.interpolation,
@@ -129,7 +132,7 @@ impl KeyframeData {
     }
     
     /// Get the easing function
-    pub fn easing(&self) -> crate::animation::interpolation::EasingFunction {
+    pub fn easing(&self) -> EasingFunction {
         match self {
             KeyframeData::Float(k) => k.easing,
             KeyframeData::Vector2(k) => k.easing,
@@ -143,7 +146,7 @@ impl KeyframeData {
     }
     
     /// Set interpolation method
-    pub fn set_interpolation(&mut self, interpolation: crate::animation::interpolation::InterpolationMethod) {
+    pub fn set_interpolation(&mut self, interpolation: InterpolationMethod) {
         match self {
             KeyframeData::Float(k) => k.set_interpolation(interpolation),
             KeyframeData::Vector2(k) => k.set_interpolation(interpolation),
@@ -157,7 +160,7 @@ impl KeyframeData {
     }
     
     /// Set easing function
-    pub fn set_easing(&mut self, easing: crate::animation::interpolation::EasingFunction) {
+    pub fn set_easing(&mut self, easing: EasingFunction) {
         match self {
             KeyframeData::Float(k) => k.set_easing(easing),
             KeyframeData::Vector2(k) => k.set_easing(easing),
