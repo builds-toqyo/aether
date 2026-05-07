@@ -6,12 +6,12 @@ pub use state::*;
 
 use tauri::Manager;
 
-/// Initialize the Tauri application with all commands
+
 pub fn init_app() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default()
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
-            // Node operations
+
             create_node,
             delete_node,
             connect_nodes,

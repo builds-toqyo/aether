@@ -16,31 +16,31 @@ use uuid::Uuid;
 pub enum NodeError {
     #[error("Node not found: {0}")]
     NodeNotFound(Uuid),
-    
+
     #[error("Connection not found: {0}")]
     ConnectionNotFound(Uuid),
-    
+
     #[error("Invalid connection: {0}")]
     InvalidConnection(String),
-    
+
     #[error("Pin not found: {0}")]
     PinNotFound(Uuid),
-    
+
     #[error("Type mismatch: expected {expected}, got {actual}")]
     TypeMismatch { expected: String, actual: String },
-    
+
     #[error("Circular dependency detected")]
     CircularDependency,
-    
+
     #[error("Required input not connected: {0}")]
     RequiredInputNotConnected(String),
-    
+
     #[error("Node execution failed: {0}")]
     ExecutionFailed(String),
-    
+
     #[error("Parameter not found: {0}")]
     ParameterNotFound(String),
-    
+
     #[error("Invalid parameter value: {0}")]
     InvalidParameterValue(String),
 }
@@ -50,15 +50,15 @@ pub type NodeResult<T> = Result<T, NodeError>;
 pub trait NodeExecutor {
     fn execute(&self, context: &mut ExecutionContext) -> NodeResult<()>;
     fn node_type(&self) -> NodeType;
-    
+
     fn validate(&self) -> NodeResult<()> {
         Ok(())
     }
-    
+
     fn get_inputs(&self) -> &[Uuid];
-    
+
     fn get_outputs(&self) -> &[Uuid];
-    
+
     fn can_execute(&self, context: &ExecutionContext) -> bool {
         true
     }
@@ -96,19 +96,19 @@ impl ExecutionContext {
             gpu_context: None,
         }
     }
-    
+
     pub fn get_input(&self, pin_id: &Uuid) -> Option<&ParameterValue> {
         self.inputs.get(pin_id)
     }
-    
+
     pub fn set_output(&mut self, pin_id: Uuid, value: ParameterValue) {
         self.outputs.insert(pin_id, value);
     }
-    
+
     pub fn get_global_parameter(&self, name: &str) -> Option<&ParameterValue> {
         self.global_parameters.get(name)
     }
-    
+
     pub fn set_global_parameter(&mut self, name: String, value: ParameterValue) {
         self.global_parameters.insert(name, value);
     }
@@ -127,21 +127,21 @@ impl NodeRegistry {
             factories: HashMap::new(),
         }
     }
-    
+
     pub fn register_node_type<F>(&mut self, node_type: NodeType, factory: F)
     where
         F: Fn() -> Box<dyn NodeExecutor + Send + Sync> + 'static,
     {
         self.factories.insert(node_type, factory);
     }
-    
+
     pub fn create_node(&self, node_type: &NodeType) -> NodeResult<Box<dyn NodeExecutor + Send + Sync>> {
         let factory = self.factories.get(node_type)
             .ok_or_else(|| NodeError::ExecutionFailed(format!("Unknown node type: {:?}", node_type)))?;
-        
+
         Ok(factory())
     }
-    
+
     pub fn get_node_types(&self) -> Vec<NodeType> {
         self.factories.keys().cloned().collect()
     }
@@ -168,66 +168,66 @@ impl NodeManager {
             node_metadata: HashMap::new(),
         }
     }
-    
+
     pub fn registry(&mut self) -> &mut NodeRegistry {
         &mut self.registry
     }
-    
+
     pub fn add_node(&mut self, node: Node) -> NodeResult<()> {
         let executor = self.registry.create_node(&node.node_type)?;
         self.nodes.insert(node.id, executor);
         self.node_metadata.insert(node.id, node);
         Ok(())
     }
-    
+
     pub fn remove_node(&mut self, node_id: &Uuid) -> NodeResult<Box<dyn NodeExecutor + Send + Sync>> {
-        // Remove and return the actual executor
+
         let executor = self.nodes.remove(node_id)
             .ok_or_else(|| NodeError::NodeNotFound(*node_id))?;
-        
-        // Also remove the metadata
+
+
         self.node_metadata.remove(node_id);
-        
+
         Ok(executor)
     }
-    
+
     pub fn get_node(&self, node_id: &Uuid) -> Option<&dyn NodeExecutor> {
         self.nodes.get(node_id).map(|executor| executor.as_ref())
     }
-    
+
     pub fn get_node_mut(&mut self, node_id: &Uuid) -> Option<&mut dyn NodeExecutor> {
         self.nodes.get_mut(node_id).map(|executor| executor.as_mut())
     }
-    
+
     pub fn get_node_metadata(&self, node_id: &Uuid) -> Option<&Node> {
         self.node_metadata.get(node_id)
     pub fn get_node_metadata(&self, node_id: &Uuid) -> Option<&Node> {
         self.node_metadata.get(node_id)
     }
-    
-    /// Get mutable node metadata
+
+
     pub fn get_node_metadata_mut(&mut self, node_id: &Uuid) -> Option<&mut Node> {
         self.node_metadata.get_mut(node_id)
     }
-    
-    /// Get all nodes
+
+
     pub fn get_nodes(&self) -> impl Iterator<Item = (&Uuid, &dyn NodeExecutor)> {
         self.nodes.iter().map(|(id, executor)| (id, executor.as_ref()))
     }
-    
-    /// Execute a single node
+
+
     pub fn execute_node(&mut self, node_id: &Uuid, context: &mut ExecutionContext) -> NodeResult<()> {
         let executor = self.nodes.get_mut(node_id)
             .ok_or_else(|| NodeError::NodeNotFound(*node_id))?;
-        
+
         if !executor.can_execute(context) {
             return Err(NodeError::ExecutionFailed("Node cannot execute".to_string()));
         }
-        
+
         executor.execute(context)
     }
-    
-    /// Validate all nodes
+
+
     pub fn validate_all(&self) -> NodeResult<()> {
         for (node_id, executor) in &self.nodes {
             if let Err(e) = executor.validate() {
@@ -236,8 +236,8 @@ impl NodeManager {
         }
         Ok(())
     }
-    
-    /// Get the number of nodes
+
+
     pub fn node_count(&self) -> usize {
         self.nodes.len()
     }
@@ -249,7 +249,7 @@ impl Default for NodeManager {
     }
 }
 
-/// Dummy node for placeholder purposes
+
 #[derive(Debug)]
 struct DummyNode;
 
@@ -257,15 +257,15 @@ impl NodeExecutor for DummyNode {
     fn execute(&self, _context: &mut ExecutionContext) -> NodeResult<()> {
         Ok(())
     }
-    
+
     fn node_type(&self) -> NodeType {
         NodeType::Custom("dummy".to_string())
     }
-    
+
     fn get_inputs(&self) -> &[Uuid] {
         &[]
     }
-    
+
     fn get_outputs(&self) -> &[Uuid] {
         &[]
     }
@@ -275,7 +275,7 @@ impl NodeExecutor for DummyNode {
 mod tests {
     use super::*;
     use aether_types::{Node, NodeType};
-    
+
     #[test]
     fn test_execution_context_creation() {
         let context = ExecutionContext::new(0, 0.0, 30.0, (1920, 1080));
@@ -284,48 +284,48 @@ mod tests {
         assert_eq!(context.frame_rate, 30.0);
         assert_eq!(context.resolution, (1920, 1080));
     }
-    
+
     #[test]
     fn test_execution_context_inputs_outputs() {
         let mut context = ExecutionContext::new(0, 0.0, 30.0, (1920, 1080));
         let pin_id = Uuid::new_v4();
-        
-        // Test inputs
+
+
         assert!(context.get_input(&pin_id).is_none());
-        
-        // Test outputs
+
+
         context.set_output(pin_id, ParameterValue::Float(1.0));
         assert!(context.outputs.contains_key(&pin_id));
     }
-    
+
     #[test]
     fn test_node_registry() {
         let mut registry = NodeRegistry::new();
-        
-        // Test empty registry
+
+
         assert!(registry.create_node(&NodeType::Input).is_err());
-        
-        // Register a dummy factory
+
+
         registry.register_node_type(NodeType::Input, || Box::new(DummyNode));
-        
-        // Test registered node type
+
+
         let node = registry.create_node(&NodeType::Input);
         assert!(node.is_ok());
-        
-        // Test getting node types
+
+
         let types = registry.get_node_types();
         assert!(types.contains(&NodeType::Input));
     }
-    
+
     #[test]
     fn test_node_manager() {
         let mut manager = NodeManager::new();
-        
-        // Test empty manager
+
+
         assert_eq!(manager.node_count(), 0);
         assert!(manager.get_node(&Uuid::new_v4()).is_none());
-        
-        // Test validation (should pass with no nodes)
+
+
         assert!(manager.validate_all().is_ok());
     }
 }

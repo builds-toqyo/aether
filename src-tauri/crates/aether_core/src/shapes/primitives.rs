@@ -1,38 +1,35 @@
-//! Shape primitives
-//! 
-//! This module provides basic shape primitives for vector graphics
-//! including rectangles, circles, ellipses, lines, and polygons.
+
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use crate::shapes::paths::{Path, PathBuilder};
 
-/// Basic shape primitive types
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ShapeType {
-    /// Rectangle shape
+
     Rectangle,
-    /// Circle shape
+
     Circle,
-    /// Ellipse shape
+
     Ellipse,
-    /// Line shape
+
     Line,
-    /// Polygon shape
+
     Polygon,
-    /// Custom path shape
+
     Path,
 }
 
 impl fmt::Display for ShapeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ShapeType::Rectangle => write!(f, "Rectangle"),
-            ShapeType::Circle => write!(f, "Circle"),
-            ShapeType::Ellipse => write!(f, "Ellipse"),
-            ShapeType::Line => write!(f, "Line"),
-            ShapeType::Polygon => write!(f, "Polygon"),
-            ShapeType::Path => write!(f, "Path"),
+            ShapeType::Rectangle => write!(f, __STRING_0__),
+            ShapeType::Circle => write!(f, __STRING_1__),
+            ShapeType::Ellipse => write!(f, __STRING_2__),
+            ShapeType::Line => write!(f, __STRING_3__),
+            ShapeType::Polygon => write!(f, __STRING_4__),
+            ShapeType::Path => write!(f, __STRING_5__),
         }
     }
 }
@@ -41,28 +38,28 @@ impl fmt::Display for ShapeType {
 pub trait ShapePrimitive {
     /// Get the shape type
     fn shape_type(&self) -> ShapeType;
-    
+
     /// Get the bounding box of the shape
     fn bounds(&self) -> BoundingBox;
-    
+
     /// Convert shape to path
     fn to_path(&self) -> Path;
-    
+
     /// Check if point is inside shape
     fn contains_point(&self, x: f64, y: f64) -> bool;
-    
+
     /// Get area of the shape
     fn area(&self) -> f64;
-    
+
     /// Get perimeter of the shape
     fn perimeter(&self) -> f64;
-    
+
     /// Transform the shape with a transformation matrix
     fn transform(&mut self, transform: &Transform);
-    
+
     /// Get transformed copy of the shape
     fn transformed(&self, transform: &Transform) -> Self where Self: Sized;
-    
+
     /// Validate shape data
     fn validate(&self) -> Result<(), String>;
 }
@@ -99,7 +96,7 @@ impl Transform {
             ky: 0.0,
         }
     }
-    
+
     /// Create translation transform
     pub fn translation(tx: f64, ty: f64) -> Self {
         Self {
@@ -112,7 +109,7 @@ impl Transform {
             ky: 0.0,
         }
     }
-    
+
     /// Create scale transform
     pub fn scale(sx: f64, sy: f64) -> Self {
         Self {
@@ -125,7 +122,7 @@ impl Transform {
             ky: 0.0,
         }
     }
-    
+
     /// Create rotation transform
     pub fn rotation(angle: f64) -> Self {
         Self {
@@ -138,45 +135,45 @@ impl Transform {
             ky: 0.0,
         }
     }
-    
+
     /// Apply transform to point
     pub fn transform_point(&self, x: f64, y: f64) -> (f64, f64) {
         let cos_r = self.rotation.cos();
         let sin_r = self.rotation.sin();
-        
+
         // Apply scale and rotation
         let x_rot = x * self.sx * cos_r - y * self.sy * sin_r;
         let y_rot = x * self.sx * sin_r + y * self.sy * cos_r;
-        
+
         // Apply skew
         let x_skew = x_rot + y_rot * self.kx;
         let y_skew = y_rot + x_rot * self.ky;
-        
+
         // Apply translation
         (x_skew + self.tx, y_skew + self.ty)
     }
-    
+
     /// Get inverse transform
     pub fn inverse(&self) -> Option<Self> {
         if self.sx == 0.0 || self.sy == 0.0 {
             return None;
         }
-        
+
         let cos_r = self.rotation.cos();
         let sin_r = self.rotation.sin();
-        
+
         // Inverse scale
         let inv_sx = 1.0 / self.sx;
         let inv_sy = 1.0 / self.sy;
-        
+
         // Inverse rotation
         let inv_cos = cos_r;
         let inv_sin = -sin_r;
-        
+
         // Calculate inverse translation
         let inv_tx = -(self.tx * inv_cos - self.ty * inv_sin) * inv_sx;
         let inv_ty = -(self.tx * inv_sin + self.ty * inv_cos) * inv_sy;
-        
+
         Some(Self {
             tx: inv_tx,
             ty: inv_ty,
@@ -187,27 +184,27 @@ impl Transform {
             ky: -self.ky,
         })
     }
-    
+
     /// Combine with another transform
     pub fn combine(&self, other: &Transform) -> Self {
         let cos_r1 = self.rotation.cos();
         let sin_r1 = self.rotation.sin();
         let cos_r2 = other.rotation.cos();
         let sin_r2 = other.rotation.sin();
-        
+
         // Combine rotations and scales
         let sx = self.sx * other.sx;
         let sy = self.sy * other.sy;
         let rotation = self.rotation + other.rotation;
-        
+
         // Combine translations
         let tx = self.tx + other.tx * self.sx * cos_r1 - other.ty * self.sy * sin_r1;
         let ty = self.ty + other.tx * self.sx * sin_r1 + other.ty * self.sy * cos_r1;
-        
+
         // Combine skews
         let kx = self.kx + other.kx;
         let ky = self.ky + other.ky;
-        
+
         Self {
             tx,
             ty,
@@ -249,33 +246,33 @@ impl BoundingBox {
             max_y: max_y.max(min_y),
         }
     }
-    
+
     /// Get width of bounding box
     pub fn width(&self) -> f64 {
         self.max_x - self.min_x
     }
-    
+
     /// Get height of bounding box
     pub fn height(&self) -> f64 {
         self.max_y - self.min_y
     }
-    
+
     /// Get center point
     pub fn center(&self) -> (f64, f64) {
         ((self.min_x + self.max_x) / 2.0, (self.min_y + self.max_y) / 2.0)
     }
-    
+
     /// Check if point is inside bounding box
     pub fn contains_point(&self, x: f64, y: f64) -> bool {
         x >= self.min_x && x <= self.max_x && y >= self.min_y && y <= self.max_y
     }
-    
+
     /// Check if bounding box intersects with another
     pub fn intersects(&self, other: &BoundingBox) -> bool {
         !(self.max_x < other.min_x || self.min_x > other.max_x ||
           self.max_y < other.min_y || self.min_y > other.max_y)
     }
-    
+
     /// Union with another bounding box
     pub fn union(&self, other: &BoundingBox) -> BoundingBox {
         BoundingBox::new(
@@ -285,7 +282,7 @@ impl BoundingBox {
             self.max_y.max(other.max_y),
         )
     }
-    
+
     /// Apply transform to bounding box
     pub fn transform(&self, transform: &Transform) -> BoundingBox {
         let corners = [
@@ -294,12 +291,12 @@ impl BoundingBox {
             transform.transform_point(self.max_x, self.max_y),
             transform.transform_point(self.min_x, self.max_y),
         ];
-        
+
         let min_x = corners.iter().map(|(x, _)| *x).fold(f64::INFINITY, f64::min);
         let max_x = corners.iter().map(|(x, _)| *x).fold(f64::NEG_INFINITY, f64::max);
         let min_y = corners.iter().map(|(_, y)| *y).fold(f64::INFINITY, f64::min);
         let max_y = corners.iter().map(|(_, y)| *y).fold(f64::NEG_INFINITY, f64::max);
-        
+
         BoundingBox::new(min_x, min_y, max_x, max_y)
     }
 }
@@ -336,7 +333,7 @@ impl Rectangle {
             corner_radius: 0.0,
         }
     }
-    
+
     /// Create rounded rectangle
     pub fn rounded(x: f64, y: f64, width: f64, height: f64, corner_radius: f64) -> Self {
         Self {
@@ -347,17 +344,17 @@ impl Rectangle {
             corner_radius: corner_radius.max(0.0),
         }
     }
-    
+
     /// Get center point
     pub fn center(&self) -> (f64, f64) {
         (self.x + self.width / 2.0, self.y + self.height / 2.0)
     }
-    
+
     /// Check if rectangle is square
     pub fn is_square(&self) -> bool {
         (self.width - self.height).abs() < f64::EPSILON
     }
-    
+
     /// Check if rectangle is valid (positive dimensions)
     pub fn is_valid(&self) -> bool {
         self.width > 0.0 && self.height > 0.0
@@ -368,14 +365,14 @@ impl ShapePrimitive for Rectangle {
     fn shape_type(&self) -> ShapeType {
         ShapeType::Rectangle
     }
-    
+
     fn bounds(&self) -> BoundingBox {
         BoundingBox::new(self.x, self.y, self.x + self.width, self.y + self.height)
     }
-    
+
     fn to_path(&self) -> Path {
         let mut builder = PathBuilder::new();
-        
+
         if self.corner_radius > 0.0 {
             // Rounded rectangle
             let r = self.corner_radius.min(self.width / 2.0).min(self.height / 2.0);
@@ -396,52 +393,52 @@ impl ShapePrimitive for Rectangle {
             builder.line_to(self.x, self.y + self.height);
             builder.close();
         }
-        
+
         builder.build()
     }
-    
+
     fn contains_point(&self, x: f64, y: f64) -> bool {
-        x >= self.x && x <= self.x + self.width && 
+        x >= self.x && x <= self.x + self.width &&
         y >= self.y && y <= self.y + self.height
     }
-    
+
     fn area(&self) -> f64 {
         self.width * self.height
     }
-    
+
     fn perimeter(&self) -> f64 {
         2.0 * (self.width + self.height)
     }
-    
+
     fn transform(&mut self, transform: &Transform) {
         let (x1, y1) = transform.transform_point(self.x, self.y);
         let (x2, y2) = transform.transform_point(self.x + self.width, self.y + self.height);
-        
+
         self.x = x1;
         self.y = y1;
         self.width = (x2 - x1).abs();
         self.height = (y2 - y1).abs();
-        
+
         // Transform corner radius proportionally
         let scale = (self.width * self.height).sqrt() / ((self.width * self.height).sqrt());
         self.corner_radius *= scale;
     }
-    
+
     fn transformed(&self, transform: &Transform) -> Self {
         let mut copy = *self;
         copy.transform(transform);
         copy
     }
-    
+
     fn validate(&self) -> Result<(), String> {
         if self.width <= 0.0 {
-            return Err("Rectangle width must be positive".to_string());
+            return Err(__STRING_6__.to_string());
         }
         if self.height <= 0.0 {
-            return Err("Rectangle height must be positive".to_string());
+            return Err(__STRING_7__.to_string());
         }
         if self.corner_radius < 0.0 {
-            return Err("Corner radius cannot be negative".to_string());
+            return Err(__STRING_8__.to_string());
         }
         Ok(())
     }
@@ -463,17 +460,17 @@ impl Circle {
     pub fn new(cx: f64, cy: f64, radius: f64) -> Self {
         Self { cx, cy, radius }
     }
-    
+
     /// Get diameter
     pub fn diameter(&self) -> f64 {
         self.radius * 2.0
     }
-    
+
     /// Get circumference
     pub fn circumference(&self) -> f64 {
         2.0 * std::f64::consts::PI * self.radius
     }
-    
+
     /// Check if circle is valid (positive radius)
     pub fn is_valid(&self) -> bool {
         self.radius > 0.0
@@ -484,7 +481,7 @@ impl ShapePrimitive for Circle {
     fn shape_type(&self) -> ShapeType {
         ShapeType::Circle
     }
-    
+
     fn bounds(&self) -> BoundingBox {
         BoundingBox::new(
             self.cx - self.radius,
@@ -493,13 +490,13 @@ impl ShapePrimitive for Circle {
             self.cy + self.radius,
         )
     }
-    
+
     fn to_path(&self) -> Path {
         let mut builder = PathBuilder::new();
-        
+
         // Approximate circle with bezier curves
         let k = 0.552284749831; // Magic number for circle approximation
-        
+
         builder.move_to(self.cx + self.radius, self.cy);
         builder.bezier_to(
             self.cx + self.radius, self.cy - k * self.radius,
@@ -522,42 +519,42 @@ impl ShapePrimitive for Circle {
             self.cx + self.radius, self.cy,
         );
         builder.close();
-        
+
         builder.build()
     }
-    
+
     fn contains_point(&self, x: f64, y: f64) -> bool {
         let dx = x - self.cx;
         let dy = y - self.cy;
         dx * dx + dy * dy <= self.radius * self.radius
     }
-    
+
     fn area(&self) -> f64 {
         std::f64::consts::PI * self.radius * self.radius
     }
-    
+
     fn perimeter(&self) -> f64 {
         self.circumference()
     }
-    
+
     fn transform(&mut self, transform: &Transform) {
         let (cx, cy) = transform.transform_point(self.cx, self.cy);
         self.cx = cx;
         self.cy = cy;
-        
+
         // Scale radius by average scale factor
         self.radius *= (transform.sx * transform.sy).sqrt() / 2.0;
     }
-    
+
     fn transformed(&self, transform: &Transform) -> Self {
         let mut copy = *self;
         copy.transform(transform);
         copy
     }
-    
+
     fn validate(&self) -> Result<(), String> {
         if self.radius <= 0.0 {
-            return Err("Circle radius must be positive".to_string());
+            return Err(__STRING_9__.to_string());
         }
         Ok(())
     }
@@ -589,7 +586,7 @@ impl Ellipse {
             rotation: 0.0,
         }
     }
-    
+
     /// Create rotated ellipse
     pub fn rotated(cx: f64, cy: f64, rx: f64, ry: f64, rotation: f64) -> Self {
         Self {
@@ -600,12 +597,12 @@ impl Ellipse {
             rotation,
         }
     }
-    
+
     /// Check if ellipse is a circle
     pub fn is_circle(&self) -> bool {
         (self.rx - self.ry).abs() < f64::EPSILON
     }
-    
+
     /// Check if ellipse is valid (positive radii)
     pub fn is_valid(&self) -> bool {
         self.rx > 0.0 && self.ry > 0.0
@@ -616,19 +613,19 @@ impl ShapePrimitive for Ellipse {
     fn shape_type(&self) -> ShapeType {
         ShapeType::Ellipse
     }
-    
+
     fn bounds(&self) -> BoundingBox {
         // Calculate bounding box of rotated ellipse
         let cos_r = self.rotation.cos();
         let sin_r = self.rotation.sin();
-        
+
         let a = self.rx;
         let b = self.ry;
-        
+
         // Maximum extents of rotated ellipse
         let max_dx = (a * a * cos_r * cos_r + b * b * sin_r * sin_r).sqrt();
         let max_dy = (a * a * sin_r * sin_r + b * b * cos_r * cos_r).sqrt();
-        
+
         BoundingBox::new(
             self.cx - max_dx,
             self.cy - max_dy,
@@ -636,70 +633,70 @@ impl ShapePrimitive for Ellipse {
             self.cy + max_dy,
         )
     }
-    
+
     fn to_path(&self) -> Path {
         let mut builder = PathBuilder::new();
-        
+
         // Approximate ellipse with bezier curves
         let k = 0.552284749831; // Magic number for ellipse approximation
-        
+
         // Transform control points for rotation
         let cos_r = self.rotation.cos();
         let sin_r = self.rotation.sin();
-        
+
         let transform_point = |x: f64, y: f64| {
             let tx = x * cos_r - y * sin_r + self.cx;
             let ty = x * sin_r + y * cos_r + self.cy;
             (tx, ty)
         };
-        
+
         let (x0, y0) = transform_point(self.rx, 0.0);
         builder.move_to(x0, y0);
-        
+
         let (x1, y1) = transform_point(self.rx, -k * self.ry);
         let (x2, y2) = transform_point(k * self.rx, -self.ry);
         let (x3, y3) = transform_point(0.0, -self.ry);
         builder.bezier_to(x1, y1, x2, y2, x3, y3);
-        
+
         let (x1, y1) = transform_point(-k * self.rx, -self.ry);
         let (x2, y2) = transform_point(-self.rx, -k * self.ry);
         let (x3, y3) = transform_point(-self.rx, 0.0);
         builder.bezier_to(x1, y1, x2, y2, x3, y3);
-        
+
         let (x1, y1) = transform_point(-self.rx, k * self.ry);
         let (x2, y2) = transform_point(-k * self.rx, self.ry);
         let (x3, y3) = transform_point(0.0, self.ry);
         builder.bezier_to(x1, y1, x2, y2, x3, y3);
-        
+
         let (x1, y1) = transform_point(k * self.rx, self.ry);
         let (x2, y2) = transform_point(self.rx, k * self.ry);
         let (x3, y3) = transform_point(self.rx, 0.0);
         builder.bezier_to(x1, y1, x2, y2, x3, y3);
-        
+
         builder.close();
-        
+
         builder.build()
     }
-    
+
     fn contains_point(&self, x: f64, y: f64) -> bool {
         // Transform point to ellipse coordinate system
         let dx = x - self.cx;
         let dy = y - self.cy;
-        
+
         let cos_r = (-self.rotation).cos();
         let sin_r = (-self.rotation).sin();
-        
+
         let local_x = dx * cos_r - dy * sin_r;
         let local_y = dx * sin_r + dy * cos_r;
-        
+
         // Check if point is inside ellipse
         (local_x * local_x) / (self.rx * self.rx) + (local_y * local_y) / (self.ry * self.ry) <= 1.0
     }
-    
+
     fn area(&self) -> f64 {
         std::f64::consts::PI * self.rx * self.ry
     }
-    
+
     fn perimeter(&self) -> f64 {
         // Approximation of ellipse perimeter (Ramanujan's formula)
         let a = self.rx;
@@ -707,26 +704,26 @@ impl ShapePrimitive for Ellipse {
         let h = ((a - b) * (a - b)) / ((a + b) * (a + b));
         std::f64::consts::PI * (a + b) * (1.0 + (3.0 * h) / (10.0 + (4.0 - 3.0 * h).sqrt()))
     }
-    
+
     fn transform(&mut self, transform: &Transform) {
         let (cx, cy) = transform.transform_point(self.cx, self.cy);
         self.cx = cx;
         self.cy = cy;
-        
-        // Scale radii
+
+
         self.rx *= transform.sx;
         self.ry *= transform.sy;
-        
-        // Add rotation
+
+
         self.rotation += transform.rotation;
     }
-    
+
     fn transformed(&self, transform: &Transform) -> Self {
         let mut copy = *self;
         copy.transform(transform);
         copy
     }
-    
+
     fn validate(&self) -> Result<(), String> {
         if self.rx <= 0.0 {
             return Err("Ellipse horizontal radius must be positive".to_string());
@@ -738,23 +735,23 @@ impl ShapePrimitive for Ellipse {
     }
 }
 
-/// Line shape primitive
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Line {
-    /// Start X coordinate
+
     pub x1: f64,
-    /// Start Y coordinate
+
     pub y1: f64,
-    /// End X coordinate
+
     pub x2: f64,
-    /// End Y coordinate
+
     pub y2: f64,
-    /// Line thickness
+
     pub thickness: f64,
 }
 
 impl Line {
-    /// Create new line
+
     pub fn new(x1: f64, y1: f64, x2: f64, y2: f64) -> Self {
         Self {
             x1,
@@ -764,8 +761,8 @@ impl Line {
             thickness: 1.0,
         }
     }
-    
-    /// Create line with thickness
+
+
     pub fn with_thickness(x1: f64, y1: f64, x2: f64, y2: f64, thickness: f64) -> Self {
         Self {
             x1,
@@ -775,20 +772,20 @@ impl Line {
             thickness: thickness.max(0.0),
         }
     }
-    
-    /// Get length of line
+
+
     pub fn length(&self) -> f64 {
         let dx = self.x2 - self.x1;
         let dy = self.y2 - self.y1;
         (dx * dx + dy * dy).sqrt()
     }
-    
-    /// Get angle of line in radians
+
+
     pub fn angle(&self) -> f64 {
         (self.y2 - self.y1).atan2(self.x2 - self.x1)
     }
-    
-    /// Check if line is a point (start equals end)
+
+
     pub fn is_point(&self) -> bool {
         (self.x1 - self.x2).abs() < f64::EPSILON && (self.y1 - self.y2).abs() < f64::EPSILON
     }
@@ -798,7 +795,7 @@ impl ShapePrimitive for Line {
     fn shape_type(&self) -> ShapeType {
         ShapeType::Line
     }
-    
+
     fn bounds(&self) -> BoundingBox {
         let half_thickness = self.thickness / 2.0;
         BoundingBox::new(
@@ -808,23 +805,23 @@ impl ShapePrimitive for Line {
             self.y1.max(self.y2) + half_thickness,
         )
     }
-    
+
     fn to_path(&self) -> Path {
         let mut builder = PathBuilder::new();
-        
+
         if self.thickness > 0.0 {
-            // Create thick line as rectangle
+
             let dx = self.x2 - self.x1;
             let dy = self.y2 - self.y1;
             let length = (dx * dx + dy * dy).sqrt();
-            
+
             if length > 0.0 {
-                let nx = -dy / length; // Normal X
-                let ny = dx / length;  // Normal Y
-                
+                let nx = -dy / length;
+                let ny = dx / length;
+
                 let half_thickness = self.thickness / 2.0;
-                
-                // Calculate rectangle corners
+
+
                 let x1 = self.x1 + nx * half_thickness;
                 let y1 = self.y1 + ny * half_thickness;
                 let x2 = self.x2 + nx * half_thickness;
@@ -833,7 +830,7 @@ impl ShapePrimitive for Line {
                 let y3 = self.y2 - ny * half_thickness;
                 let x4 = self.x1 - nx * half_thickness;
                 let y4 = self.y1 - ny * half_thickness;
-                
+
                 builder.move_to(x1, y1);
                 builder.line_to(x2, y2);
                 builder.line_to(x3, y3);
@@ -841,43 +838,43 @@ impl ShapePrimitive for Line {
                 builder.close();
             }
         } else {
-            // Thin line
+
             builder.move_to(self.x1, self.y1);
             builder.line_to(self.x2, self.y2);
         }
-        
+
         builder.build()
     }
-    
+
     fn contains_point(&self, x: f64, y: f64) -> bool {
         if self.thickness == 0.0 {
-            return false; // Zero thickness line has no area
+            return false;
         }
-        
-        // Check if point is within distance threshold of line segment
+
+
         let dx = self.x2 - self.x1;
         let dy = self.y2 - self.y1;
         let length_sq = dx * dx + dy * dy;
-        
+
         if length_sq == 0.0 {
-            // Point is line, check distance to point
+
             let dist_sq = (x - self.x1) * (x - self.x1) + (y - self.y1) * (y - self.y1);
             return dist_sq <= (self.thickness / 2.0).powi(2);
         }
-        
-        // Calculate projection parameter
+
+
         let t = ((x - self.x1) * dx + (y - self.y1) * dy) / length_sq;
         let t_clamped = t.clamp(0.0, 1.0);
-        
-        // Find closest point on line segment
+
+
         let closest_x = self.x1 + t_clamped * dx;
         let closest_y = self.y1 + t_clamped * dy;
-        
-        // Check distance to closest point
+
+
         let dist_sq = (x - closest_x) * (x - closest_x) + (y - closest_y) * (y - closest_y);
         dist_sq <= (self.thickness / 2.0).powi(2)
     }
-    
+
     fn area(&self) -> f64 {
         if self.thickness == 0.0 {
             0.0
@@ -885,7 +882,7 @@ impl ShapePrimitive for Line {
             self.length() * self.thickness
         }
     }
-    
+
     fn perimeter(&self) -> f64 {
         if self.thickness == 0.0 {
             self.length()
@@ -893,26 +890,26 @@ impl ShapePrimitive for Line {
             2.0 * self.length() + 2.0 * self.thickness
         }
     }
-    
+
     fn transform(&mut self, transform: &Transform) {
         let (x1, y1) = transform.transform_point(self.x1, self.y1);
         let (x2, y2) = transform.transform_point(self.x2, self.y2);
-        
+
         self.x1 = x1;
         self.y1 = y1;
         self.x2 = x2;
         self.y2 = y2;
-        
-        // Scale thickness by average scale factor
+
+
         self.thickness *= (transform.sx * transform.sy).sqrt() / 2.0;
     }
-    
+
     fn transformed(&self, transform: &Transform) -> Self {
         let mut copy = *self;
         copy.transform(transform);
         copy
     }
-    
+
     fn validate(&self) -> Result<(), String> {
         if self.thickness < 0.0 {
             return Err("Line thickness cannot be negative".to_string());
@@ -921,53 +918,53 @@ impl ShapePrimitive for Line {
     }
 }
 
-/// Polygon shape primitive
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Polygon {
-    /// Vertices of the polygon
+
     pub vertices: Vec<(f64, f64)>,
-    /// Whether polygon is closed
+
     pub closed: bool,
 }
 
 impl Polygon {
-    /// Create new polygon
+
     pub fn new(vertices: Vec<(f64, f64)>) -> Self {
         Self {
             vertices,
             closed: true,
         }
     }
-    
-    /// Create open polygon (polyline)
+
+
     pub fn open(vertices: Vec<(f64, f64)>) -> Self {
         Self {
             vertices,
             closed: false,
         }
     }
-    
-    /// Create regular polygon
+
+
     pub fn regular(cx: f64, cy: f64, radius: f64, sides: usize) -> Self {
         let mut vertices = Vec::with_capacity(sides);
         let angle_step = 2.0 * std::f64::consts::PI / sides as f64;
-        
+
         for i in 0..sides {
             let angle = i as f64 * angle_step - std::f64::consts::PI / 2.0;
             let x = cx + radius * angle.cos();
             let y = cy + radius * angle.sin();
             vertices.push((x, y));
         }
-        
+
         Self::new(vertices)
     }
-    
-    /// Get number of vertices
+
+
     pub fn vertex_count(&self) -> usize {
         self.vertices.len()
     }
-    
-    /// Check if polygon is valid (has at least 3 vertices for closed polygon)
+
+
     pub fn is_valid(&self) -> bool {
         if self.closed {
             self.vertices.len() >= 3
@@ -975,23 +972,23 @@ impl Polygon {
             self.vertices.len() >= 2
         }
     }
-    
-    /// Check if polygon is convex
+
+
     pub fn is_convex(&self) -> bool {
         if self.vertices.len() < 3 {
             return false;
         }
-        
+
         let n = self.vertices.len();
         let mut sign = 0;
-        
+
         for i in 0..n {
             let p1 = self.vertices[i];
             let p2 = self.vertices[(i + 1) % n];
             let p3 = self.vertices[(i + 2) % n];
-            
+
             let cross = (p2.0 - p1.0) * (p3.1 - p2.1) - (p2.1 - p1.1) * (p3.0 - p2.0);
-            
+
             if cross != 0.0 {
                 if sign == 0 {
                     sign = if cross > 0.0 { 1 } else { -1 };
@@ -1000,7 +997,7 @@ impl Polygon {
                 }
             }
         }
-        
+
         true
     }
 }
@@ -1009,109 +1006,109 @@ impl ShapePrimitive for Polygon {
     fn shape_type(&self) -> ShapeType {
         ShapeType::Polygon
     }
-    
+
     fn bounds(&self) -> BoundingBox {
         if self.vertices.is_empty() {
             return BoundingBox::default();
         }
-        
+
         let mut min_x = self.vertices[0].0;
         let mut min_y = self.vertices[0].1;
         let mut max_x = self.vertices[0].0;
         let mut max_y = self.vertices[0].1;
-        
+
         for (x, y) in &self.vertices {
             min_x = min_x.min(*x);
             min_y = min_y.min(*y);
             max_x = max_x.max(*x);
             max_y = max_y.max(*y);
         }
-        
+
         BoundingBox::new(min_x, min_y, max_x, max_y)
     }
-    
+
     fn to_path(&self) -> Path {
         let mut builder = PathBuilder::new();
-        
+
         if let Some((x, y)) = self.vertices.first() {
             builder.move_to(*x, *y);
-            
+
             for (x, y) in self.vertices.iter().skip(1) {
                 builder.line_to(*x, *y);
             }
-            
+
             if self.closed && self.vertices.len() > 2 {
                 builder.close();
             }
         }
-        
+
         builder.build()
     }
-    
+
     fn contains_point(&self, x: f64, y: f64) -> bool {
         if !self.closed || self.vertices.len() < 3 {
             return false;
         }
-        
-        // Ray casting algorithm
+
+
         let mut inside = false;
         let n = self.vertices.len();
-        
+
         for i in 0..n {
             let p1 = self.vertices[i];
             let p2 = self.vertices[(i + 1) % n];
-            
-            if ((p1.1 > y) != (p2.1 > y)) && 
+
+            if ((p1.1 > y) != (p2.1 > y)) &&
                (x < (p2.0 - p1.0) * (y - p1.1) / (p2.1 - p1.1) + p1.0) {
                 inside = !inside;
             }
         }
-        
+
         inside
     }
-    
+
     fn area(&self) -> f64 {
         if !self.closed || self.vertices.len() < 3 {
             return 0.0;
         }
-        
-        // Shoelace formula
+
+
         let mut area = 0.0;
         let n = self.vertices.len();
-        
+
         for i in 0..n {
             let p1 = self.vertices[i];
             let p2 = self.vertices[(i + 1) % n];
             area += p1.0 * p2.1 - p2.0 * p1.1;
         }
-        
+
         area.abs() / 2.0
     }
-    
+
     fn perimeter(&self) -> f64 {
         if self.vertices.len() < 2 {
             return 0.0;
         }
-        
+
         let mut perimeter = 0.0;
         let n = self.vertices.len();
-        
+
         for i in 0..n {
             let p1 = self.vertices[i];
             let p2 = self.vertices[(i + 1) % n];
-            
+
             if !self.closed && i == n - 1 {
-                break; // Don't close for open polygons
+                break;
             }
-            
+
             let dx = p2.0 - p1.0;
             let dy = p2.1 - p1.1;
             perimeter += (dx * dx + dy * dy).sqrt();
         }
-        
+
         perimeter
     }
-    
+
     fn transform(&mut self, transform: &Transform) {
         for (x, y) in &mut self.vertices {
             let (tx, ty) = transform.transform_point(*x, *y);
@@ -1119,26 +1116,26 @@ impl ShapePrimitive for Polygon {
             *y = ty;
         }
     }
-    
+
     fn transformed(&self, transform: &Transform) -> Self {
         let mut copy = self.clone();
         copy.transform(transform);
         copy
     }
-    
+
     fn validate(&self) -> Result<(), String> {
         if self.vertices.is_empty() {
             return Err("Polygon must have at least one vertex".to_string());
         }
-        
+
         if self.closed && self.vertices.len() < 3 {
             return Err("Closed polygon must have at least 3 vertices".to_string());
         }
-        
+
         if !self.closed && self.vertices.len() < 2 {
             return Err("Open polygon must have at least 2 vertices".to_string());
         }
-        
+
         Ok(())
     }
 }
@@ -1146,28 +1143,28 @@ impl ShapePrimitive for Polygon {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_rectangle() {
         let rect = Rectangle::new(10.0, 20.0, 100.0, 50.0);
-        
+
         assert_eq!(rect.shape_type(), ShapeType::Rectangle);
         assert_eq!(rect.area(), 5000.0);
         assert_eq!(rect.perimeter(), 300.0);
         assert!(rect.contains_point(60.0, 45.0));
         assert!(!rect.contains_point(5.0, 45.0));
-        
+
         let bounds = rect.bounds();
         assert_eq!(bounds.min_x, 10.0);
         assert_eq!(bounds.min_y, 20.0);
         assert_eq!(bounds.max_x, 110.0);
         assert_eq!(bounds.max_y, 70.0);
     }
-    
+
     #[test]
     fn test_circle() {
         let circle = Circle::new(50.0, 50.0, 25.0);
-        
+
         assert_eq!(circle.shape_type(), ShapeType::Circle);
         assert!((circle.area() - std::f64::consts::PI * 625.0).abs() < 0.001);
         assert!((circle.perimeter() - 2.0 * std::f64::consts::PI * 25.0).abs() < 0.001);
@@ -1175,83 +1172,83 @@ mod tests {
         assert!(circle.contains_point(70.0, 50.0));
         assert!(!circle.contains_point(80.0, 50.0));
     }
-    
+
     #[test]
     fn test_ellipse() {
         let ellipse = Ellipse::new(50.0, 50.0, 40.0, 20.0);
-        
+
         assert_eq!(ellipse.shape_type(), ShapeType::Ellipse);
         assert!(ellipse.contains_point(50.0, 50.0));
         assert!(ellipse.contains_point(85.0, 50.0));
         assert!(!ellipse.contains_point(95.0, 50.0));
     }
-    
+
     #[test]
     fn test_line() {
         let line = Line::new(0.0, 0.0, 100.0, 100.0);
-        
+
         assert_eq!(line.shape_type(), ShapeType::Line);
         assert!((line.length() - 141.421).abs() < 0.001);
         assert!((line.angle() - std::f64::consts::PI / 4.0).abs() < 0.001);
     }
-    
+
     #[test]
     fn test_polygon() {
         let triangle = Polygon::regular(50.0, 50.0, 30.0, 3);
-        
+
         assert_eq!(triangle.shape_type(), ShapeType::Polygon);
         assert_eq!(triangle.vertex_count(), 3);
         assert!(triangle.is_convex());
         assert!(triangle.contains_point(50.0, 50.0));
-        
+
         let square = Polygon::new(vec![
             (0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)
         ]);
         assert_eq!(square.area(), 10000.0);
         assert_eq!(square.perimeter(), 400.0);
     }
-    
+
     #[test]
     fn test_transform() {
         let rect = Rectangle::new(0.0, 0.0, 10.0, 10.0);
         let transform = Transform::translation(5.0, 10.0);
-        
+
         let transformed = rect.transformed(&transform);
         assert_eq!(transformed.x, 5.0);
         assert_eq!(transformed.y, 10.0);
         assert_eq!(transformed.width, 10.0);
         assert_eq!(transformed.height, 10.0);
     }
-    
+
     #[test]
     fn test_bounding_box() {
         let bbox = BoundingBox::new(10.0, 20.0, 100.0, 80.0);
-        
+
         assert_eq!(bbox.width(), 90.0);
         assert_eq!(bbox.height(), 60.0);
         assert_eq!(bbox.center(), (55.0, 50.0));
         assert!(bbox.contains_point(50.0, 50.0));
         assert!(!bbox.contains_point(5.0, 50.0));
-        
+
         let other = BoundingBox::new(50.0, 40.0, 150.0, 90.0);
         assert!(bbox.intersects(&other));
-        
+
         let union = bbox.union(&other);
         assert_eq!(union.min_x, 10.0);
         assert_eq!(union.max_x, 150.0);
     }
-    
+
     #[test]
     fn test_shape_validation() {
         let valid_rect = Rectangle::new(0.0, 0.0, 10.0, 10.0);
         assert!(valid_rect.validate().is_ok());
-        
+
         let invalid_rect = Rectangle::new(0.0, 0.0, -10.0, 10.0);
         assert!(invalid_rect.validate().is_err());
-        
+
         let valid_circle = Circle::new(0.0, 0.0, 10.0);
         assert!(valid_circle.validate().is_ok());
-        
+
         let invalid_circle = Circle::new(0.0, 0.0, -10.0);
         assert!(invalid_circle.validate().is_err());
     }

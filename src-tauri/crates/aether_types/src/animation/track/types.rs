@@ -1,41 +1,38 @@
-//! Animation track type definitions
-//! 
-//! This module contains the core type definitions for animation tracks
-//! including track types, values, and binding information.
+
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Animation track types
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TrackType {
-    /// Position animation (x, y, z)
+
     Position,
-    /// Rotation animation (x, y, z)
+
     Rotation,
-    /// Scale animation (x, y, z)
+
     Scale,
-    /// Opacity animation
+
     Opacity,
-    /// Color animation (r, g, b, a)
+
     Color,
-    /// Custom property animation
+
     Custom,
 }
 
 impl TrackType {
-    /// Get track type name
+
     pub fn name(&self) -> &'static str {
         match self {
-            TrackType::Position => "Position",
-            TrackType::Rotation => "Rotation",
-            TrackType::Scale => "Scale",
-            TrackType::Opacity => "Opacity",
-            TrackType::Color => "Color",
-            TrackType::Custom => "Custom",
+            TrackType::Position => __STRING_0__,
+            TrackType::Rotation => __STRING_1__,
+            TrackType::Scale => __STRING_2__,
+            TrackType::Opacity => __STRING_3__,
+            TrackType::Color => __STRING_4__,
+            TrackType::Custom => __STRING_5__,
         }
     }
-    
+
     /// Get default value for track type
     pub fn default_value(&self) -> super::value::TrackValue {
         match self {
@@ -47,7 +44,7 @@ impl TrackType {
             TrackType::Custom => super::value::TrackValue::Float(0.0),
         }
     }
-    
+
     /// Get value dimension for track type
     pub fn dimension(&self) -> usize {
         match self {
@@ -67,27 +64,27 @@ impl fmt::Display for TrackType {
     }
 }
 
-/// Binding types for parameters
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum BindingType {
-    /// Direct value binding
+
     Direct,
-    /// Additive binding (value is added to current)
+
     Additive,
-    /// Multiplicative binding (value is multiplied with current)
+
     Multiplicative,
-    /// Override binding (value replaces current)
+
     Override,
 }
 
 impl BindingType {
-    /// Get binding type name
+
     pub fn name(&self) -> &'static str {
         match self {
-            BindingType::Direct => "Direct",
-            BindingType::Additive => "Additive",
-            BindingType::Multiplicative => "Multiplicative",
-            BindingType::Override => "Override",
+            BindingType::Direct => __STRING_7__,
+            BindingType::Additive => __STRING_8__,
+            BindingType::Multiplicative => __STRING_9__,
+            BindingType::Override => __STRING_10__,
         }
     }
 }
@@ -98,21 +95,21 @@ impl fmt::Display for BindingType {
     }
 }
 
-/// Parameter binding for animation tracks
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParameterBinding {
-    /// Target object ID
+
     pub target_id: String,
-    /// Parameter name
+
     pub parameter_name: String,
-    /// Parameter path (for nested properties)
+
     pub parameter_path: Vec<String>,
-    /// Binding type
+
     pub binding_type: BindingType,
 }
 
 impl ParameterBinding {
-    /// Create new parameter binding
+
     pub fn new(target_id: String, parameter_name: String) -> Self {
         Self {
             target_id,
@@ -121,20 +118,20 @@ impl ParameterBinding {
             binding_type: BindingType::Direct,
         }
     }
-    
-    /// Create binding with path
+
+
     pub fn with_path(mut self, path: Vec<String>) -> Self {
         self.parameter_path = path;
         self
     }
-    
-    /// Create binding with type
+
+
     pub fn with_binding_type(mut self, binding_type: BindingType) -> Self {
         self.binding_type = binding_type;
         self
     }
-    
-    /// Get full parameter path
+
+
     pub fn full_path(&self) -> String {
         if self.parameter_path.is_empty() {
             self.parameter_name.clone()
@@ -142,17 +139,17 @@ impl ParameterBinding {
             format!("{}.{}", self.parameter_path.join("."), self.parameter_name)
         }
     }
-    
-    /// Validate binding
+
+
     pub fn validate(&self) -> Result<(), String> {
         if self.target_id.is_empty() {
             return Err("Target ID cannot be empty".to_string());
         }
-        
+
         if self.parameter_name.is_empty() {
             return Err("Parameter name cannot be empty".to_string());
         }
-        
+
         Ok(())
     }
 }

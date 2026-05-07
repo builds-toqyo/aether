@@ -1,12 +1,9 @@
-//! Path segment types and operations
-//! 
-//! This module provides path segment definitions and basic operations
-//! for different types of path segments.
+
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Path segment types
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum PathSegmentType {
     MoveTo,
@@ -19,11 +16,11 @@ pub enum PathSegmentType {
 impl fmt::Display for PathSegmentType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PathSegmentType::MoveTo => write!(f, "MoveTo"),
-            PathSegmentType::LineTo => write!(f, "LineTo"),
-            PathSegmentType::QuadraticTo => write!(f, "QuadraticTo"),
-            PathSegmentType::CubicTo => write!(f, "CubicTo"),
-            PathSegmentType::Close => write!(f, "Close"),
+            PathSegmentType::MoveTo => write!(f, __STRING_0__),
+            PathSegmentType::LineTo => write!(f, __STRING_1__),
+            PathSegmentType::QuadraticTo => write!(f, __STRING_2__),
+            PathSegmentType::CubicTo => write!(f, __STRING_3__),
+            PathSegmentType::Close => write!(f, __STRING_4__),
         }
     }
 }
@@ -57,7 +54,7 @@ impl PathSegment {
             cp2_y: 0.0,
         }
     }
-    
+
     /// Create line to segment
     pub fn line_to(x: f64, y: f64) -> Self {
         Self {
@@ -70,7 +67,7 @@ impl PathSegment {
             cp2_y: 0.0,
         }
     }
-    
+
     /// Create quadratic bezier segment
     pub fn quadratic_to(x: f64, y: f64, cp_x: f64, cp_y: f64) -> Self {
         Self {
@@ -83,7 +80,7 @@ impl PathSegment {
             cp2_y: 0.0,
         }
     }
-    
+
     /// Create cubic bezier segment
     pub fn cubic_to(x: f64, y: f64, cp1_x: f64, cp1_y: f64, cp2_x: f64, cp2_y: f64) -> Self {
         Self {
@@ -96,7 +93,7 @@ impl PathSegment {
             cp2_y,
         }
     }
-    
+
     /// Create close segment
     pub fn close() -> Self {
         Self {
@@ -109,7 +106,7 @@ impl PathSegment {
             cp2_y: 0.0,
         }
     }
-    
+
     /// Get length of segment (approximate)
     pub fn length(&self, start_x: f64, start_y: f64) -> f64 {
         match self.segment_type {
@@ -130,13 +127,13 @@ impl PathSegment {
             PathSegmentType::Close => 0.0,
         }
     }
-    
+
     /// Approximate bezier curve length using subdivision
     fn approximate_bezier_length(&self, x0: f64, y0: f64, x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64, subdivisions: usize) -> f64 {
         let mut length = 0.0;
         let mut prev_x = x0;
         let mut prev_y = y0;
-        
+
         for i in 1..=subdivisions {
             let t = i as f64 / subdivisions as f64;
             let point = self.evaluate_bezier_point(t, x0, y0, x1, y1, x2, y2, x3, y3);
@@ -146,10 +143,10 @@ impl PathSegment {
             prev_x = point.0;
             prev_y = point.1;
         }
-        
+
         length
     }
-    
+
     /// Evaluate point on bezier curve at parameter t
     fn evaluate_bezier_point(&self, t: f64, x0: f64, y0: f64, x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64) -> (f64, f64) {
         let mt = 1.0 - t;
@@ -157,17 +154,17 @@ impl PathSegment {
         let mt3 = mt2 * mt;
         let t2 = t * t;
         let t3 = t2 * t;
-        
+
         let x = mt3 * x0 + 3.0 * mt2 * t * x1 + 3.0 * mt * t2 * x2 + t3 * x3;
         let y = mt3 * y0 + 3.0 * mt2 * t * y1 + 3.0 * mt * t2 * y2 + t3 * y3;
-        
+
         (x, y)
     }
-    
+
     /// Sample points along the segment
     pub fn sample_points(&self, start_x: f64, start_y: f64, num_samples: usize) -> Vec<(f64, f64)> {
         let mut points = Vec::with_capacity(num_samples);
-        
+
         match self.segment_type {
             PathSegmentType::MoveTo => {
                 points.push((self.x, self.y));
@@ -198,39 +195,39 @@ impl PathSegment {
                 // Close segment doesn't generate points
             }
         }
-        
+
         points
     }
-    
-    /// Evaluate quadratic bezier point
+
+
     fn evaluate_quadratic_bezier(&self, t: f64, x0: f64, y0: f64, x1: f64, y1: f64, x2: f64, y2: f64) -> (f64, f64) {
         let mt = 1.0 - t;
         let x = mt * mt * x0 + 2.0 * mt * t * x1 + t * t * x2;
         let y = mt * mt * y0 + 2.0 * mt * t * y1 + t * t * y2;
         (x, y)
     }
-    
-    /// Check if segment is a move operation
+
+
     pub fn is_move(&self) -> bool {
         matches!(self.segment_type, PathSegmentType::MoveTo)
     }
-    
-    /// Check if segment is a drawing operation
+
+
     pub fn is_drawing(&self) -> bool {
         matches!(self.segment_type, PathSegmentType::LineTo | PathSegmentType::QuadraticTo | PathSegmentType::CubicTo)
     }
-    
-    /// Check if segment is a close operation
+
+
     pub fn is_close(&self) -> bool {
         matches!(self.segment_type, PathSegmentType::Close)
     }
-    
-    /// Get end point
+
+
     pub fn end_point(&self) -> (f64, f64) {
         (self.x, self.y)
     }
-    
-    /// Get control points for bezier curves
+
+
     pub fn control_points(&self) -> Option<[(f64, f64); 2]> {
         match self.segment_type {
             PathSegmentType::QuadraticTo => Some([(self.cp1_x, self.cp1_y), (self.x, self.y)]),
@@ -243,7 +240,7 @@ impl PathSegment {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_path_segment_creation() {
         let move_seg = PathSegment::move_to(10.0, 20.0);
@@ -253,32 +250,32 @@ mod tests {
         assert!(move_seg.is_move());
         assert!(!move_seg.is_drawing());
         assert!(!move_seg.is_close());
-        
+
         let line_seg = PathSegment::line_to(30.0, 40.0);
         assert_eq!(line_seg.segment_type, PathSegmentType::LineTo);
         assert!(line_seg.is_drawing());
         assert!(!line_seg.is_move());
         assert!(!line_seg.is_close());
-        
+
         let close_seg = PathSegment::close();
         assert_eq!(close_seg.segment_type, PathSegmentType::Close);
         assert!(close_seg.is_close());
         assert!(!close_seg.is_move());
         assert!(!close_seg.is_drawing());
     }
-    
+
     #[test]
     fn test_bezier_segments() {
         let quad_seg = PathSegment::quadratic_to(50.0, 60.0, 30.0, 40.0);
         assert_eq!(quad_seg.segment_type, PathSegmentType::QuadraticTo);
         assert_eq!(quad_seg.cp1_x, 30.0);
         assert_eq!(quad_seg.cp1_y, 40.0);
-        
+
         let control_points = quad_seg.control_points();
         assert!(control_points.is_some());
         assert_eq!(control_points.unwrap()[0], (30.0, 40.0));
         assert_eq!(control_points.unwrap()[1], (50.0, 60.0));
-        
+
         let cubic_seg = PathSegment::cubic_to(70.0, 80.0, 30.0, 40.0, 50.0, 60.0);
         assert_eq!(cubic_seg.segment_type, PathSegmentType::CubicTo);
         assert_eq!(cubic_seg.cp1_x, 30.0);
@@ -286,46 +283,46 @@ mod tests {
         assert_eq!(cubic_seg.cp2_x, 50.0);
         assert_eq!(cubic_seg.cp2_y, 60.0);
     }
-    
+
     #[test]
     fn test_line_segment_length() {
         let line_seg = PathSegment::line_to(10.0, 0.0);
         let length = line_seg.length(0.0, 0.0);
         assert_eq!(length, 10.0);
-        
+
         let diagonal_seg = PathSegment::line_to(10.0, 10.0);
         let diagonal_length = diagonal_seg.length(0.0, 0.0);
         assert!((diagonal_length - 14.142).abs() < 0.001);
     }
-    
+
     #[test]
     fn test_segment_sampling() {
         let line_seg = PathSegment::line_to(10.0, 0.0);
         let points = line_seg.sample_points(0.0, 0.0, 5);
-        
+
         assert_eq!(points.len(), 5);
         assert_eq!(points[0], (0.0, 0.0));
         assert_eq!(points[4], (10.0, 0.0));
-        assert_eq!(points[2], (5.0, 0.0)); // Middle point
+        assert_eq!(points[2], (5.0, 0.0));
     }
-    
+
     #[test]
     fn test_bezier_segment_sampling() {
         let quad_seg = PathSegment::quadratic_to(10.0, 0.0, 5.0, -5.0);
         let points = quad_seg.sample_points(0.0, 0.0, 5);
-        
+
         assert_eq!(points.len(), 5);
         assert_eq!(points[0], (0.0, 0.0));
         assert_eq!(points[4], (10.0, 0.0));
     }
-    
+
     #[test]
     fn test_segment_end_point() {
         let seg = PathSegment::line_to(30.0, 40.0);
         let end_point = seg.end_point();
         assert_eq!(end_point, (30.0, 40.0));
     }
-    
+
     #[test]
     fn test_segment_type_display() {
         assert_eq!(format!("{}", PathSegmentType::MoveTo), "MoveTo");

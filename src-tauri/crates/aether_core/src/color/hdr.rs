@@ -1,8 +1,4 @@
-//! HDR Support Module
-//! 
-//! This module provides comprehensive HDR (High Dynamic Range) support including
-//! HDR display management, tone mapping algorithms, and gamut mapping for professional
-//! video production workflows.
+
 
 pub mod processor;
 pub mod types;
@@ -12,7 +8,7 @@ pub mod tone;
 pub mod gamut;
 pub mod analysis;
 
-// Re-export main HDR types
+
 pub use processor::HdrProcessor;
 pub use config::HdrConfig;
 pub use types::{HdrImage, HdrPixel, HdrDisplayType, ColorPrimaries, TransferFunction};

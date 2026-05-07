@@ -11,7 +11,7 @@ pub mod memory_tracker;
 pub use gpu_sync::{GpuCpuSynchronization, PendingOperation, SyncStatus};
 pub use memory_tracker::{MemoryTracker, MemoryStats, TextureAllocation, BufferAllocation, SamplerAllocation};
 
-/// Handle for samplers
+
 #[derive(Debug, Clone)]
 pub struct SamplerHandle {
     pub id: Uuid,
@@ -20,12 +20,12 @@ pub struct SamplerHandle {
 }
 
 impl SamplerHandle {
-    /// Get sampler ID
+
     pub fn id(&self) -> Uuid {
         self.id
     }
-    
-    /// Get the underlying sampler
+
+
     pub fn get_sampler(&self) -> Arc<Sampler> {
         self.sampler.clone()
     }

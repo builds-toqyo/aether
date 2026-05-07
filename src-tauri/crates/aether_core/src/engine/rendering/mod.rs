@@ -13,60 +13,60 @@ use std::sync::{Arc, Mutex};
 use anyhow::Result;
 use crate::engine::editing::types::EditingError;
 
-/// Enum to represent the different types of exporters
+
 pub enum ExporterType {
-    /// FFmpeg-based exporter
+
     FFmpeg,
-    /// GStreamer-based exporter
+
     GStreamer,
 }
 
-/// Enum to hold either type of exporter
+
 pub enum ActiveExporter {
-    /// FFmpeg-based exporter
+
     FFmpeg(Arc<Mutex<Exporter>>),
-    /// GStreamer-based exporter
+
     GStreamer(Arc<Mutex<GstExporter>>),
 }
 
 pub struct RenderingEngine {
     initialized: bool,
     current_export: Option<ActiveExporter>,
-    /// Default exporter type to use
+
     default_exporter_type: ExporterType,
 }
 
 impl RenderingEngine {
-    pub fn new() -> Result<Self, EditingError> {    
+    pub fn new() -> Result<Self, EditingError> {
         Ok(Self {
             initialized: true,
             current_export: None,
-            default_exporter_type: ExporterType::FFmpeg, // Default to FFmpeg for backward compatibility
+            default_exporter_type: ExporterType::FFmpeg,
         })
     }
-    
-    /// Set the default exporter type
+
+
     pub fn set_default_exporter_type(&mut self, exporter_type: ExporterType) {
         self.default_exporter_type = exporter_type;
     }
-    
-    /// Create an FFmpeg-based exporter
+
+
     pub fn create_ffmpeg_export(&mut self, options: ExportOptions) -> Result<Arc<Mutex<Exporter>>, EditingError> {
         let exporter = Arc::new(Mutex::new(Exporter::new(options)?));
         self.current_export = Some(ActiveExporter::FFmpeg(exporter.clone()));
-        
+
         Ok(exporter)
     }
-    
-    /// Create a GStreamer-based exporter
+
+
     pub fn create_gstreamer_export(&mut self, options: GstExportOptions) -> Result<Arc<Mutex<GstExporter>>, EditingError> {
         let exporter = Arc::new(Mutex::new(GstExporter::new(options)?));
         self.current_export = Some(ActiveExporter::GStreamer(exporter.clone()));
-        
+
         Ok(exporter)
     }
-    
-    /// Create an exporter using the default exporter type
+
+
     pub fn create_export(&mut self, options: ExportOptions) -> Result<ActiveExporter, EditingError> {
         match self.default_exporter_type {
             ExporterType::FFmpeg => {
@@ -74,10 +74,10 @@ impl RenderingEngine {
                 Ok(ActiveExporter::FFmpeg(exporter))
             },
             ExporterType::GStreamer => {
-                // Convert FFmpeg options to GStreamer options
-                // This is a simplified conversion and might need more fields
+
+
                 let gst_options = GstExportOptions {
-                    timeline: ges::Timeline::new(), // This needs to be set by the caller
+                    timeline: ges::Timeline::new(),
                     output_path: options.output_path,
                     container_format: options.container_format,
                     video_format: options.video_format,
@@ -92,19 +92,19 @@ impl RenderingEngine {
                     hardware_acceleration: options.hardware_acceleration,
                     threads: options.threads,
                 };
-                
+
                 let exporter = self.create_gstreamer_export(gst_options)?;
                 Ok(ActiveExporter::GStreamer(exporter))
             },
         }
     }
-    
-    /// Get the current export if any
+
+
     pub fn current_export(&self) -> Option<&ActiveExporter> {
         self.current_export.as_ref()
     }
-    
-    /// Cancel the current export if any
+
+
     pub fn cancel_export(&mut self) -> Result<(), EditingError> {
         if let Some(exporter) = &self.current_export {
             match exporter {
@@ -117,15 +117,15 @@ impl RenderingEngine {
             }
             self.current_export = None;
         }
-        
+
         Ok(())
     }
-    
+
     pub fn shutdown(&mut self) -> Result<(), EditingError> {
         let _ = self.cancel_export();
-        
+
         self.initialized = false;
-        
+
         Ok(())
     }
 }

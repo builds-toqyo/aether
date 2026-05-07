@@ -16,7 +16,7 @@ pub use color::scopes::{
 pub use animation::{
     Keyframe, KeyframeData, TransformData, KeyframeCollection,
     AnimationCurve, CurveType, BezierControlPoint, CurveBuilder,
-    AnimationTrack, TrackType, TrackValue, ParameterBinding, BindingType, 
+    AnimationTrack, TrackType, TrackValue, ParameterBinding, BindingType,
     AnimationTrackCollection, TrackCollectionStats, AnimationTrackBuilder, AnimationTrackCollectionBuilder,
     TrackValueUtils,
     InterpolationMethod, EasingFunction, EasingCategory, InterpolationUtils,

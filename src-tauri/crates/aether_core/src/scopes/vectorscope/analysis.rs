@@ -1,7 +1,4 @@
-//! Vectorscope analysis and metrics
-//! 
-//! This module provides advanced analysis capabilities for vectorscope data,
-//! including color distribution analysis and target compliance checking.
+
 
 use anyhow::{Result};
 use log::debug;
@@ -12,27 +9,27 @@ use crate::types::{
 
 use crate::scopes::ColorConverter;
 
-/// Analyzer for advanced vectorscope analysis
+
 pub struct VectorscopeAnalyzer {
     color_converter: ColorConverter,
 }
 
 impl VectorscopeAnalyzer {
-    /// Create new vectorscope analyzer
+
     pub fn new() -> Self {
         Self {
             color_converter: ColorConverter::new(ColorSpace::Rec709),
         }
     }
-    
-    /// Analyze color distribution
+
+
     pub fn analyze_color_distribution(&self, data: &VectorscopeData) -> Result<ColorDistribution> {
         let mut distribution = ColorDistribution::new();
-        
-        // Analyze intensity distribution
+
+
         let max_intensity = data.intensity_grid.iter().copied().max().unwrap_or(0);
         let total_intensity: u64 = data.intensity_grid.iter().map(|&v| v as u64).sum();
-        
+
         distribution.max_intensity = max_intensity;
         distribution.total_intensity = total_intensity;
         distribution.average_intensity = if total_intensity > 0 {
@@ -40,67 +37,67 @@ impl VectorscopeAnalyzer {
         } else {
             0.0
         };
-        
-        // Analyze color balance
+
+
         let mut red_sum = 0.0;
         let mut green_sum = 0.0;
         let mut blue_sum = 0.0;
         let mut sample_count = 0;
-        
+
         for point in &data.points {
-            // Convert UV back to RGB for analysis (simplified)
+
             let (r, g, b) = self.uv_to_rgb(point.u, point.v);
             red_sum += r;
             green_sum += g;
             blue_sum += b;
             sample_count += 1;
         }
-        
+
         if sample_count > 0 {
             distribution.color_balance.red = red_sum / sample_count as f32;
             distribution.color_balance.green = green_sum / sample_count as f32;
             distribution.color_balance.blue = blue_sum / sample_count as f32;
         }
-        
+
         Ok(distribution)
     }
-    
-    /// Check if colors are within target ranges
+
+
     pub fn check_target_compliance(&self, data: &VectorscopeData) -> Result<TargetCompliance> {
         let mut compliance = TargetCompliance::new();
-        
+
         for target in &data.config.targets {
             let (target_u, target_v) = self.get_target_uv(*target);
             let intensity = data.get_intensity(target_u, target_v);
-            
+
             let target_result = TargetResult {
                 target: *target,
                 intensity,
-                within_range: intensity > 10, // Threshold for "detected"
+                within_range: intensity > 10,
                 deviation: self.calculate_uv_deviation(target_u, target_v, data),
             };
-            
+
             compliance.targets.push(target_result);
         }
-        
+
         Ok(compliance)
     }
-    
-    /// Convert UV back to RGB (simplified inverse)
+
+
     fn uv_to_rgb(&self, u: f32, v: f32) -> (f32, f32, f32) {
-        // Simplified conversion - in practice this would use proper inverse matrices
+
         let r = (v + 0.5).clamp(0.0, 1.0);
         let g = (0.5 - u.abs() * 0.5 - v.abs() * 0.5).clamp(0.0, 1.0);
         let b = (u + 0.5).clamp(0.0, 1.0);
-        
+
         (r, g, b)
     }
-    
-    /// Get target UV coordinates
+
+
     fn get_target_uv(&self, target: VectorscopeTarget) -> (f32, f32) {
         match target {
-            VectorscopeTarget::Primary => (0.0, 0.0), // Center (white)
-            VectorscopeTarget::SkinTones => (0.1, 0.2), // Skin tone line
+            VectorscopeTarget::Primary => (0.0, 0.0),
+            VectorscopeTarget::SkinTones => (0.1, 0.2),
             VectorscopeTarget::Blue => (-0.2, -0.4),
             VectorscopeTarget::Yellow => (0.3, 0.4),
             VectorscopeTarget::Cyan => (-0.3, 0.2),
@@ -109,12 +106,12 @@ impl VectorscopeAnalyzer {
             VectorscopeTarget::Red => (0.3, -0.4),
         }
     }
-    
-    /// Calculate UV deviation from target
+
+
     fn calculate_uv_deviation(&self, target_u: f32, target_v: f32, data: &VectorscopeData) -> f32 {
         let mut total_deviation = 0.0;
         let mut sample_count = 0;
-        
+
         for point in &data.points {
             let du = point.u - target_u;
             let dv = point.v - target_v;
@@ -122,7 +119,7 @@ impl VectorscopeAnalyzer {
             total_deviation += distance;
             sample_count += 1;
         }
-        
+
         if sample_count > 0 {
             total_deviation / sample_count as f32
         } else {
@@ -137,7 +134,7 @@ impl Default for VectorscopeAnalyzer {
     }
 }
 
-/// Color distribution analysis results
+
 #[derive(Debug, Clone)]
 pub struct ColorDistribution {
     pub max_intensity: u16,
@@ -157,7 +154,7 @@ impl ColorDistribution {
     }
 }
 
-/// Color balance information
+
 #[derive(Debug, Clone)]
 pub struct ColorBalance {
     pub red: f32,
@@ -173,7 +170,7 @@ impl ColorBalance {
             blue: 0.0,
         }
     }
-    
+
     pub fn is_balanced(&self, tolerance: f32) -> bool {
         let avg = (self.red + self.green + self.blue) / 3.0;
         (self.red - avg).abs() < tolerance &&
@@ -182,7 +179,7 @@ impl ColorBalance {
     }
 }
 
-/// Target compliance analysis results
+
 #[derive(Debug, Clone)]
 pub struct TargetCompliance {
     pub targets: Vec<TargetResult>,
@@ -194,7 +191,7 @@ impl TargetCompliance {
             targets: Vec::new(),
         }
     }
-    
+
     pub fn compliance_rate(&self) -> f32 {
         if self.targets.is_empty() {
             0.0
@@ -205,7 +202,7 @@ impl TargetCompliance {
     }
 }
 
-/// Individual target analysis result
+
 #[derive(Debug, Clone)]
 pub struct TargetResult {
     pub target: VectorscopeTarget,

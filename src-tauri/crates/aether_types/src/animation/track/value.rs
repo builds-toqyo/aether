@@ -1,56 +1,53 @@
-//! Track value types and interpolation
-//! 
-//! This module contains the track value definitions and interpolation
-//! logic for different value types used in animation tracks.
+
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Track value types
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TrackValue {
-    /// Single float value
+
     Float(f64),
-    /// 2D vector (x, y)
+
     Vector2([f64; 2]),
-    /// 3D vector (x, y, z)
+
     Vector3([f64; 3]),
-    /// 4D vector (x, y, z, w)
+
     Vector4([f64; 4]),
-    /// Color value (r, g, b, a)
+
     Color([f64; 4]),
-    /// Boolean value
+
     Boolean(bool),
-    /// String value
+
     String(String),
 }
 
 impl TrackValue {
-    /// Get value as float
+
     pub fn as_float(&self) -> Option<f64> {
         match self {
             TrackValue::Float(v) => Some(*v),
             _ => None,
         }
     }
-    
-    /// Get value as vector2
+
+
     pub fn as_vector2(&self) -> Option<[f64; 2]> {
         match self {
             TrackValue::Vector2(v) => Some(*v),
             _ => None,
         }
     }
-    
-    /// Get value as vector3
+
+
     pub fn as_vector3(&self) -> Option<[f64; 3]> {
         match self {
             TrackValue::Vector3(v) => Some(*v),
             _ => None,
         }
     }
-    
-    /// Get value as vector4
+
+
     pub fn as_vector4(&self) -> Option<[f64; 4]> {
         match self {
             TrackValue::Vector4(v) => Some(*v),
@@ -58,8 +55,8 @@ impl TrackValue {
             _ => None,
         }
     }
-    
-    /// Get value as color
+
+
     pub fn as_color(&self) -> Option<[f64; 4]> {
         match self {
             TrackValue::Color(v) => Some(*v),
@@ -67,24 +64,24 @@ impl TrackValue {
             _ => None,
         }
     }
-    
-    /// Get value as boolean
+
+
     pub fn as_boolean(&self) -> Option<bool> {
         match self {
             TrackValue::Boolean(v) => Some(*v),
             _ => None,
         }
     }
-    
-    /// Get value as string
+
+
     pub fn as_string(&self) -> Option<&str> {
         match self {
             TrackValue::String(v) => Some(v),
             _ => None,
         }
     }
-    
-    /// Get value dimension
+
+
     pub fn dimension(&self) -> usize {
         match self {
             TrackValue::Float(_) => 1,
@@ -96,13 +93,13 @@ impl TrackValue {
             TrackValue::String(_) => 1,
         }
     }
-    
-    /// Interpolate between two values
+
+
     pub fn interpolate(&self, other: &TrackValue, t: f64) -> Result<TrackValue, String> {
         if std::mem::discriminant(self) != std::mem::discriminant(other) {
             return Err("Cannot interpolate different value types".to_string());
         }
-        
+
         match (self, other) {
             (TrackValue::Float(a), TrackValue::Float(b)) => {
                 Ok(TrackValue::Float(a + (b - a) * t))
@@ -145,8 +142,8 @@ impl TrackValue {
             _ => Err("Unsupported interpolation for this type".to_string()),
         }
     }
-    
-    /// Create default value for track type
+
+
     pub fn default_for_type(track_type: super::types::TrackType) -> Self {
         match track_type {
             super::types::TrackType::Position => TrackValue::Vector3([0.0, 0.0, 0.0]),
@@ -157,8 +154,8 @@ impl TrackValue {
             super::types::TrackType::Custom => TrackValue::Float(0.0),
         }
     }
-    
-    /// Check if value type is compatible with track type
+
+
     pub fn is_compatible_with_track(&self, track_type: super::types::TrackType) -> bool {
         match track_type {
             super::types::TrackType::Position | super::types::TrackType::Rotation | super::types::TrackType::Scale => {
@@ -170,7 +167,7 @@ impl TrackValue {
             super::types::TrackType::Color => {
                 matches!(self, TrackValue::Color(_) | TrackValue::Vector4(_))
             }
-            super::types::TrackType::Custom => true, // Custom tracks accept any type
+            super::types::TrackType::Custom => true,
         }
     }
 }
@@ -195,16 +192,16 @@ impl Default for TrackValue {
     }
 }
 
-/// Track value utilities
+
 pub struct TrackValueUtils;
 
 impl TrackValueUtils {
-    /// Linear interpolation between two values
+
     pub fn lerp(a: &TrackValue, b: &TrackValue, t: f64) -> Result<TrackValue, String> {
         a.interpolate(b, t)
     }
-    
-    /// Create zero value for track type
+
+
     pub fn zero_for_type(track_type: super::types::TrackType) -> TrackValue {
         match track_type {
             super::types::TrackType::Position => TrackValue::Vector3([0.0, 0.0, 0.0]),
@@ -215,8 +212,8 @@ impl TrackValueUtils {
             super::types::TrackType::Custom => TrackValue::Float(0.0),
         }
     }
-    
-    /// Create identity value for track type
+
+
     pub fn identity_for_type(track_type: super::types::TrackType) -> TrackValue {
         match track_type {
             super::types::TrackType::Position => TrackValue::Vector3([0.0, 0.0, 0.0]),
@@ -227,8 +224,8 @@ impl TrackValueUtils {
             super::types::TrackType::Custom => TrackValue::Float(0.0),
         }
     }
-    
-    /// Convert value to float array
+
+
     pub fn to_float_array(value: &TrackValue) -> Vec<f64> {
         match value {
             TrackValue::Float(v) => vec![*v],
@@ -240,8 +237,8 @@ impl TrackValueUtils {
             TrackValue::String(_) => vec![0.0],
         }
     }
-    
-    /// Create value from float array
+
+
     pub fn from_float_array(values: &[f64], track_type: super::types::TrackType) -> Result<TrackValue, String> {
         match track_type {
             super::types::TrackType::Position | super::types::TrackType::Rotation | super::types::TrackType::Scale => {
@@ -280,59 +277,59 @@ impl TrackValueUtils {
 mod tests {
     use super::*;
     use crate::animation::track::types::TrackType;
-    
+
     #[test]
     fn test_track_value_creation() {
         let float_val = TrackValue::Float(42.0);
         let vector_val = TrackValue::Vector3([1.0, 2.0, 3.0]);
         let color_val = TrackValue::Color([1.0, 0.0, 0.0, 1.0]);
-        
+
         assert_eq!(float_val.as_float(), Some(42.0));
         assert_eq!(vector_val.as_vector3(), Some([1.0, 2.0, 3.0]));
         assert_eq!(color_val.as_color(), Some([1.0, 0.0, 0.0, 1.0]));
     }
-    
+
     #[test]
     fn test_track_value_interpolation() {
         let a = TrackValue::Float(0.0);
         let b = TrackValue::Float(10.0);
-        
+
         let result = a.interpolate(&b, 0.5).unwrap();
-        
+
         if let TrackValue::Float(v) = result {
             assert_eq!(v, 5.0);
         } else {
             panic!("Expected float value");
         }
     }
-    
+
     #[test]
     fn test_track_value_compatibility() {
         let position_val = TrackValue::Vector3([1.0, 2.0, 3.0]);
         let color_val = TrackValue::Color([1.0, 0.0, 0.0, 1.0]);
-        
+
         assert!(position_val.is_compatible_with_track(TrackType::Position));
         assert!(!position_val.is_compatible_with_track(TrackType::Color));
         assert!(color_val.is_compatible_with_track(TrackType::Color));
         assert!(color_val.is_compatible_with_track(TrackType::Color));
     }
-    
+
     #[test]
     fn test_track_value_utils() {
         let zero_pos = TrackValueUtils::zero_for_type(TrackType::Position);
         let identity_scale = TrackValueUtils::identity_for_type(TrackType::Scale);
-        
+
         assert_eq!(zero_pos.as_vector3(), Some([0.0, 0.0, 0.0]));
         assert_eq!(identity_scale.as_vector3(), Some([1.0, 1.0, 1.0]));
     }
-    
+
     #[test]
     fn test_float_array_conversion() {
         let vector_val = TrackValue::Vector3([1.0, 2.0, 3.0]);
         let array = TrackValueUtils::to_float_array(&vector_val);
-        
+
         assert_eq!(array, vec![1.0, 2.0, 3.0]);
-        
+
         let reconstructed = TrackValueUtils::from_float_array(&array, TrackType::Position).unwrap();
         assert_eq!(reconstructed, vector_val);
     }

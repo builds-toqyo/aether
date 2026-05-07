@@ -5,26 +5,26 @@ use log::debug;
 
 use crate::state::AppState;
 
-/// Command to get graph information
+
 #[tauri::command]
 pub async fn get_graph_info(
     state: State<'_, AppState>,
 ) -> Result<GraphInfoResponse, String> {
     debug!("Getting graph information");
-    
+
     let graph = state.graph.lock().map_err(|e| format!("Failed to lock graph: {}", e))?;
-    
+
     let node_count = graph.nodes.len();
     let connection_count = graph.connections.len();
-    
-    // Count nodes by type
+
+
     let mut node_types = HashMap::new();
     for node in graph.get_nodes() {
         let type_name = format!("{:?}", node.node_type);
         *node_types.entry(type_name).or_insert(0) += 1;
     }
-    
-    // Get node list
+
+
     let nodes: Vec<NodeInfo> = graph.get_nodes().iter().map(|node| NodeInfo {
         id: node.id.to_string(),
         name: node.name.clone(),
@@ -33,7 +33,7 @@ pub async fn get_graph_info(
         output_count: node.outputs.len(),
         enabled: node.enabled,
     }).collect();
-    
+
     Ok(GraphInfoResponse {
         node_count,
         connection_count,
@@ -44,7 +44,7 @@ pub async fn get_graph_info(
     })
 }
 
-/// Response for graph information queries
+
 #[derive(Debug, Serialize)]
 pub struct GraphInfoResponse {
     pub node_count: usize,
@@ -55,7 +55,7 @@ pub struct GraphInfoResponse {
     pub message: String,
 }
 
-/// Node information structure
+
 #[derive(Debug, Serialize)]
 pub struct NodeInfo {
     pub id: String,
@@ -69,7 +69,7 @@ pub struct NodeInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_node_info_serialization() {
         let node_info = NodeInfo {
@@ -80,8 +80,8 @@ mod tests {
             output_count: 1,
             enabled: true,
         };
-        
-        // Test that it can be serialized (this would be done by Tauri)
+
+
         assert_eq!(node_info.id, "test-id");
         assert_eq!(node_info.name, "Test Node");
         assert_eq!(node_info.node_type, "Input");

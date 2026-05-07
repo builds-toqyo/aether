@@ -1,12 +1,9 @@
-//! Easing functions
-//! 
-//! This module contains comprehensive easing functions for smooth
-//! animation transitions with 30+ professional easing curves.
+
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Easing functions for animation
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum EasingFunction {
     Linear,
@@ -43,57 +40,57 @@ pub enum EasingFunction {
 }
 
 impl EasingFunction {
-    /// Get function name
+
     pub fn name(&self) -> &'static str {
         match self {
-            EasingFunction::Linear => "Linear",
-            EasingFunction::QuadIn => "Quad In",
-            EasingFunction::QuadOut => "Quad Out",
-            EasingFunction::QuadInOut => "Quad In Out",
-            EasingFunction::CubicIn => "Cubic In",
-            EasingFunction::CubicOut => "Cubic Out",
-            EasingFunction::CubicInOut => "Cubic In Out",
-            EasingFunction::QuartIn => "Quart In",
-            EasingFunction::QuartOut => "Quart Out",
-            EasingFunction::QuartInOut => "Quart In Out",
-            EasingFunction::QuintIn => "Quint In",
-            EasingFunction::QuintOut => "Quint Out",
-            EasingFunction::QuintInOut => "Quint In Out",
-            EasingFunction::SineIn => "Sine In",
-            EasingFunction::SineOut => "Sine Out",
-            EasingFunction::SineInOut => "Sine In Out",
-            EasingFunction::ExpoIn => "Expo In",
-            EasingFunction::ExpoOut => "Expo Out",
-            EasingFunction::ExpoInOut => "Expo In Out",
-            EasingFunction::CircIn => "Circ In",
-            EasingFunction::CircOut => "Circ Out",
-            EasingFunction::CircInOut => "Circ In Out",
-            EasingFunction::BackIn => "Back In",
-            EasingFunction::BackOut => "Back Out",
-            EasingFunction::BackInOut => "Back In Out",
-            EasingFunction::ElasticIn => "Elastic In",
-            EasingFunction::ElasticOut => "Elastic Out",
-            EasingFunction::ElasticInOut => "Elastic In Out",
-            EasingFunction::BounceIn => "Bounce In",
-            EasingFunction::BounceOut => "Bounce Out",
-            EasingFunction::BounceInOut => "Bounce In Out",
+            EasingFunction::Linear => __STRING_0__,
+            EasingFunction::QuadIn => __STRING_1__,
+            EasingFunction::QuadOut => __STRING_2__,
+            EasingFunction::QuadInOut => __STRING_3__,
+            EasingFunction::CubicIn => __STRING_4__,
+            EasingFunction::CubicOut => __STRING_5__,
+            EasingFunction::CubicInOut => __STRING_6__,
+            EasingFunction::QuartIn => __STRING_7__,
+            EasingFunction::QuartOut => __STRING_8__,
+            EasingFunction::QuartInOut => __STRING_9__,
+            EasingFunction::QuintIn => __STRING_10__,
+            EasingFunction::QuintOut => __STRING_11__,
+            EasingFunction::QuintInOut => __STRING_12__,
+            EasingFunction::SineIn => __STRING_13__,
+            EasingFunction::SineOut => __STRING_14__,
+            EasingFunction::SineInOut => __STRING_15__,
+            EasingFunction::ExpoIn => __STRING_16__,
+            EasingFunction::ExpoOut => __STRING_17__,
+            EasingFunction::ExpoInOut => __STRING_18__,
+            EasingFunction::CircIn => __STRING_19__,
+            EasingFunction::CircOut => __STRING_20__,
+            EasingFunction::CircInOut => __STRING_21__,
+            EasingFunction::BackIn => __STRING_22__,
+            EasingFunction::BackOut => __STRING_23__,
+            EasingFunction::BackInOut => __STRING_24__,
+            EasingFunction::ElasticIn => __STRING_25__,
+            EasingFunction::ElasticOut => __STRING_26__,
+            EasingFunction::ElasticInOut => __STRING_27__,
+            EasingFunction::BounceIn => __STRING_28__,
+            EasingFunction::BounceOut => __STRING_29__,
+            EasingFunction::BounceInOut => __STRING_30__,
         }
     }
-    
+
     /// Apply easing function to parameter t (0.0 to 1.0)
     pub fn apply(&self, t: f64) -> f64 {
         let t = t.clamp(0.0, 1.0);
-        
+
         match self {
             EasingFunction::Linear => t,
-            
+
             // Quadratic
             EasingFunction::QuadIn => t * t,
             EasingFunction::QuadOut => t * (2.0 - t),
             EasingFunction::QuadInOut => {
                 if t < 0.5 { 2.0 * t * t } else { -1.0 + (4.0 - 2.0 * t) * t }
             }
-            
+
             // Cubic
             EasingFunction::CubicIn => t * t * t,
             EasingFunction::CubicOut => {
@@ -106,7 +103,7 @@ impl EasingFunction {
                     4.0 * t * t * t + 1.0
                 }
             }
-            
+
             // Quartic
             EasingFunction::QuartIn => t * t * t * t,
             EasingFunction::QuartOut => {
@@ -119,7 +116,7 @@ impl EasingFunction {
                     1.0 - 8.0 * t * t * t * t
                 }
             }
-            
+
             // Quintic
             EasingFunction::QuintIn => t * t * t * t * t,
             EasingFunction::QuintOut => {
@@ -132,7 +129,7 @@ impl EasingFunction {
                     16.0 * t * t * t * t * t + 1.0
                 }
             }
-            
+
             // Sine
             EasingFunction::SineIn => {
                 let t = t - 1.0;
@@ -142,7 +139,7 @@ impl EasingFunction {
             EasingFunction::SineInOut => {
                 -(t.cos() * std::f64::consts::PI) / 2.0 + 0.5
             }
-            
+
             // Exponential
             EasingFunction::ExpoIn => {
                 if t == 0.0 { 0.0 } else { 2.0_f64.powf(10.0 * (t - 1.0)) }
@@ -159,7 +156,7 @@ impl EasingFunction {
                     }
                 }
             }
-            
+
             // Circular
             EasingFunction::CircIn => {
                 1.0 - (1.0 - t * t).sqrt()
@@ -176,7 +173,7 @@ impl EasingFunction {
                     (1.0 + (1.0 - 4.0 * t * t).sqrt()) / 2.0
                 }
             }
-            
+
             // Back
             EasingFunction::BackIn => {
                 const C1: f64 = 1.70158;
@@ -199,7 +196,7 @@ impl EasingFunction {
                     (2.0 * t).powi(2) * ((C2 + 1.0) * (t * 2.0 - 2.0) + C2) / 2.0 + 1.0
                 }
             }
-            
+
             // Elastic
             EasingFunction::ElasticIn => {
                 const C4: f64 = (2.0 * std::f64::consts::PI) / 3.0;
@@ -223,7 +220,7 @@ impl EasingFunction {
                     }
                 }
             }
-            
+
             // Bounce
             EasingFunction::BounceIn => {
                 1.0 - EasingFunction::BounceOut.apply(1.0 - t)
@@ -231,7 +228,7 @@ impl EasingFunction {
             EasingFunction::BounceOut => {
                 const N1: f64 = 7.5625;
                 const D1: f64 = 2.75;
-                
+
                 if t < 1.0 / D1 {
                     N1 * t * t
                 } else if t < 2.0 / D1 {
@@ -254,7 +251,7 @@ impl EasingFunction {
             }
         }
     }
-    
+
     /// Get easing function category
     pub fn category(&self) -> EasingCategory {
         match self {
@@ -271,37 +268,37 @@ impl EasingFunction {
             EasingFunction::BounceIn | EasingFunction::BounceOut | EasingFunction::BounceInOut => EasingCategory::Bounce,
         }
     }
-    
+
     /// Check if function is accelerating
     pub fn is_accelerating(&self) -> bool {
-        matches!(self, 
-            EasingFunction::QuadIn | EasingFunction::CubicIn | EasingFunction::QuartIn | 
+        matches!(self,
+            EasingFunction::QuadIn | EasingFunction::CubicIn | EasingFunction::QuartIn |
             EasingFunction::QuintIn | EasingFunction::SineIn | EasingFunction::ExpoIn |
             EasingFunction::CircIn | EasingFunction::BackIn | EasingFunction::ElasticIn |
             EasingFunction::BounceIn
         )
     }
-    
+
     /// Check if function is decelerating
     pub fn is_decelerating(&self) -> bool {
-        matches!(self, 
-            EasingFunction::QuadOut | EasingFunction::CubicOut | EasingFunction::QuartOut | 
+        matches!(self,
+            EasingFunction::QuadOut | EasingFunction::CubicOut | EasingFunction::QuartOut |
             EasingFunction::QuintOut | EasingFunction::SineOut | EasingFunction::ExpoOut |
             EasingFunction::CircOut | EasingFunction::BackOut | EasingFunction::ElasticOut |
             EasingFunction::BounceOut
         )
     }
-    
+
     /// Check if function is symmetric (in-out)
     pub fn is_symmetric(&self) -> bool {
-        matches!(self, 
+        matches!(self,
             EasingFunction::Linear | EasingFunction::QuadInOut | EasingFunction::CubicInOut |
             EasingFunction::QuartInOut | EasingFunction::QuintInOut | EasingFunction::SineInOut |
             EasingFunction::ExpoInOut | EasingFunction::CircInOut | EasingFunction::BackInOut |
             EasingFunction::ElasticInOut | EasingFunction::BounceInOut
         )
     }
-    
+
     /// Get function description
     pub fn description(&self) -> &'static str {
         match self {
@@ -342,7 +339,7 @@ impl EasingFunction {
 
 impl fmt::Display for EasingFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name())
+        write!(f, __STRING_62__, self.name())
     }
 }
 
@@ -385,8 +382,8 @@ impl EasingCategory {
             EasingCategory::Bounce => "Bounce",
         }
     }
-    
-    /// Get all functions in this category
+
+
     pub fn functions(&self) -> Vec<EasingFunction> {
         match self {
             EasingCategory::Linear => vec![EasingFunction::Linear],
@@ -402,21 +399,21 @@ impl EasingCategory {
             EasingCategory::Bounce => vec![EasingFunction::BounceIn, EasingFunction::BounceOut, EasingFunction::BounceInOut],
         }
     }
-    
-    /// Get category description
+
+
     pub fn description(&self) -> &'static str {
         match self {
-            EasingCategory::Linear => "Constant speed interpolation",
-            EasingCategory::Quadratic => "Quadratic polynomial easing functions",
-            EasingCategory::Cubic => "Cubic polynomial easing functions",
-            EasingCategory::Quartic => "Quartic polynomial easing functions",
-            EasingCategory::Quintic => "Quintic polynomial easing functions",
-            EasingCategory::Sine => "Trigonometric sine-based easing",
-            EasingCategory::Exponential => "Exponential curve easing functions",
-            EasingCategory::Circular => "Circular arc-based easing",
-            EasingCategory::Back => "Overshoot-based easing functions",
-            EasingCategory::Elastic => "Spring-like elastic easing",
-            EasingCategory::Bounce => "Gravity-based bounce easing",
+            EasingCategory::Linear => __STRING_74__,
+            EasingCategory::Quadratic => __STRING_75__,
+            EasingCategory::Cubic => __STRING_76__,
+            EasingCategory::Quartic => __STRING_77__,
+            EasingCategory::Quintic => __STRING_78__,
+            EasingCategory::Sine => __STRING_79__,
+            EasingCategory::Exponential => __STRING_80__,
+            EasingCategory::Circular => __STRING_81__,
+            EasingCategory::Back => __STRING_82__,
+            EasingCategory::Elastic => __STRING_83__,
+            EasingCategory::Bounce => __STRING_84__,
         }
     }
 }
@@ -430,27 +427,27 @@ impl fmt::Display for EasingCategory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_easing_functions() {
-        // Test linear easing
+
         assert_eq!(EasingFunction::Linear.apply(0.0), 0.0);
         assert_eq!(EasingFunction::Linear.apply(0.5), 0.5);
         assert_eq!(EasingFunction::Linear.apply(1.0), 1.0);
-        
-        // Test quadratic easing
+
+
         let quad_in = EasingFunction::QuadIn.apply(0.5);
         let quad_out = EasingFunction::QuadOut.apply(0.5);
-        assert!(quad_in < 0.5); // Accelerating
-        assert!(quad_out > 0.5); // Decelerating
-        
-        // Test bounds
+        assert!(quad_in < 0.5);
+        assert!(quad_out > 0.5);
+
+
         for easing in all_easing_functions() {
             assert!(easing.apply(0.0) >= 0.0);
             assert!(easing.apply(1.0) <= 1.0);
         }
     }
-    
+
     #[test]
     fn test_easing_categories() {
         let quad_functions = EasingCategory::Quadratic.functions();
@@ -458,41 +455,41 @@ mod tests {
         assert!(quad_functions.contains(&EasingFunction::QuadIn));
         assert!(quad_functions.contains(&EasingFunction::QuadOut));
         assert!(quad_functions.contains(&EasingFunction::QuadInOut));
-        
+
         assert!(EasingFunction::QuadIn.is_accelerating());
         assert!(EasingFunction::QuadOut.is_decelerating());
         assert!(EasingFunction::QuadInOut.is_symmetric());
     }
-    
+
     #[test]
     fn test_complex_easing_functions() {
-        // Test elastic easing
+
         let elastic_out = EasingFunction::ElasticOut.apply(0.5);
         assert!(elastic_out > 0.0 && elastic_out <= 1.0);
-        
-        // Test bounce easing
+
+
         let bounce_out = EasingFunction::BounceOut.apply(0.5);
         assert!(bounce_out >= 0.0 && bounce_out <= 1.0);
-        
-        // Test back easing
+
+
         let back_out = EasingFunction::BackOut.apply(0.5);
         assert!(back_out >= 0.0 && back_out <= 1.0);
     }
-    
+
     #[test]
     fn test_easing_function_descriptions() {
         assert!(EasingFunction::Linear.description().contains("Constant"));
         assert!(EasingFunction::QuadIn.description().contains("Quadratic"));
         assert!(EasingFunction::ElasticOut.description().contains("Spring"));
     }
-    
+
     #[test]
     fn test_easing_category_descriptions() {
         assert!(EasingCategory::Linear.description().contains("Constant"));
         assert!(EasingCategory::Quadratic.description().contains("Quadratic"));
         assert!(EasingCategory::Elastic.description().contains("Spring"));
     }
-    
+
     fn all_easing_functions() -> Vec<EasingFunction> {
         vec![
             EasingFunction::Linear,

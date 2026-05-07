@@ -1,11 +1,8 @@
-//! ACES configuration and types
-//! 
-//! This module provides configuration structures and type definitions
-//! for the ACES color pipeline.
+
 
 use crate::types::{ColorSpace};
 
-/// ACES configuration
+
 #[derive(Debug, Clone)]
 pub struct AcesConfig {
     pub use_opencolorio: bool,
@@ -28,36 +25,36 @@ impl Default for AcesConfig {
 }
 
 impl AcesConfig {
-    /// Create new ACES configuration
+
     pub fn new() -> Self {
         Self::default()
     }
-    
-    /// Set OpenColorIO usage
+
+
     pub fn with_opencolorio(mut self, use_opencolorio: bool) -> Self {
         self.use_opencolorio = use_opencolorio;
         self
     }
-    
-    /// Set OpenColorIO config path
+
+
     pub fn with_config_path(mut self, path: String) -> Self {
         self.ocio_config_path = path;
         self
     }
-    
-    /// Set working color space
+
+
     pub fn with_working_color_space(mut self, color_space: ColorSpace) -> Self {
         self.working_color_space = color_space;
         self
     }
-    
-    /// Set default input transform
+
+
     pub fn with_default_input_transform(mut self, transform: super::InputTransform) -> Self {
         self.default_input_transform = transform;
         self
     }
-    
-    /// Set default output transform
+
+
     pub fn with_default_output_transform(mut self, transform: super::OutputTransform) -> Self {
         self.default_output_transform = transform;
         self

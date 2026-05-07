@@ -176,7 +176,7 @@ impl Node {
     }
 }
 
-/// Represents a connection between two nodes
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Connection {
     pub id: Uuid,
@@ -188,7 +188,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    /// Create a new connection
+
     pub fn new(
         output_node_id: Uuid,
         output_pin_id: Uuid,
@@ -205,13 +205,13 @@ impl Connection {
         }
     }
 
-    /// Enable or disable this connection
+
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
 }
 
-/// Represents the entire node graph
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
     pub id: Uuid,
@@ -223,7 +223,7 @@ pub struct Graph {
 }
 
 impl Graph {
-    /// Create a new graph
+
     pub fn new(name: String) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -240,14 +240,14 @@ impl Graph {
     }
 
     pub fn remove_node(&mut self, node_id: &Uuid) -> Option<Node> {
-        // Remove all connections to/from this node
+
     pub fn remove_node(&mut self, node_id: &Uuid) -> Option<Node> {
-        // Remove all connections to/from this node
+
         self.connections.retain(|_, connection| {
             connection.output_node_id != *node_id && connection.input_node_id != *node_id
         });
 
-        // Remove the node
+
         self.nodes.remove(node_id)
     }
 
@@ -293,42 +293,42 @@ impl Graph {
         self.nodes.values().filter(|node| &node.node_type == node_type)
     }
 
-    /// Get all input nodes
+
     pub fn get_input_nodes(&self) -> impl Iterator<Item = &Node> {
         self.get_nodes_by_type(&NodeType::Input)
     }
 
-    /// Get all output nodes
+
     pub fn get_output_nodes(&self) -> impl Iterator<Item = &Node> {
         self.get_nodes_by_type(&NodeType::Output)
     }
 
-    /// Enable or disable this graph
+
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
 
-    /// Clear all nodes and connections
+
     pub fn clear(&mut self) {
         self.nodes.clear();
         self.connections.clear();
     }
 
-    /// Get the number of nodes in this graph
+
     pub fn node_count(&self) -> usize {
         self.nodes.len()
     }
 
-    /// Get the number of connections in this graph
+
     pub fn connection_count(&self) -> usize {
         self.connections.len()
     }
 
-    /// Validate the graph for common issues
+
     pub fn validate(&self) -> Vec<String> {
         let mut errors = Vec::new();
 
-        // Check for orphaned connections
+
         for connection in self.get_connections() {
             if !self.nodes.contains_key(&connection.output_node_id) {
                 errors.push(format!(
@@ -344,7 +344,7 @@ impl Graph {
             }
         }
 
-        // Check for nodes without required connections
+
         for node in self.get_nodes() {
             for input_pin in &node.inputs {
                 if input_pin.required && input_pin.connection.is_none() {
@@ -361,7 +361,7 @@ impl Graph {
 }
 }
 
-/// Represents blend modes for merge nodes
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BlendMode {
     Normal,
@@ -384,7 +384,7 @@ pub enum BlendMode {
     Luminosity,
 }
 
-/// Represents key types for keying nodes
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum KeyType {
     ChromaKey,
@@ -393,7 +393,7 @@ pub enum KeyType {
     ColorKey,
 }
 
-/// Represents generator types for generator nodes
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GeneratorType {
     Noise,
@@ -403,7 +403,7 @@ pub enum GeneratorType {
     Grid,
 }
 
-/// Represents shape types for shape nodes
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ShapeType {
     Rectangle,
@@ -415,7 +415,7 @@ pub enum ShapeType {
     Path,
 }
 
-/// Represents filter types for filter nodes
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FilterType {
     GaussianBlur,
@@ -428,7 +428,7 @@ pub enum FilterType {
     EdgeDetect,
 }
 
-/// Represents adjustment types for adjustment nodes
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AdjustmentType {
     Brightness,
@@ -469,7 +469,7 @@ mod tests {
         let mut graph = Graph::new("Test Graph".to_string());
         let node = Node::new(NodeType::Input, "Test Input".to_string());
         let node_id = node.id;
-        
+
         graph.add_node(node);
         assert_eq!(graph.node_count(), 1);
         assert!(graph.get_node(&node_id).is_some());
@@ -478,17 +478,17 @@ mod tests {
     #[test]
     fn test_add_connection() {
         let mut graph = Graph::new("Test Graph".to_string());
-        
+
         let output_node = Node::new(NodeType::Input, "Output".to_string());
         let input_node = Node::new(NodeType::Output, "Input".to_string());
-        
+
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
             data_type: PinDataType::Image,
             value: ParameterValue::None,
         };
-        
+
         let input_pin = InputPin {
             id: Uuid::new_v4(),
             name: "input".to_string(),
@@ -498,18 +498,18 @@ mod tests {
             current_value: ParameterValue::None,
             connection: None,
         };
-        
+
         let output_node_id = output_node.id;
         let input_node_id = input_node.id;
         let output_pin_id = output_pin.id;
         let input_pin_id = input_pin.id;
-        
+
         graph.add_node(output_node);
         graph.add_node(input_node);
-        
+
         let connection = Connection::new(output_node_id, output_pin_id, input_node_id, input_pin_id);
         graph.add_connection(connection);
-        
+
         assert_eq!(graph.connection_count(), 1);
     }
 
@@ -518,10 +518,10 @@ mod tests {
         let mut graph = Graph::new("Test Graph".to_string());
         let node = Node::new(NodeType::Input, "Test Input".to_string());
         let node_id = node.id;
-        
+
         graph.add_node(node);
         assert_eq!(graph.node_count(), 1);
-        
+
         let removed_node = graph.remove_node(&node_id);
         assert!(removed_node.is_some());
         assert_eq!(graph.node_count(), 0);

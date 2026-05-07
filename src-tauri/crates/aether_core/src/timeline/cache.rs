@@ -8,7 +8,7 @@ use crate::preview::PreviewFrame;
 
 use super::TimelinePosition;
 
-/// Frame cache for instant playback and scrubbing
+
 pub struct FrameCache {
     config: CacheConfig,
     cache: Arc<RwLock<HashMap<TimelinePosition, CachedFrame>>>,
@@ -17,10 +17,10 @@ pub struct FrameCache {
 }
 
 impl FrameCache {
-    /// Create a new frame cache
+
     pub fn new(config: CacheConfig) -> Self {
         info!("Creating frame cache with config: {:?}", config);
-        
+
         Self {
             config,
             cache: Arc::new(RwLock::new(HashMap::new())),
@@ -28,118 +28,118 @@ impl FrameCache {
             stats: Arc::new(RwLock::new(CacheStats::new())),
         }
     }
-    
-    /// Initialize cache with a timeline range
+
+
     pub fn initialize_range(&self, range: super::TimelineRange) -> Result<()> {
         debug!("Initializing frame cache with range: {:?}", range);
-        
-        // Pre-allocate space for the range
+
+
         let estimated_size = (range.duration_frames() as usize).min(self.config.max_size);
-        
+
         {
             let mut cache = self.cache.write().map_err(|e| anyhow!("Cache lock error: {}", e))?;
             cache.reserve(estimated_size);
         }
-        
+
         info!("Frame cache initialized for range with estimated size: {}", estimated_size);
-        
+
         Ok(())
     }
-    
-    /// Get a frame from cache
+
+
     pub async fn get_frame(&self, position: TimelinePosition) -> Result<Option<PreviewFrame>> {
         let cache = self.cache.read().map_err(|e| anyhow!("Cache lock error: {}", e))?;
-        
+
         if let Some(cached_frame) = cache.get(&position) {
-            // Update access order
+
             {
                 let mut access_order = self.access_order.write().map_err(|e| anyhow!("Access order lock error: {}", e))?;
-                
-                // Remove from current position
+
+
                 access_order.retain(|&pos| pos != position);
-                
-                // Add to front (most recently used)
+
+
                 access_order.push_front(position);
             }
-            
-            // Update stats
+
+
             {
                 let mut stats = self.stats.write().map_err(|e| anyhow!("Stats lock error: {}", e))?;
                 stats.hits += 1;
                 stats.last_access_time = Instant::now();
             }
-            
+
             debug!("Cache hit for position: {:?}", position);
-            
+
             return Ok(Some(cached_frame.frame.clone()));
         }
-        
-        // Update stats for miss
+
+
         {
             let mut stats = self.stats.write().map_err(|e| anyhow!("Stats lock error: {}", e))?;
             stats.misses += 1;
         }
-        
+
         debug!("Cache miss for position: {:?}", position);
-        
+
         Ok(None)
     }
-    
-    /// Cache a frame
+
+
     pub async fn cache_frame(&self, position: TimelinePosition, frame: PreviewFrame) -> Result<()> {
         let cache_size = {
             let cache = self.cache.read().map_err(|e| anyhow!("Cache lock error: {}", e))?;
             cache.len()
         };
-        
-        // Check if we need to evict frames
+
+
         if cache_size >= self.config.max_size {
             self.evict_oldest_frames(1).await?;
         }
-        
+
         let cached_frame = CachedFrame {
             frame,
             cached_at: Instant::now(),
             access_count: 1,
             last_accessed: Instant::now(),
         };
-        
-        // Add to cache
+
+
         {
             let mut cache = self.cache.write().map_err(|e| anyhow!("Cache lock error: {}", e))?;
             cache.insert(position, cached_frame);
         }
-        
-        // Update access order
+
+
         {
             let mut access_order = self.access_order.write().map_err(|e| anyhow!("Access order lock error: {}", e))?;
             access_order.push_front(position);
         }
-        
-        // Update stats
+
+
         {
             let mut stats = self.stats.write().map_err(|e| anyhow!("Stats lock error: {}", e))?;
             stats.frames_cached += 1;
             stats.total_size = cache_size + 1;
         }
-        
+
         debug!("Cached frame for position: {:?}", position);
-        
+
         Ok(())
     }
-    
-    /// Preload frames for a range
+
+
     pub async fn preload_range(&self, range: super::TimelineRange, frame_generator: impl Fn(TimelinePosition) -> Result<PreviewFrame>) -> Result<usize> {
         debug!("Preloading frames for range: {:?}", range);
-        
+
         let mut preloaded = 0;
         let step = (range.duration_frames() / self.config.preload_batch_size as u64).max(1);
-        
+
         let mut current_pos = range.start;
         while current_pos.frame <= range.end.frame && preloaded < self.config.preload_batch_size {
-            // Check if frame is already cached
+
             if self.get_frame(current_pos).await?.is_none() {
-                // Generate and cache frame
+
                 match frame_generator(current_pos) {
                     Ok(frame) => {
                         self.cache_frame(current_pos, frame).await?;
@@ -151,90 +151,90 @@ impl FrameCache {
                     }
                 }
             }
-            
+
             current_pos = current_pos.add_frames(step);
         }
-        
+
         info!("Preloaded {} frames for range", preloaded);
-        
+
         Ok(preloaded)
     }
-    
-    /// Evict oldest frames from cache
+
+
     async fn evict_oldest_frames(&self, count: usize) -> Result<usize> {
         debug!("Evicting {} oldest frames from cache", count);
-        
+
         let mut evicted = 0;
         let positions_to_evict: Vec<TimelinePosition> = {
             let mut access_order = self.access_order.write().map_err(|e| anyhow!("Access order lock error: {}", e))?;
-            
-            // Take oldest positions
+
+
             let positions: Vec<TimelinePosition> = access_order.iter().rev().take(count).copied().collect();
-            
-            // Remove them from access order
+
+
             access_order.retain(|pos| !positions.contains(pos));
-            
+
             positions
         };
-        
-        // Remove from cache
+
+
         {
             let mut cache = self.cache.write().map_err(|e| anyhow!("Cache lock error: {}", e))?;
-            
+
             for position in &positions_to_evict {
                 if cache.remove(position).is_some() {
                     evicted += 1;
                 }
             }
         }
-        
-        // Update stats
+
+
         {
             let mut stats = self.stats.write().map_err(|e| anyhow!("Stats lock error: {}", e))?;
             stats.evictions += evicted as u64;
             stats.total_size = stats.total_size.saturating_sub(evicted);
         }
-        
+
         debug!("Evicted {} frames from cache", evicted);
-        
+
         Ok(evicted)
     }
-    
-    /// Clear the cache
+
+
     pub async fn clear(&self) -> Result<()> {
         debug!("Clearing frame cache");
-        
+
         let cache_size = {
             let cache = self.cache.read().map_err(|e| anyhow!("Cache lock error: {}", e))?;
             cache.len()
         };
-        
+
         {
             let mut cache = self.cache.write().map_err(|e| anyhow!("Cache lock error: {}", e))?;
             cache.clear();
         }
-        
+
         {
             let mut access_order = self.access_order.write().map_err(|e| anyhow!("Access order lock error: {}", e))?;
             access_order.clear();
         }
-        
-        // Reset stats
+
+
         {
             let mut stats = self.stats.write().map_err(|e| anyhow!("Stats lock error: {}", e))?;
             *stats = CacheStats::new();
         }
-        
+
         info!("Cleared frame cache (removed {} frames)", cache_size);
-        
+
         Ok(())
     }
-    
-    /// Get cache statistics
+
+
     pub fn get_stats(&self) -> Result<CacheStats> {
         let stats = self.stats.read().map_err(|e| anyhow!("Stats lock error: {}", e))?;
         let cache = self.cache.read().map_err(|e| anyhow!("Cache lock error: {}", e))?;
-        
+
         let mut current_stats = stats.clone();
         current_stats.total_size = cache.len();
         current_stats.hit_rate = if stats.hits + stats.misses > 0 {
@@ -242,30 +242,30 @@ impl FrameCache {
         } else {
             0.0
         };
-        
+
         Ok(current_stats)
     }
-    
-    /// Get cache size
+
+
     pub fn size(&self) -> Result<usize> {
         let cache = self.cache.read().map_err(|e| anyhow!("Cache lock error: {}", e))?;
         Ok(cache.len())
     }
-    
-    /// Check if cache is full
+
+
     pub fn is_full(&self) -> Result<bool> {
         let cache = self.cache.read().map_err(|e| anyhow!("Cache lock error: {}", e))?;
         Ok(cache.len() >= self.config.max_size)
     }
-    
-    /// Get cached positions in access order
+
+
     pub fn get_access_order(&self) -> Result<Vec<TimelinePosition>> {
         let access_order = self.access_order.read().map_err(|e| anyhow!("Access order lock error: {}", e))?;
         Ok(access_order.iter().copied().collect())
     }
 }
 
-/// Cached frame entry
+
 #[derive(Debug, Clone)]
 struct CachedFrame {
     frame: PreviewFrame,
@@ -274,7 +274,7 @@ struct CachedFrame {
     last_accessed: Instant,
 }
 
-/// Cache configuration
+
 #[derive(Debug, Clone)]
 pub struct CacheConfig {
     pub max_size: usize,
@@ -290,22 +290,22 @@ impl Default for CacheConfig {
             max_size: 1000,
             preload_batch_size: 50,
             eviction_policy: EvictionPolicy::LRU,
-            ttl: Some(Duration::from_secs(300)), // 5 minutes
+            ttl: Some(Duration::from_secs(300)),
             compression: false,
         }
     }
 }
 
-/// Cache eviction policy
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EvictionPolicy {
-    LRU,    // Least Recently Used
-    LFU,    // Least Frequently Used
-    FIFO,   // First In, First Out
-    TTL,    // Time To Live
+    LRU,
+    LFU,
+    FIFO,
+    TTL,
 }
 
-/// Cache statistics
+
 #[derive(Debug, Clone)]
 pub struct CacheStats {
     pub hits: u64,
@@ -319,7 +319,7 @@ pub struct CacheStats {
 }
 
 impl CacheStats {
-    /// Create new cache statistics
+
     pub fn new() -> Self {
         Self {
             hits: 0,
@@ -332,13 +332,13 @@ impl CacheStats {
             average_access_time: Duration::ZERO,
         }
     }
-    
-    /// Format statistics for display
+
+
     pub fn format(&self) -> String {
         format!(
             "Size: {}/{} | Hits: {} | Misses: {} | Hit Rate: {:.1}% | Evictions: {}",
             self.total_size,
-            1000, // Default max size for display
+            1000,
             self.hits,
             self.misses,
             self.hit_rate * 100.0,
@@ -353,31 +353,31 @@ impl Default for CacheStats {
     }
 }
 
-/// Cache warming utility
+
 pub struct CacheWarmer {
     cache: Arc<FrameCache>,
 }
 
 impl CacheWarmer {
-    /// Create a new cache warmer
+
     pub fn new(cache: Arc<FrameCache>) -> Self {
         Self { cache }
     }
-    
-    /// Warm cache with frequently accessed positions
+
+
     pub async fn warm_frequent_positions(
         &self,
         positions: Vec<TimelinePosition>,
         frame_generator: impl Fn(TimelinePosition) -> Result<PreviewFrame>,
     ) -> Result<usize> {
         debug!("Warming cache with {} frequent positions", positions.len());
-        
+
         let mut warmed = 0;
-        
+
         for position in positions {
-            // Check if already cached
+
             if self.cache.get_frame(position).await?.is_none() {
-                // Generate and cache frame
+
                 match frame_generator(position) {
                     Ok(frame) => {
                         self.cache.cache_frame(position, frame).await?;
@@ -389,13 +389,13 @@ impl CacheWarmer {
                 }
             }
         }
-        
+
         info!("Warmed cache with {} frames", warmed);
-        
+
         Ok(warmed)
     }
-    
-    /// Warm cache around a position (pre-roll and post-roll)
+
+
     pub async fn warm_around_position(
         &self,
         center: TimelinePosition,
@@ -403,22 +403,22 @@ impl CacheWarmer {
         frame_generator: impl Fn(TimelinePosition) -> Result<PreviewFrame>,
     ) -> Result<usize> {
         debug!("Warming cache around position: {:?} with radius: {}", center, radius);
-        
+
         let mut positions = Vec::new();
-        
-        // Add positions before center
+
+
         for i in 1..=radius {
             positions.push(center.add_frames(-(i as i64)));
         }
-        
-        // Add center position
+
+
         positions.push(center);
-        
-        // Add positions after center
+
+
         for i in 1..=radius {
             positions.push(center.add_frames(i as i64));
         }
-        
+
         self.warm_frequent_positions(positions, frame_generator).await
     }
 }
@@ -427,7 +427,7 @@ impl CacheWarmer {
 mod tests {
     use super::*;
     use crate::preview::PreviewQuality;
-    
+
     fn create_test_frame(position: TimelinePosition) -> PreviewFrame {
         PreviewFrame::new(
             uuid::Uuid::new_v4(),
@@ -450,46 +450,46 @@ mod tests {
             std::time::Duration::from_millis(16),
         )
     }
-    
+
     #[tokio::test]
     async fn test_frame_cache_basic() {
         let config = CacheConfig::default();
         let cache = FrameCache::new(config);
-        
+
         let position = TimelinePosition::from_frame(100);
         let frame = create_test_frame(position);
-        
-        // Cache frame
+
+
         cache.cache_frame(position, frame.clone()).await.unwrap();
-        
-        // Get frame
+
+
         let cached = cache.get_frame(position).await.unwrap();
         assert!(cached.is_some());
-        
-        // Check stats
+
+
         let stats = cache.get_stats().unwrap();
         assert_eq!(stats.hits, 1);
         assert_eq!(stats.frames_cached, 1);
         assert_eq!(stats.total_size, 1);
     }
-    
+
     #[tokio::test]
     async fn test_frame_cache_miss() {
         let config = CacheConfig::default();
         let cache = FrameCache::new(config);
-        
+
         let position = TimelinePosition::from_frame(100);
-        
-        // Get non-existent frame
+
+
         let cached = cache.get_frame(position).await.unwrap();
         assert!(cached.is_none());
-        
-        // Check stats
+
+
         let stats = cache.get_stats().unwrap();
         assert_eq!(stats.misses, 1);
         assert_eq!(stats.total_size, 0);
     }
-    
+
     #[tokio::test]
     async fn test_frame_cache_eviction() {
         let config = CacheConfig {
@@ -497,56 +497,56 @@ mod tests {
             ..Default::default()
         };
         let cache = FrameCache::new(config);
-        
-        // Add frames
+
+
         let pos1 = TimelinePosition::from_frame(100);
         let pos2 = TimelinePosition::from_frame(101);
         let pos3 = TimelinePosition::from_frame(102);
-        
+
         let frame1 = create_test_frame(pos1);
         let frame2 = create_test_frame(pos2);
         let frame3 = create_test_frame(pos3);
-        
+
         cache.cache_frame(pos1, frame1).await.unwrap();
         cache.cache_frame(pos2, frame2).await.unwrap();
-        cache.cache_frame(pos3, frame3).await.unwrap(); // Should evict oldest
-        
-        // Check eviction
+        cache.cache_frame(pos3, frame3).await.unwrap();
+
+
         let cached = cache.get_frame(pos1).await.unwrap();
-        assert!(cached.is_none()); // Should be evicted
-        
+        assert!(cached.is_none());
+
         let cached = cache.get_frame(pos2).await.unwrap();
-        assert!(cached.is_some()); // Should still be cached
-        
+        assert!(cached.is_some());
+
         let cached = cache.get_frame(pos3).await.unwrap();
-        assert!(cached.is_some()); // Should be cached
+        assert!(cached.is_some());
     }
-    
+
     #[tokio::test]
     async fn test_cache_warming() {
         let config = CacheConfig::default();
         let cache = Arc::new(FrameCache::new(config));
         let warmer = CacheWarmer::new(cache.clone());
-        
+
         let positions = vec![
             TimelinePosition::from_frame(100),
             TimelinePosition::from_frame(101),
             TimelinePosition::from_frame(102),
         ];
-        
+
         let warmed = warmer.warm_frequent_positions(positions.clone(), |pos| {
             Ok(create_test_frame(pos))
         }).await.unwrap();
-        
+
         assert_eq!(warmed, 3);
-        
-        // Verify all frames are cached
+
+
         for position in positions {
             let cached = cache.get_frame(position).await.unwrap();
             assert!(cached.is_some());
         }
     }
-    
+
     #[test]
     fn test_cache_config() {
         let config = CacheConfig::default();
@@ -556,7 +556,7 @@ mod tests {
         assert!(config.ttl.is_some());
         assert!(!config.compression);
     }
-    
+
     #[test]
     fn test_cache_stats() {
         let mut stats = CacheStats::new();
@@ -564,9 +564,9 @@ mod tests {
         stats.misses = 20;
         stats.frames_cached = 50;
         stats.total_size = 50;
-        
+
         assert_eq!(stats.hit_rate, 0.8);
-        
+
         let formatted = stats.format();
         assert!(formatted.contains("Size: 50/1000"));
         assert!(formatted.contains("Hits: 80"));

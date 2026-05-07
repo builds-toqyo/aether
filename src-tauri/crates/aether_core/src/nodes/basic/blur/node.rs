@@ -4,7 +4,7 @@ use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, Output
 use uuid::Uuid;
 use log::debug;
 
-/// Blur node for Gaussian blur with radius control
+
 pub struct BlurNode {
     node: Node,
     params: BlurParams,
@@ -12,101 +12,101 @@ pub struct BlurNode {
 }
 
 impl BlurNode {
-    /// Create a new blur node
+
     pub fn new(node: Node) -> Self {
         let params = BlurParams::default();
         let algorithms = BlurAlgorithms::new(params.clone());
-        
+
         Self {
             node,
             params,
             algorithms,
         }
     }
-    
-    /// Set blur radius (0.0 to 100.0)
+
+
     pub fn set_blur_radius(&mut self, radius: f32) {
         self.params.radius = radius.clamp(0.0, 100.0);
         self.algorithms.update_params(self.params.clone());
     }
-    
-    /// Get blur radius
+
+
     pub fn get_blur_radius(&self) -> f32 {
         self.params.radius
     }
-    
-    /// Set blur type
+
+
     pub fn set_blur_type(&mut self, blur_type: BlurType) {
         self.params.blur_type = blur_type;
         self.algorithms.update_params(self.params.clone());
     }
-    
-    /// Get blur type
+
+
     pub fn get_blur_type(&self) -> BlurType {
         self.params.blur_type.clone()
     }
-    
-    /// Set iterations (1 to 10)
+
+
     pub fn set_iterations(&mut self, iterations: u32) {
         self.params.iterations = iterations.clamp(1, 10);
         self.algorithms.update_params(self.params.clone());
     }
-    
-    /// Get iterations
+
+
     pub fn get_iterations(&self) -> u32 {
         self.params.iterations
     }
-    
-    /// Set directional blur
+
+
     pub fn set_directional(&mut self, directional: bool) {
         self.params.directional = directional;
         self.algorithms.update_params(self.params.clone());
     }
-    
-    /// Is directional blur
+
+
     pub fn is_directional(&self) -> bool {
         self.params.directional
     }
-    
-    /// Set blur angle in degrees (for directional/motion blur)
+
+
     pub fn set_angle(&mut self, angle: f32) {
         self.params.angle = angle.rem_euclid(360.0);
         self.algorithms.update_params(self.params.clone());
     }
-    
-    /// Get blur angle
+
+
     pub fn get_angle(&self) -> f32 {
         self.params.angle
     }
-    
-    /// Set all parameters at once
+
+
     pub fn set_params(&mut self, params: BlurParams) {
         self.params = params.clone();
         self.params.validate();
         self.algorithms.update_params(self.params.clone());
     }
-    
-    /// Get all parameters
+
+
     pub fn get_params(&self) -> &BlurParams {
         &self.params
     }
-    
-    /// Reset all parameters to defaults
+
+
     pub fn reset_params(&mut self) {
         self.params = BlurParams::default();
         self.algorithms.update_params(self.params.clone());
     }
-    
-    /// Check if blur is active
+
+
     pub fn is_active(&self) -> bool {
         self.params.is_active()
     }
-    
-    /// Create a standard blur node
+
+
     pub fn create_standard(name: String) -> Node {
         let mut node = Node::new(NodeType::Blur, name);
-        
-        // Add input pin
+
+
         let input_pin = InputPin {
             id: Uuid::new_v4(),
             name: "input".to_string(),
@@ -117,8 +117,8 @@ impl BlurNode {
             connection: None,
         };
         node.add_input(input_pin);
-        
-        // Add output pin
+
+
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
@@ -126,8 +126,8 @@ impl BlurNode {
             value: ParameterValue::None,
         };
         node.add_output(output_pin);
-        
-        // Add parameters
+
+
         let radius_param = aether_types::Parameter {
             id: Uuid::new_v4(),
             name: "radius".to_string(),
@@ -138,7 +138,7 @@ impl BlurNode {
             max_value: Some(ParameterValue::Float(100.0)),
         };
         node.add_parameter(radius_param);
-        
+
         let type_param = aether_types::Parameter {
             id: Uuid::new_v4(),
             name: "blur_type".to_string(),
@@ -149,7 +149,7 @@ impl BlurNode {
             max_value: None,
         };
         node.add_parameter(type_param);
-        
+
         let iterations_param = aether_types::Parameter {
             id: Uuid::new_v4(),
             name: "iterations".to_string(),
@@ -160,7 +160,7 @@ impl BlurNode {
             max_value: Some(ParameterValue::Integer(10)),
         };
         node.add_parameter(iterations_param);
-        
+
         let angle_param = aether_types::Parameter {
             id: Uuid::new_v4(),
             name: "angle".to_string(),
@@ -171,29 +171,29 @@ impl BlurNode {
             max_value: Some(ParameterValue::Float(360.0)),
         };
         node.add_parameter(angle_param);
-        
+
         node
     }
 }
 
 impl NodeExecutor for BlurNode {
     fn execute(&mut self, context: &ExecutionContext) -> NodeResult {
-        // Get input value
+
         let input_value = self.node.get_input_value("input", context);
-        
-        // Apply blur using algorithms
+
+
         let output_value = self.algorithms.apply_blur(input_value);
-        
-        // Set output value
+
+
         self.node.set_output_value("output", output_value);
-        
+
         Ok(())
     }
-    
+
     fn get_node(&self) -> &Node {
         &self.node
     }
-    
+
     fn get_node_mut(&mut self) -> &mut Node {
         &mut self.node
     }
@@ -202,99 +202,99 @@ impl NodeExecutor for BlurNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_blur_node_creation() {
         let node = BlurNode::create_standard("Test Blur".to_string());
         let blur_node = BlurNode::new(node);
-        
+
         assert_eq!(blur_node.get_blur_radius(), 5.0);
         assert_eq!(blur_node.get_blur_type(), BlurType::Gaussian);
         assert_eq!(blur_node.get_iterations(), 1);
         assert!(!blur_node.is_directional());
         assert_eq!(blur_node.get_angle(), 0.0);
     }
-    
+
     #[test]
     fn test_parameter_setting() {
         let node = BlurNode::create_standard("Test".to_string());
         let mut blur_node = BlurNode::new(node);
-        
+
         blur_node.set_blur_radius(10.0);
         assert_eq!(blur_node.get_blur_radius(), 10.0);
-        
+
         blur_node.set_blur_type(BlurType::Box);
         assert_eq!(blur_node.get_blur_type(), BlurType::Box);
-        
+
         blur_node.set_iterations(3);
         assert_eq!(blur_node.get_iterations(), 3);
-        
+
         blur_node.set_directional(true);
         assert!(blur_node.is_directional());
-        
+
         blur_node.set_angle(45.0);
         assert_eq!(blur_node.get_angle(), 45.0);
     }
-    
+
     #[test]
     fn test_parameter_clamping() {
         let node = BlurNode::create_standard("Test".to_string());
         let mut blur_node = BlurNode::new(node);
-        
-        // Test radius clamping
-        blur_node.set_blur_radius(150.0); // Should clamp to 100.0
+
+
+        blur_node.set_blur_radius(150.0);
         assert_eq!(blur_node.get_blur_radius(), 100.0);
-        
-        blur_node.set_blur_radius(-10.0); // Should clamp to 0.0
+
+        blur_node.set_blur_radius(-10.0);
         assert_eq!(blur_node.get_blur_radius(), 0.0);
-        
-        // Test iterations clamping
-        blur_node.set_iterations(15); // Should clamp to 10
+
+
+        blur_node.set_iterations(15);
         assert_eq!(blur_node.get_iterations(), 10);
-        
-        blur_node.set_iterations(0); // Should clamp to 1
+
+        blur_node.set_iterations(0);
         assert_eq!(blur_node.get_iterations(), 1);
-        
-        // Test angle wrapping
-        blur_node.set_angle(450.0); // Should wrap to 90.0
+
+
+        blur_node.set_angle(450.0);
         assert_eq!(blur_node.get_angle(), 90.0);
-        
-        blur_node.set_angle(-90.0); // Should wrap to 270.0
+
+        blur_node.set_angle(-90.0);
         assert_eq!(blur_node.get_angle(), 270.0);
     }
-    
+
     #[test]
     fn test_is_active() {
         let node = BlurNode::create_standard("Test".to_string());
         let mut blur_node = BlurNode::new(node);
-        
-        // Should be active with default radius
+
+
         assert!(blur_node.is_active());
-        
-        // Should not be active with zero radius
+
+
         blur_node.set_blur_radius(0.0);
         assert!(!blur_node.is_active());
-        
-        // Should be active again with positive radius
+
+
         blur_node.set_blur_radius(1.0);
         assert!(blur_node.is_active());
     }
-    
+
     #[test]
     fn test_reset_params() {
         let node = BlurNode::create_standard("Test".to_string());
         let mut blur_node = BlurNode::new(node);
-        
-        // Change some parameters
+
+
         blur_node.set_blur_radius(20.0);
         blur_node.set_blur_type(BlurType::Motion);
         blur_node.set_iterations(5);
         blur_node.set_angle(90.0);
-        
-        // Reset
+
+
         blur_node.reset_params();
-        
-        // Check defaults
+
+
         assert_eq!(blur_node.get_blur_radius(), 5.0);
         assert_eq!(blur_node.get_blur_type(), BlurType::Gaussian);
         assert_eq!(blur_node.get_iterations(), 1);
