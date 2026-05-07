@@ -1,0 +1,15 @@
+//! Shape layer system
+//! 
+//! This module provides comprehensive shape primitives and operations
+//! for creating and manipulating vector graphics in the Aether video editor.
+
+pub mod primitives;
+pub mod paths;
+pub mod boolean;
+pub mod layers;
+
+// Re-export main shape types
+pub use primitives::{ShapePrimitive, Rectangle, Circle, Ellipse, Line, Polygon, Transform, BoundingBox};
+pub use paths::{Path, PathSegment, PathBuilder, BezierCurve};
+pub use boolean::{BooleanOperation, BooleanResult, ShapeBoolean, AdvancedBoolean, BooleanUtils};
+pub use layers::{ShapeLayer, ShapeLayerCollection, LayerBlendMode, LayerVisibility, LayerCollectionStats, ShapeLayerCollectionBuilder};
