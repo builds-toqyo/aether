@@ -4,6 +4,7 @@ pub mod nodes;
 pub mod scopes;
 pub mod color;
 pub mod animation;
+pub mod shapes;
 
 pub use engine::VideoFormat;
 pub use scopes::{VectorscopeProcessor, VectorscopeAnalyzer, ColorDistribution, TargetCompliance, 
@@ -11,3 +12,9 @@ pub use scopes::{VectorscopeProcessor, VectorscopeAnalyzer, ColorDistribution, T
                  BaseScopeProcessor, ColorConverter, ImageRenderer, FrameProcessor, Statistics, ChannelStatistics};
 pub use color::{AcesProcessor, AcesConfig, InputTransform, OutputTransform, LookTransform, HdrProcessor, HdrConfig, HdrImage, HdrPixel, HdrDisplayType, ToneMappingAlgorithm, GamutMappingAlgorithm, LutProcessor, LutConfig, LutData, LutFormat, LutInfo, ColorCorrection};
 pub use animation::{AnimationInterpolator, InterpolationResult, AnimationEngine, AnimationState, PlaybackState};
+pub use shapes::{
+    ShapePrimitive, Rectangle, Circle, Ellipse, Line, Polygon, Transform, BoundingBox,
+    Path, PathSegment, PathBuilder, BezierCurve,
+    BooleanOperation, BooleanResult, ShapeBoolean, AdvancedBoolean, BooleanUtils,
+    ShapeLayer, ShapeLayerCollection, LayerBlendMode, LayerVisibility, LayerCollectionStats, ShapeLayerCollectionBuilder
+};
