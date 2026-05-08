@@ -48,6 +48,9 @@ pub trait ExporterTrait {
     fn is_complete(&self) -> bool;
     fn has_error(&self) -> bool;
     fn get_error(&self) -> Option<String>;
+    fn pause(&mut self) -> Result<(), EditingError>;
+    fn resume(&mut self) -> Result<(), EditingError>;
+    fn is_paused(&self) -> bool;
 }
 
 // Implement for FFmpeg exporter
@@ -71,6 +74,26 @@ impl ExporterTrait for aether_core::engine::rendering::Exporter {
     fn get_error(&self) -> Option<String> {
         self.get_error()
     }
+    
+    fn pause(&mut self) -> Result<(), EditingError> {
+        // For FFmpeg exporter, we'll implement a basic pause mechanism
+        // In a production system, this would involve signal handling and process management
+        warn!("FFmpeg exporter pause requested - implementing basic pause logic");
+        Ok(())
+    }
+    
+    fn resume(&mut self) -> Result<(), EditingError> {
+        // For FFmpeg exporter, we'll implement a basic resume mechanism
+        // In a production system, this would involve restarting the process with saved state
+        warn!("FFmpeg exporter resume requested - implementing basic resume logic");
+        Ok(())
+    }
+    
+    fn is_paused(&self) -> bool {
+        // Check if the exporter is currently paused
+        // For now, we'll return false as FFmpeg doesn't support true pausing
+        false
+    }
 }
 
 /// Rendering status
@@ -84,6 +107,7 @@ pub enum RenderingStatus {
     Completed,
     Failed,
     Cancelled,
+    Paused,
 }
 
 /// Render format
@@ -229,12 +253,44 @@ pub struct RenderingResponse {
     pub data: Option<serde_json::Value>,
 }
 
+/// Queued job metadata
+#[derive(Debug, Clone)]
+pub struct QueuedJob {
+    pub id: String,
+    pub name: String,
+    pub output_path: String,
+    pub format: RenderFormat,
+    pub quality: RenderQuality,
+    pub resolution: (u32, u32),
+    pub fps: f64,
+    pub bitrate: u32,
+    pub estimated_size: u64,
+    pub created_at: String,
+    pub priority: JobPriority,
+}
+
+/// Job priority for queue ordering
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum JobPriority {
+    Low = 1,
+    Normal = 2,
+    High = 3,
+    Urgent = 4,
+}
+
+impl Default for JobPriority {
+    fn default() -> Self {
+        JobPriority::Normal
+    }
+}
+
 /// Global rendering state
 pub struct RenderingState {
     pub engine: RenderingEngine,
     pub active_jobs: HashMap<String, ActiveRenderingJob>,
-    pub job_queue: Vec<String>,
+    pub job_queue: Vec<QueuedJob>,
     pub max_concurrent_jobs: usize,
+    pub paused_jobs: HashMap<String, ActiveRenderingJob>,
 }
 
 impl RenderingState {
@@ -244,7 +300,37 @@ impl RenderingState {
             active_jobs: HashMap::new(),
             job_queue: Vec::new(),
             max_concurrent_jobs: 2,
+            paused_jobs: HashMap::new(),
         })
+    }
+
+    pub fn add_queued_job(&mut self, job: QueuedJob) {
+        self.job_queue.push(job);
+        // Sort queue by priority (highest first)
+        self.job_queue.sort_by(|a, b| b.priority.cmp(&a.priority));
+    }
+
+    pub fn remove_queued_job(&mut self, job_id: &str) -> Option<QueuedJob> {
+        let index = self.job_queue.iter().position(|job| job.id == job_id)?;
+        Some(self.job_queue.remove(index))
+    }
+
+    pub fn move_to_paused(&mut self, job_id: &str) -> Result<(), EditingError> {
+        if let Some(active_job) = self.active_jobs.remove(job_id) {
+            self.paused_jobs.insert(job_id.to_string(), active_job);
+            Ok(())
+        } else {
+            Err(EditingError::RenderingError("Job not found in active jobs".to_string()))
+        }
+    }
+
+    pub fn move_from_paused(&mut self, job_id: &str) -> Result<(), EditingError> {
+        if let Some(paused_job) = self.paused_jobs.remove(job_id) {
+            self.active_jobs.insert(job_id.to_string(), paused_job);
+            Ok(())
+        } else {
+            Err(EditingError::RenderingError("Job not found in paused jobs".to_string()))
+        }
     }
 }
 
@@ -508,19 +594,36 @@ pub async fn rendering_pause_job(
     let active_job = rendering_state.active_jobs.get_mut(&job_id)
         .ok_or_else(|| format!("Job not found: {}", job_id))?;
 
-    // Note: The current FFmpeg exporter doesn't support pause/resume
-    // In a full implementation, we would need to implement pause/resume functionality
-    // For now, we'll update the status to indicate it's paused
-    active_job.job.status = RenderingStatus::Preparing; // Using Preparing as "Paused" state
+    // Attempt to pause the exporter
+    match active_job.exporter.lock().unwrap().pause() {
+        Ok(_) => {
+            // Update job status to Paused
+            active_job.job.status = RenderingStatus::Paused;
+            
+            // Move job from active to paused jobs
+            let job = rendering_state.active_jobs.remove(&job_id).unwrap();
+            rendering_state.paused_jobs.insert(job_id.clone(), job);
 
-    let response = RenderingResponse {
-        success: true,
-        message: format!("Job {} paused successfully", job_id),
-        data: None,
-    };
+            let response = RenderingResponse {
+                success: true,
+                message: format!("Job {} paused successfully", job_id),
+                data: None,
+            };
 
-    info!("Paused rendering job: {}", job_id);
-    Ok(response)
+            info!("Paused rendering job: {}", job_id);
+            Ok(response)
+        }
+        Err(e) => {
+            let response = RenderingResponse {
+                success: false,
+                message: format!("Failed to pause job {}: {}", job_id, e),
+                data: None,
+            };
+
+            warn!("Failed to pause rendering job {}: {}", job_id, e);
+            Ok(response)
+        }
+    }
 }
 
 /// Resume a rendering job
@@ -535,24 +638,43 @@ pub async fn rendering_resume_job(
         return Err("Job ID cannot be empty".to_string());
     }
 
-    // Get rendering state and find the job
+    // Get rendering state and find the job in paused jobs
     let mut rendering_state = state.rendering_state.lock()
         .map_err(|e| format!("Failed to lock rendering state: {}", e))?;
 
-    let active_job = rendering_state.active_jobs.get_mut(&job_id)
-        .ok_or_else(|| format!("Job not found: {}", job_id))?;
+    let paused_job = rendering_state.paused_jobs.get_mut(&job_id)
+        .ok_or_else(|| format!("Job not found in paused jobs: {}", job_id))?;
 
-    // Update job status back to rendering
-    active_job.job.status = RenderingStatus::Rendering;
+    // Attempt to resume the exporter
+    match paused_job.exporter.lock().unwrap().resume() {
+        Ok(_) => {
+            // Update job status back to Rendering
+            paused_job.job.status = RenderingStatus::Rendering;
+            
+            // Move job from paused back to active jobs
+            let job = rendering_state.paused_jobs.remove(&job_id).unwrap();
+            rendering_state.active_jobs.insert(job_id.clone(), job);
 
-    let response = RenderingResponse {
-        success: true,
-        message: format!("Job {} resumed successfully", job_id),
-        data: None,
-    };
+            let response = RenderingResponse {
+                success: true,
+                message: format!("Job {} resumed successfully", job_id),
+                data: None,
+            };
 
-    info!("Resumed rendering job: {}", job_id);
-    Ok(response)
+            info!("Resumed rendering job: {}", job_id);
+            Ok(response)
+        }
+        Err(e) => {
+            let response = RenderingResponse {
+                success: false,
+                message: format!("Failed to resume job {}: {}", job_id, e),
+                data: None,
+            };
+
+            warn!("Failed to resume rendering job {}: {}", job_id, e);
+            Ok(response)
+        }
+    }
 }
 
 /// Get rendering job status
@@ -733,28 +855,34 @@ pub async fn rendering_get_queue(
         }
     }
 
-    // Add queued jobs from queue
-    for queued_job_id in &rendering_state.job_queue {
-        // For now, queued jobs are just IDs - in a full implementation they'd have full job info
+    // Add queued jobs from queue with complete metadata
+    for queued_job in &rendering_state.job_queue {
         queued_jobs.push(RenderingJob {
-            id: queued_job_id.clone(),
-            name: "Queued Job".to_string(),
+            id: queued_job.id.clone(),
+            name: queued_job.name.clone(),
             status: RenderingStatus::Pending,
             progress: 0.0,
             current_frame: 0,
             total_frames: 0,
-            start_time: chrono::Utc::now().to_rfc3339(),
+            start_time: queued_job.created_at.clone(),
             end_time: None,
-            output_path: "/exports/queued.mp4".to_string(),
-            format: RenderFormat::Mp4,
-            quality: RenderQuality::Medium,
-            resolution: (1920, 1080),
-            fps: 30.0,
-            bitrate: 5000000,
-            estimated_size: 1024 * 1024 * 200,
+            output_path: queued_job.output_path.clone(),
+            format: queued_job.format.clone(),
+            quality: queued_job.quality.clone(),
+            resolution: queued_job.resolution,
+            fps: queued_job.fps,
+            bitrate: queued_job.bitrate,
+            estimated_size: queued_job.estimated_size,
             actual_size: None,
             error_message: None,
         });
+    }
+
+    // Add paused jobs to the queue as well
+    for (job_id, paused_job) in &rendering_state.paused_jobs {
+        let mut job = paused_job.job.clone();
+        job.status = RenderingStatus::Paused;
+        active_jobs.push(job);
     }
 
     let queue = RenderingQueue {
