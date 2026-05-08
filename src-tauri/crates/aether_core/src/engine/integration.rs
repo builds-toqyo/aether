@@ -91,39 +91,61 @@ impl ExportOptions {
         // Create GStreamer export options
         let mut gst_options = GstExportOptions::default();
         gst_options.output_path = intermediate_path.clone();
-        gst_options.container = __STRING_5__.to_string();
-        gst_options.video_codec = __STRING_6__.to_string();
-        gst_options.audio_codec = __STRING_7__.to_string();
-
-        // Create FFmpeg export options
-        let mut ffmpeg_options = FfmpegExportOptions::default();
-        ffmpeg_options.input_path = intermediate_path.clone();
-        ffmpeg_options.output_path = output_path.clone();
-
-        Self {
-            output_path,
-            keep_intermediate: false,
-            intermediate_path: Some(intermediate_path),
-            gst_options,
-            ffmpeg_options,
-        }
+        gst_options.container = 'static,
+    {
+        self.progress_callback = Some(Arc::new(Mutex::new(callback)));
     }
-}
 
-/// Handles the integration between GStreamer editing and FFmpeg rendering
-pub struct IntegratedExporter {
-    // Engines
-    editing_engine: Arc<Mutex<EditingEngine>>,
-    rendering_engine: Arc<Mutex<RenderingEngine>>,
 
-    // Export options
-    options: ExportOptions,
+    pub fn start_export(&mut self) -> Result<(), EditingError> {
 
-    // Export progress
-    progress: Arc<Mutex<ExportProgress>>,
+        self.update_progress(ExportStage::Preparing, 0.0, None);
 
-    // Progress callback
-    progress_callback: Option<Arc<Mutex<dyn Fn(ExportProgress) + Send + 'static>>>,
+
+        let timeline = self.editing_engine.lock().unwrap()
+            .timeline().lock().unwrap()
+            .get_ges_timeline()
+            .ok_or(EditingError::NotInitialized)?
+            .clone();
+
+        let intermediate_exporter = self.editing_engine.lock().unwrap()
+            .create_intermediate_export(self.options.gst_options.clone())?;
+
+        self.intermediate_exporter = Some(intermediate_exporter);
+
+
+        let progress = self.progress.clone();
+        let callback = self.progress_callback.clone();
+
+        if let Some(ref mut exporter) = self.intermediate_exporter {
+            exporter.set_progress_callback(move |gst_progress: GstExportProgress| {
+                let mut progress_guard = progress.lock().unwrap();
+                progress_guard.stage = ExportStage::IntermediateExport;
+                progress_guard.percent = gst_progress.percent;
+                progress_guard.stage_progress = Some(format!(
+                    __STRING_8__,
+                    gst_progress.position as f64 / 1_000_000_000.0,
+                    gst_progress.duration as f64 / 1_000_000_000.0,
+                ));
+
+                if gst_progress.complete {
+                    progress_guard.stage = ExportStage::FinalRendering;
+                    progress_guard.percent = 0.0;
+                }
+
+                if let Some(error) = gst_progress.error {
+                    progress_guard.error = Some(error);
+                    progress_guard.complete = true;
+                }
+
+                if let Some(callback) = &callback {
+                    callback.lock().unwrap()(progress_guard.clone());
+                }
+            });
+
+
+            exporter.start_export()?;
+        }
 
 
     intermediate_exporter: Option<crate::engine::editing::IntermediateExporter>,
