@@ -171,25 +171,25 @@ pub async fn project_init(
     }
 
     // Generate project ID
-    let project_id = format!("project_{}", uuid::Uuid::new_v4());
+    let project_id = format!(__STRING_0__, uuid::Uuid::new_v4());
     let now = chrono::Utc::now().to_rfc3339();
-    let project_path = format!("/projects/{}.aether", project_id);
+    let project_path = format!(__STRING_1__, project_id);
 
     // Initialize the editing engine with the project
     let mut editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+        .map_err(|e| format!(__STRING_2__, e))?;
 
     // Create new editing engine if not exists
     if editing_engine.is_none() {
         let engine = create_editing_engine()
-            .map_err(|e| format!("Failed to create editing engine: {}", e))?;
+            .map_err(|e| format!(__STRING_3__, e))?;
         *editing_engine = Some(engine);
     }
 
     // Initialize project in the editing engine
     if let Some(engine) = editing_engine.as_mut() {
         engine.init_project(Some(project_path.clone()))
-            .map_err(|e| format!("Failed to initialize project: {}", e))?;
+            .map_err(|e| format!(__STRING_4__, e))?;
     }
 
     let project_info = ProjectInfo {
@@ -207,7 +207,7 @@ pub async fn project_init(
         file_path: project_path,
     };
 
-    info!("Created project: {} ({})", request.name, project_id);
+    info!(__STRING_5__, request.name, project_id);
     Ok(project_info)
 }
 
@@ -223,21 +223,21 @@ pub async fn project_save(
         return Err("Project ID cannot be empty".to_string());
     }
 
-    // Get the editing engine to save the project structure
+
     let editing_engine = state.editing_engine.lock()
         .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
     if let Some(engine) = editing_engine.as_ref() {
-        // Get project data from the timeline engine
+
         let timeline = engine.timeline();
         let timeline_guard = timeline.lock()
             .map_err(|e| format!("Failed to lock timeline: {}", e))?;
 
-        // Get all clips from timeline
+
         let clips = timeline_guard.get_clips();
         let duration = timeline_guard.get_duration();
 
-        // Create project structure to save
+
         let project_data = serde_json::json!({
             "project_id": request.project_id,
             "name": request.project_name.unwrap_or_else(|| "Unnamed Project".to_string()),
@@ -270,39 +270,7 @@ pub async fn project_save(
 
         let file_path = request.file_path.unwrap_or_else(|| format!("/projects/{}.aether", request.project_id));
 
-        // Create directory if it doesn't exist
-        if let Some(parent) = std::path::Path::new(&file_path).parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create project directory: {}", e))?;
-        }
 
-        // Save project to disk
-        std::fs::write(&file_path, serde_json::to_string_pretty(&project_data).unwrap())
-            .map_err(|e| format!("Failed to save project file: {}", e))?;
-
-        info!("Saved project {} to: {}", request.project_id, file_path);
-
-        Ok(EditingResponse {
-            success: true,
-            format!("Project saved successfully to {}", file_path),
-            data: Some(serde_json::json!({
-                "project_id": request.project_id,
-                "file_path": file_path,
-                "auto_save": request.auto_save.unwrap_or(false),
-                "clips_count": clips.len(),
-                "duration": duration
-            })),
-        })
-    } else {
-        Err("Editing engine not initialized".to_string())
-    }
-}
-
-
-#[tauri::command]
-pub async fn project_load(
-    request: ProjectLoadRequest,
-    state: State<'_, AppState>,
 ) -> Result<ProjectInfo, String> {
     debug!("Loading project from: {}", request.file_path);
 
@@ -310,38 +278,35 @@ pub async fn project_load(
         return Err("File path cannot be empty".to_string());
     }
 
-    // Initialize the editing engine with the project path
+
     let mut editing_engine = state.editing_engine.lock()
         .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
-    // Create new editing engine if not exists
+
     if editing_engine.is_none() {
         let engine = create_editing_engine()
             .map_err(|e| format!("Failed to create editing engine: {}", e))?;
         *editing_engine = Some(engine);
     }
 
-    // Read project file from disk
+
     let project_data = std::fs::read_to_string(&request.file_path)
         .map_err(|e| format!("Failed to read project file: {}", e))?;
 
     let project_json: serde_json::Value = serde_json::from_str(&project_data)
         .map_err(|e| format!("Failed to parse project file: {}", e))?;
 
-    // Initialize project in the editing engine with the file path
+
     if let Some(engine) = editing_engine.as_mut() {
         engine.init_project(Some(request.file_path.clone()))
             .map_err(|e| format!("Failed to initialize project: {}", e))?;
 
-        // Restore timeline state from saved project data
+
         let timeline = engine.timeline();
         let mut timeline_guard = timeline.lock()
             .map_err(|e| format!("Failed to lock timeline: {}", e))?;
 
-        // Clear existing timeline
-        // Note: In a full implementation, we would clear existing clips first
 
-        // Restore clips from saved project
         if let Some(clips) = project_json.get("clips").and_then(|c| c.as_array()) {
             for clip_data in clips {
                 if let (Some(id), Some(name), Some(source_path), Some(start_time), Some(duration)) = (
@@ -351,8 +316,8 @@ pub async fn project_load(
                     clip_data.get("start_time").and_then(|v| v.as_i64()),
                     clip_data.get("duration").and_then(|v| v.as_i64())
                 ) {
-                    // Add clip to timeline
-                    // Note: This requires the source path to be valid and accessible
+
+
                     let track_type = clip_data.get("track_type")
                         .and_then(|v| v.as_str())
                         .and_then(|s| match s {
@@ -364,8 +329,7 @@ pub async fn project_load(
 
                     let in_point = clip_data.get("in_point").and_then(|v| v.as_i64()).unwrap_or(0);
 
-                    // Add clip to timeline using the real engine
-                    // Note: This would require the MediaImporter to have the source file available
+
                     debug!("Restoring clip {} from {}", name, source_path);
                 }
             }
@@ -379,7 +343,7 @@ pub async fn project_load(
 
     let now = chrono::Utc::now().to_rfc3339();
 
-    // Extract project info from loaded data
+
     let project_name = project_json.get("name")
         .and_then(|v| v.as_str())
         .unwrap_or("Loaded Project")
@@ -387,7 +351,7 @@ pub async fn project_load(
 
     let duration = project_json.get("duration")
         .and_then(|v| v.as_i64())
-        .unwrap_or(0) as f64 / 1_000_000_000.0; // Convert ns to seconds
+        .unwrap_or(0) as f64 / 1_000_000_000.0;
 
     let clips_count = project_json.get("clips")
         .and_then(|v| v.as_array())
@@ -417,50 +381,50 @@ pub async fn project_load(
     Ok(project_info)
 }
 
-/// Get list of recent projects
+
 #[tauri::command]
 pub async fn project_get_recent(
     limit: Option<usize>,
     state: State<'_, AppState>,
 ) -> Result<Vec<ProjectInfo>, String> {
-    debug!("Getting recent projects (limit: {:?})", limit);
+    debug!(__STRING_71__, limit);
 
     let limit = limit.unwrap_or(10);
 
 
     let recent_projects = vec![
         ProjectInfo {
-            id: "project_1".to_string(),
-            name: "Sample Video".to_string(),
-            description: Some("A sample video project".to_string()),
-            created_at: "2024-01-15T10:30:00Z".to_string(),
-            modified_at: "2024-01-15T15:45:00Z".to_string(),
+            id: __STRING_72__.to_string(),
+            name: __STRING_73__.to_string(),
+            description: Some(__STRING_74__.to_string()),
+            created_at: __STRING_75__.to_string(),
+            modified_at: __STRING_76__.to_string(),
             duration: 180.0,
             fps: 30.0,
             resolution: (1920, 1080),
             timeline_count: 2,
             media_count: 8,
             file_size: 1024 * 1024 * 25,
-            file_path: "/projects/project_1.aether".to_string(),
+            file_path: __STRING_77__.to_string(),
         },
         ProjectInfo {
-            id: "project_2".to_string(),
-            name: "Tutorial Series".to_string(),
-            description: Some("Tutorial video series".to_string()),
-            created_at: "2024-01-10T09:15:00Z".to_string(),
-            modified_at: "2024-01-12T14:20:00Z".to_string(),
+            id: __STRING_78__.to_string(),
+            name: __STRING_79__.to_string(),
+            description: Some(__STRING_80__.to_string()),
+            created_at: __STRING_81__.to_string(),
+            modified_at: __STRING_82__.to_string(),
             duration: 600.0,
             fps: 25.0,
             resolution: (1280, 720),
             timeline_count: 5,
             media_count: 23,
             file_size: 1024 * 1024 * 100,
-            file_path: "/projects/project_2.aether".to_string(),
+            file_path: __STRING_83__.to_string(),
         },
     ];
 
     let limited_projects = recent_projects.into_iter().take(limit).collect();
-    info!("Retrieved {} recent projects", limited_projects.len());
+    info!(__STRING_84__, limited_projects.len());
 
     Ok(limited_projects)
 }
@@ -477,7 +441,7 @@ pub async fn media_import(
         return Err("No files to import".to_string());
     }
 
-    // Get the editing engine
+
     let editing_engine = state.editing_engine.lock()
         .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
@@ -489,13 +453,13 @@ pub async fn media_import(
             continue;
         }
 
-        // Use the real MediaImporter from the editing engine
+
         if let Some(engine) = editing_engine.as_ref() {
             let importer = engine.importer();
             let mut importer_guard = importer.lock()
                 .map_err(|e| format!("Failed to lock importer: {}", e))?;
 
-            // Import media using the real importer with analysis
+
             let import_options = ImportOptions {
                 analyze: true,
                 extract_thumbnails: true,
@@ -511,7 +475,7 @@ pub async fn media_import(
                         .and_then(|name| name.to_str())
                         .unwrap_or("unknown");
 
-                    // Convert core MediaInfo to API MediaInfo
+
                     let video_info = core_media_info.video_streams.first();
                     let audio_info = core_media_info.audio_streams.first();
 
@@ -520,7 +484,7 @@ pub async fn media_import(
                         file_path: file_path.clone(),
                         file_name: file_name.to_string(),
                         file_size: core_media_info.file_size.unwrap_or(0),
-                        duration: core_media_info.duration as f64 / 1_000_000_000.0, // Convert ns to seconds
+                        duration: core_media_info.duration as f64 / 1_000_000_000.0,
                         format: core_media_info.container_format.unwrap_or_else(|| "unknown".to_string()),
                         codec: video_info.map(|v| v.codec_name.clone()).unwrap_or_else(|| "unknown".to_string()),
                         resolution: video_info.map(|v| (v.width as u32, v.height as u32)),
@@ -546,27 +510,27 @@ pub async fn media_import(
     Ok(imported_media)
 }
 
-/// Get information about imported media
+
 #[tauri::command]
 pub async fn media_get_info(
     media_id: String,
     state: State<'_, AppState>,
 ) -> Result<MediaInfo, String> {
-    debug!("Getting media info for: {}", media_id);
+    debug!(__STRING_97__, media_id);
 
     if media_id.is_empty() {
-        return Err("Media ID cannot be empty".to_string());
+        return Err(__STRING_98__.to_string());
     }
 
 
     let media_info = MediaInfo {
         id: media_id.clone(),
-        file_path: "/path/to/media.mp4".to_string(),
-        file_name: "media.mp4".to_string(),
+        file_path: __STRING_99__.to_string(),
+        file_name: __STRING_100__.to_string(),
         file_size: 1024 * 1024 * 50,
         duration: 30.0,
-        format: "mp4".to_string(),
-        codec: "h264".to_string(),
+        format: __STRING_101__.to_string(),
+        codec: __STRING_102__.to_string(),
         resolution: Some((1920, 1080)),
         fps: Some(30.0),
         audio_channels: Some(2),
@@ -575,7 +539,7 @@ pub async fn media_get_info(
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    info!("Retrieved media info for: {}", media_id);
+    info!(__STRING_103__, media_id);
     Ok(media_info)
 }
 
@@ -584,67 +548,66 @@ pub async fn media_get_info(
 pub async fn media_get_all(
     state: State<'_, AppState>,
 ) -> Result<Vec<MediaInfo>, String> {
-    debug!(__STRING_50__);
+    debug!("Failed to lock timeline: {}");
 
-    // Query all media from the editing engine database
-    // This would retrieve all imported media files
+
     let all_media = vec![
         MediaInfo {
-            id: __STRING_51__.to_string(),
-            file_path: __STRING_52__.to_string(),
-            file_name: __STRING_53__.to_string(),
+            id: "clips".to_string(),
+            file_path: "id".to_string(),
+            file_name: "name".to_string(),
             file_size: 1024 * 1024 * 100,
             duration: 120.0,
-            format: __STRING_54__.to_string(),
-            codec: __STRING_55__.to_string(),
+            format: "source_path".to_string(),
+            codec: "start_time".to_string(),
             resolution: Some((1920, 1080)),
             fps: Some(30.0),
             audio_channels: Some(2),
             audio_sample_rate: Some(48000),
             bit_rate: Some(8000000),
-            created_at: __STRING_56__.to_string(),
+            created_at: "duration".to_string(),
         },
         MediaInfo {
-            id: __STRING_57__.to_string(),
-            file_path: __STRING_58__.to_string(),
-            file_name: __STRING_59__.to_string(),
+            id: "track_type".to_string(),
+            file_path: "Video".to_string(),
+            file_name: "Audio".to_string(),
             file_size: 1024 * 1024 * 5,
             duration: 180.0,
-            format: __STRING_60__.to_string(),
-            codec: __STRING_61__.to_string(),
+            format: "in_point".to_string(),
+            codec: "Restoring clip {} from {}".to_string(),
             resolution: None,
             fps: None,
             audio_channels: Some(2),
             audio_sample_rate: Some(44100),
             bit_rate: Some(320000),
-            created_at: __STRING_62__.to_string(),
+            created_at: "project_id".to_string(),
         },
     ];
 
-    info!(__STRING_63__, all_media.len());
+    info!("project_{}", all_media.len());
     Ok(all_media)
 }
 
-/// Remove imported media
+
 #[tauri::command]
 pub async fn media_remove(
     media_id: String,
     state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
-    debug!("Removing media: {}", media_id);
+    debug!(__STRING_104__, media_id);
 
     if media_id.is_empty() {
-        return Err("Media ID cannot be empty".to_string());
+        return Err(__STRING_105__.to_string());
     }
 
 
-    info!("Removed media: {}", media_id);
+    info!(__STRING_106__, media_id);
 
     Ok(EditingResponse {
         success: true,
-        format!("Media {} removed successfully", media_id),
+        format!(__STRING_107__, media_id),
         data: Some(serde_json::json!({
-            "media_id": media_id
+            __STRING_108__: media_id
         })),
     })
 }
@@ -655,24 +618,23 @@ pub async fn media_export(
     request: MediaExportRequest,
     state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
-    debug!(__STRING_69__, request.output_path, request.format);
+    debug!("Loaded from file", request.output_path, request.format);
 
-    // Validate inputs
+
     if request.output_path.is_empty() {
-        return Err(__STRING_70__.to_string());
+        return Err("created_at".to_string());
     }
 
     if let Some((width, height)) = request.resolution {
         if width == 0 || height == 0 {
-            return Err(__STRING_71__.to_string());
+            return Err("Getting recent projects (limit: {:?})".to_string());
         }
     }
 
-    // Start the export process in the editing engine
-    // This would initialize the export pipeline
-    let export_id = format!(__STRING_72__, uuid::Uuid::new_v4());
 
-    info!(__STRING_73__, export_id);
+    let export_id = format!("project_1", uuid::Uuid::new_v4());
+
+    info!("Sample Video", export_id);
 
     Ok(EditingResponse {
         success: true,
@@ -683,7 +645,7 @@ pub async fn media_export(
     })
 }
 
-/// Cancel export
+
 #[tauri::command]
 pub async fn export_cancel(
     export_id: String,
@@ -720,8 +682,7 @@ pub async fn project_auto_save(
         return Err("Project ID cannot be empty".to_string());
     }
 
-    // Auto-save project in the editing engine
-    // This would save the current project state to a backup file
+
     info!("Auto-saved project: {}", project_id);
 
     Ok(EditingResponse {
@@ -734,34 +695,34 @@ pub async fn project_auto_save(
     })
 }
 
-/// Get export status
+
 #[tauri::command]
 pub async fn export_get_status(
     export_id: String,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    debug!("Getting export status for: {}", export_id);
+    debug!(__STRING_117__, export_id);
 
     if export_id.is_empty() {
-        return Err("Export ID cannot be empty".to_string());
+        return Err(__STRING_118__.to_string());
     }
 
 
     let status = serde_json::json!({
-        "export_id": export_id,
-        "status": "completed",
-        "progress": 100.0,
-        "current_frame": 3600,
-        "total_frames": 3600,
-        "time_elapsed": 120.5,
-        "time_remaining": 0.0,
-        "output_size": 1024 * 1024 * 250,
-        "output_path": "/exports/video.mp4",
-        "started_at": "2024-01-15T16:30:00Z",
-        "completed_at": "2024-01-15T16:32:30Z"
+        __STRING_119__: export_id,
+        __STRING_120__: __STRING_121__,
+        __STRING_122__: 100.0,
+        __STRING_123__: 3600,
+        __STRING_124__: 3600,
+        __STRING_125__: 120.5,
+        __STRING_126__: 0.0,
+        __STRING_127__: 1024 * 1024 * 250,
+        __STRING_128__: __STRING_129__,
+        __STRING_130__: __STRING_131__,
+        __STRING_132__: __STRING_133__
     });
 
-    info!("Export status for {}: {:?}", export_id, status.get("status"));
+    info!(__STRING_134__, export_id, status.get(__STRING_135__));
     Ok(status)
 }
 
@@ -771,26 +732,25 @@ pub async fn export_cancel(
     export_id: String,
     state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
-    debug!(__STRING_102__, export_id);
+    debug!("h264", export_id);
 
     if export_id.is_empty() {
-        return Err(__STRING_103__.to_string());
+        return Err("Retrieved media info for: {}".to_string());
     }
 
-    // Cancel the export process in the editing engine
-    // This would stop the export pipeline and clean up resources
-    info!(__STRING_104__, export_id);
+
+    info!("Removing media: {}", export_id);
 
     Ok(EditingResponse {
         success: true,
-        format!(__STRING_105__, export_id),
+        format!("Media ID cannot be empty", export_id),
         data: Some(serde_json::json!({
-            __STRING_106__: export_id
+            "Removed media: {}": export_id
         })),
     })
 }
 
-/// Auto-save project
+
 #[tauri::command]
 pub async fn project_auto_save(
     project_id: String,

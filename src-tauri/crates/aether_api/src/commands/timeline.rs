@@ -144,16 +144,16 @@ pub struct TimelineResponse {
 pub async fn get_timeline_info(
     state: State<'_, AppState>,
 ) -> Result<TimelineInfo, String> {
-    debug!("Getting timeline information");
+    debug!(__STRING_0__);
 
     // Get timeline from the editing engine
     let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+        .map_err(|e| format!(__STRING_1__, e))?;
 
     if let Some(engine) = editing_engine.as_ref() {
         let timeline = engine.timeline();
         let timeline_guard = timeline.lock()
-            .map_err(|e| format!("Failed to lock timeline: {}", e))?;
+            .map_err(|e| format!(__STRING_2__, e))?;
 
         // Get clips from the real timeline
         let core_clips = timeline_guard.get_clips();
@@ -168,7 +168,7 @@ pub async fn get_timeline_info(
                     CoreTrackType::Video => ClipType::Video,
                     CoreTrackType::Audio => ClipType::Audio,
                 },
-                track_id: "video_0".to_string(),
+                track_id: __STRING_3__.to_string(),
                 start_time: c.start_time as f64 / 1_000_000_000.0,
                 end_time: (c.start_time + c.duration) as f64 / 1_000_000_000.0,
                 duration: c.duration as f64 / 1_000_000_000.0,
@@ -183,7 +183,7 @@ pub async fn get_timeline_info(
         // Get preview engine for playback state
         let preview = engine.preview();
         let preview_guard = preview.lock()
-            .map_err(|e| format!("Failed to lock preview: {}", e))?;
+            .map_err(|e| format!(__STRING_4__, e))?;
 
         let is_playing = preview_guard.is_playing();
         let current_time = preview_guard.get_position().unwrap_or(0) as f64 / 1_000_000_000.0;
@@ -196,8 +196,8 @@ pub async fn get_timeline_info(
             resolution: preview_guard.get_video_dimensions().unwrap_or((1920, 1080)),
             tracks: vec![
                 TrackInfo {
-                    id: "video_0".to_string(),
-                    name: "Video Track 1".to_string(),
+                    id: __STRING_5__.to_string(),
+                    name: __STRING_6__.to_string(),
                     track_type: TrackType::Video,
                     muted: false,
                     solo: false,
@@ -206,8 +206,8 @@ pub async fn get_timeline_info(
                     clips: clips.iter().filter(|c| matches!(c.clip_type, ClipType::Video)).map(|c| c.id.clone()).collect(),
                 },
                 TrackInfo {
-                    id: "audio_0".to_string(),
-                    name: "Audio Track 1".to_string(),
+                    id: __STRING_7__.to_string(),
+                    name: __STRING_8__.to_string(),
                     track_type: TrackType::Audio,
                     muted: false,
                     solo: false,
@@ -219,7 +219,7 @@ pub async fn get_timeline_info(
             clips,
         };
 
-        info!("Timeline info: {} tracks, {} clips", timeline_info.tracks.len(), timeline_info.clips.len());
+        info!(__STRING_9__, timeline_info.tracks.len(), timeline_info.clips.len());
         Ok(timeline_info)
     } else {
         // Return default timeline info if engine not initialized
@@ -286,34 +286,34 @@ pub async fn timeline_seek(
     request: TimelineSeekRequest,
     state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
-    debug!("Seeking timeline to: {}", request.time);
+    debug!(__STRING_23__, request.time);
 
     // Validate time
     if request.time < 0.0 {
-        return Err("Seek time cannot be negative".to_string());
+        return Err(__STRING_24__.to_string());
     }
 
     // Seek using the real preview engine
     let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+        .map_err(|e| format!(__STRING_25__, e))?;
 
     if let Some(engine) = editing_engine.as_ref() {
         let preview = engine.preview();
         let mut preview_guard = preview.lock()
-            .map_err(|e| format!("Failed to lock preview: {}", e))?;
+            .map_err(|e| format!(__STRING_26__, e))?;
 
         // Convert seconds to nanoseconds for the engine
         let position_ns = (request.time * 1_000_000_000.0) as i64;
         preview_guard.seek(position_ns)
-            .map_err(|e| format!("Failed to seek: {}", e))?;
+            .map_err(|e| format!(__STRING_27__, e))?;
 
-        info!("Seeked timeline to: {} seconds", request.time);
+        info!(__STRING_28__, request.time);
     }
 
     Ok(TimelineResponse {
         success: true,
-        message: format!("Seeked to {} seconds", request.time),
-        data: Some(serde_json::json!({ "time": request.time })),
+        message: format!(__STRING_29__, request.time),
+        data: Some(serde_json::json!({ __STRING_30__: request.time })),
     })
 }
 
@@ -350,37 +350,37 @@ pub async fn timeline_trim_clip(
     request: TimelineClipTrimRequest,
     state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
-    debug!("Trimming clip {} edge {} to {}", request.clip_id, request.edge, request.new_time);
+    debug!(__STRING_38__, request.clip_id, request.edge, request.new_time);
 
     // Validate inputs
     if request.new_time < 0.0 {
-        return Err("Trim time cannot be negative".to_string());
+        return Err(__STRING_39__.to_string());
     }
 
     // Trim clip using the real timeline engine
     let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+        .map_err(|e| format!(__STRING_40__, e))?;
 
     if let Some(engine) = editing_engine.as_ref() {
         let timeline = engine.timeline();
         let mut timeline_guard = timeline.lock()
-            .map_err(|e| format!("Failed to lock timeline: {}", e))?;
+            .map_err(|e| format!(__STRING_41__, e))?;
 
         // Convert seconds to nanoseconds for the engine
         let new_duration_ns = (request.new_time * 1_000_000_000.0) as i64;
         timeline_guard.trim_clip(&request.clip_id, new_duration_ns)
-            .map_err(|e| format!("Failed to trim clip: {}", e))?;
+            .map_err(|e| format!(__STRING_42__, e))?;
 
-        info!("Trimmed clip {} edge {} to {}", request.clip_id, request.edge, request.new_time);
+        info!(__STRING_43__, request.clip_id, request.edge, request.new_time);
     }
 
     Ok(TimelineResponse {
         success: true,
-        message: format!("Trimmed {} edge to {}", request.edge, request.new_time),
+        message: format!(__STRING_44__, request.edge, request.new_time),
         data: Some(serde_json::json!({
-            "clip_id": request.clip_id,
-            "edge": format!("{:?}", request.edge),
-            "new_time": request.new_time
+            __STRING_45__: request.clip_id,
+            __STRING_46__: format!(__STRING_47__, request.edge),
+            __STRING_48__: request.new_time
         })),
     })
 }
@@ -427,32 +427,32 @@ pub async fn timeline_remove_clip(
     request: TimelineClipRemoveRequest,
     state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
-    debug!("Removing clip: {}", request.clip_id);
+    debug!(__STRING_59__, request.clip_id);
 
     if request.clip_id.is_empty() {
-        return Err("Clip ID cannot be empty".to_string());
+        return Err(__STRING_60__.to_string());
     }
 
     // Remove clip using the real timeline engine
     let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+        .map_err(|e| format!(__STRING_61__, e))?;
 
     if let Some(engine) = editing_engine.as_ref() {
         let timeline = engine.timeline();
         let mut timeline_guard = timeline.lock()
-            .map_err(|e| format!("Failed to lock timeline: {}", e))?;
+            .map_err(|e| format!(__STRING_62__, e))?;
 
         timeline_guard.remove_clip(&request.clip_id)
-            .map_err(|e| format!("Failed to remove clip: {}", e))?;
+            .map_err(|e| format!(__STRING_63__, e))?;
 
-        info!("Removed clip: {}", request.clip_id);
+        info!(__STRING_64__, request.clip_id);
     }
 
     Ok(TimelineResponse {
         success: true,
-        message: format!("Removed clip: {}", request.clip_id),
+        message: format!(__STRING_65__, request.clip_id),
         data: Some(serde_json::json!({
-            "clip_id": request.clip_id
+            __STRING_66__: request.clip_id
         })),
     })
 }

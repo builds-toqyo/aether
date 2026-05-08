@@ -103,7 +103,7 @@ mod tests {
         ];
 
         for anim_type in types {
-            // Just verify they can be created and compared
+
             assert_eq!(anim_type, anim_type);
         }
     }

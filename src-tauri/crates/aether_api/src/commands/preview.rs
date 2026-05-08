@@ -330,16 +330,16 @@ pub async fn preview_update_settings(
 pub async fn preview_get_settings(
     state: State<'_, AppState>,
 ) -> Result<PreviewSettings, String> {
-    debug!("Getting preview settings");
+    debug!(__STRING_25__);
 
     // Get preview settings from the real preview engine
     let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+        .map_err(|e| format!(__STRING_26__, e))?;
 
     let (width, height) = if let Some(engine) = editing_engine.as_ref() {
         let preview = engine.preview();
         let preview_guard = preview.lock()
-            .map_err(|e| format!("Failed to lock preview: {}", e))?;
+            .map_err(|e| format!(__STRING_27__, e))?;
         preview_guard.get_video_dimensions().unwrap_or((1920, 1080))
     } else {
         (1920, 1080)
@@ -352,10 +352,10 @@ pub async fn preview_get_settings(
         show_safe_areas: false,
         show_grid: false,
         show_overlays: true,
-        background_color: "#1a1a1a".to_string(),
+        background_color: __STRING_28__.to_string(),
     };
 
-    info!("Preview settings: {:?} quality, {} scale, {}x{}", settings.quality, settings.scale, width, height);
+    info!(__STRING_29__, settings.quality, settings.scale, width, height);
     Ok(settings)
 }
 
@@ -381,16 +381,16 @@ pub async fn preview_clear_cache(
 pub async fn preview_get_performance_stats(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    debug!("Getting preview performance stats");
+    debug!(__STRING_33__);
 
     // Get real performance metrics from the preview engine
     let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+        .map_err(|e| format!(__STRING_34__, e))?;
 
     let (is_playing, position, dimensions, duration) = if let Some(engine) = editing_engine.as_ref() {
         let preview = engine.preview();
         let preview_guard = preview.lock()
-            .map_err(|e| format!("Failed to lock preview: {}", e))?;
+            .map_err(|e| format!(__STRING_35__, e))?;
         (
             preview_guard.is_playing(),
             preview_guard.get_position().unwrap_or(0),
@@ -405,25 +405,25 @@ pub async fn preview_get_performance_stats(
     let frame_time_ms = 1000.0 / fps;
     let current_time = position as f64 / 1_000_000_000.0;
     let total_duration = duration.map(|d| d as f64 / 1_000_000_000.0).unwrap_or(0.0);
-    
+
     let stats = serde_json::json!({
-        "current_fps": if is_playing { fps } else { 0.0 },
-        "target_fps": fps,
-        "frame_time_ms": frame_time_ms,
-        "is_playing": is_playing,
-        "current_time": current_time,
-        "total_duration": total_duration,
-        "dimensions": dimensions,
-        "render_efficiency": 0.85,
-        "cache_size_mb": 256,
-        "frames_cached": 1250,
-        "frames_dropped": 0,
-        "memory_usage_mb": 512,
-        "cpu_usage_percent": if is_playing { 45.2 } else { 5.0 },
-        "gpu_usage_percent": if is_playing { 23.8 } else { 2.0 }
+        __STRING_36__: if is_playing { fps } else { 0.0 },
+        __STRING_37__: fps,
+        __STRING_38__: frame_time_ms,
+        __STRING_39__: is_playing,
+        __STRING_40__: current_time,
+        __STRING_41__: total_duration,
+        __STRING_42__: dimensions,
+        __STRING_43__: 0.85,
+        __STRING_44__: 256,
+        __STRING_45__: 1250,
+        __STRING_46__: 0,
+        __STRING_47__: 512,
+        __STRING_48__: if is_playing { 45.2 } else { 5.0 },
+        __STRING_49__: if is_playing { 23.8 } else { 2.0 }
     });
 
-    info!("Preview stats: {} fps, playing: {}", stats["current_fps"], is_playing);
+    info!(__STRING_50__, stats[__STRING_51__], is_playing);
 
     Ok(stats)
 }

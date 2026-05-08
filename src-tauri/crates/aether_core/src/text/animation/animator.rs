@@ -308,7 +308,7 @@ impl TextAnimator {
 
             for animation in &mut self.animations {
                 if animation.playing {
-                    // Animation update logic would go here
+
                 }
             }
         }
@@ -659,7 +659,7 @@ mod tests {
     #[test]
     fn test_animator_playback_controls() {
         let mut animator = TextAnimator::new();
-        
+
         assert!(!animator.playing);
         assert_eq!(animator.global_time, 0.0);
         assert_eq!(animator.playback_speed, 1.0);
@@ -682,7 +682,7 @@ mod tests {
     #[test]
     fn test_animator_playback_speed() {
         let mut animator = TextAnimator::new();
-        
+
         animator.set_playback_speed(2.0);
         assert_eq!(animator.playback_speed, 2.0);
 
@@ -690,7 +690,7 @@ mod tests {
         assert_eq!(animator.playback_speed, 0.5);
 
         animator.set_playback_speed(-1.0);
-        assert_eq!(animator.playback_speed, 0.5); // Should not accept negative
+        assert_eq!(animator.playback_speed, 0.5);
     }
 
     #[test]
@@ -703,7 +703,7 @@ mod tests {
         );
 
         let cloned = original.clone_without_id("cloned".to_string());
-        
+
         assert_eq!(cloned.id, "cloned");
         assert_eq!(cloned.name, original.name);
         assert_eq!(cloned.animation_type, original.animation_type);
@@ -714,17 +714,17 @@ mod tests {
     #[test]
     fn test_animator_clear() {
         let mut animator = TextAnimator::new();
-        
+
         let animation = CharacterAnimation::new(
             "test".to_string(),
             "Test".to_string(),
             AnimationType::Opacity,
             vec![0],
         );
-        
+
         animator.add_animation(animation);
         assert_eq!(animator.get_animation_count(), 1);
-        
+
         animator.clear_animations();
         assert_eq!(animator.get_animation_count(), 0);
     }

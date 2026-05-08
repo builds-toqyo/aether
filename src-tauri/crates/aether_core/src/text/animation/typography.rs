@@ -194,7 +194,7 @@ mod tests {
     fn test_font_weight_conversion() {
         let mut typography = TypographyControls::default();
 
-        // Test getting weight values
+
         typography.font_weight = FontWeight::Thin;
         assert_eq!(typography.get_font_weight_value(), 100);
 
@@ -207,7 +207,7 @@ mod tests {
         typography.font_weight = FontWeight::Custom(750);
         assert_eq!(typography.get_font_weight_value(), 750);
 
-        // Test setting weight values
+
         typography.set_font_weight_value(300);
         assert_eq!(typography.font_weight, FontWeight::Light);
 

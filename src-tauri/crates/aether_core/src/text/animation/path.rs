@@ -243,7 +243,7 @@ mod tests {
         path.add_point(0.0, 0.0);
         path.add_point(100.0, 0.0);
         path.add_point(100.0, 100.0);
-        
+
         assert_eq!(path.points.len(), 3);
         assert_eq!(path.points[0], (0.0, 0.0));
         assert_eq!(path.points[1], (100.0, 0.0));
@@ -255,7 +255,7 @@ mod tests {
         let mut path = TextPath::new("test_path".to_string(), PathType::Line);
         let points = vec![(0.0, 0.0), (50.0, 0.0), (100.0, 0.0)];
         path.add_points(&points);
-        
+
         assert_eq!(path.points.len(), 3);
         assert_eq!(path.points, points);
     }
@@ -266,9 +266,9 @@ mod tests {
         path.add_point(0.0, 0.0);
         path.add_point(100.0, 0.0);
         path.add_point(100.0, 100.0);
-        
+
         let length = path.get_length();
-        assert!((length - 200.0).abs() < 0.001); // 100 + 100
+        assert!((length - 200.0).abs() < 0.001);
     }
 
     #[test]
@@ -276,11 +276,11 @@ mod tests {
         let mut path = TextPath::new("test_path".to_string(), PathType::Line);
         path.add_point(0.0, 0.0);
         path.add_point(100.0, 0.0);
-        
+
         let point = path.get_point_at_distance(50.0);
         assert!(point.is_some());
         assert_eq!(point.unwrap(), (50.0, 0.0));
-        
+
         let point = path.get_point_at_distance(25.0);
         assert!(point.is_some());
         assert_eq!(point.unwrap(), (25.0, 0.0));
@@ -291,7 +291,7 @@ mod tests {
         let mut path = TextPath::new("test_path".to_string(), PathType::Line);
         path.add_point(0.0, 0.0);
         path.add_point(100.0, 0.0);
-        
+
         let tangent = path.get_tangent_at_distance(50.0);
         assert!(tangent.is_some());
         let (tx, ty) = tangent.unwrap();
@@ -304,7 +304,7 @@ mod tests {
         let mut path = TextPath::new("test_path".to_string(), PathType::Line);
         path.add_point(0.0, 0.0);
         path.add_point(100.0, 0.0);
-        
+
         let normal = path.get_normal_at_distance(50.0);
         assert!(normal.is_some());
         let (nx, ny) = normal.unwrap();
@@ -317,10 +317,10 @@ mod tests {
         let mut path = TextPath::new("test_path".to_string(), PathType::Line);
         path.add_point(0.0, 0.0);
         path.add_point(100.0, 0.0);
-        
+
         let angle = path.get_angle_at_distance(50.0);
         assert!(angle.is_some());
-        assert!((angle.unwrap() - 0.0).abs() < 0.001); // Horizontal line has 0 angle
+        assert!((angle.unwrap() - 0.0).abs() < 0.001);
     }
 
     #[test]
@@ -331,11 +331,11 @@ mod tests {
         path.add_point(100.0, 100.0);
         path.add_point(0.0, 100.0);
         path.closed = true;
-        
+
         let length = path.get_length();
-        assert!((length - 400.0).abs() < 0.001); // Square perimeter
-        
-        // Test point at distance beyond total length (should wrap around)
+        assert!((length - 400.0).abs() < 0.001);
+
+
         let point = path.get_point_at_distance(450.0);
         assert!(point.is_some());
     }
@@ -346,7 +346,7 @@ mod tests {
         path.add_point(10.0, 20.0);
         path.add_point(100.0, 150.0);
         path.add_point(50.0, 80.0);
-        
+
         let bounds = path.get_bounds();
         assert!(bounds.is_some());
         let (min_x, min_y, max_x, max_y) = bounds.unwrap();
@@ -362,11 +362,11 @@ mod tests {
         path.add_point(0.0, 0.0);
         path.add_point(100.0, 0.0);
         path.add_point(100.0, 100.0);
-        
+
         path.reverse();
         assert_eq!(path.points, vec![(100.0, 100.0), (100.0, 0.0), (0.0, 0.0)]);
         assert_eq!(path.direction, PathDirection::Reverse);
-        
+
         path.reverse();
         assert_eq!(path.points, vec![(0.0, 0.0), (100.0, 0.0), (100.0, 100.0)]);
         assert_eq!(path.direction, PathDirection::Forward);
@@ -375,7 +375,7 @@ mod tests {
     #[test]
     fn test_path_validation() {
         let valid_path = TextPath::new("test".to_string(), PathType::Line);
-        assert!(valid_path.validate().is_err()); // No points
+        assert!(valid_path.validate().is_err());
 
         let mut path_with_points = TextPath::new("test".to_string(), PathType::Line);
         path_with_points.add_point(0.0, 0.0);
@@ -386,13 +386,13 @@ mod tests {
 
         path_with_points.id = "test".to_string();
         path_with_points.closed = true;
-        assert!(path_with_points.validate().is_err()); // Closed path with only 1 point
+        assert!(path_with_points.validate().is_err());
 
         path_with_points.add_point(100.0, 0.0);
         assert!(path_with_points.validate().is_ok());
 
         path_with_points.spacing = PathSpacing::Fixed(-1.0);
-        assert!(path_with_points.validate().is_err()); // Negative fixed spacing
+        assert!(path_with_points.validate().is_err());
     }
 
     #[test]
@@ -406,7 +406,7 @@ mod tests {
             PathType::Polygon,
             PathType::Custom,
         ];
-        
+
         for path_type in path_types {
             let path = TextPath::new("test".to_string(), path_type);
             assert_eq!(path.path_type, path_type);
@@ -420,7 +420,7 @@ mod tests {
             PathSpacing::Proportional,
             PathSpacing::Fixed(10.0),
         ];
-        
+
         for spacing in spacing_options {
             let mut path = TextPath::new("test".to_string(), PathType::Line);
             path.spacing = spacing;
@@ -435,7 +435,7 @@ mod tests {
             PathAlignment::Left,
             PathAlignment::Right,
         ];
-        
+
         for alignment in alignments {
             let mut path = TextPath::new("test".to_string(), PathType::Line);
             path.alignment = alignment;
@@ -449,7 +449,7 @@ mod tests {
         path.add_point(0.0, 0.0);
         path.add_point(100.0, 0.0);
         assert_eq!(path.points.len(), 2);
-        
+
         path.clear_points();
         assert!(path.points.is_empty());
     }

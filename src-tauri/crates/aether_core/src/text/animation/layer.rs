@@ -159,7 +159,7 @@ impl TextLayer {
         };
 
         let character_values = self.animator.get_character_values(char_index);
-        
+
         for (animation_type, value) in character_values {
             match animation_type {
                 AnimationType::Position => {
@@ -303,7 +303,7 @@ impl TextLayer {
             animation_type,
             target_characters,
         );
-        
+
         self.add_animation(animation);
         animation_id
     }
@@ -316,7 +316,7 @@ impl TextLayer {
             AnimationType::Opacity,
             target_characters,
         );
-        
+
         animation.duration = duration;
         animation.add_keyframe(TextKeyframe {
             time: 0.0,
@@ -324,14 +324,14 @@ impl TextLayer {
             easing: crate::animation::interpolation::EasingFunction::Linear,
             interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
         });
-        
+
         animation.add_keyframe(TextKeyframe {
             time: duration,
             value: AnimationValue::Float(to_opacity),
             easing: crate::animation::interpolation::EasingFunction::Linear,
             interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
         });
-        
+
         self.add_animation(animation);
         animation_id
     }
@@ -344,7 +344,7 @@ impl TextLayer {
             AnimationType::Position,
             target_characters,
         );
-        
+
         animation.duration = duration;
         animation.add_keyframe(TextKeyframe {
             time: 0.0,
@@ -352,14 +352,14 @@ impl TextLayer {
             easing: crate::animation::interpolation::EasingFunction::Linear,
             interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
         });
-        
+
         animation.add_keyframe(TextKeyframe {
             time: duration,
             value: AnimationValue::Vector2(to_offset.0, to_offset.1),
             easing: crate::animation::interpolation::EasingFunction::Linear,
             interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
         });
-        
+
         self.add_animation(animation);
         animation_id
     }
@@ -448,16 +448,16 @@ mod tests {
     fn test_text_layer_character_count() {
         let layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
         assert_eq!(layer.get_character_count(), 5);
-        
+
         let layer = TextLayer::new("layer2".to_string(), "Test".to_string(), "Hello World".to_string());
-        assert_eq!(layer.get_character_count(), 11); // Including space
+        assert_eq!(layer.get_character_count(), 11);
     }
 
     #[test]
     fn test_text_layer_word_count() {
         let layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello World".to_string());
         assert_eq!(layer.get_word_count(), 2);
-        
+
         let layer = TextLayer::new("layer2".to_string(), "Test".to_string(), "One two three four".to_string());
         assert_eq!(layer.get_word_count(), 4);
     }
@@ -466,7 +466,7 @@ mod tests {
     fn test_text_layer_line_count() {
         let layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
         assert_eq!(layer.get_line_count(), 1);
-        
+
         let layer = TextLayer::new("layer2".to_string(), "Test".to_string(), "Line 1\nLine 2\nLine 3".to_string());
         assert_eq!(layer.get_line_count(), 3);
     }
@@ -476,36 +476,36 @@ mod tests {
         let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
         layer.position = (100.0, 200.0);
         layer.typography.font_size = 20.0;
-        
+
         let pos = layer.get_character_position(0);
         assert!(pos.is_some());
         assert_eq!(pos.unwrap(), (100.0, 200.0));
-        
+
         let pos = layer.get_character_position(1);
         assert!(pos.is_some());
-        assert_eq!(pos.unwrap(), (112.0, 200.0)); // 100 + (20 * 0.6)
+        assert_eq!(pos.unwrap(), (112.0, 200.0));
     }
 
     #[test]
     fn test_text_layer_with_path() {
         let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
-        
+
         let mut path = TextPath::new("path1".to_string(), PathType::Line);
         path.add_point(0.0, 0.0);
         path.add_point(200.0, 0.0);
-        
+
         layer.set_path(Some(path));
-        
+
         let pos = layer.get_character_position(1);
         assert!(pos.is_some());
-        assert_eq!(pos.unwrap(), (10.0, 0.0)); // 1 * 10.0 character width
+        assert_eq!(pos.unwrap(), (10.0, 0.0));
     }
 
     #[test]
     fn test_text_layer_character_transform() {
         let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
         layer.position = (100.0, 200.0);
-        
+
         let transform = layer.get_character_transform(0, 0.0);
         assert_eq!(transform.position, (100.0, 200.0));
         assert_eq!(transform.rotation, 0.0);
@@ -520,15 +520,15 @@ mod tests {
         let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello World".to_string());
         layer.position = (50.0, 100.0);
         layer.typography.font_size = 20.0;
-        
+
         let bounds = layer.get_bounds();
         assert!(bounds.is_some());
         let (min_x, min_y, max_x, max_y) = bounds.unwrap();
         assert_eq!(min_x, 50.0);
         assert_eq!(min_y, 100.0);
-        // 11 characters * 20px * 0.6 = 132px width
+
         assert!((max_x - 182.0).abs() < 0.001);
-        // 1 line * 20px * 1.2 = 24px height
+
         assert!((max_y - 124.0).abs() < 0.001);
     }
 
@@ -537,7 +537,7 @@ mod tests {
         let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
         layer.position = (0.0, 0.0);
         layer.typography.font_size = 20.0;
-        
+
         assert!(layer.contains_point(25.0, 10.0));
         assert!(!layer.contains_point(150.0, 10.0));
         assert!(!layer.contains_point(25.0, 50.0));
@@ -547,11 +547,11 @@ mod tests {
     fn test_text_layer_animation_integration() {
         let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
         layer.position = (100.0, 200.0);
-        
+
         let animation_id = layer.create_fade_animation(vec![0, 1, 2, 3, 4], 0.0, 1.0, 1.0);
         assert!(layer.get_animation(&animation_id).is_some());
-        
-        // Test at time 0.5 (should be half faded)
+
+
         let transform = layer.get_character_transform(0, 0.5);
         assert!((transform.opacity - 0.5).abs() < 0.001);
     }
@@ -560,22 +560,22 @@ mod tests {
     fn test_text_layer_slide_animation() {
         let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
         layer.position = (100.0, 200.0);
-        
+
         let animation_id = layer.create_slide_animation(vec![0, 1, 2, 3, 4], (0.0, 0.0), (50.0, 25.0), 1.0);
         assert!(layer.get_animation(&animation_id).is_some());
-        
-        // Test at time 0.5 (should be halfway between offsets)
+
+
         let transform = layer.get_character_transform(0, 0.5);
-        assert_eq!(transform.position, (125.0, 212.5)); // 100 + 25, 200 + 12.5
+        assert_eq!(transform.position, (125.0, 212.5));
     }
 
     #[test]
     fn test_text_layer_typography_animation() {
         let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
-        
+
         let animation_id = layer.create_typography_animation(AnimationType::FontSize, vec![0, 1, 2, 3, 4]);
         assert!(layer.get_animation(&animation_id).is_some());
-        
+
         let animation = layer.get_animation(&animation_id).unwrap();
         assert_eq!(animation.animation_type, AnimationType::FontSize);
     }
@@ -583,25 +583,25 @@ mod tests {
     #[test]
     fn test_text_layer_setters() {
         let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
-        
+
         layer.set_position(150.0, 250.0);
         assert_eq!(layer.position, (150.0, 250.0));
-        
+
         layer.set_opacity(0.7);
         assert_eq!(layer.opacity, 0.7);
-        
-        layer.set_opacity(1.5); // Should be clamped
+
+        layer.set_opacity(1.5);
         assert_eq!(layer.opacity, 1.0);
-        
-        layer.set_opacity(-0.5); // Should be clamped
+
+        layer.set_opacity(-0.5);
         assert_eq!(layer.opacity, 0.0);
-        
+
         layer.set_blend_mode(BlendMode::Screen);
         assert_eq!(layer.blend_mode, BlendMode::Screen);
-        
+
         layer.set_visible(false);
         assert!(!layer.visible);
-        
+
         layer.set_locked(true);
         assert!(layer.locked);
     }
@@ -609,19 +609,19 @@ mod tests {
     #[test]
     fn test_text_layer_animation_controls() {
         let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
-        
+
         let animation_id = layer.create_fade_animation(vec![0], 0.0, 1.0, 1.0);
-        
+
         layer.play_animations();
         assert!(layer.animator.playing);
-        
+
         layer.pause_animations();
         assert!(!layer.animator.playing);
-        
+
         layer.stop_animations();
         assert!(!layer.animator.playing);
         assert_eq!(layer.animator.global_time, 0.0);
-        
+
         layer.reset_animations();
         assert_eq!(layer.animator.global_time, 0.0);
     }
@@ -630,14 +630,14 @@ mod tests {
     fn test_text_layer_validation() {
         let valid_layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
         assert!(valid_layer.validate().is_ok());
-        
+
         let mut invalid_layer = TextLayer::new("".to_string(), "Test".to_string(), "Hello".to_string());
         assert!(invalid_layer.validate().is_err());
-        
+
         invalid_layer.id = "layer1".to_string();
         invalid_layer.name = "".to_string();
         assert!(invalid_layer.validate().is_err());
-        
+
         invalid_layer.name = "Test".to_string();
         invalid_layer.opacity = 2.0;
         assert!(invalid_layer.validate().is_err());
@@ -647,9 +647,9 @@ mod tests {
     fn test_text_layer_clone_without_animations() {
         let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
         let animation_id = layer.create_fade_animation(vec![0], 0.0, 1.0, 1.0);
-        
+
         let cloned = layer.clone_without_animations();
-        
+
         assert_eq!(cloned.id, "layer1_clone");
         assert_eq!(cloned.name, "Test Clone");
         assert_eq!(cloned.text, layer.text);
@@ -673,7 +673,7 @@ mod tests {
             BlendMode::Difference,
             BlendMode::Exclusion,
         ];
-        
+
         for blend_mode in blend_modes {
             let mut layer = TextLayer::new("test".to_string(), "Test".to_string(), "Hello".to_string());
             layer.blend_mode = blend_mode;
@@ -692,7 +692,7 @@ mod tests {
             font_size: 16.0,
             baseline_shift: 0.0,
         };
-        
+
         assert_eq!(transform.position, (0.0, 0.0));
         assert_eq!(transform.rotation, 0.0);
         assert_eq!(transform.scale, (1.0, 1.0));

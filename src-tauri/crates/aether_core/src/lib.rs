@@ -6,6 +6,7 @@ pub mod color;
 pub mod animation;
 pub mod shapes;
 pub mod text;
+pub mod masking;
 
 pub use engine::VideoFormat;
 pub use scopes::{VectorscopeProcessor, VectorscopeAnalyzer, ColorDistribution, TargetCompliance,
@@ -25,4 +26,13 @@ pub use text::{
     TextAnimator, CharacterAnimation, AnimationType, TextKeyframe,
     TextOnPath, PathTextRenderer,
     TextRenderer, GlyphRenderer
+};
+pub use masking::{
+    MaskType, MaskBlendMode, MaskChannel, MaskInvertMode, MaskFeatherQuality,
+    MaskProperties, MaskEvaluation, MaskCache,
+    ShapeMask, ShapeMaskType,
+    GradientMask, GradientType, GradientStop, GradientInterpolation,
+    MaskAnimationTrack, MaskAnimationTarget, MaskKeyframe, AnimationValue, MaskAnimationSystem,
+    MaskLayer, MaskCompositionMode, MaskCompositionOrder, MaskCompositor, MaskCompositionResult,
+    MaskEffect, MaskEffectType, MaskEffectParameters, EffectQuality, MaskEffectProcessor
 };
