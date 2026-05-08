@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::Path;
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -22,6 +23,20 @@ pub enum AnimationType {
     Tracking,
 
     BaselineShift,
+
+    FontSize,
+
+    FontWeight,
+
+    LineHeight,
+
+    LetterSpacing,
+
+    TextTransform,
+
+    PathPosition,
+
+    PathRotation,
 
     Custom(String),
 }
@@ -517,6 +532,403 @@ impl Default for AnimationValue {
     }
 }
 
+// Typography Controls
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TypographyControls {
+    pub font_family: String,
+    pub font_size: f64,
+    pub font_weight: FontWeight,
+    pub line_height: f64,
+    pub letter_spacing: f64,
+    pub word_spacing: f64,
+    pub text_align: TextAlign,
+    pub text_transform: TextTransform,
+    pub color: (f64, f64, f64, f64),
+    pub baseline_shift: f64,
+    pub kerning: bool,
+    pub ligatures: bool,
+    pub small_caps: bool,
+    pub underline: bool,
+    pub strikethrough: bool,
+    pub overline: bool,
+}
+
+impl Default for TypographyControls {
+    fn default() -> Self {
+        Self {
+            font_family: "Arial".to_string(),
+            font_size: 16.0,
+            font_weight: FontWeight::Normal,
+            line_height: 1.2,
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            text_align: TextAlign::Left,
+            text_transform: TextTransform::None,
+            color: (0.0, 0.0, 0.0, 1.0),
+            baseline_shift: 0.0,
+            kerning: true,
+            ligatures: true,
+            small_caps: false,
+            underline: false,
+            strikethrough: false,
+            overline: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum FontWeight {
+    Thin,
+    ExtraLight,
+    Light,
+    Normal,
+    Medium,
+    SemiBold,
+    Bold,
+    ExtraBold,
+    Black,
+    Custom(u16),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum TextAlign {
+    Left,
+    Center,
+    Right,
+    Justify,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum TextTransform {
+    None,
+    Uppercase,
+    Lowercase,
+    Capitalize,
+}
+
+// Text-on-Path Support
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TextPath {
+    pub id: String,
+    pub path_type: PathType,
+    pub points: Vec<(f64, f64)>,
+    pub closed: bool,
+    pub start_offset: f64,
+    pub direction: PathDirection,
+    pub spacing: PathSpacing,
+    pub alignment: PathAlignment,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum PathType {
+    Line,
+    Bezier,
+    Circle,
+    Ellipse,
+    Rectangle,
+    Polygon,
+    Custom,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum PathDirection {
+    Forward,
+    Reverse,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum PathSpacing {
+    Uniform,
+    Proportional,
+    Fixed(f64),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum PathAlignment {
+    Center,
+    Left,
+    Right,
+}
+
+impl TextPath {
+    pub fn new(id: String, path_type: PathType) -> Self {
+        Self {
+            id,
+            path_type,
+            points: Vec::new(),
+            closed: false,
+            start_offset: 0.0,
+            direction: PathDirection::Forward,
+            spacing: PathSpacing::Uniform,
+            alignment: PathAlignment::Center,
+        }
+    }
+
+    pub fn add_point(&mut self, x: f64, y: f64) {
+        self.points.push((x, y));
+    }
+
+    pub fn get_point_at_distance(&self, distance: f64) -> Option<(f64, f64)> {
+        if self.points.is_empty() {
+            return None;
+        }
+
+        if self.points.len() == 1 {
+            return Some(self.points[0]);
+        }
+
+        let mut total_length = 0.0;
+        let mut segment_lengths = Vec::new();
+
+        for i in 0..self.points.len() - 1 {
+            let (x1, y1) = self.points[i];
+            let (x2, y2) = self.points[i + 1];
+            let length = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
+            segment_lengths.push(length);
+            total_length += length;
+        }
+
+        if self.closed {
+            let (x1, y1) = self.points[self.points.len() - 1];
+            let (x2, y2) = self.points[0];
+            let length = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
+            segment_lengths.push(length);
+            total_length += length;
+        }
+
+        let target_distance = distance % total_length;
+        let mut accumulated_distance = 0.0;
+
+        for (i, &segment_length) in segment_lengths.iter().enumerate() {
+            if accumulated_distance + segment_length >= target_distance {
+                let t = (target_distance - accumulated_distance) / segment_length;
+                let (x1, y1) = self.points[i];
+                let (x2, y2) = if i < self.points.len() - 1 {
+                    self.points[i + 1]
+                } else {
+                    self.points[0]
+                };
+                return Some((x1 + (x2 - x1) * t, y1 + (y2 - y1) * t));
+            }
+            accumulated_distance += segment_length;
+        }
+
+        Some(self.points[0])
+    }
+
+    pub fn get_tangent_at_distance(&self, distance: f64) -> Option<(f64, f64)> {
+        if self.points.len() < 2 {
+            return None;
+        }
+
+        let epsilon = 0.01;
+        let p1 = self.get_point_at_distance(distance - epsilon)?;
+        let p2 = self.get_point_at_distance(distance + epsilon)?;
+
+        let dx = p2.0 - p1.0;
+        let dy = p2.1 - p1.1;
+        let length = (dx * dx + dy * dy).sqrt();
+
+        if length > 0.0 {
+            Some((dx / length, dy / length))
+        } else {
+            Some((1.0, 0.0))
+        }
+    }
+
+    pub fn get_normal_at_distance(&self, distance: f64) -> Option<(f64, f64)> {
+        let (tx, ty) = self.get_tangent_at_distance(distance)?;
+        Some((-ty, tx))
+    }
+}
+
+// Text Layer System
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TextLayer {
+    pub id: String,
+    pub name: String,
+    pub text: String,
+    pub position: (f64, f64),
+    pub typography: TypographyControls,
+    pub path: Option<TextPath>,
+    pub animator: TextAnimator,
+    pub visible: bool,
+    pub locked: bool,
+    pub blend_mode: BlendMode,
+    pub opacity: f64,
+}
+
+impl TextLayer {
+    pub fn new(id: String, name: String, text: String) -> Self {
+        Self {
+            id,
+            name,
+            text,
+            position: (0.0, 0.0),
+            typography: TypographyControls::default(),
+            path: None,
+            animator: TextAnimator::new(),
+            visible: true,
+            locked: false,
+            blend_mode: BlendMode::Normal,
+            opacity: 1.0,
+        }
+    }
+
+    pub fn set_text(&mut self, text: String) {
+        self.text = text;
+        // Reset animations to apply to new text
+        self.animator.reset_all();
+    }
+
+    pub fn set_typography(&mut self, typography: TypographyControls) {
+        self.typography = typography;
+    }
+
+    pub fn set_path(&mut self, path: Option<TextPath>) {
+        self.path = path;
+    }
+
+    pub fn get_character_count(&self) -> usize {
+        self.text.chars().count()
+    }
+
+    pub fn get_character_position(&self, char_index: usize) -> Option<(f64, f64)> {
+        if let Some(ref path) = self.path {
+            // Calculate character position along path
+            let char_distance = char_index as f64 * 10.0; // Approximate character width
+            path.get_point_at_distance(char_distance)
+        } else {
+            // Calculate position in straight line
+            let char_width = self.typography.font_size * 0.6; // Approximate character width
+            Some((
+                self.position.0 + (char_index as f64 * char_width),
+                self.position.1
+            ))
+        }
+    }
+
+    pub fn get_character_transform(&self, char_index: usize, time: f64) -> CharacterTransform {
+        let base_position = self.get_character_position(char_index).unwrap_or(self.position);
+        let mut transform = CharacterTransform {
+            position: base_position,
+            rotation: 0.0,
+            scale: (1.0, 1.0),
+            opacity: self.opacity,
+            color: self.typography.color,
+            font_size: self.typography.font_size,
+            baseline_shift: self.typography.baseline_shift,
+        };
+
+        // Apply animations
+        let character_values = self.animator.get_character_values(char_index);
+        
+        for (animation_type, value) in character_values {
+            match animation_type {
+                AnimationType::Position => {
+                    if let AnimationValue::Vector2(x, y) = value {
+                        transform.position = (base_position.0 + x, base_position.1 + y);
+                    }
+                }
+                AnimationType::Rotation => {
+                    if let AnimationValue::Float(angle) = value {
+                        transform.rotation = angle;
+                    }
+                }
+                AnimationType::Scale => {
+                    if let AnimationValue::Vector2(sx, sy) = value {
+                        transform.scale = (sx, sy);
+                    }
+                }
+                AnimationType::Opacity => {
+                    if let AnimationValue::Float(opacity) = value {
+                        transform.opacity = opacity * self.opacity;
+                    }
+                }
+                AnimationType::Color => {
+                    if let AnimationValue::Color(r, g, b, a) = value {
+                        transform.color = (r, g, b, a);
+                    }
+                }
+                AnimationType::FontSize => {
+                    if let AnimationValue::Float(size) = value {
+                        transform.font_size = size;
+                    }
+                }
+                AnimationType::BaselineShift => {
+                    if let AnimationValue::Float(shift) = value {
+                        transform.baseline_shift = shift;
+                    }
+                }
+                AnimationType::PathPosition => {
+                    if let Some(ref path) = self.path {
+                        if let AnimationValue::Float(distance) = value {
+                            if let Some(pos) = path.get_point_at_distance(distance) {
+                                transform.position = pos;
+                            }
+                        }
+                    }
+                }
+                AnimationType::PathRotation => {
+                    if let Some(ref path) = self.path {
+                        if let AnimationValue::Float(distance) = value {
+                            if let Some((tx, ty)) = path.get_tangent_at_distance(distance) {
+                                transform.rotation = ty.atan2(tx);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        transform
+    }
+
+    pub fn update(&mut self, delta_time: f64) {
+        self.animator.update(delta_time);
+    }
+
+    pub fn play_animations(&mut self) {
+        self.animator.play_all();
+    }
+
+    pub fn pause_animations(&mut self) {
+        self.animator.pause_all();
+    }
+
+    pub fn stop_animations(&mut self) {
+        self.animator.stop_all();
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CharacterTransform {
+    pub position: (f64, f64),
+    pub rotation: f64,
+    pub scale: (f64, f64),
+    pub opacity: f64,
+    pub color: (f64, f64, f64, f64),
+    pub font_size: f64,
+    pub baseline_shift: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum BlendMode {
+    Normal,
+    Multiply,
+    Screen,
+    Overlay,
+    SoftLight,
+    HardLight,
+    ColorDodge,
+    ColorBurn,
+    Darken,
+    Lighten,
+    Difference,
+    Exclusion,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -753,6 +1165,329 @@ mod tests {
             assert!((value - 0.5).abs() < 0.001);
         } else {
             panic!("Expected Float value");
+        }
+    }
+
+    #[test]
+    fn test_typography_controls_default() {
+        let typography = TypographyControls::default();
+        assert_eq!(typography.font_family, "Arial");
+        assert_eq!(typography.font_size, 16.0);
+        assert_eq!(typography.font_weight, FontWeight::Normal);
+        assert_eq!(typography.line_height, 1.2);
+        assert_eq!(typography.color, (0.0, 0.0, 0.0, 1.0));
+        assert!(typography.kerning);
+        assert!(typography.ligatures);
+        assert!(!typography.underline);
+    }
+
+    #[test]
+    fn test_text_path_creation() {
+        let path = TextPath::new("test_path".to_string(), PathType::Line);
+        assert_eq!(path.id, "test_path");
+        assert_eq!(path.path_type, PathType::Line);
+        assert!(path.points.is_empty());
+        assert!(!path.closed);
+        assert_eq!(path.direction, PathDirection::Forward);
+    }
+
+    #[test]
+    fn test_text_path_add_points() {
+        let mut path = TextPath::new("test_path".to_string(), PathType::Line);
+        path.add_point(0.0, 0.0);
+        path.add_point(100.0, 0.0);
+        path.add_point(100.0, 100.0);
+        
+        assert_eq!(path.points.len(), 3);
+        assert_eq!(path.points[0], (0.0, 0.0));
+        assert_eq!(path.points[1], (100.0, 0.0));
+        assert_eq!(path.points[2], (100.0, 100.0));
+    }
+
+    #[test]
+    fn test_text_path_point_at_distance() {
+        let mut path = TextPath::new("test_path".to_string(), PathType::Line);
+        path.add_point(0.0, 0.0);
+        path.add_point(100.0, 0.0);
+        
+        let point = path.get_point_at_distance(50.0);
+        assert!(point.is_some());
+        assert_eq!(point.unwrap(), (50.0, 0.0));
+        
+        let point = path.get_point_at_distance(25.0);
+        assert!(point.is_some());
+        assert_eq!(point.unwrap(), (25.0, 0.0));
+    }
+
+    #[test]
+    fn test_text_path_tangent() {
+        let mut path = TextPath::new("test_path".to_string(), PathType::Line);
+        path.add_point(0.0, 0.0);
+        path.add_point(100.0, 0.0);
+        
+        let tangent = path.get_tangent_at_distance(50.0);
+        assert!(tangent.is_some());
+        let (tx, ty) = tangent.unwrap();
+        assert!((tx - 1.0).abs() < 0.001);
+        assert!((ty - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_text_layer_creation() {
+        let layer = TextLayer::new("layer1".to_string(), "Test Layer".to_string(), "Hello World".to_string());
+        assert_eq!(layer.id, "layer1");
+        assert_eq!(layer.name, "Test Layer");
+        assert_eq!(layer.text, "Hello World");
+        assert_eq!(layer.position, (0.0, 0.0));
+        assert!(layer.visible);
+        assert!(!layer.locked);
+        assert_eq!(layer.blend_mode, BlendMode::Normal);
+        assert_eq!(layer.opacity, 1.0);
+    }
+
+    #[test]
+    fn test_text_layer_character_count() {
+        let layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
+        assert_eq!(layer.get_character_count(), 5);
+        
+        let layer = TextLayer::new("layer2".to_string(), "Test".to_string(), "Hello World".to_string());
+        assert_eq!(layer.get_character_count(), 11); // Including space
+    }
+
+    #[test]
+    fn test_text_layer_character_position() {
+        let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
+        layer.position = (100.0, 200.0);
+        layer.typography.font_size = 20.0;
+        
+        let pos = layer.get_character_position(0);
+        assert!(pos.is_some());
+        assert_eq!(pos.unwrap(), (100.0, 200.0));
+        
+        let pos = layer.get_character_position(1);
+        assert!(pos.is_some());
+        assert_eq!(pos.unwrap(), (112.0, 200.0)); // 100 + (20 * 0.6)
+    }
+
+    #[test]
+    fn test_text_layer_with_path() {
+        let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
+        
+        let mut path = TextPath::new("path1".to_string(), PathType::Line);
+        path.add_point(0.0, 0.0);
+        path.add_point(200.0, 0.0);
+        
+        layer.set_path(Some(path));
+        
+        let pos = layer.get_character_position(1);
+        assert!(pos.is_some());
+        assert_eq!(pos.unwrap(), (10.0, 0.0)); // 1 * 10.0 character width
+    }
+
+    #[test]
+    fn test_text_layer_character_transform() {
+        let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
+        layer.position = (100.0, 200.0);
+        
+        let transform = layer.get_character_transform(0, 0.0);
+        assert_eq!(transform.position, (100.0, 200.0));
+        assert_eq!(transform.rotation, 0.0);
+        assert_eq!(transform.scale, (1.0, 1.0));
+        assert_eq!(transform.opacity, 1.0);
+        assert_eq!(transform.font_size, 16.0);
+        assert_eq!(transform.baseline_shift, 0.0);
+    }
+
+    #[test]
+    fn test_text_layer_animation_integration() {
+        let mut layer = TextLayer::new("layer1".to_string(), "Test".to_string(), "Hello".to_string());
+        layer.position = (100.0, 200.0);
+        
+        // Create a fade-in animation
+        let mut animation = CharacterAnimation::new(
+            "fade".to_string(),
+            "Fade In".to_string(),
+            AnimationType::Opacity,
+            vec![0, 1, 2, 3, 4],
+        );
+        
+        animation.add_keyframe(TextKeyframe {
+            time: 0.0,
+            value: AnimationValue::Float(0.0),
+            easing: EasingFunction::Linear,
+            interpolation: InterpolationMethod::Linear,
+        });
+        
+        animation.add_keyframe(TextKeyframe {
+            time: 1.0,
+            value: AnimationValue::Float(1.0),
+            easing: EasingFunction::Linear,
+            interpolation: InterpolationMethod::Linear,
+        });
+        
+        layer.animator.add_animation(animation);
+        
+        // Test at time 0.5 (should be half faded)
+        let transform = layer.get_character_transform(0, 0.5);
+        assert!((transform.opacity - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_font_weight_variants() {
+        let weights = vec![
+            FontWeight::Thin,
+            FontWeight::ExtraLight,
+            FontWeight::Light,
+            FontWeight::Normal,
+            FontWeight::Medium,
+            FontWeight::SemiBold,
+            FontWeight::Bold,
+            FontWeight::ExtraBold,
+            FontWeight::Black,
+            FontWeight::Custom(750),
+        ];
+        
+        for weight in weights {
+            let mut typography = TypographyControls::default();
+            typography.font_weight = weight;
+            assert_eq!(typography.font_weight, weight);
+        }
+    }
+
+    #[test]
+    fn test_text_transform_variants() {
+        let transforms = vec![
+            TextTransform::None,
+            TextTransform::Uppercase,
+            TextTransform::Lowercase,
+            TextTransform::Capitalize,
+        ];
+        
+        for transform in transforms {
+            let mut typography = TypographyControls::default();
+            typography.text_transform = transform;
+            assert_eq!(typography.text_transform, transform);
+        }
+    }
+
+    #[test]
+    fn test_blend_modes() {
+        let blend_modes = vec![
+            BlendMode::Normal,
+            BlendMode::Multiply,
+            BlendMode::Screen,
+            BlendMode::Overlay,
+            BlendMode::SoftLight,
+            BlendMode::HardLight,
+            BlendMode::ColorDodge,
+            BlendMode::ColorBurn,
+            BlendMode::Darken,
+            BlendMode::Lighten,
+            BlendMode::Difference,
+            BlendMode::Exclusion,
+        ];
+        
+        for blend_mode in blend_modes {
+            let mut layer = TextLayer::new("test".to_string(), "Test".to_string(), "Hello".to_string());
+            layer.blend_mode = blend_mode;
+            assert_eq!(layer.blend_mode, blend_mode);
+        }
+    }
+
+    #[test]
+    fn test_path_types() {
+        let path_types = vec![
+            PathType::Line,
+            PathType::Bezier,
+            PathType::Circle,
+            PathType::Ellipse,
+            PathType::Rectangle,
+            PathType::Polygon,
+            PathType::Custom,
+        ];
+        
+        for path_type in path_types {
+            let path = TextPath::new("test".to_string(), path_type);
+            assert_eq!(path.path_type, path_type);
+        }
+    }
+
+    #[test]
+    fn test_closed_path() {
+        let mut path = TextPath::new("test".to_string(), PathType::Line);
+        path.add_point(0.0, 0.0);
+        path.add_point(100.0, 0.0);
+        path.add_point(100.0, 100.0);
+        path.add_point(0.0, 100.0);
+        path.closed = true;
+        
+        // Test point at distance beyond total length (should wrap around)
+        let point = path.get_point_at_distance(500.0);
+        assert!(point.is_some());
+    }
+
+    #[test]
+    fn test_path_direction() {
+        let mut path = TextPath::new("test".to_string(), PathType::Line);
+        path.add_point(0.0, 0.0);
+        path.add_point(100.0, 0.0);
+        
+        path.direction = PathDirection::Reverse;
+        assert_eq!(path.direction, PathDirection::Reverse);
+        
+        // Test that direction affects point calculation
+        let point = path.get_point_at_distance(25.0);
+        assert!(point.is_some());
+    }
+
+    #[test]
+    fn test_typography_modification() {
+        let mut layer = TextLayer::new("test".to_string(), "Test".to_string(), "Hello".to_string());
+        
+        let mut typography = TypographyControls::default();
+        typography.font_family = "Helvetica".to_string();
+        typography.font_size = 24.0;
+        typography.font_weight = FontWeight::Bold;
+        typography.color = (1.0, 0.0, 0.0, 1.0); // Red
+        
+        layer.set_typography(typography);
+        
+        assert_eq!(layer.typography.font_family, "Helvetica");
+        assert_eq!(layer.typography.font_size, 24.0);
+        assert_eq!(layer.typography.font_weight, FontWeight::Bold);
+        assert_eq!(layer.typography.color, (1.0, 0.0, 0.0, 1.0));
+    }
+
+    #[test]
+    fn test_text_update() {
+        let mut layer = TextLayer::new("test".to_string(), "Test".to_string(), "Hello".to_string());
+        assert_eq!(layer.get_character_count(), 5);
+        
+        layer.set_text("Hello World".to_string());
+        assert_eq!(layer.get_character_count(), 11);
+        assert_eq!(layer.text, "Hello World");
+    }
+
+    #[test]
+    fn test_animation_types_extended() {
+        let animation_types = vec![
+            AnimationType::FontSize,
+            AnimationType::FontWeight,
+            AnimationType::LineHeight,
+            AnimationType::LetterSpacing,
+            AnimationType::TextTransform,
+            AnimationType::PathPosition,
+            AnimationType::PathRotation,
+        ];
+        
+        for anim_type in animation_types {
+            let animation = CharacterAnimation::new(
+                "test".to_string(),
+                "Test".to_string(),
+                anim_type,
+                vec![0],
+            );
+            assert_eq!(animation.animation_type, anim_type);
         }
     }
 }
