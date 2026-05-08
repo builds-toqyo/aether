@@ -199,32 +199,32 @@ export const Histogram: React.FC<HistogramProps> = ({
   }, [canvasSize, draw]);
 
   return (
-    <div className="histogram" ref={containerRef}>
-      <div className="scope-header">
-        <h4>Histogram</h4>
-        <div className="scope-mode">
+    <div className="flex flex-col h-full" ref={containerRef}>
+      <div className="flex justify-between items-center p-2 bg-gray-800 border-b border-gray-700">
+        <h4 className="text-sm font-semibold text-white">Histogram</h4>
+        <div className="text-xs text-gray-300 font-medium">
           {settings.mode === 'rgb' && 'RGB'}
           {settings.mode === 'luma' && 'Luma'}
           {settings.mode === 'all' && 'All'}
           {settings.logarithmic && ' (Log)'}
         </div>
       </div>
-      <div className="scope-content">
+      <div className="relative flex items-center justify-center bg-black min-h-[250px]">
         <canvas
           ref={canvasRef}
-          className={`scope-canvas ${isLoading ? 'loading' : ''}`}
-          style={{ width: canvasSize.width, height: canvasSize.height }}
+          className={`block ${isLoading ? 'opacity-50' : ''}`}
+          style={{ imageRendering: 'crisp-edges', width: canvasSize.width, height: canvasSize.height }}
         />
         {isLoading && (
-          <div className="scope-loading">
-            <div className="loading-spinner"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+            <div className="w-6 h-6 border-2 border-gray-600 border-t-2 border-t-white rounded-full animate-spin"></div>
           </div>
         )}
       </div>
-      <div className="scope-footer">
-        <div className="scope-info">
-          <span className="scale-info">0-255 levels</span>
-          <span className="max-value">Max: {getMaxValue().toFixed(0)}</span>
+      <div className="p-2 bg-gray-800 border-t border-gray-700 text-xs text-gray-600">
+        <div className="flex justify-between items-center">
+          <span className="text-gray-600">0-255 levels</span>
+          <span className="text-gray-600">Max: {getMaxValue().toFixed(0)}</span>
         </div>
       </div>
     </div>

@@ -217,33 +217,47 @@ export const WaveformScope: React.FC<WaveformScopeProps> = ({
   }, [canvasSize, draw]);
 
   return (
-    <div className="waveform-scope" ref={containerRef}>
-      <div className="scope-header">
-        <h4>Waveform</h4>
-        <div className="scope-mode">
-          {settings.mode === 'luma' && 'Luma'}
-          {settings.mode === 'rgb' && 'RGB'}
-          {settings.mode === 'parade' && 'Parade'}
-        </div>
-      </div>
-      <div className="scope-content">
-        <canvas
-          ref={canvasRef}
-          className={`scope-canvas ${isLoading ? 'loading' : ''}`}
-          style={{ width: canvasSize.width, height: canvasSize.height }}
-        />
-        {isLoading && (
-          <div className="scope-loading">
-            <div className="loading-spinner"></div>
-          </div>
-        )}
-      </div>
-      <div className="scope-footer">
-        <div className="scope-info">
-          <span className="ire-markers">0-100 IRE</span>
-          {settings.mode === 'parade' && <span className="channel-info">R | G | B</span>}
-        </div>
-      </div>
-    </div>
-  );
+<div className="flex flex-col h-full" ref={containerRef}>
+<div className="flex justify-between items-center p-2 bg-gray-800 border-b border-gray-700">
+<h4 className="text-sm font-semibold text-white">Waveform</h4>
+<div className="text-xs text-gray-300 font-medium">
+{settings.mode === 'luma' && 'Luma'}
+{settings.mode === 'rgb' && 'RGB'}
+{settings.mode === 'parade' && 'Parade'}
+{settings.intensity !== 1.0 && ` (${settings.intensity.toFixed(1)}x)`}
+</div>
+</div>
+<div className="relative flex items-center justify-center bg-black min-h-[250px]">
+<canvas
+ref={canvasRef}
+className={`block ${isLoading ? 'opacity-50' : ''}`}
+style={{ imageRendering: 'crisp-edges', width: canvasSize.width, height: canvasSize.height }}
+/>
+{isLoading && (
+<div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+<div className="w-6 h-6 border-2 border-gray-600 border-t-2 border-t-white rounded-full animate-spin"></div>
+</div>
+)}
+</div>
+<div className="p-2 bg-gray-800 border-t border-gray-700 text-xs text-gray-600">
+<div className="flex justify-between items-center">
+<div className="flex gap-4">
+<span className="text-gray-600">IRE: 0-100</span>
+<span className="text-gray-600">
+{settings.mode === 'rgb' && 'RGB Channels'}
+{settings.mode === 'luma' && 'Luma Channel'}
+{settings.mode === 'parade' && 'RGB Parade'}
+</span>
+</div>
+{settings.mode === 'rgb' && (
+<div className="flex gap-1">
+<span className="px-1 py-0.5 bg-red-500 bg-opacity-70 text-white text-xs font-semibold rounded">R</span>
+<span className="px-1 py-0.5 bg-green-500 bg-opacity-70 text-black text-xs font-semibold rounded">G</span>
+<span className="px-1 py-0.5 bg-blue-500 bg-opacity-70 text-white text-xs font-semibold rounded">B</span>
+</div>
+)}
+</div>
+</div>
+</div>
+);
 };
