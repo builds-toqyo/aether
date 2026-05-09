@@ -1,24 +1,12 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { Upload, FileVideo, FileImage, FileAudio, X, Check, AlertTriangle, Settings, Play, Pause } from 'lucide-react';
+import { Upload, Play, Pause, Settings, FileAudio } from 'lucide-react';
 import { useTauriAPI } from '../../hooks/useTauriAPI';
-
-export interface MediaFile {
-  id: string;
-  name: string;
-  path: string;
-  type: 'video' | 'image' | 'audio';
-  size: number;
-  duration?: number;
-  resolution?: { width: number; height: number };
-  fps?: number;
-  codec?: string;
-  format?: string;
-  bitrate?: number;
-  thumbnail?: string;
-  selected: boolean;
-  importStatus: 'pending' | 'importing' | 'completed' | 'error';
-  error?: string;
-}
+import { useDialog } from '../../hooks/useDialog';
+import { useProgress } from '../../hooks/useProgress';
+import { useFileSelection, FileItem } from '../../hooks/useFileSelection';
+import Dialog from '../ui/Dialog';
+import ProgressBar from '../ui/ProgressBar';
+import FileList from '../ui/FileList';
 
 export interface ProxySettings {
   enabled: boolean;
@@ -37,12 +25,30 @@ export interface ImportSettings {
 }
 
 const MediaImport: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [files, setFiles] = useState<MediaFile[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [isImporting, setIsImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState(0);
-  const [currentImportFile, setCurrentImportFile] = useState<string>('');
+  const { isOpen, open, close } = useDialog();
+  const { 
+    isRunning: isImporting, 
+    progress: importProgress, 
+    status, 
+    currentFile: currentImportFile,
+    start: startImport,
+    complete: completeImport,
+    error: setImportError,
+    update: updateProgress,
+    reset: resetProgress
+  } = useProgress();
+  
+  const {
+    files,
+    selectedCount,
+    addFiles,
+    removeFile,
+    toggleFileSelection,
+    updateFileStatus,
+    updateFileMetadata,
+    getSelectedFiles,
+  } = useFileSelection();
+  
   const [settings, setSettings] = useState<ImportSettings>({
     createProxy: true,
     proxySettings: {
@@ -56,7 +62,8 @@ const MediaImport: React.FC = () => {
     generateThumbnails: true,
     extractMetadata: true,
   });
-  const [previewFile, setPreviewFile] = useState<MediaFile | null>(null);
+  
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +73,7 @@ const MediaImport: React.FC = () => {
   const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
     
-    const newFiles: MediaFile[] = selectedFiles.map((file, index) => {
+    const newFiles: FileItem[] = selectedFiles.map((file, index) => {
       const extension = file.name.split('.').pop()?.toLowerCase();
       let type: 'video' | 'image' | 'audio' = 'video';
       
@@ -83,48 +90,22 @@ const MediaImport: React.FC = () => {
         type,
         size: file.size,
         selected: true,
-        importStatus: 'pending',
+        status: 'pending',
       };
     });
     
-    setFiles(prev => [...prev, ...newFiles]);
-    setSelectedFiles(prev => {
-      const newSet = new Set(prev);
-      newFiles.forEach(file => newSet.add(file.id));
-      return newSet;
-    });
-  }, []);
-
-  const handleFileToggle = useCallback((fileId: string) => {
-    setSelectedFiles(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(fileId)) {
-        newSet.delete(fileId);
-      } else {
-        newSet.add(fileId);
-      }
-      return newSet;
-    });
-    
-    setFiles(prev => prev.map(file => 
-      file.id === fileId ? { ...file, selected: !file.selected } : file
-    ));
-  }, []);
+    addFiles(newFiles);
+  }, [addFiles]);
 
   const handleRemoveFile = useCallback((fileId: string) => {
-    setFiles(prev => prev.filter(file => file.id !== fileId));
-    setSelectedFiles(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(fileId);
-      return newSet;
-    });
+    removeFile(fileId);
     
     if (previewFile?.id === fileId) {
       setPreviewFile(null);
     }
-  }, [previewFile]);
+  }, [removeFile, previewFile]);
 
-  const handlePreview = useCallback((file: MediaFile) => {
+  const handlePreview = useCallback((file: FileItem) => {
     setPreviewFile(file);
     setIsPreviewPlaying(false);
   }, []);
@@ -141,21 +122,17 @@ const MediaImport: React.FC = () => {
   }, [isPreviewPlaying]);
 
   const handleImport = useCallback(async () => {
-    if (selectedFiles.size === 0) return;
+    const filesToImport = getSelectedFiles();
+    if (filesToImport.length === 0) return;
     
-    setIsImporting(true);
-    setImportProgress(0);
-    
-    const filesToImport = files.filter(file => selectedFiles.has(file.id));
+    startImport('preparing');
     
     try {
       for (let i = 0; i < filesToImport.length; i++) {
         const file = filesToImport[i];
-        setCurrentImportFile(file.name);
+        updateProgress({ currentFile: file.name });
         
-        setFiles(prev => prev.map(f => 
-          f.id === file.id ? { ...f, importStatus: 'importing' } : f
-        ));
+        updateFileStatus(file.id, 'processing');
         
         try {
           const result = await editing.import_media({
@@ -166,39 +143,24 @@ const MediaImport: React.FC = () => {
             extractMetadata: settings.extractMetadata,
           });
           
-          setFiles(prev => prev.map(f => 
-            f.id === file.id ? { 
-              ...f, 
-              importStatus: 'completed',
-              ...result[0]
-            } : f
-          ));
+          updateFileStatus(file.id, 'completed');
+          if (result[0]) {
+            updateFileMetadata(file.id, result[0]);
+          }
         } catch (error) {
-          setFiles(prev => prev.map(f => 
-            f.id === file.id ? { 
-              ...f, 
-              importStatus: 'error',
-              error: error instanceof Error ? error.message : 'Import failed'
-            } : f
-          ));
+          updateFileStatus(file.id, 'error', error instanceof Error ? error.message : 'Import failed');
         }
         
-        setImportProgress(((i + 1) / filesToImport.length) * 100);
+        updateProgress({ progress: ((i + 1) / filesToImport.length) * 100 });
       }
-    } finally {
-      setIsImporting(false);
-      setCurrentImportFile('');
+      
+      completeImport();
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'Import failed');
     }
-  }, [selectedFiles, files, settings, editing]);
+  }, [getSelectedFiles, startImport, updateProgress, updateFileStatus, updateFileMetadata, completeImport, setImportError, settings, editing]);
 
-  const getFileIcon = (type: 'video' | 'image' | 'audio') => {
-    switch (type) {
-      case 'video': return <FileVideo size={20} />;
-      case 'image': return <FileImage size={20} />;
-      case 'audio': return <FileAudio size={20} />;
-    }
-  };
-
+  
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -221,7 +183,7 @@ const MediaImport: React.FC = () => {
   if (!isOpen) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={open}
         className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
       >
         <Upload size={20} />
@@ -231,100 +193,45 @@ const MediaImport: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg w-full max-w-6xl max-h-[90vh] flex flex-col">
-        <div className="flex justify-between items-center p-4 border-b border-gray-700">
-          <h2 className="text-xl font-semibold text-white">Import Media</h2>
-          <button
-            onClick={() => setIsOpen(false)}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <X size={24} />
-          </button>
-        </div>
-        <div className="flex-1 flex overflow-hidden">
-          <div className="flex-1 flex flex-col border-r border-gray-700">
-            <div className="p-4 border-b border-gray-700">
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="video/*,image/*,audio/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-600 rounded-lg hover:border-gray-500 transition-colors"
-              >
-                <Upload size={24} />
-                <span className="text-gray-300">Select files to import</span>
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {files.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-gray-500">
-                  No files selected
-                </div>
-              ) : (
-                <div className="p-2">
-                  {files.map((file) => (
-                    <div
-                      key={file.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                        file.selected ? 'bg-blue-900 bg-opacity-30' : 'hover:bg-gray-800'
-                      } ${previewFile?.id === file.id ? 'ring-2 ring-blue-500' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={file.selected}
-                        onChange={() => handleFileToggle(file.id)}
-                        className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                      />
-                      <div className="flex-shrink-0 text-gray-400">
-                        {getFileIcon(file.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm text-white truncate">{file.name}</div>
-                        <div className="text-xs text-gray-400">
-                          {formatFileSize(file.size)}
-                          {file.duration && ` • ${formatDuration(file.duration)}`}
-                          {file.resolution && ` • ${file.resolution.width}x${file.resolution.height}`}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {file.importStatus === 'completed' && (
-                          <Check size={16} className="text-green-500" />
-                        )}
-                        {file.importStatus === 'error' && (
-                          <AlertTriangle size={16} className="text-red-500" />
-                        )}
-                        {file.importStatus === 'importing' && (
-                          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                        )}
-                        <button
-                          onClick={() => handlePreview(file)}
-                          className="text-gray-400 hover:text-white transition-colors"
-                        >
-                          <Play size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleRemoveFile(file.id)}
-                          className="text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+    <Dialog
+      isOpen={isOpen}
+      onClose={close}
+      title="Import Media"
+      maxWidth="6xl"
+      disabled={isImporting}
+    >
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col border-r border-gray-700">
+          <div className="p-4 border-b border-gray-700">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="video/*,image/*,audio/*"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-600 rounded-lg hover:border-gray-500 transition-colors"
+            >
+              <Upload size={24} />
+              <span className="text-gray-300">Select files to import</span>
+            </button>
           </div>
 
-          {/* Preview Panel */}
-          <div className="w-96 flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <FileList
+              files={files}
+              selectedCount={selectedCount}
+              onToggleSelection={toggleFileSelection}
+              onRemove={handleRemoveFile}
+              onPreview={handlePreview}
+              previewFileId={previewFile?.id}
+            />
+          </div>
+
+        <div className="w-96 flex flex-col">
             {previewFile ? (
               <>
                 <div className="p-4 border-b border-gray-700">
@@ -362,7 +269,6 @@ const MediaImport: React.FC = () => {
                   )}
                 </div>
 
-                {/* Metadata */}
                 <div className="p-4 border-t border-gray-700 max-h-64 overflow-y-auto">
                   <h4 className="text-sm font-semibold text-white mb-2">Metadata</h4>
                   <div className="space-y-1 text-xs text-gray-300">
@@ -387,7 +293,6 @@ const MediaImport: React.FC = () => {
           </div>
         </div>
 
-        {/* Settings Panel */}
         <div className="border-t border-gray-700 p-4">
           <div className="flex items-center gap-2 mb-4">
             <Settings size={20} className="text-gray-400" />
@@ -475,12 +380,12 @@ const MediaImport: React.FC = () => {
         <div className="border-t border-gray-700 p-4">
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-400">
-              {selectedFiles.size > 0 && `${selectedFiles.size} file${selectedFiles.size > 1 ? 's' : ''} selected`}
+              {selectedCount > 0 && `${selectedCount} file${selectedCount > 1 ? 's' : ''} selected`}
             </div>
             
             <div className="flex gap-3">
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={close}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
               >
                 Cancel
@@ -488,7 +393,7 @@ const MediaImport: React.FC = () => {
               
               <button
                 onClick={handleImport}
-                disabled={selectedFiles.size === 0 || isImporting}
+                disabled={selectedCount === 0 || isImporting}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
               >
                 {isImporting && (
@@ -501,18 +406,17 @@ const MediaImport: React.FC = () => {
           
           {isImporting && (
             <div className="mt-3">
-              <div className="text-xs text-gray-400 mb-1">{currentImportFile}</div>
-              <div className="w-full bg-gray-700 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${importProgress}%` }}
-                />
-              </div>
+              <ProgressBar
+                progress={importProgress}
+                status={status}
+                currentFile={currentImportFile}
+                showDetails={true}
+              />
             </div>
           )}
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };
 
