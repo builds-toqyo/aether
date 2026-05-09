@@ -303,7 +303,6 @@ impl MediaImporter {
             container_format,
         })
     }
-    }
 
     pub fn get_imported_media(&self) -> Vec<MediaInfo> {
         self.media_cache.values().cloned().collect()
@@ -323,18 +322,236 @@ impl MediaImporter {
     }
 
 
+    fn generate_thumbnails(&self, uri: &str, path: &Path) -> Result<(), EditingError> {
+        use gst::prelude::*;
+        
+        debug!("Generating thumbnails for {}", path.display());
+        
+        // Create thumbnail directory if it doesn't exist
+        let thumb_dir = path.parent()
+            .ok_or_else(|| EditingError::ImportError("Invalid path".to_string()))?
+            .join(".thumbnails");
+        
+        std::fs::create_dir_all(&thumb_dir)
+            .with_context(|| format!("Failed to create thumbnail directory: {}", thumb_dir.display()))
+            .map_err(|e| EditingError::ImportError(e.to_string()))?;
+        
+        // Generate 3 thumbnails at different positions (25%, 50%, 75%)
+        let positions = [0.25, 0.5, 0.75];
+        
+        for (i, position) in positions.iter().enumerate() {
+            let thumb_path = thumb_dir.join(format!("thumb_{}.jpg", i));
+            
+            // Check if thumbnail already exists
+            if thumb_path.exists() {
+                debug!("Thumbnail already exists: {}", thumb_path.display());
+                continue;
+            }
+            
+            debug!("Generating thumbnail at position {} for {}", position, path.display());
+            
+            // Create pipeline for thumbnail extraction
+            let pipeline = gst::parse_launch(&format!(
+                "uridecodebin uri={} ! videoconvert ! videoscale ! video/x-raw,width=320,height=180 ! jpegenc ! filesink location={}",
+                uri,
+                thumb_path.display()
+            ))
+                .with_context(|| "Failed to create thumbnail pipeline")
+                .map_err(|e| EditingError::ImportError(e.to_string()))?;
+            
+            // Set state to playing
+            pipeline.set_state(gst::State::Playing)
+                .with_context(|| "Failed to set pipeline to playing")
+                .map_err(|e| EditingError::ImportError(e.to_string()))?;
+            
+            // Wait for EOS or error
+            let bus = pipeline.bus().expect("Pipeline has no bus");
+            let timeout = 10 * gst::ClockTime::SECOND;
+            
+            match bus.timed_pop_filtered(timeout, &[gst::MessageType::Eos, gst::MessageType::Error]) {
+                Some(msg) => {
+                    match msg.view() {
+                        gst::MessageView::Eos(_) => {
+                            debug!("Thumbnail generation complete for position {}", position);
+                        }
+                        gst::MessageView::Error(err) => {
+                            error!("Error during thumbnail generation: {}", err.error());
+                            return Err(EditingError::ImportError(format!("Thumbnail generation failed: {}", err.error())));
+                        }
+                        _ => {}
+                    }
+                }
+                None => {
+                    warn!("Thumbnail generation timeout for position {}", position);
+                }
+            }
+            
+            // Clean up
+            pipeline.set_state(gst::State::Null)
+                .with_context(|| "Failed to set pipeline to null")
+                .map_err(|e| EditingError::ImportError(e.to_string()))?;
+        }
+        
+        info!("Thumbnail generation complete for {}", path.display());
+        Ok(())
+    }
+
     fn create_proxy_media(&self, uri: &str, format: &str, path: &Path) -> Result<(), EditingError> {
-
-
-        info!("Proxy creation requested for {} with format {} (not yet implemented)", path.display(), format);
+        use gst::prelude::*;
+        
+        debug!("Creating proxy media for {} with format {}", path.display(), format);
+        
+        // Determine proxy settings based on format
+        let (resolution, bitrate) = match format {
+            "720p" => ("1280x720", 2000000),
+            "1080p" => ("1920x1080", 5000000),
+            "4K" => ("3840x2160", 15000000),
+            _ => ("1280x720", 2000000),
+        };
+        
+        // Create proxy directory
+        let proxy_dir = path.parent()
+            .ok_or_else(|| EditingError::ImportError("Invalid path".to_string()))?
+            .join(".proxies");
+        
+        std::fs::create_dir_all(&proxy_dir)
+            .with_context(|| format!("Failed to create proxy directory: {}", proxy_dir.display()))
+            .map_err(|e| EditingError::ImportError(e.to_string()))?;
+        
+        let proxy_path = proxy_dir.join(format!("proxy_{}.mp4", path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("proxy")));
+        
+        // Check if proxy already exists
+        if proxy_path.exists() {
+            debug!("Proxy already exists: {}", proxy_path.display());
+            return Ok(());
+        }
+        
+        debug!("Creating proxy at: {}", proxy_path.display());
+        
+        // Create FFmpeg-style pipeline for proxy generation
+        let pipeline_str = format!(
+            "uridecodebin uri={} ! videoconvert ! videoscale ! video/x-raw,width={},height={} ! x264enc bitrate={} ! mp4mux ! filesink location={}",
+            uri,
+            resolution.split('x').next().unwrap_or("1280"),
+            resolution.split('x').nth(1).unwrap_or("720"),
+            bitrate,
+            proxy_path.display()
+        );
+        
+        let pipeline = gst::parse_launch(&pipeline_str)
+            .with_context(|| "Failed to create proxy pipeline")
+            .map_err(|e| EditingError::ImportError(e.to_string()))?;
+        
+        // Set state to playing
+        pipeline.set_state(gst::State::Playing)
+            .with_context(|| "Failed to set pipeline to playing")
+            .map_err(|e| EditingError::ImportError(e.to_string()))?;
+        
+        // Wait for EOS or error with extended timeout for proxy generation
+        let bus = pipeline.bus().expect("Pipeline has no bus");
+        let timeout = 300 * gst::ClockTime::SECOND; // 5 minutes for proxy generation
+        
+        match bus.timed_pop_filtered(timeout, &[gst::MessageType::Eos, gst::MessageType::Error]) {
+            Some(msg) => {
+                match msg.view() {
+                    gst::MessageView::Eos(_) => {
+                        info!("Proxy creation complete: {}", proxy_path.display());
+                    }
+                    gst::MessageView::Error(err) => {
+                        error!("Error during proxy creation: {}", err.error());
+                        return Err(EditingError::ImportError(format!("Proxy creation failed: {}", err.error())));
+                    }
+                    _ => {}
+                }
+            }
+            None => {
+                warn!("Proxy creation timeout");
+                return Err(EditingError::ImportError("Proxy creation timeout".to_string()));
+            }
+        }
+        
+        // Clean up
+        pipeline.set_state(gst::State::Null)
+            .with_context(|| "Failed to set pipeline to null")
+            .map_err(|e| EditingError::ImportError(e.to_string()))?;
+        
+        info!("Proxy media created successfully: {}", proxy_path.display());
         Ok(())
     }
 
 
     pub fn get_proxy_path<P: AsRef<Path>>(&self, path: P) -> Option<PathBuf> {
+        let path = path.as_ref();
+        let proxy_dir = path.parent()?.join(".proxies");
+        let file_name = path.file_name()?.to_str()?;
+        Some(proxy_dir.join(format!("proxy_{}.mp4", file_name)))
+    }
 
+    pub fn batch_import<P: AsRef<Path>>(&mut self, paths: Vec<P>, options: Option<ImportOptions>)
+        -> Result<Vec<MediaInfo>, EditingError> {
+        info!("Starting batch import of {} files", paths.len());
+        
+        let mut results = Vec::new();
+        let mut errors = Vec::new();
+        
+        for (i, path) in paths.iter().enumerate() {
+            info!("Importing file {}/{}: {}", i + 1, paths.len(), path.as_ref().display());
+            
+            match self.import_media(path, options.clone()) {
+                Ok(media_info) => {
+                    info!("Successfully imported: {}", path.as_ref().display());
+                    results.push(media_info);
+                }
+                Err(e) => {
+                    error!("Failed to import {}: {}", path.as_ref().display(), e);
+                    errors.push((path.as_ref().to_path_buf(), e));
+                }
+            }
+        }
+        
+        info!("Batch import complete: {} successful, {} failed", results.len(), errors.len());
+        
+        if !errors.is_empty() {
+            warn!("Batch import had {} errors:", errors.len());
+            for (path, error) in &errors {
+                warn!("  {}: {}", path.display(), error);
+            }
+        }
+        
+        Ok(results)
+    }
 
-        None
+    pub fn validate_media<P: AsRef<Path>>(&self, path: P) -> Result<bool, EditingError> {
+        let path = path.as_ref();
+        
+        // Check if file exists
+        if !path.exists() {
+            return Ok(false);
+        }
+        
+        // Check if file is readable
+        if !path.metadata().is_ok() {
+            return Ok(false);
+        }
+        
+        // Try to create URI to validate it's a valid media file
+        let uri = match gst::filename_to_uri(path) {
+            Ok(uri) => uri,
+            Err(_) => return Ok(false),
+        };
+        
+        // Quick validation by attempting to discover the media
+        let timeout = 2 * gst::ClockTime::SECOND;
+        let discoverer = gst_pbutils::Discoverer::new(timeout)
+            .with_context(|| "Failed to create discoverer for validation")
+            .map_err(|e| EditingError::ImportError(e.to_string()))?;
+        
+        match discoverer.discover_uri(&uri) {
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false),
+        }
     }
 
 
