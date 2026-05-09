@@ -113,27 +113,20 @@ pub fn create_project(name: String, path: Option<String>, state: State<Mutex<Edi
 
 #[tauri::command]
 pub fn open_project(path: String, state: State<Mutex<EditingState>>) -> Result<Project, String> {
-    // In a real implementation, this would load from disk
-    // For now, we'll create a mock project
-    let project_id = Uuid::new_v4().to_string();
-    let now = chrono::Utc::now().timestamp();
+    let file_path = Path::new(&path);
     
-    let project = Project {
-        id: project_id.clone(),
-        name: "Loaded Project".to_string(),
-        path: Some(path),
-        created_at: now - 86400, // 1 day ago
-        modified_at: now,
-        settings: ProjectSettings {
-            resolution: (1920, 1080),
-            framerate: 30,
-            audio_sample_rate: 48000,
-            auto_save: true,
-            auto_save_interval: 300,
-            proxy_enabled: false,
-            proxy_resolution: "1080p".to_string(),
-        },
-    };
+    if !file_path.exists() {
+        return Err(format!("Project file not found: {}", path));
+    }
+    
+    let content = fs::read_to_string(file_path)
+        .map_err(|e| format!("Failed to read project file: {}", e))?;
+    
+    let mut project: Project = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse project file: {}", e))?;
+    
+    project.path = Some(path);
+    project.modified_at = chrono::Utc::now().timestamp();
     
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.current_project = Some(project.clone());
@@ -147,6 +140,15 @@ pub fn save_project(state: State<Mutex<EditingState>>) -> Result<Project, String
     
     if let Some(project) = state_guard.current_project.as_mut() {
         project.modified_at = chrono::Utc::now().timestamp();
+        
+        if let Some(ref path) = project.path {
+            let content = serde_json::to_string_pretty(&project)
+                .map_err(|e| format!("Failed to serialize project: {}", e))?;
+            
+            fs::write(path, content)
+                .map_err(|e| format!("Failed to write project file: {}", e))?;
+        }
+        
         Ok(project.clone())
     } else {
         Err("No project is currently open".to_string())
@@ -187,8 +189,6 @@ pub fn update_project_settings(
     
     Err("Project not found".to_string())
 }
-
-// Timeline Commands
 
 #[tauri::command]
 pub fn create_track(name: String, track_type: String, state: State<Mutex<EditingState>>) -> Result<TimelineTrack, String> {
@@ -345,21 +345,66 @@ pub fn move_clip(clip_id: String, new_track_id: String, new_start_time: f64, sta
 #[tauri::command]
 pub fn import_media(path: String, analyze: bool, state: State<Mutex<EditingState>>) -> Result<MediaItem, String> {
     let media_id = Uuid::new_v4().to_string();
+    let file_path = Path::new(&path);
     
-    // In a real implementation, this would analyze the media file
-    // For now, we'll create a mock media item
-    let media_item = MediaItem {
+    if !file_path.exists() {
+        return Err(format!("Media file not found: {}", path));
+    }
+    
+    let file_name = file_path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("Unknown")
+        .to_string();
+    
+    let extension = file_path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    
+    let media_type = match extension.as_str() {
+        "mp4" | "mov" | "avi" | "mkv" | "webm" | "wmv" | "flv" => "video",
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "tiff" => "image",
+        "mp3" | "wav" | "aac" | "flac" | "ogg" | "m4a" => "audio",
+        _ => "video",
+    }.to_string();
+    
+    let file_size = fs::metadata(&path)
+        .map(|m| m.len())
+        .unwrap_or(0);
+    
+    let mut media_item = MediaItem {
         id: media_id.clone(),
-        name: path.split('/').last().unwrap_or("Unknown").to_string(),
+        name: file_name,
         path: path.clone(),
-        media_type: "video".to_string(), // Default to video
-        duration: 10.0, // Mock duration
-        size: 1024 * 1024 * 100, // Mock size (100MB)
-        resolution: Some((1920, 1080)),
-        framerate: Some(30.0),
-        codec: Some("H.264".to_string()),
+        media_type,
+        duration: 0.0,
+        size: file_size,
+        resolution: None,
+        framerate: None,
+        codec: None,
         thumbnail_path: None,
     };
+    
+    if analyze {
+        if let Ok(metadata) = analyze_media_internal(&path) {
+            if let Some(duration) = metadata.get("duration").and_then(|v| v.as_f64()) {
+                media_item.duration = duration;
+            }
+            if let Some(resolution) = metadata.get("resolution") {
+                let width = resolution.get("width").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                let height = resolution.get("height").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                if width > 0 && height > 0 {
+                    media_item.resolution = Some((width, height));
+                }
+            }
+            if let Some(framerate) = metadata.get("framerate").and_then(|v| v.as_f64()) {
+                media_item.framerate = Some(framerate);
+            }
+            if let Some(codec) = metadata.get("codec").and_then(|v| v.as_str()) {
+                media_item.codec = Some(codec.to_string());
+            }
+        }
+    }
     
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.media_items.push(media_item.clone());
@@ -381,25 +426,101 @@ pub fn remove_media(media_id: String, state: State<Mutex<EditingState>>) -> Resu
     Ok(())
 }
 
+fn analyze_media_internal(path: &str) -> Result<serde_json::Value, String> {
+    let output = Command::new("ffprobe")
+        .args([
+            "-v", "quiet",
+            "-print_format", "json",
+            "-show_format",
+            "-show_streams",
+            path
+        ])
+        .output()
+        .map_err(|e| format!("Failed to run ffprobe: {}", e))?;
+    
+    if !output.status.success() {
+        return Err("ffprobe failed to analyze media".to_string());
+    }
+    
+    let json_str = String::from_utf8_lossy(&output.stdout);
+    let probe_data: serde_json::Value = serde_json::from_str(&json_str)
+        .map_err(|e| format!("Failed to parse ffprobe output: {}", e))?;
+    
+    let mut result = serde_json::json!({});
+    
+    if let Some(format) = probe_data.get("format") {
+        if let Some(duration) = format.get("duration").and_then(|v| v.as_str()) {
+            if let Ok(dur) = duration.parse::<f64>() {
+                result["duration"] = serde_json::json!(dur);
+            }
+        }
+        if let Some(bitrate) = format.get("bit_rate").and_then(|v| v.as_str()) {
+            if let Ok(br) = bitrate.parse::<u64>() {
+                result["bitrate"] = serde_json::json!(br);
+            }
+        }
+    }
+    
+    if let Some(streams) = probe_data.get("streams").and_then(|v| v.as_array()) {
+        for stream in streams {
+            let codec_type = stream.get("codec_type").and_then(|v| v.as_str()).unwrap_or("");
+            
+            if codec_type == "video" {
+                if let Some(width) = stream.get("width").and_then(|v| v.as_u64()) {
+                    if let Some(height) = stream.get("height").and_then(|v| v.as_u64()) {
+                        result["resolution"] = serde_json::json!({
+                            "width": width,
+                            "height": height
+                        });
+                    }
+                }
+                
+                if let Some(codec) = stream.get("codec_name").and_then(|v| v.as_str()) {
+                    result["codec"] = serde_json::json!(codec);
+                }
+                
+                if let Some(fps) = stream.get("r_frame_rate").and_then(|v| v.as_str()) {
+                    let parts: Vec<&str> = fps.split('/').collect();
+                    if parts.len() == 2 {
+                        if let (Ok(num), Ok(den)) = (parts[0].parse::<f64>(), parts[1].parse::<f64>()) {
+                            if den > 0.0 {
+                                result["framerate"] = serde_json::json!(num / den);
+                            }
+                        }
+                    }
+                }
+            } else if codec_type == "audio" {
+                let mut audio = serde_json::json!({});
+                
+                if let Some(sample_rate) = stream.get("sample_rate").and_then(|v| v.as_str()) {
+                    if let Ok(sr) = sample_rate.parse::<u32>() {
+                        audio["sample_rate"] = serde_json::json!(sr);
+                    }
+                }
+                
+                if let Some(channels) = stream.get("channels").and_then(|v| v.as_u64()) {
+                    audio["channels"] = serde_json::json!(channels);
+                }
+                
+                if let Some(codec) = stream.get("codec_name").and_then(|v| v.as_str()) {
+                    audio["codec"] = serde_json::json!(codec);
+                }
+                
+                result["audio"] = audio;
+            }
+        }
+    }
+    
+    Ok(result)
+}
+
 #[tauri::command]
 pub fn analyze_media(path: String) -> Result<serde_json::Value, String> {
-    // In a real implementation, this would use FFmpeg or similar to analyze the media
-    // For now, return mock data
-    let metadata = serde_json::json!({
-        "duration": 10.0,
-        "resolution": {
-            "width": 1920,
-            "height": 1080
-        },
-        "framerate": 30.0,
-        "codec": "H.264",
-        "bitrate": 5000000,
-        "audio": {
-            "sample_rate": 48000,
-            "channels": 2,
-            "codec": "AAC"
-        }
-    });
+    let file_path = Path::new(&path);
     
-    Ok(metadata)
+    if !file_path.exists() {
+        return Err(format!("Media file not found: {}", path));
+    }
+    
+    analyze_media_internal(&path)
 }
