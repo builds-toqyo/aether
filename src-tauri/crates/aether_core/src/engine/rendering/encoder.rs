@@ -19,16 +19,16 @@ pub enum EncoderPreset {
 impl EncoderPreset {
     pub fn to_ffmpeg_name(&self) -> &'static str {
         match self {
-            EncoderPreset::UltraFast => __STRING_0__,
-            EncoderPreset::SuperFast => __STRING_1__,
-            EncoderPreset::VeryFast => __STRING_2__,
-            EncoderPreset::Faster => __STRING_3__,
-            EncoderPreset::Fast => __STRING_4__,
-            EncoderPreset::Medium => __STRING_5__,
-            EncoderPreset::Slow => __STRING_6__,
-            EncoderPreset::Slower => __STRING_7__,
-            EncoderPreset::VerySlow => __STRING_8__,
-            EncoderPreset::Placebo => __STRING_9__,
+            EncoderPreset::UltraFast => "ultrafast",
+            EncoderPreset::SuperFast => "superfast",
+            EncoderPreset::VeryFast => "veryfast",
+            EncoderPreset::Faster => "faster",
+            EncoderPreset::Fast => "fast",
+            EncoderPreset::Medium => "medium",
+            EncoderPreset::Slow => "slow",
+            EncoderPreset::Slower => "slower",
+            EncoderPreset::VerySlow => "veryslow",
+            EncoderPreset::Placebo => "placebo",
         }
     }
 
