@@ -4,7 +4,7 @@
 use tauri::Manager;
 
 fn main() {
-    aether_api::init_app()
+    lib::init_app()
         .plugin(tauri_plugin_log::Builder::default().build())
         .setup(|app| {
             #[cfg(debug_assertions)]

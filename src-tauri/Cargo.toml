@@ -17,3 +17,4 @@ aether_core = { path = "../crates/aether_core" }
 aether_types = { path = "../crates/aether_types" }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
