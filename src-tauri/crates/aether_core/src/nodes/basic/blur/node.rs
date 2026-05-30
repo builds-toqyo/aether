@@ -134,8 +134,10 @@ impl BlurNode {
             data_type: PinDataType::Float,
             value: ParameterValue::Float(5.0),
             default_value: ParameterValue::Float(5.0),
-            min_value: Some(ParameterValue::Float(0.0)),
-            max_value: Some(ParameterValue::Float(100.0)),
+            min_value: Some(0.0),
+            max_value: Some(100.0),
+            animatable: true,
+            description: Some("Blur radius in pixels".to_string()),
         };
         node.add_parameter(radius_param);
 
@@ -147,6 +149,8 @@ impl BlurNode {
             default_value: ParameterValue::String("gaussian".to_string()),
             min_value: None,
             max_value: None,
+            animatable: false,
+            description: Some("Type of blur (gaussian, box, motion)".to_string()),
         };
         node.add_parameter(type_param);
 
@@ -156,8 +160,10 @@ impl BlurNode {
             data_type: PinDataType::Integer,
             value: ParameterValue::Integer(1),
             default_value: ParameterValue::Integer(1),
-            min_value: Some(ParameterValue::Integer(1)),
-            max_value: Some(ParameterValue::Integer(10)),
+            min_value: Some(1.0),
+            max_value: Some(10.0),
+            animatable: false,
+            description: Some("Number of blur iterations".to_string()),
         };
         node.add_parameter(iterations_param);
 
@@ -167,8 +173,10 @@ impl BlurNode {
             data_type: PinDataType::Float,
             value: ParameterValue::Float(0.0),
             default_value: ParameterValue::Float(0.0),
-            min_value: Some(ParameterValue::Float(0.0)),
-            max_value: Some(ParameterValue::Float(360.0)),
+            min_value: Some(0.0),
+            max_value: Some(360.0),
+            animatable: true,
+            description: Some("Motion blur angle in degrees".to_string()),
         };
         node.add_parameter(angle_param);
 

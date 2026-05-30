@@ -167,6 +167,8 @@ impl TransformNode {
             default_value: ParameterValue::Float(0.0),
             min_value: None,
             max_value: None,
+            animatable: true,
+            description: Some("X position offset".to_string()),
         };
         node.add_parameter(position_x_param);
 
@@ -178,6 +180,8 @@ impl TransformNode {
             default_value: ParameterValue::Float(0.0),
             min_value: None,
             max_value: None,
+            animatable: true,
+            description: Some("Y position offset".to_string()),
         };
         node.add_parameter(position_y_param);
 
@@ -187,8 +191,10 @@ impl TransformNode {
             data_type: PinDataType::Float,
             value: ParameterValue::Float(1.0),
             default_value: ParameterValue::Float(1.0),
-            min_value: Some(ParameterValue::Float(0.001)),
-            max_value: Some(ParameterValue::Float(1000.0)),
+            min_value: Some(0.001),
+            max_value: Some(1000.0),
+            animatable: true,
+            description: Some("X scale factor".to_string()),
         };
         node.add_parameter(scale_x_param);
 
@@ -198,8 +204,10 @@ impl TransformNode {
             data_type: PinDataType::Float,
             value: ParameterValue::Float(1.0),
             default_value: ParameterValue::Float(1.0),
-            min_value: Some(ParameterValue::Float(0.001)),
-            max_value: Some(ParameterValue::Float(1000.0)),
+            min_value: Some(0.001),
+            max_value: Some(1000.0),
+            animatable: true,
+            description: Some("Y scale factor".to_string()),
         };
         node.add_parameter(scale_y_param);
 
@@ -211,6 +219,8 @@ impl TransformNode {
             default_value: ParameterValue::Float(0.0),
             min_value: None,
             max_value: None,
+            animatable: true,
+            description: Some("Rotation in degrees".to_string()),
         };
         node.add_parameter(rotation_param);
 
@@ -222,6 +232,8 @@ impl TransformNode {
             default_value: ParameterValue::Float(0.0),
             min_value: None,
             max_value: None,
+            animatable: true,
+            description: Some("X anchor point".to_string()),
         };
         node.add_parameter(anchor_x_param);
 
@@ -233,6 +245,8 @@ impl TransformNode {
             default_value: ParameterValue::Float(0.0),
             min_value: None,
             max_value: None,
+            animatable: true,
+            description: Some("Y anchor point".to_string()),
         };
         node.add_parameter(anchor_y_param);
 
@@ -244,6 +258,8 @@ impl TransformNode {
             default_value: ParameterValue::Boolean(true),
             min_value: None,
             max_value: None,
+            animatable: false,
+            description: Some("Link X and Y scale".to_string()),
         };
         node.add_parameter(uniform_scale_param);
 
