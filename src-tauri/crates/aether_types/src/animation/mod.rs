@@ -17,3 +17,5 @@ pub use interpolation::{
     InterpolationMethod, EasingFunction, EasingCategory, InterpolationUtils,
     EasingFunctionsByCharacteristic, EasingUseCase, EasingComparison, BasicInterpolation
 };
+
+pub type AnimationValue = TrackValue;
