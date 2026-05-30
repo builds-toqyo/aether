@@ -43,37 +43,37 @@ impl EasingFunction {
 
     pub fn name(&self) -> &'static str {
         match self {
-            EasingFunction::Linear => __STRING_0__,
-            EasingFunction::QuadIn => __STRING_1__,
-            EasingFunction::QuadOut => __STRING_2__,
-            EasingFunction::QuadInOut => __STRING_3__,
-            EasingFunction::CubicIn => __STRING_4__,
-            EasingFunction::CubicOut => __STRING_5__,
-            EasingFunction::CubicInOut => __STRING_6__,
-            EasingFunction::QuartIn => __STRING_7__,
-            EasingFunction::QuartOut => __STRING_8__,
-            EasingFunction::QuartInOut => __STRING_9__,
-            EasingFunction::QuintIn => __STRING_10__,
-            EasingFunction::QuintOut => __STRING_11__,
-            EasingFunction::QuintInOut => __STRING_12__,
-            EasingFunction::SineIn => __STRING_13__,
-            EasingFunction::SineOut => __STRING_14__,
-            EasingFunction::SineInOut => __STRING_15__,
-            EasingFunction::ExpoIn => __STRING_16__,
-            EasingFunction::ExpoOut => __STRING_17__,
-            EasingFunction::ExpoInOut => __STRING_18__,
-            EasingFunction::CircIn => __STRING_19__,
-            EasingFunction::CircOut => __STRING_20__,
-            EasingFunction::CircInOut => __STRING_21__,
-            EasingFunction::BackIn => __STRING_22__,
-            EasingFunction::BackOut => __STRING_23__,
-            EasingFunction::BackInOut => __STRING_24__,
-            EasingFunction::ElasticIn => __STRING_25__,
-            EasingFunction::ElasticOut => __STRING_26__,
-            EasingFunction::ElasticInOut => __STRING_27__,
-            EasingFunction::BounceIn => __STRING_28__,
-            EasingFunction::BounceOut => __STRING_29__,
-            EasingFunction::BounceInOut => __STRING_30__,
+            EasingFunction::Linear => "Linear",
+            EasingFunction::QuadIn => "Quad In",
+            EasingFunction::QuadOut => "Quad Out",
+            EasingFunction::QuadInOut => "Quad In Out",
+            EasingFunction::CubicIn => "Cubic In",
+            EasingFunction::CubicOut => "Cubic Out",
+            EasingFunction::CubicInOut => "Cubic In Out",
+            EasingFunction::QuartIn => "Quart In",
+            EasingFunction::QuartOut => "Quart Out",
+            EasingFunction::QuartInOut => "Quart In Out",
+            EasingFunction::QuintIn => "Quint In",
+            EasingFunction::QuintOut => "Quint Out",
+            EasingFunction::QuintInOut => "Quint In Out",
+            EasingFunction::SineIn => "Sine In",
+            EasingFunction::SineOut => "Sine Out",
+            EasingFunction::SineInOut => "Sine In Out",
+            EasingFunction::ExpoIn => "Expo In",
+            EasingFunction::ExpoOut => "Expo Out",
+            EasingFunction::ExpoInOut => "Expo In Out",
+            EasingFunction::CircIn => "Circ In",
+            EasingFunction::CircOut => "Circ Out",
+            EasingFunction::CircInOut => "Circ In Out",
+            EasingFunction::BackIn => "Back In",
+            EasingFunction::BackOut => "Back Out",
+            EasingFunction::BackInOut => "Back In Out",
+            EasingFunction::ElasticIn => "Elastic In",
+            EasingFunction::ElasticOut => "Elastic Out",
+            EasingFunction::ElasticInOut => "Elastic In Out",
+            EasingFunction::BounceIn => "Bounce In",
+            EasingFunction::BounceOut => "Bounce Out",
+            EasingFunction::BounceInOut => "Bounce In Out",
         }
     }
 
@@ -339,7 +339,7 @@ impl EasingFunction {
 
 impl fmt::Display for EasingFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, __STRING_62__, self.name())
+        write!(f, "EasingFunction({})", self.name())
     }
 }
 
@@ -403,17 +403,17 @@ impl EasingCategory {
 
     pub fn description(&self) -> &'static str {
         match self {
-            EasingCategory::Linear => __STRING_74__,
-            EasingCategory::Quadratic => __STRING_75__,
-            EasingCategory::Cubic => __STRING_76__,
-            EasingCategory::Quartic => __STRING_77__,
-            EasingCategory::Quintic => __STRING_78__,
-            EasingCategory::Sine => __STRING_79__,
-            EasingCategory::Exponential => __STRING_80__,
-            EasingCategory::Circular => __STRING_81__,
-            EasingCategory::Back => __STRING_82__,
-            EasingCategory::Elastic => __STRING_83__,
-            EasingCategory::Bounce => __STRING_84__,
+            EasingCategory::Linear => "Linear interpolation",
+            EasingCategory::Quadratic => "Quadratic power functions",
+            EasingCategory::Cubic => "Cubic power functions",
+            EasingCategory::Quartic => "Quartic power functions",
+            EasingCategory::Quintic => "Quintic power functions",
+            EasingCategory::Sine => "Sine wave based easing",
+            EasingCategory::Exponential => "Exponential easing",
+            EasingCategory::Circular => "Circular arc based easing",
+            EasingCategory::Back => "Overshoot and pullback",
+            EasingCategory::Elastic => "Spring-like oscillation",
+            EasingCategory::Bounce => "Gravity bounce effect",
         }
     }
 }

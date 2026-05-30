@@ -240,13 +240,9 @@ impl Graph {
     }
 
     pub fn remove_node(&mut self, node_id: &Uuid) -> Option<Node> {
-
-    pub fn remove_node(&mut self, node_id: &Uuid) -> Option<Node> {
-
         self.connections.retain(|_, connection| {
             connection.output_node_id != *node_id && connection.input_node_id != *node_id
         });
-
 
         self.nodes.remove(node_id)
     }
@@ -263,9 +259,6 @@ impl Graph {
         self.connections.insert(connection.id, connection);
     }
 
-    pub fn remove_connection(&mut self, connection_id: &Uuid) -> Option<Connection> {
-        self.connections.remove(connection_id)
-    }
     pub fn remove_connection(&mut self, connection_id: &Uuid) -> Option<Connection> {
         self.connections.remove(connection_id)
     }
@@ -286,21 +279,18 @@ impl Graph {
         self.connections.values()
     }
 
-    pub fn get_nodes_by_type(&self, node_type: &NodeType) -> impl Iterator<Item = &Node> {
-        self.nodes.values().filter(|node| &node.node_type == node_type)
-    }
-    pub fn get_nodes_by_type(&self, node_type: &NodeType) -> impl Iterator<Item = &Node> {
-        self.nodes.values().filter(|node| &node.node_type == node_type)
+    pub fn get_nodes_by_type(&self, node_type: NodeType) -> impl Iterator<Item = &Node> {
+        self.nodes.values().filter(move |node| node.node_type == node_type)
     }
 
 
     pub fn get_input_nodes(&self) -> impl Iterator<Item = &Node> {
-        self.get_nodes_by_type(&NodeType::Input)
+        self.get_nodes_by_type(NodeType::Input)
     }
 
 
     pub fn get_output_nodes(&self) -> impl Iterator<Item = &Node> {
-        self.get_nodes_by_type(&NodeType::Output)
+        self.get_nodes_by_type(NodeType::Output)
     }
 
 
@@ -359,8 +349,6 @@ impl Graph {
         errors
     }
 }
-}
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BlendMode {

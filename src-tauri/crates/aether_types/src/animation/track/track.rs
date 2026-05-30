@@ -112,7 +112,7 @@ impl AnimationTrack {
         }
 
 
-        let (prev_keyframe, next_keyframe) = KeyframeCollection::find_surrounding_keyframes(&self.keyframes, time);
+        let (prev_keyframe, next_keyframe) = KeyframeCollection::find_surrounding_keyframes_data(&self.keyframes, time);
 
         match (prev_keyframe, next_keyframe) {
             (Some(prev), Some(next)) => {

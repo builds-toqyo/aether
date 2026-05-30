@@ -279,11 +279,11 @@ impl EasingUseCase {
 
     pub fn name(&self) -> &'static str {
         match self {
-            EasingUseCase::General => __STRING_61__,
-            EasingUseCase::UIAnimation => __STRING_62__,
-            EasingUseCase::NaturalMotion => __STRING_63__,
-            EasingUseCase::BouncyEffect => __STRING_64__,
-            EasingUseCase::DramaticEffect => __STRING_65__,
+            EasingUseCase::General => "General",
+            EasingUseCase::UIAnimation => "UI Animation",
+            EasingUseCase::NaturalMotion => "Natural Motion",
+            EasingUseCase::BouncyEffect => "Bouncy Effect",
+            EasingUseCase::DramaticEffect => "Dramatic Effect",
         }
     }
 

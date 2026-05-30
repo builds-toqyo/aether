@@ -22,11 +22,11 @@ impl InterpolationMethod {
 
     pub fn name(&self) -> &'static str {
         match self {
-            InterpolationMethod::Linear => __STRING_0__,
-            InterpolationMethod::Bezier => __STRING_1__,
-            InterpolationMethod::CubicSpline => __STRING_2__,
-            InterpolationMethod::Step => __STRING_3__,
-            InterpolationMethod::Hold => __STRING_4__,
+            InterpolationMethod::Linear => "Linear",
+            InterpolationMethod::Bezier => "Bezier",
+            InterpolationMethod::CubicSpline => "Cubic Spline",
+            InterpolationMethod::Step => "Step",
+            InterpolationMethod::Hold => "Hold",
         }
     }
 

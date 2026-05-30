@@ -266,13 +266,13 @@ impl AnimationTrackCollection {
 
 impl fmt::Display for AnimationTrackCollection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, __STRING_5__, self.description())
+        write!(f, "AnimationTrackCollection({})", self.description())
     }
 }
 
 impl Default for AnimationTrackCollection {
     fn default() -> Self {
-        Self::new(__STRING_6__.to_string())
+        Self::new("default".to_string())
     }
 }
 

@@ -26,6 +26,9 @@ impl<T> Keyframe<T> {
         }
     }
 
+    pub fn time(&self) -> f64 {
+        self.time
+    }
 
     pub fn with_interpolation(
         time: f64,
@@ -73,7 +76,7 @@ impl<T> Keyframe<T> {
 
 impl<T: fmt::Display> fmt::Display for Keyframe<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, __STRING_1__,
+        write!(f, "Keyframe(time: {:.3}, value: {}, interpolation: {}, easing: {})",
                self.time, self.value, self.interpolation, self.easing)
     }
 }
@@ -253,6 +256,9 @@ impl KeyframeCollection {
         keyframes.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
     }
 
+    pub fn sort_by_time_data(keyframes: &mut Vec<KeyframeData>) {
+        keyframes.sort_by(|a, b| a.time().partial_cmp(&b.time()).unwrap_or(std::cmp::Ordering::Equal));
+    }
 
     pub fn find_keyframe_at_time<T>(keyframes: &[Keyframe<T>], time: f64) -> Option<usize> {
         keyframes.iter().position(|k| k.time >= time).map(|i| {
@@ -260,6 +266,11 @@ impl KeyframeCollection {
         })
     }
 
+    pub fn find_keyframe_at_time_data(keyframes: &[KeyframeData], time: f64) -> Option<usize> {
+        keyframes.iter().position(|k| k.time() >= time).map(|i| {
+            if i > 0 { i - 1 } else { i }
+        })
+    }
 
     pub fn find_surrounding_keyframes<T>(keyframes: &[Keyframe<T>], time: f64) -> (Option<&Keyframe<T>>, Option<&Keyframe<T>>) {
         let pos = keyframes.iter().position(|k| k.time >= time);
@@ -277,6 +288,21 @@ impl KeyframeCollection {
         }
     }
 
+    pub fn find_surrounding_keyframes_data(keyframes: &[KeyframeData], time: f64) -> (Option<&KeyframeData>, Option<&KeyframeData>) {
+        let pos = keyframes.iter().position(|k| k.time() >= time);
+
+        match pos {
+            Some(0) => (None, keyframes.get(0)),
+            Some(i) => (keyframes.get(i - 1), keyframes.get(i)),
+            None => {
+                if keyframes.is_empty() {
+                    (None, None)
+                } else {
+                    (keyframes.last(), None)
+                }
+            }
+        }
+    }
 
     pub fn validate_keyframes<T>(keyframes: &[Keyframe<T>]) -> Result<(), String> {
         if keyframes.is_empty() {
@@ -297,6 +323,29 @@ impl KeyframeCollection {
             if keyframes[i].time < keyframes[i - 1].time {
                 return Err(format!("Keyframe time not monotonic: {} < {}",
                                  keyframes[i].time, keyframes[i - 1].time));
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn validate_keyframes_data(keyframes: &[KeyframeData]) -> Result<(), String> {
+        if keyframes.is_empty() {
+            return Err("No keyframes provided".to_string());
+        }
+
+        let mut times = Vec::new();
+        for keyframe in keyframes {
+            if times.contains(&keyframe.time()) {
+                return Err(format!("Duplicate keyframe time: {}", keyframe.time()));
+            }
+            times.push(keyframe.time());
+        }
+
+        for i in 1..keyframes.len() {
+            if keyframes[i].time() < keyframes[i - 1].time() {
+                return Err(format!("Keyframe time not monotonic: {} < {}",
+                                 keyframes[i].time(), keyframes[i - 1].time()));
             }
         }
 

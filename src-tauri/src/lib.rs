@@ -23,7 +23,7 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default()
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
-            // Editing Commands
+
             create_project,
             open_project,
             save_project,
@@ -43,7 +43,7 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             get_media_items,
             remove_media,
             analyze_media,
-            // Rendering Commands
+
             start_rendering,
             get_export_progress,
             cancel_export,

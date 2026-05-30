@@ -81,13 +81,12 @@ impl EditingState {
     }
 }
 
-// Project Management Commands
 
 #[tauri::command]
 pub fn create_project(name: String, path: Option<String>, state: State<Mutex<EditingState>>) -> Result<Project, String> {
     let project_id = Uuid::new_v4().to_string();
     let now = chrono::Utc::now().timestamp();
-    
+
     let project = Project {
         id: project_id.clone(),
         name,
@@ -104,51 +103,51 @@ pub fn create_project(name: String, path: Option<String>, state: State<Mutex<Edi
             proxy_resolution: "1080p".to_string(),
         },
     };
-    
+
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.current_project = Some(project.clone());
-    
+
     Ok(project)
 }
 
 #[tauri::command]
 pub fn open_project(path: String, state: State<Mutex<EditingState>>) -> Result<Project, String> {
     let file_path = Path::new(&path);
-    
+
     if !file_path.exists() {
         return Err(format!("Project file not found: {}", path));
     }
-    
+
     let content = fs::read_to_string(file_path)
         .map_err(|e| format!("Failed to read project file: {}", e))?;
-    
+
     let mut project: Project = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse project file: {}", e))?;
-    
+
     project.path = Some(path);
     project.modified_at = chrono::Utc::now().timestamp();
-    
+
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.current_project = Some(project.clone());
-    
+
     Ok(project)
 }
 
 #[tauri::command]
 pub fn save_project(state: State<Mutex<EditingState>>) -> Result<Project, String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
-    
+
     if let Some(project) = state_guard.current_project.as_mut() {
         project.modified_at = chrono::Utc::now().timestamp();
-        
+
         if let Some(ref path) = project.path {
             let content = serde_json::to_string_pretty(&project)
                 .map_err(|e| format!("Failed to serialize project: {}", e))?;
-            
+
             fs::write(path, content)
                 .map_err(|e| format!("Failed to write project file: {}", e))?;
         }
-        
+
         Ok(project.clone())
     } else {
         Err("No project is currently open".to_string())
@@ -178,7 +177,7 @@ pub fn update_project_settings(
     state: State<Mutex<EditingState>>
 ) -> Result<Project, String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
-    
+
     if let Some(project) = state_guard.current_project.as_mut() {
         if project.id == project_id {
             project.settings = settings;
@@ -186,14 +185,14 @@ pub fn update_project_settings(
             return Ok(project.clone());
         }
     }
-    
+
     Err("Project not found".to_string())
 }
 
 #[tauri::command]
 pub fn create_track(name: String, track_type: String, state: State<Mutex<EditingState>>) -> Result<TimelineTrack, String> {
     let track_id = Uuid::new_v4().to_string();
-    
+
     let track = TimelineTrack {
         id: track_id.clone(),
         name,
@@ -202,10 +201,10 @@ pub fn create_track(name: String, track_type: String, state: State<Mutex<Editing
         muted: false,
         volume: 1.0,
     };
-    
+
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.timeline_tracks.push(track.clone());
-    
+
     Ok(track)
 }
 
@@ -233,7 +232,7 @@ pub fn update_track(
     state: State<Mutex<EditingState>>
 ) -> Result<TimelineTrack, String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
-    
+
     if let Some(track) = state_guard.timeline_tracks.iter_mut().find(|t| t.id == track_id) {
         if let Some(name) = name {
             track.name = name;
@@ -249,7 +248,7 @@ pub fn update_track(
         }
         return Ok(track.clone());
     }
-    
+
     Err("Track not found".to_string())
 }
 
@@ -263,7 +262,7 @@ pub fn add_clip(
     state: State<Mutex<EditingState>>
 ) -> Result<TimelineClip, String> {
     let clip_id = Uuid::new_v4().to_string();
-    
+
     let clip = TimelineClip {
         id: clip_id.clone(),
         media_id,
@@ -274,10 +273,10 @@ pub fn add_clip(
         speed: 1.0,
         volume: 1.0,
     };
-    
+
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.timeline_clips.push(clip.clone());
-    
+
     Ok(clip)
 }
 
@@ -305,7 +304,7 @@ pub fn update_clip(
     state: State<Mutex<EditingState>>
 ) -> Result<TimelineClip, String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
-    
+
     if let Some(clip) = state_guard.timeline_clips.iter_mut().find(|c| c.id == clip_id) {
         if let Some(start_time) = start_time {
             clip.start_time = start_time;
@@ -324,20 +323,20 @@ pub fn update_clip(
         }
         return Ok(clip.clone());
     }
-    
+
     Err("Clip not found".to_string())
 }
 
 #[tauri::command]
 pub fn move_clip(clip_id: String, new_track_id: String, new_start_time: f64, state: State<Mutex<EditingState>>) -> Result<TimelineClip, String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
-    
+
     if let Some(clip) = state_guard.timeline_clips.iter_mut().find(|c| c.id == clip_id) {
         clip.track_id = new_track_id;
         clip.start_time = new_start_time;
         return Ok(clip.clone());
     }
-    
+
     Err("Clip not found".to_string())
 }
 
@@ -346,32 +345,32 @@ pub fn move_clip(clip_id: String, new_track_id: String, new_start_time: f64, sta
 pub fn import_media(path: String, analyze: bool, state: State<Mutex<EditingState>>) -> Result<MediaItem, String> {
     let media_id = Uuid::new_v4().to_string();
     let file_path = Path::new(&path);
-    
+
     if !file_path.exists() {
         return Err(format!("Media file not found: {}", path));
     }
-    
+
     let file_name = file_path.file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Unknown")
         .to_string();
-    
+
     let extension = file_path.extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
-    
+
     let media_type = match extension.as_str() {
         "mp4" | "mov" | "avi" | "mkv" | "webm" | "wmv" | "flv" => "video",
         "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "tiff" => "image",
         "mp3" | "wav" | "aac" | "flac" | "ogg" | "m4a" => "audio",
         _ => "video",
     }.to_string();
-    
+
     let file_size = fs::metadata(&path)
         .map(|m| m.len())
         .unwrap_or(0);
-    
+
     let mut media_item = MediaItem {
         id: media_id.clone(),
         name: file_name,
@@ -384,7 +383,7 @@ pub fn import_media(path: String, analyze: bool, state: State<Mutex<EditingState
         codec: None,
         thumbnail_path: None,
     };
-    
+
     if analyze {
         if let Ok(metadata) = analyze_media_internal(&path) {
             if let Some(duration) = metadata.get("duration").and_then(|v| v.as_f64()) {
@@ -405,10 +404,10 @@ pub fn import_media(path: String, analyze: bool, state: State<Mutex<EditingState
             }
         }
     }
-    
+
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.media_items.push(media_item.clone());
-    
+
     Ok(media_item)
 }
 
@@ -437,17 +436,17 @@ fn analyze_media_internal(path: &str) -> Result<serde_json::Value, String> {
         ])
         .output()
         .map_err(|e| format!("Failed to run ffprobe: {}", e))?;
-    
+
     if !output.status.success() {
         return Err("ffprobe failed to analyze media".to_string());
     }
-    
+
     let json_str = String::from_utf8_lossy(&output.stdout);
     let probe_data: serde_json::Value = serde_json::from_str(&json_str)
         .map_err(|e| format!("Failed to parse ffprobe output: {}", e))?;
-    
+
     let mut result = serde_json::json!({});
-    
+
     if let Some(format) = probe_data.get("format") {
         if let Some(duration) = format.get("duration").and_then(|v| v.as_str()) {
             if let Ok(dur) = duration.parse::<f64>() {
@@ -460,11 +459,11 @@ fn analyze_media_internal(path: &str) -> Result<serde_json::Value, String> {
             }
         }
     }
-    
+
     if let Some(streams) = probe_data.get("streams").and_then(|v| v.as_array()) {
         for stream in streams {
             let codec_type = stream.get("codec_type").and_then(|v| v.as_str()).unwrap_or("");
-            
+
             if codec_type == "video" {
                 if let Some(width) = stream.get("width").and_then(|v| v.as_u64()) {
                     if let Some(height) = stream.get("height").and_then(|v| v.as_u64()) {
@@ -474,11 +473,11 @@ fn analyze_media_internal(path: &str) -> Result<serde_json::Value, String> {
                         });
                     }
                 }
-                
+
                 if let Some(codec) = stream.get("codec_name").and_then(|v| v.as_str()) {
                     result["codec"] = serde_json::json!(codec);
                 }
-                
+
                 if let Some(fps) = stream.get("r_frame_rate").and_then(|v| v.as_str()) {
                     let parts: Vec<&str> = fps.split('/').collect();
                     if parts.len() == 2 {
@@ -491,36 +490,36 @@ fn analyze_media_internal(path: &str) -> Result<serde_json::Value, String> {
                 }
             } else if codec_type == "audio" {
                 let mut audio = serde_json::json!({});
-                
+
                 if let Some(sample_rate) = stream.get("sample_rate").and_then(|v| v.as_str()) {
                     if let Ok(sr) = sample_rate.parse::<u32>() {
                         audio["sample_rate"] = serde_json::json!(sr);
                     }
                 }
-                
+
                 if let Some(channels) = stream.get("channels").and_then(|v| v.as_u64()) {
                     audio["channels"] = serde_json::json!(channels);
                 }
-                
+
                 if let Some(codec) = stream.get("codec_name").and_then(|v| v.as_str()) {
                     audio["codec"] = serde_json::json!(codec);
                 }
-                
+
                 result["audio"] = audio;
             }
         }
     }
-    
+
     Ok(result)
 }
 
 #[tauri::command]
 pub fn analyze_media(path: String) -> Result<serde_json::Value, String> {
     let file_path = Path::new(&path);
-    
+
     if !file_path.exists() {
         return Err(format!("Media file not found: {}", path));
     }
-    
+
     analyze_media_internal(&path)
 }

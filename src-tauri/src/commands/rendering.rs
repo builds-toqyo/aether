@@ -88,7 +88,7 @@ fn build_ffmpeg_args(request: &ExportRequest, input_path: &str) -> Vec<String> {
         "-progress".to_string(),
         "pipe:1".to_string(),
     ];
-    
+
     let video_codec = match request.format.video_codec.as_str() {
         "H.264" => "libx264",
         "H.265" | "HEVC" => "libx265",
@@ -98,31 +98,31 @@ fn build_ffmpeg_args(request: &ExportRequest, input_path: &str) -> Vec<String> {
         "DNxHD" => "dnxhd",
         _ => "libx264",
     };
-    
+
     args.push("-c:v".to_string());
     args.push(video_codec.to_string());
-    
+
     args.push("-s".to_string());
     args.push(format!("{}x{}", request.video_settings.resolution.0, request.video_settings.resolution.1));
-    
+
     args.push("-r".to_string());
     args.push(request.video_settings.framerate.to_string());
-    
+
     if request.video_settings.bitrate > 0 {
         args.push("-b:v".to_string());
         args.push(format!("{}", request.video_settings.bitrate));
     }
-    
+
     if let Some(ref profile) = request.video_settings.profile {
         args.push("-profile:v".to_string());
         args.push(profile.clone());
     }
-    
+
     if request.video_settings.hardware_acceleration {
         args.push("-hwaccel".to_string());
         args.push("auto".to_string());
     }
-    
+
     let audio_codec = match request.format.audio_codec.as_str() {
         "AAC" => "aac",
         "MP3" => "libmp3lame",
@@ -132,23 +132,23 @@ fn build_ffmpeg_args(request: &ExportRequest, input_path: &str) -> Vec<String> {
         "Vorbis" => "libvorbis",
         _ => "aac",
     };
-    
+
     args.push("-c:a".to_string());
     args.push(audio_codec.to_string());
-    
+
     args.push("-ar".to_string());
     args.push(request.audio_settings.sample_rate.to_string());
-    
+
     args.push("-ac".to_string());
     args.push(request.audio_settings.channels.to_string());
-    
+
     if request.audio_settings.bitrate > 0 {
         args.push("-b:a".to_string());
         args.push(format!("{}", request.audio_settings.bitrate));
     }
-    
+
     args.push(request.output_path.clone());
-    
+
     args
 }
 
@@ -168,16 +168,16 @@ pub fn start_rendering(
     state: State<Mutex<RenderingState>>
 ) -> Result<String, String> {
     let export_id = Uuid::new_v4().to_string();
-    
+
     let args = build_ffmpeg_args(&request, &input_path);
-    
+
     let mut child = Command::new("ffmpeg")
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to start FFmpeg: {}", e))?;
-    
+
     let progress = ExportProgress {
         export_id: export_id.clone(),
         status: ExportStatus::Rendering,
@@ -188,20 +188,20 @@ pub fn start_rendering(
         time_remaining: None,
         error: None,
     };
-    
+
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.active_exports.insert(export_id.clone(), progress);
     drop(state_guard);
-    
+
     let export_id_clone = export_id.clone();
     let state_arc = Arc::new(state.inner().clone());
-    
+
     thread::spawn(move || {
         if let Some(stdout) = child.stdout.take() {
             let reader = BufReader::new(stdout);
             let mut current_frame: u32 = 0;
             let mut speed: f64 = 0.0;
-            
+
             for line in reader.lines() {
                 if let Ok(line) = line {
                     if let Some((key, value)) = parse_ffmpeg_progress(&line) {
@@ -222,16 +222,16 @@ pub fn start_rendering(
                                     if let Some(progress) = state_guard.active_exports.get_mut(&export_id_clone) {
                                         progress.current_frame = current_frame;
                                         progress.speed = Some(speed);
-                                        
+
                                         if progress.total_frames > 0 {
                                             progress.progress = (current_frame as f64 / progress.total_frames as f64) * 100.0;
-                                            
+
                                             if speed > 0.0 {
                                                 let remaining_frames = progress.total_frames - current_frame;
                                                 progress.time_remaining = Some((remaining_frames as f64 / (30.0 * speed)) as u64);
                                             }
                                         }
-                                        
+
                                         if value == "end" {
                                             progress.status = ExportStatus::Completed;
                                             progress.progress = 100.0;
@@ -245,7 +245,7 @@ pub fn start_rendering(
                 }
             }
         }
-        
+
         let status = child.wait();
         if let Ok(mut state_guard) = state_arc.lock() {
             if let Some(progress) = state_guard.active_exports.get_mut(&export_id_clone) {
@@ -262,7 +262,7 @@ pub fn start_rendering(
             }
         }
     });
-    
+
     Ok(export_id)
 }
 
@@ -273,7 +273,7 @@ fn calculate_total_frames(request: &ExportRequest) -> u32 {
 #[tauri::command]
 pub fn get_export_progress(export_id: String, state: State<Mutex<RenderingState>>) -> Result<ExportProgress, String> {
     let state_guard = state.lock().map_err(|e| e.to_string())?;
-    
+
     match state_guard.active_exports.get(&export_id) {
         Some(progress) => Ok(progress.clone()),
         None => Err("Export not found".to_string()),
@@ -283,7 +283,7 @@ pub fn get_export_progress(export_id: String, state: State<Mutex<RenderingState>
 #[tauri::command]
 pub fn cancel_export(export_id: String, state: State<Mutex<RenderingState>>) -> Result<(), String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
-    
+
     match state_guard.active_exports.get_mut(&export_id) {
         Some(progress) => {
             progress.status = ExportStatus::Failed;
@@ -339,7 +339,7 @@ pub fn get_supported_formats() -> Result<Vec<serde_json::Value>, String> {
             "description": "Web-optimized format for streaming"
         }),
     ];
-    
+
     Ok(formats)
 }
 
@@ -441,14 +441,14 @@ pub fn get_export_presets() -> Result<Vec<serde_json::Value>, String> {
             "video_settings": {
                 "resolution": [1920, 1080],
                 "framerate": 30,
-                "bitrate": 0, // VBR
+                "bitrate": 0,
                 "profile": None,
                 "level": None
             },
             "audio_settings": {
                 "sample_rate": 48000,
                 "channels": 2,
-                "bitrate": 0 // Uncompressed
+                "bitrate": 0
             }
         }),
         serde_json::json!({
@@ -473,7 +473,7 @@ pub fn get_export_presets() -> Result<Vec<serde_json::Value>, String> {
             }
         }),
     ];
-    
+
     Ok(presets)
 }
 
@@ -517,7 +517,7 @@ pub fn get_video_codecs() -> Result<Vec<serde_json::Value>, String> {
             "hardware_acceleration": false
         }),
     ];
-    
+
     Ok(codecs)
 }
 
@@ -561,14 +561,14 @@ pub fn get_audio_codecs() -> Result<Vec<serde_json::Value>, String> {
             "channels": [1, 2, 6, 8]
         }),
     ];
-    
+
     Ok(codecs)
 }
 
 #[tauri::command]
 pub fn simulate_export_progress(export_id: String, state: State<Mutex<RenderingState>>) -> Result<(), String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
-    
+
     if let Some(progress) = state_guard.active_exports.get_mut(&export_id) {
         match progress.status {
             ExportStatus::Preparing => {
@@ -578,9 +578,9 @@ pub fn simulate_export_progress(export_id: String, state: State<Mutex<RenderingS
             ExportStatus::Rendering => {
                 progress.progress = (progress.progress + 10.0).min(100.0);
                 progress.current_frame = ((progress.progress / 100.0) * progress.total_frames as f64) as u32;
-                progress.speed = Some(30.0); // Mock 30 fps
+                progress.speed = Some(30.0);
                 progress.time_remaining = Some(((100.0 - progress.progress) / 10.0 * 2.0) as u64);
-                
+
                 if progress.progress >= 100.0 {
                     progress.status = ExportStatus::Encoding;
                 }
@@ -596,6 +596,6 @@ pub fn simulate_export_progress(export_id: String, state: State<Mutex<RenderingS
         }
         return Ok(());
     }
-    
+
     Err("Export not found".to_string())
 }

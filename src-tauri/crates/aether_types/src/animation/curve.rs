@@ -1,8 +1,5 @@
-
-
 use serde::{Deserialize, Serialize};
 use std::fmt;
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum CurveType {
@@ -16,266 +13,16 @@ pub enum CurveType {
 }
 
 impl CurveType {
-
     pub fn name(&self) -> &'static str {
         match self {
-            CurveType::Linear => __STRING_0__,
-            CurveType::Bezier => __STRING_1__,
-            CurveType::EaseIn => __STRING_2__,
-            CurveType::EaseOut => __STRING_3__,
-            CurveType::EaseInOut => __STRING_4__,
-            CurveType::Step => __STRING_5__,
-            CurveType::Custom => '_>) -> fmt::Result {
-        match (&self.handle1, &self.handle2) {
-            (Some(h1), Some(h2)) => {
-                write!(f, __STRING_8__,
-                       self.position.0, self.position.1, h1.0, h1.1, h2.0, h2.1)
-            }
-            (Some(h1), None) => {
-                write!(f, __STRING_9__,
-                       self.position.0, self.position.1, h1.0, h1.1)
-            }
-            (None, Some(h2)) => {
-                write!(f, __STRING_10__,
-                       self.position.0, self.position.1, h2.0, h2.1)
-            }
-            (None, None) => {
-                write!(f, __STRING_11__,
-                       self.position.0, self.position.1)
-            }
+            CurveType::Linear => "Linear",
+            CurveType::Bezier => "Bezier",
+            CurveType::EaseIn => "Ease In",
+            CurveType::EaseOut => "Ease Out",
+            CurveType::EaseInOut => "Ease In Out",
+            CurveType::Step => "Step",
+            CurveType::Custom => "Custom",
         }
-    }
-}
-
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AnimationCurve {
-
-    pub curve_type: CurveType,
-
-    pub control_points: Vec<BezierControlPoint>,
-
-    pub tension: f64,
-
-    pub bias: f64,
-}
-
-impl AnimationCurve {
-
-    pub fn new(curve_type: CurveType) -> Self {
-        Self {
-            curve_type,
-            control_points: Vec::new(),
-            tension: 0.5,
-            bias: 0.0,
-        }
-    }
-
-
-    pub fn linear() -> Self {
-        Self::new(CurveType::Linear)
-    }
-
-
-    pub fn bezier(control_points: Vec<BezierControlPoint>) -> Self {
-        let mut curve = Self::new(CurveType::Bezier);
-        curve.control_points = control_points;
-        curve
-    }
-
-
-    pub fn ease_in() -> Self {
-        Self::new(CurveType::EaseIn)
-    }
-
-
-    pub fn ease_out() -> Self {
-        Self::new(CurveType::EaseOut)
-    }
-
-
-    pub fn ease_in_out() -> Self {
-        Self::new(CurveType::EaseInOut)
-    }
-
-
-    pub fn step() -> Self {
-        Self::new(CurveType::Step)
-    }
-
-
-    pub fn custom(control_points: Vec<BezierControlPoint>) -> Self {
-        let mut curve = Self::new(CurveType::Custom);
-        curve.control_points = control_points;
-        curve
-    }
-
-
-    pub fn with_tension(mut self, tension: f64) -> Self {
-        self.tension = tension.clamp(0.0, 1.0);
-        self
-    }
-
-
-    pub fn with_bias(mut self, bias: f64) -> Self {
-        self.bias = bias.clamp(-1.0, 1.0);
-        self
-    }
-
-
-    pub fn add_control_point(&mut self, point: BezierControlPoint) {
-        self.control_points.push(point);
-    }
-
-
-    pub fn remove_control_point(&mut self, index: usize) -> Option<BezierControlPoint> {
-        if index < self.control_points.len() {
-            Some(self.control_points.remove(index))
-        } else {
-            None
-        }
-    }
-
-
-    pub fn get_control_point(&self, index: usize) -> Option<&BezierControlPoint> {
-        self.control_points.get(index)
-    }
-
-
-    pub fn get_control_point_mut(&mut self, index: usize) -> Option<&mut BezierControlPoint> {
-        self.control_points.get_mut(index)
-    }
-
-
-    pub fn clear_control_points(&mut self) {
-        self.control_points.clear();
-    }
-
-
-    pub fn control_point_count(&self) -> usize {
-        self.control_points.len()
-    }
-
-
-    pub fn validate(&self) -> Result<(), String> {
-        match self.curve_type {
-            CurveType::Bezier | CurveType::Custom => {
-                if self.control_points.len() < 2 {
-                    return Err(format!(__STRING_12__, self.curve_type.name()));
-                }
-
-
-                for i in 1..self.control_points.len() {
-                    if self.control_points[i].position.0 < self.control_points[i - 1].position.0 {
-                        return Err(__STRING_13__.to_string());
-                    }
-                }
-            }
-            _ => {
-                if !self.control_points.is_empty() {
-                    return Err(format!(__STRING_14__, self.curve_type.name()));
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-
-    pub fn sample(&self, t: f64) -> f64 {
-        let t = t.clamp(0.0, 1.0);
-
-        match self.curve_type {
-            CurveType::Linear => t,
-            CurveType::Step => {
-                if t < 0.5 { 0.0 } else { 1.0 }
-            }
-            CurveType::EaseIn => self.ease_in_function(t),
-            CurveType::EaseOut => self.ease_out_function(t),
-            CurveType::EaseInOut => self.ease_in_out_function(t),
-            CurveType::Bezier | CurveType::Custom => {
-                self.sample_bezier(t)
-            }
-        }
-    }
-
-
-    fn ease_in_function(&self, t: f64) -> f64 {
-        t * t
-    }
-
-
-    fn ease_out_function(&self, t: f64) -> f64 {
-        1.0 - (1.0 - t) * (1.0 - t)
-    }
-
-
-    fn ease_in_out_function(&self, t: f64) -> f64 {
-        if t < 0.5 {
-            2.0 * t * t
-        } else {
-            1.0 - 2.0 * (1.0 - t) * (1.0 - t)
-        }
-    }
-
-
-    fn sample_bezier(&self, t: f64) -> f64 {
-        if self.control_points.len() < 2 {
-            return t;
-        }
-
-
-        let segment_count = self.control_points.len() - 1;
-        let segment = (t * segment_count as f64).floor() as usize;
-        let segment_t = (t * segment_count as f64) - segment as f64;
-
-        if segment >= segment_count {
-            return self.control_points.last().unwrap().position.1;
-        }
-
-        let p0 = self.control_points[segment];
-        let p1 = self.control_points[segment + 1];
-
-
-        let y0 = p0.position.1;
-        let y1 = p1.position.1;
-
-        y0 + (y1 - y0) * segment_t
-    }
-
-
-    pub fn description(&self) -> String {
-        match self.curve_type {
-            CurveType::Linear => __STRING_15__.to_string(),
-            CurveType::Bezier => format!(__STRING_16__, self.control_points.len()),
-            CurveType::EaseIn => __STRING_17__.to_string(),
-            CurveType::EaseOut => __STRING_18__.to_string(),
-            CurveType::EaseInOut => __STRING_19__.to_string(),
-            CurveType::Step => __STRING_20__.to_string(),
-            CurveType::Custom => format!(__STRING_21__, self.control_points.len()),
-        }
-    }
-}
-
-impl Default for AnimationCurve {
-    fn default() -> Self {
-        Self::linear()
-    }
-}
-
-impl fmt::Display for AnimationCurve {
-    fn fmt(&self, f: &mut fmt::Formatter<',
-        }
-    }
-
-    /// Check if curve supports control points
-    pub fn supports_control_points(&self) -> bool {
-        matches!(self, CurveType::Bezier | CurveType::Custom)
-    }
-
-    /// Check if curve is smooth
-    pub fn is_smooth(&self) -> bool {
-        !matches!(self, CurveType::Step)
     }
 }
 
@@ -291,7 +38,6 @@ impl fmt::Display for CurveType {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct BezierControlPoint {
     pub position: (f64, f64),
@@ -300,7 +46,6 @@ pub struct BezierControlPoint {
 }
 
 impl BezierControlPoint {
-
     pub fn new(x: f64, y: f64) -> Self {
         Self {
             position: (x, y),
@@ -308,7 +53,6 @@ impl BezierControlPoint {
             handle2: None,
         }
     }
-
 
     pub fn with_handles(x: f64, y: f64, handle1: (f64, f64), handle2: (f64, f64)) -> Self {
         Self {
@@ -318,22 +62,18 @@ impl BezierControlPoint {
         }
     }
 
-
     pub fn set_handle1(&mut self, handle: (f64, f64)) {
         self.handle1 = Some(handle);
     }
-
 
     pub fn set_handle2(&mut self, handle: (f64, f64)) {
         self.handle2 = Some(handle);
     }
 
-
     pub fn clear_handles(&mut self) {
         self.handle1 = None;
         self.handle2 = None;
     }
-
 
     pub fn has_handles(&self) -> bool {
         self.handle1.is_some() || self.handle2.is_some()
@@ -344,40 +84,34 @@ impl fmt::Display for BezierControlPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match (&self.handle1, &self.handle2) {
             (Some(h1), Some(h2)) => {
-                write!(f, __STRING_8__,
+                write!(f, "Point({}, {}) with handles({}, {}) and ({}, {})",
                        self.position.0, self.position.1, h1.0, h1.1, h2.0, h2.1)
             }
             (Some(h1), None) => {
-                write!(f, __STRING_9__,
+                write!(f, "Point({}, {}) with handle({}, {})",
                        self.position.0, self.position.1, h1.0, h1.1)
             }
             (None, Some(h2)) => {
-                write!(f, __STRING_10__,
+                write!(f, "Point({}, {}) with handle({}, {})",
                        self.position.0, self.position.1, h2.0, h2.1)
             }
             (None, None) => {
-                write!(f, __STRING_11__,
+                write!(f, "Point({}, {})",
                        self.position.0, self.position.1)
             }
         }
     }
 }
 
-/// Animation curve definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnimationCurve {
-    /// Curve type
     pub curve_type: CurveType,
-    /// Control points for bezier/custom curves
     pub control_points: Vec<BezierControlPoint>,
-    /// Curve tension for smooth curves
     pub tension: f64,
-    /// Curve bias for asymmetric curves
     pub bias: f64,
 }
 
 impl AnimationCurve {
-    /// Create new animation curve
     pub fn new(curve_type: CurveType) -> Self {
         Self {
             curve_type,
@@ -387,63 +121,52 @@ impl AnimationCurve {
         }
     }
 
-    /// Create linear curve
     pub fn linear() -> Self {
         Self::new(CurveType::Linear)
     }
 
-    /// Create bezier curve with control points
     pub fn bezier(control_points: Vec<BezierControlPoint>) -> Self {
         let mut curve = Self::new(CurveType::Bezier);
         curve.control_points = control_points;
         curve
     }
 
-    /// Create ease-in curve
     pub fn ease_in() -> Self {
         Self::new(CurveType::EaseIn)
     }
 
-    /// Create ease-out curve
     pub fn ease_out() -> Self {
         Self::new(CurveType::EaseOut)
     }
 
-    /// Create ease-in-out curve
     pub fn ease_in_out() -> Self {
         Self::new(CurveType::EaseInOut)
     }
 
-    /// Create step curve
     pub fn step() -> Self {
         Self::new(CurveType::Step)
     }
 
-    /// Create custom curve
     pub fn custom(control_points: Vec<BezierControlPoint>) -> Self {
         let mut curve = Self::new(CurveType::Custom);
         curve.control_points = control_points;
         curve
     }
 
-    /// Set tension
     pub fn with_tension(mut self, tension: f64) -> Self {
         self.tension = tension.clamp(0.0, 1.0);
         self
     }
 
-    /// Set bias
     pub fn with_bias(mut self, bias: f64) -> Self {
         self.bias = bias.clamp(-1.0, 1.0);
         self
     }
 
-    /// Add control point
     pub fn add_control_point(&mut self, point: BezierControlPoint) {
         self.control_points.push(point);
     }
 
-    /// Remove control point at index
     pub fn remove_control_point(&mut self, index: usize) -> Option<BezierControlPoint> {
         if index < self.control_points.len() {
             Some(self.control_points.remove(index))
@@ -452,44 +175,38 @@ impl AnimationCurve {
         }
     }
 
-    /// Get control point at index
     pub fn get_control_point(&self, index: usize) -> Option<&BezierControlPoint> {
         self.control_points.get(index)
     }
 
-    /// Get mutable control point at index
     pub fn get_control_point_mut(&mut self, index: usize) -> Option<&mut BezierControlPoint> {
         self.control_points.get_mut(index)
     }
 
-    /// Clear all control points
     pub fn clear_control_points(&mut self) {
         self.control_points.clear();
     }
 
-    /// Get number of control points
     pub fn control_point_count(&self) -> usize {
         self.control_points.len()
     }
 
-    /// Validate curve
     pub fn validate(&self) -> Result<(), String> {
         match self.curve_type {
             CurveType::Bezier | CurveType::Custom => {
                 if self.control_points.len() < 2 {
-                    return Err(format!(__STRING_12__, self.curve_type.name()));
+                    return Err(format!("{} curve requires at least 2 control points", self.curve_type.name()));
                 }
 
-                // Check control point ordering
                 for i in 1..self.control_points.len() {
                     if self.control_points[i].position.0 < self.control_points[i - 1].position.0 {
-                        return Err(__STRING_13__.to_string());
+                        return Err("Control points must be ordered by x position".to_string());
                     }
                 }
             }
             _ => {
                 if !self.control_points.is_empty() {
-                    return Err(format!(__STRING_14__, self.curve_type.name()));
+                    return Err(format!("{} curve should not have control points", self.curve_type.name()));
                 }
             }
         }
@@ -497,7 +214,6 @@ impl AnimationCurve {
         Ok(())
     }
 
-    /// Sample curve at parameter t (0.0 to 1.0)
     pub fn sample(&self, t: f64) -> f64 {
         let t = t.clamp(0.0, 1.0);
 
@@ -515,17 +231,14 @@ impl AnimationCurve {
         }
     }
 
-    /// Ease-in function (quadratic)
     fn ease_in_function(&self, t: f64) -> f64 {
         t * t
     }
 
-    /// Ease-out function (quadratic)
     fn ease_out_function(&self, t: f64) -> f64 {
         1.0 - (1.0 - t) * (1.0 - t)
     }
 
-    /// Ease-in-out function (quadratic)
     fn ease_in_out_function(&self, t: f64) -> f64 {
         if t < 0.5 {
             2.0 * t * t
@@ -534,13 +247,11 @@ impl AnimationCurve {
         }
     }
 
-    /// Sample bezier curve
     fn sample_bezier(&self, t: f64) -> f64 {
         if self.control_points.len() < 2 {
             return t;
         }
 
-        // Find segment
         let segment_count = self.control_points.len() - 1;
         let segment = (t * segment_count as f64).floor() as usize;
         let segment_t = (t * segment_count as f64) - segment as f64;
@@ -552,23 +263,21 @@ impl AnimationCurve {
         let p0 = self.control_points[segment];
         let p1 = self.control_points[segment + 1];
 
-        // Linear interpolation between control points
         let y0 = p0.position.1;
         let y1 = p1.position.1;
 
         y0 + (y1 - y0) * segment_t
     }
 
-    /// Get curve description
     pub fn description(&self) -> String {
         match self.curve_type {
-            CurveType::Linear => __STRING_15__.to_string(),
-            CurveType::Bezier => format!(__STRING_16__, self.control_points.len()),
-            CurveType::EaseIn => __STRING_17__.to_string(),
-            CurveType::EaseOut => __STRING_18__.to_string(),
-            CurveType::EaseInOut => __STRING_19__.to_string(),
-            CurveType::Step => __STRING_20__.to_string(),
-            CurveType::Custom => format!(__STRING_21__, self.control_points.len()),
+            CurveType::Linear => "Linear interpolation".to_string(),
+            CurveType::Bezier => format!("Bezier curve with {} control points", self.control_points.len()),
+            CurveType::EaseIn => "Ease in (quadratic)".to_string(),
+            CurveType::EaseOut => "Ease out (quadratic)".to_string(),
+            CurveType::EaseInOut => "Ease in out (quadratic)".to_string(),
+            CurveType::Step => "Step function".to_string(),
+            CurveType::Custom => format!("Custom curve with {} control points", self.control_points.len()),
         }
     }
 }
@@ -585,49 +294,41 @@ impl fmt::Display for AnimationCurve {
     }
 }
 
-
 pub struct CurveBuilder {
     curve: AnimationCurve,
 }
 
 impl CurveBuilder {
-
     pub fn new() -> Self {
         Self {
             curve: AnimationCurve::linear(),
         }
     }
 
-
     pub fn curve_type(mut self, curve_type: CurveType) -> Self {
         self.curve.curve_type = curve_type;
         self
     }
-
 
     pub fn tension(mut self, tension: f64) -> Self {
         self.curve.tension = tension;
         self
     }
 
-
     pub fn bias(mut self, bias: f64) -> Self {
         self.curve.bias = bias;
         self
     }
-
 
     pub fn add_point(mut self, x: f64, y: f64) -> Self {
         self.curve.add_control_point(BezierControlPoint::new(x, y));
         self
     }
 
-
     pub fn add_point_with_handles(mut self, x: f64, y: f64, handle1: (f64, f64), handle2: (f64, f64)) -> Self {
         self.curve.add_control_point(BezierControlPoint::with_handles(x, y, handle1, handle2));
         self
     }
-
 
     pub fn build(self) -> AnimationCurve {
         self.curve
@@ -681,11 +382,9 @@ mod tests {
         let ease_out = AnimationCurve::ease_out();
         let ease_in_out = AnimationCurve::ease_in_out();
 
-
         let t = 0.5;
         assert_ne!(ease_in.sample(t), ease_out.sample(t));
         assert_ne!(ease_in.sample(t), ease_in_out.sample(t));
-
 
         assert!(ease_in.sample(0.25) <= ease_in.sample(0.5));
         assert!(ease_in.sample(0.5) <= ease_in.sample(0.75));

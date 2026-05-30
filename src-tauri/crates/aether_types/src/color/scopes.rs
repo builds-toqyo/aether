@@ -213,7 +213,7 @@ impl VectorscopePoint {
 }
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct HistogramData {
 
     pub red: [u32; 256],
@@ -225,6 +225,54 @@ pub struct HistogramData {
     pub luma: [u32; 256],
 
     pub config: HistogramConfig,
+}
+
+impl serde::Serialize for HistogramData {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        
+        let mut state = serializer.serialize_struct("HistogramData", 5)?;
+        state.serialize_field("red", &self.red.to_vec())?;
+        state.serialize_field("green", &self.green.to_vec())?;
+        state.serialize_field("blue", &self.blue.to_vec())?;
+        state.serialize_field("luma", &self.luma.to_vec())?;
+        state.serialize_field("config", &self.config)?;
+        state.end()
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for HistogramData {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        struct HistogramDataHelper {
+            red: Vec<u32>,
+            green: Vec<u32>,
+            blue: Vec<u32>,
+            luma: Vec<u32>,
+            config: HistogramConfig,
+        }
+
+        let helper = HistogramDataHelper::deserialize(deserializer)?;
+        
+        let red: [u32; 256] = helper.red.try_into().unwrap_or_else(|_| [0; 256]);
+        let green: [u32; 256] = helper.green.try_into().unwrap_or_else(|_| [0; 256]);
+        let blue: [u32; 256] = helper.blue.try_into().unwrap_or_else(|_| [0; 256]);
+        let luma: [u32; 256] = helper.luma.try_into().unwrap_or_else(|_| [0; 256]);
+
+        Ok(HistogramData {
+            red,
+            green,
+            blue,
+            luma,
+            config: helper.config,
+        })
+    }
 }
 
 impl HistogramData {

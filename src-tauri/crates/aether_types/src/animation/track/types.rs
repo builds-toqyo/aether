@@ -24,12 +24,12 @@ impl TrackType {
 
     pub fn name(&self) -> &'static str {
         match self {
-            TrackType::Position => __STRING_0__,
-            TrackType::Rotation => __STRING_1__,
-            TrackType::Scale => __STRING_2__,
-            TrackType::Opacity => __STRING_3__,
-            TrackType::Color => __STRING_4__,
-            TrackType::Custom => __STRING_5__,
+            TrackType::Position => "position",
+            TrackType::Rotation => "rotation",
+            TrackType::Scale => "scale",
+            TrackType::Opacity => "opacity",
+            TrackType::Color => "color",
+            TrackType::Custom => "custom",
         }
     }
 
@@ -81,10 +81,10 @@ impl BindingType {
 
     pub fn name(&self) -> &'static str {
         match self {
-            BindingType::Direct => __STRING_7__,
-            BindingType::Additive => __STRING_8__,
-            BindingType::Multiplicative => __STRING_9__,
-            BindingType::Override => __STRING_10__,
+            BindingType::Direct => "direct",
+            BindingType::Additive => "additive",
+            BindingType::Multiplicative => "multiplicative",
+            BindingType::Override => "override",
         }
     }
 }
