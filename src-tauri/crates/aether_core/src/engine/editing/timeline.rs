@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_editing_services as ges;
+use ges::prelude::*;
 use crate::engine::editing::types::{EditingError, ClipInfo, TrackType};
 
 pub struct Timeline {
@@ -91,10 +92,10 @@ impl Timeline {
         let timeline = self.ges_timeline.as_ref()
             .ok_or(EditingError::NotInitialized)?;
 
-        let layer = if timeline.get_layers().is_empty() {
-            timeline.append_layer()?
+        let layer = if timeline.layers().is_empty() {
+            timeline.append_layer()?  
         } else {
-            timeline.get_layer(0).ok_or(EditingError::TimelineError("No layers available".to_string()))?
+            timeline.layer(0).ok_or(EditingError::TimelineError("No layers available".to_string()))?
         };
 
         let asset = ges::UriClipAsset::request_sync(uri)?;
@@ -221,7 +222,7 @@ impl Timeline {
         let clip = self.clips.get(clip_id)
             .ok_or(EditingError::InvalidParameter(format!("Clip not found: {}", clip_id)))?;
 
-        let layer = clip.ges_clip.get_layer()
+        let layer = clip.ges_clip.layer()
             .ok_or(EditingError::TimelineError("Clip has no layer".to_string()))?;
 
         layer.remove_clip(&clip.ges_clip)?;

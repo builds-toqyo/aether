@@ -158,7 +158,7 @@ impl MediaImporter {
             .with_context(|| format!("Failed to discover media at URI: {}", uri))
             .map_err(|e| EditingError::ImportError(e.to_string()))?;
 
-        let duration = info.get_duration().unwrap_or(0);
+        let duration = info.duration().map(|d| d.nseconds()).unwrap_or(0);
         debug!("Media duration: {} ns ({:.2} seconds)", duration, duration as f64 / 1_000_000_000.0);
 
 
@@ -186,8 +186,8 @@ impl MediaImporter {
         }
 
 
-        let has_video = !info.get_video_streams().is_empty();
-        let has_audio = !info.get_audio_streams().is_empty();
+        let has_video = !info.video_streams().is_empty();
+        let has_audio = !info.audio_streams().is_empty();
         debug!("Media contains video: {}, audio: {}", has_video, has_audio);
 
         let media_type = if has_video {
@@ -199,8 +199,8 @@ impl MediaImporter {
         };
 
 
-        debug!("Processing {} video streams", info.get_video_streams().len());
-        let video_streams = info.get_video_streams().iter().enumerate().map(|(i, stream)| {
+        debug!("Processing {} video streams", info.video_streams().len());
+        let video_streams = info.video_streams().iter().enumerate().map(|(i, stream)| {
             debug!("Analyzing video stream {}", i);
             let caps = stream.get_caps().unwrap_or_else(|| gst::Caps::new_empty());
 
@@ -257,8 +257,8 @@ impl MediaImporter {
         }).collect();
 
 
-        debug!("Processing {} audio streams", info.get_audio_streams().len());
-        let audio_streams = info.get_audio_streams().iter().enumerate().map(|(i, stream)| {
+        debug!("Processing {} audio streams", info.audio_streams().len());
+        let audio_streams = info.audio_streams().iter().enumerate().map(|(i, stream)| {
             debug!("Analyzing audio stream {}", i);
             let sample_rate = stream.get_sample_rate();
             let channels = stream.get_channels();
