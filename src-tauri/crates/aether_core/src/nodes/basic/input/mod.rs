@@ -93,6 +93,8 @@ impl InputNode {
             default_value: ParameterValue::String("image".to_string()),
             min_value: None,
             max_value: None,
+            animatable: false,
+            description: Some("Type of media (image, video, sequence)".to_string()),
         };
         node.add_parameter(media_type_param);
 
@@ -104,6 +106,8 @@ impl InputNode {
             default_value: ParameterValue::None,
             min_value: None,
             max_value: None,
+            animatable: false,
+            description: Some("Path to media file".to_string()),
         };
         node.add_parameter(media_path_param);
 
@@ -115,6 +119,8 @@ impl InputNode {
             default_value: ParameterValue::None,
             min_value: None,
             max_value: None,
+            animatable: false,
+            description: Some("Pattern for image sequence (e.g., frame_%04d.png)".to_string()),
         };
         node.add_parameter(sequence_pattern_param);
 

@@ -25,6 +25,9 @@ pub enum EditingError {
     #[error("Effect application failed: {0}")]
     EffectError(String),
 
+    #[error("Audio processing failed: {0}")]
+    AudioError(String),
+
     #[error("Engine not initialized")]
     NotInitialized,
 
