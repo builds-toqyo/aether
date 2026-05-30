@@ -8,9 +8,8 @@ pub mod ellipse;
 pub mod line;
 pub mod polygon;
 
-
 pub use types::{ShapeType, ShapePrimitive};
-pub use transform::{Transform, BoundingBox};
+pub use transform::{Transform, BoundingBox, Point};
 pub use rectangle::Rectangle;
 pub use circle::Circle;
 pub use ellipse::Ellipse;
