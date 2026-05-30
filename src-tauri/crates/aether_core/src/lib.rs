@@ -7,6 +7,7 @@ pub mod animation;
 pub mod shapes;
 pub mod text;
 pub mod masking;
+pub mod types;
 
 pub use engine::VideoFormat;
 pub use scopes::{VectorscopeProcessor, VectorscopeAnalyzer, ColorDistribution, TargetCompliance,

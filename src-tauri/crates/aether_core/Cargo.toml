@@ -16,6 +16,9 @@ gstreamer-video = "0.25.0"
 gstreamer-editing-services = "0.25.0"
 gstreamer-pbutils = "0.25.0"
 gstreamer-base = "0.25.0"
+glib = "0.22.7"
+image = "0.25.5"
+chrono = "0.4.38"
 
 # GPU dependencies for compute pipeline
 wgpu = "29.0.3"
@@ -36,8 +39,8 @@ num_cpus = "1.17.0"      # For CPU count detection
 aether_types = { path = "../aether_types" }
 
 # ACES/OpenColorIO dependencies for professional color pipeline
-ocio-sys = "0.3"  # OpenColorIO bindings
-ocio = "0.3"      # High-level OpenColorIO wrapper
+# Note: OpenColorIO Rust bindings not available on crates.io yet
+# Will need to implement custom bindings or use C FFI
 
 [dev-dependencies]
 env_logger = "0.11.10"   # For test logging
