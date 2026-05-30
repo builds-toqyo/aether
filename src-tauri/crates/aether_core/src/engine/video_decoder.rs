@@ -8,7 +8,7 @@ use std::ptr;
 use std::slice;
 
 use ffmpeg_next as ffmpeg;
-use ffmpeg::format::{context::Context, input, Pixel};
+use ffmpeg::format::{context::Input, input, Pixel};
 use ffmpeg::media::Type;
 use ffmpeg::software::scaling::{context::Context as SwsContext, flag::Flags};
 use ffmpeg::util::frame::video::Video;
@@ -196,7 +196,7 @@ pub struct VideoDecoder {
     current_audio_stream: i32,
     current_position: f64,
 
-    format_context: Option<Context>,
+    format_context: Option<Input>,
     video_codec_context: Option<ffmpeg::codec::context::Context>,
     audio_codec_context: Option<ffmpeg::codec::context::Context>,
     sws_context: Option<SwsContext>,
