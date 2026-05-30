@@ -74,7 +74,7 @@ impl Default for LayerVisibility {
 }
 
 /// Shape layer
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ShapeLayer {
     /// Unique layer identifier
     pub id: String,
@@ -98,6 +98,24 @@ pub struct ShapeLayer {
     pub locked: bool,
     /// Layer metadata
     pub metadata: HashMap<String, String>,
+}
+
+impl std::fmt::Debug for ShapeLayer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ShapeLayer")
+            .field("id", &self.id)
+            .field("name", &self.name)
+            .field("shape", &"<ShapePrimitive>")
+            .field("transform", &self.transform)
+            .field("visibility", &self.visibility)
+            .field("opacity", &self.opacity)
+            .field("blend_mode", &self.blend_mode)
+            .field("order", &self.order)
+            .field("selected", &self.selected)
+            .field("locked", &self.locked)
+            .field("metadata", &self.metadata)
+            .finish()
+    }
 }
 
 impl ShapeLayer {

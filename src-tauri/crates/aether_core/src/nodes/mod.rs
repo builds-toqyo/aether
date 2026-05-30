@@ -114,10 +114,18 @@ impl ExecutionContext {
     }
 }
 
-#[derive(Debug)]
 pub struct NodeRegistry {
     node_types: HashMap<NodeType, Box<dyn NodeExecutor + Send + Sync>>,
     factories: HashMap<NodeType, fn() -> Box<dyn NodeExecutor + Send + Sync>>,
+}
+
+impl std::fmt::Debug for NodeRegistry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NodeRegistry")
+            .field("node_types", &self.node_types.len())
+            .field("factories", &self.factories.len())
+            .finish()
+    }
 }
 
 impl NodeRegistry {
@@ -153,11 +161,20 @@ impl Default for NodeRegistry {
     }
 }
 
-#[derive(Debug)]
 pub struct NodeManager {
     registry: NodeRegistry,
     nodes: HashMap<Uuid, Box<dyn NodeExecutor + Send + Sync>>,
     node_metadata: HashMap<Uuid, Node>,
+}
+
+impl std::fmt::Debug for NodeManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NodeManager")
+            .field("registry", &self.registry)
+            .field("nodes", &self.nodes.len())
+            .field("node_metadata", &self.node_metadata.len())
+            .finish()
+    }
 }
 
 impl NodeManager {
@@ -210,7 +227,7 @@ impl NodeManager {
 
 
     pub fn get_nodes(&self) -> impl Iterator<Item = (&Uuid, &dyn NodeExecutor)> {
-        self.nodes.iter().map(|(id, executor)| (id, executor.as_ref()))
+        self.nodes.iter().map(|(id, executor)| (id, executor.as_ref() as &dyn NodeExecutor))
     }
 
 

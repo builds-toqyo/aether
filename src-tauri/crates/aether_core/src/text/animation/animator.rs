@@ -16,7 +16,7 @@ pub struct CharacterAnimation {
     pub playing: bool,
     pub current_time: f64,
     pub current_value: Option<AnimationValue>,
-    pub easing: Option<crate::animation::interpolation::EasingFunction>,
+    pub easing: Option<aether_types::animation::EasingFunction>,
     pub character_delays: HashMap<usize, f64>,
 }
 
@@ -141,7 +141,7 @@ impl CharacterAnimation {
         from: &AnimationValue,
         to: &AnimationValue,
         t: f64,
-        easing: &crate::animation::interpolation::EasingFunction,
+        easing: &aether_types::animation::EasingFunction,
     ) -> AnimationValue {
         let eased_t = easing.apply(t);
 

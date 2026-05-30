@@ -681,7 +681,7 @@ impl VideoDecoder {
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
 
-        let audio_ctx = codec_ctx.decoder().open(decoder)
+        let audio_ctx = codec_ctx.decoder().open()
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
         self.audio_codec_context = Some(audio_ctx);

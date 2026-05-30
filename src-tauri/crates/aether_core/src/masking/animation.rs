@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use super::types::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MaskAnimationTarget {
     Position,
     Rotation,
@@ -196,7 +196,7 @@ impl MaskAnimationTrack {
         from: &AnimationValue,
         to: &AnimationValue,
         t: f64,
-        easing: &crate::animation::interpolation::EasingFunction,
+        easing: &aether_types::animation::EasingFunction,
     ) -> AnimationValue {
         let eased_t = easing.apply(t);
 

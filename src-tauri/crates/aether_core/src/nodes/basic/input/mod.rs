@@ -23,7 +23,7 @@ pub use audio_decoder::{AudioDecoder, AudioMetadata};
 pub use sequence_loader::SequenceLoader;
 
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct InputNode {
 
     node: Node,
@@ -41,6 +41,17 @@ pub struct InputNode {
     audio_decoder: AudioDecoder,
 
     sequence_loader: SequenceLoader,
+}
+
+impl std::fmt::Debug for InputNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InputNode")
+            .field("node", &self.node)
+            .field("media_type", &self.media_type)
+            .field("media_path", &self.media_path)
+            .field("frame_cache", &self.frame_cache.len())
+            .finish()
+    }
 }
 
 impl InputNode {

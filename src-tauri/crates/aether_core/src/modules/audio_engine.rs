@@ -468,7 +468,7 @@ impl AudioTrack {
     }
 
 
-    pub fn play(&mut self) -> Result<(), EditingError> {
+    pub fn play_engine(&mut self) -> Result<(), EditingError> {
         if !self.initialized {
             self.initialize()?;
         }
@@ -483,7 +483,7 @@ impl AudioTrack {
     }
 
 
-    pub fn pause(&mut self) -> Result<(), EditingError> {
+    pub fn pause_engine(&mut self) -> Result<(), EditingError> {
         if let Some(pipeline) = &self.pipeline {
             pipeline.set_state(gst::State::Paused)
                 .map_err(|_| EditingError::AudioError("Failed to set pipeline to paused state".to_string()))?;
@@ -493,7 +493,7 @@ impl AudioTrack {
     }
 
 
-    pub fn stop(&mut self) -> Result<(), EditingError> {
+    pub fn stop_engine(&mut self) -> Result<(), EditingError> {
         if let Some(pipeline) = &self.pipeline {
             pipeline.set_state(gst::State::Ready)
                 .map_err(|_| EditingError::AudioError("Failed to set pipeline to ready state".to_string()))?;
