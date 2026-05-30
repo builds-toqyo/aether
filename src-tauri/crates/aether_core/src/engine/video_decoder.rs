@@ -280,8 +280,8 @@ impl VideoDecoder {
         let mut audio_streams = Vec::new();
 
 
-        for (stream_index, stream) in format_ctx.streams().iter().enumerate() {
-            let codec_params = stream.codec().parameters();
+        for (stream_index, stream) in format_ctx.streams().enumerate() {
+            let codec_params = stream.parameters();
             let stream_idx = stream_index as i32;
 
             match codec_params.medium() {
@@ -366,8 +366,9 @@ impl VideoDecoder {
 
 
         if video_stream_index >= 0 {
-            let stream = format_ctx.streams().get(video_stream_index as usize).unwrap();
-            let codec_params = stream.codec().parameters();
+            let stream = format_ctx.stream(video_stream_index as usize)
+                .ok_or_else(|| VideoDecoderError::DecodingError("Video stream not found".to_string()))?;
+            let codec_params = stream.parameters();
 
 
             let decoder_id = codec_params.id();
@@ -410,8 +411,9 @@ impl VideoDecoder {
 
 
         if audio_stream_index >= 0 {
-            let stream = format_ctx.streams().get(audio_stream_index as usize).unwrap();
-            let codec_params = stream.codec().parameters();
+            let stream = format_ctx.stream(audio_stream_index as usize)
+                .ok_or_else(|| VideoDecoderError::DecodingError("Audio stream not found".to_string()))?;
+            let codec_params = stream.parameters();
 
 
             let decoder_id = codec_params.id();
@@ -596,7 +598,7 @@ impl VideoDecoder {
         self.sws_context = None;
 
         let stream = format_ctx.stream(stream_index as usize).unwrap();
-        let codec_params = stream.codec().parameters();
+        let codec_params = stream.parameters();
 
         let decoder_id = codec_params.id();
         let decoder = ffmpeg::codec::decoder::find(decoder_id)
@@ -666,7 +668,7 @@ impl VideoDecoder {
 
 
         let stream = format_ctx.stream(stream_index as usize).unwrap();
-        let codec_params = stream.codec().parameters();
+        let codec_params = stream.parameters();
 
 
         let decoder_id = codec_params.id();
