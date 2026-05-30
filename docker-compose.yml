@@ -1,0 +1,114 @@
+services:
+  aether-ubuntu:
+    build:
+      context: .
+      dockerfile: docker/ubuntu.Dockerfile
+      args:
+        UBUNTU_VERSION: jammy
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./data:/app/data
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    devices:
+      - /dev/dri:/dev/dri
+    networks:
+      - aether-network
+    profiles:
+      - ubuntu
+
+  aether-debian:
+    build:
+      context: .
+      dockerfile: docker/debian.Dockerfile
+      args:
+        DEBIAN_VERSION: bookworm
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./data:/app/data
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    devices:
+      - /dev/dri:/dev/dri
+    networks:
+      - aether-network
+    profiles:
+      - debian
+
+  aether-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=development
+      - RUST_LOG=debug
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    devices:
+      - /dev/dri:/dev/dri
+    networks:
+      - aether-network
+    profiles:
+      - dev
+
+  aether-test:
+    build:
+      context: .
+      dockerfile: docker/ubuntu.Dockerfile
+      args:
+        UBUNTU_VERSION: noble
+    environment:
+      - NODE_ENV=test
+      - RUST_LOG=info
+    volumes:
+      - ./tests:/app/tests
+      - ./test-data:/app/test-data
+    networks:
+      - aether-network
+    profiles:
+      - test
+
+  aether-bench:
+    build:
+      context: .
+      dockerfile: docker/ubuntu.Dockerfile
+      args:
+        UBUNTU_VERSION: noble
+    environment:
+      - NODE_ENV=production
+      - RUST_LOG=info
+    volumes:
+      - ./benchmarks:/app/benchmarks
+      - ./benchmark-data:/app/benchmark-data
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+    networks:
+      - aether-network
+    profiles:
+      - benchmark
+
+networks:
+  aether-network:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
+  test-data:
+    driver: local
+  benchmark-data:
+    driver: local
