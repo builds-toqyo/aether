@@ -8,6 +8,7 @@ pub enum RendererError {
     InitializationError(String),
     RenderError(String),
     ResourceError(String),
+    HardwareAccelerationError(String),
 }
 
 impl fmt::Display for RendererError {
@@ -16,6 +17,7 @@ impl fmt::Display for RendererError {
             RendererError::InitializationError(msg) => write!(f, "InitializationError: {}", msg),
             RendererError::RenderError(msg) => write!(f, "RenderError: {}", msg),
             RendererError::ResourceError(msg) => write!(f, "ResourceError: {}", msg),
+            RendererError::HardwareAccelerationError(msg) => write!(f, "HardwareAccelerationError: {}", msg),
         }
     }
 }
@@ -48,7 +50,6 @@ enum HardwareContext {
 }
 
 /// Shader programs for different hardware backends
-#[derive(Debug)]
 enum Shaders {
     #[cfg(feature = "cuda")]
     Cuda { module: *mut std::ffi::c_void, kernel: *mut std::ffi::c_void },
@@ -63,6 +64,22 @@ enum Shaders {
     Amf { components: Vec<*mut std::ffi::c_void> },
 
     Software { functions: Vec<Box<dyn Fn(&[u8], &mut [u8], usize, usize) + Send>> },
+}
+
+impl std::fmt::Debug for Shaders {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            #[cfg(feature = "cuda")]
+            Shaders::Cuda { module, kernel } => write!(f, "Cuda {{ module: {:?}, kernel: {:?} }}", module, kernel),
+            #[cfg(all(feature = "vaapi", target_os = "linux"))]
+            Shaders::Vaapi { config } => write!(f, "Vaapi {{ config: {:?} }}", config),
+            #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+            Shaders::VideoToolbox { config } => write!(f, "VideoToolbox {{ config: {:?} }}", config),
+            #[cfg(feature = "amf")]
+            Shaders::Amf { components } => write!(f, "Amf {{ components: {:?} }}", components.len()),
+            Shaders::Software { functions } => write!(f, "Software {{ functions: {:?} }}", functions.len()),
+        }
+    }
 }
 
 /// GPU buffer types for different hardware backends
@@ -183,6 +200,12 @@ impl Renderer {
         Self {
             config,
             is_initialized: false,
+            hw_context: None,
+            shaders: None,
+            gpu_buffers: None,
+            cpu_buffers: None,
+            lookup_tables: None,
+            post_process_pipeline: None,
             current_frame: None,
             frame_count: 0,
             state: Arc::new(Mutex::new(state)),
@@ -616,7 +639,7 @@ impl Renderer {
         log::debug!("Initializing lookup tables");
 
 
-        let gamma = self.config.gamma;
+        let gamma = self.config.gamma as f32;
         let gamma_lut = (0..256).map(|i| {
             let normalized = i as f32 / 255.0;
             let corrected = normalized.powf(1.0 / gamma);
@@ -1110,6 +1133,14 @@ pub struct RendererConfig {
 
 
     pub hw_device: Option<String>,
+    
+    pub gamma: f64,
+    
+    pub enable_color_correction: bool,
+    
+    pub enable_color_grading: bool,
+    
+    pub enable_vignette: bool,
 }
 
 impl Default for RendererConfig {
@@ -1121,6 +1152,10 @@ impl Default for RendererConfig {
             background_color: [0, 0, 0, 255],
             use_hardware_acceleration: false,
             hw_device: None,
+            gamma: 1.0,
+            enable_color_correction: false,
+            enable_color_grading: false,
+            enable_vignette: false,
         }
     }
 }
