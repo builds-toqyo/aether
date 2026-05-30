@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use crate::shapes::primitives::{Point, Path, BoundingBox};
+use crate::shapes::primitives::BoundingBox;
+use crate::shapes::paths::{Path, PathSegment};
 use super::types::*;
 
 

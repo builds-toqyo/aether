@@ -3,7 +3,10 @@ use std::panic;
 use log::{error, warn, debug};
 use anyhow::Result;
 use gstreamer as gst;
+use gst::prelude::*;
 use gstreamer_video as gst_video;
+use gstreamer_app as gst_app;
+use gstreamer_app::AppSink;
 use gstreamer_editing_services as ges;
 use crate::engine::editing::types::EditingError;
 
@@ -100,17 +103,17 @@ impl PreviewEngine {
     fn setup_preview_pipeline(&mut self, pipeline: &ges::Pipeline) -> Result<(), EditingError> {
         // Extract video properties from the pipeline
         self.update_video_properties(pipeline);
-        let video_sink = gst::ElementFactory::make(__STRING_3__)
-            .name(__STRING_4__)
+        let video_sink = gst::ElementFactory::make("appsink")
+            .name("video_sink")
             .build()
-            .map_err(|_| EditingError::PreviewError(__STRING_5__.to_string()))?;
+            .map_err(|_| EditingError::PreviewError("Failed to create video sink".to_string()))?;
 
         let appsink = video_sink.downcast_ref::<gst_app::AppSink>()
-            .ok_or(EditingError::PreviewError(__STRING_6__.to_string()))?;
+            .ok_or(EditingError::PreviewError("Failed to downcast to AppSink".to_string()))?;
 
         // Support multiple pixel formats to reduce unnecessary conversions
-        let caps = gst::Caps::builder(__STRING_7__)
-            .field(__STRING_8__, &gst::List::new([__STRING_9__, __STRING_10__, __STRING_11__, __STRING_12__]))
+        let caps = gst::Caps::builder("video/x-raw")
+            .field("format", &gst::List::new(["RGB", "BGR", "RGBx", "BGRx"]))
             .build();
 
         appsink.set_caps(Some(&caps));

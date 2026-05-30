@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use anyhow::{Result, Context};
 use log::{debug, info, warn, error};
+use gstreamer as gst;
 use gst::prelude::*;
 use glib;
 
@@ -75,6 +76,17 @@ pub enum AudioEffectType {
     },
 }
 
+#[derive(Debug, Clone)]
+pub struct AudioDevice {
+    pub name: String,
+    pub description: String,
+    pub id: String,
+    pub is_input: bool,
+    pub is_default: bool,
+    pub channels: u32,
+    pub sample_rate: u32,
+}
+
 
 pub struct AudioTrack {
 
@@ -129,21 +141,6 @@ impl AudioTrack {
             peak_levels: (0.0, 0.0),
             level_watch_id: None,
         }
-    }
-
-
-                                debug!("Track {} levels: L={:.2}, R={:.2}", track_id, peak_levels.0, peak_levels.1);
-                            }
-                        }
-                    }
-                }
-            }
-            None
-        });
-
-        self.level_watch_id = Some(level_watch_id);
-
-        Ok(())
     }
 
 
@@ -454,34 +451,10 @@ impl AudioTrack {
 
     pub fn update_peak_levels(&mut self) -> Result<(f64, f64), EditingError> {
         if let Some(level) = &self.level {
-
-
-        let audio_bin = track.audio_bin.as_ref().unwrap();
-
-
-        let mixer = self.mixer.as_ref().unwrap();
-
-
-        let pipeline = self.pipeline.as_ref().unwrap();
-
-
-        let src_pad = audio_bin.static_pad("src").unwrap();
-
-
-        let mixer_pad = mixer.request_pad_simple("sink_%u").unwrap();
-
-
-            if let Some(audio_bin) = &track.audio_bin {
-
-                if let Some(pipeline) = &self.pipeline {
-
-                    pipeline.remove(audio_bin)
-                        .map_err(|_| EditingError::AudioError("Failed to remove track bin from pipeline".to_string()))?;
-                }
-            }
+            // TODO: Implement peak level update
         }
 
-        Ok(())
+        Ok(self.peak_levels)
     }
 
 

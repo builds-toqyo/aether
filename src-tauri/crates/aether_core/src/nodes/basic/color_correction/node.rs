@@ -275,7 +275,7 @@ impl ColorCorrectionNode {
 }
 
 impl NodeExecutor for ColorCorrectionNode {
-    fn execute(&mut self, context: &ExecutionContext) -> NodeResult {
+    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
 
         let input_value = self.node.get_input_value("input", context);
 
@@ -309,13 +309,18 @@ impl NodeExecutor for ColorCorrectionNode {
         }
     }
 
-    fn get_node(&self) -> &Node {
-        &self.node
+    fn node_type(&self) -> NodeType {
+        NodeType::ColorCorrection
     }
 
-    fn get_node_mut(&mut self) -> &mut Node {
-        &mut self.node
+    fn get_inputs(&self) -> &[Uuid] {
+        &self.node.inputs
     }
+
+    fn get_outputs(&self) -> &[Uuid] {
+        &self.node.outputs
+    }
+
 }
 
 #[cfg(test)]

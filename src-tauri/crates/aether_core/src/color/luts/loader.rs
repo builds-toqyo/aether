@@ -156,8 +156,8 @@ impl LutLoader {
             if line.contains("<Name>") {
                 name = line.replace("<Name>", "").replace("</Name>", "").trim().to_string();
             } else if line.contains("<Size>") {
-                let size_str = line.replace("<Size>", "").replace("</Size>", "").trim();
-                size = size_str.parse().unwrap_or(33);
+                let size_str = line.replace("<Size>", "").replace("</Size>");
+                size = size_str.trim().parse().unwrap_or(33);
             } else if line.contains("<Data>") {
                 in_data_section = true;
             } else if line.contains("</Data>") {
@@ -285,8 +285,8 @@ impl LutLoader {
             let line = line.trim();
 
             if line.contains("<Size>") {
-                let size_str = line.replace("<Size>", "").replace("</Size>", "").trim();
-                size = size_str.parse().unwrap_or(33);
+                let size_str = line.replace("<Size>", "").replace("</Size>");
+                size = size_str.trim().parse().unwrap_or(33);
             } else if line.contains("<Data>") {
                 in_data_section = true;
             } else if line.contains("</Data>") {

@@ -25,8 +25,8 @@ pub struct MaskKeyframe {
     pub time: f64,
     pub target: MaskAnimationTarget,
     pub value: AnimationValue,
-    pub easing: crate::animation::interpolation::EasingFunction,
-    pub interpolation: crate::animation::interpolation::InterpolationMethod,
+    pub easing: crate::animation::EasingFunction,
+    pub interpolation: crate::animation::InterpolationMethod,
 }
 
 
@@ -418,8 +418,8 @@ impl MaskAnimationSystem {
                 time,
                 target: MaskAnimationTarget::Position,
                 value: AnimationValue::Vector2(x, y),
-                easing: crate::animation::interpolation::EasingFunction::Linear,
-                interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
+                easing: crate::animation::EasingFunction::Linear,
+                interpolation: crate::animation::InterpolationMethod::Linear,
             })
             .collect();
 
@@ -442,8 +442,8 @@ impl MaskAnimationSystem {
                 time,
                 target: MaskAnimationTarget::Opacity,
                 value: AnimationValue::Float(opacity),
-                easing: crate::animation::interpolation::EasingFunction::Linear,
-                interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
+                easing: crate::animation::EasingFunction::Linear,
+                interpolation: crate::animation::InterpolationMethod::Linear,
             })
             .collect();
 
@@ -466,8 +466,8 @@ impl MaskAnimationSystem {
                 time,
                 target: MaskAnimationTarget::Scale,
                 value: AnimationValue::Vector2(x, y),
-                easing: crate::animation::interpolation::EasingFunction::Linear,
-                interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
+                easing: crate::animation::EasingFunction::Linear,
+                interpolation: crate::animation::InterpolationMethod::Linear,
             })
             .collect();
 
@@ -495,7 +495,7 @@ impl Default for MaskAnimationSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::animation::interpolation::{EasingFunction, InterpolationMethod};
+    use crate::animation::{EasingFunction, InterpolationMethod};
 
     #[test]
     fn test_mask_animation_track_creation() {

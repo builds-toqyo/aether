@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use gstreamer as gst;
+use gst::prelude::*;
 use gstreamer_editing_services as ges;
 use crate::engine::editing::types::EditingError;
 

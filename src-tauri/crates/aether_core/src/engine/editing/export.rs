@@ -1,8 +1,11 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use gstreamer as gst;
+use gst::prelude::*;
+use gstreamer_pbutils as gst_pbutils;
 use gstreamer_editing_services as ges;
+use glib::{filename_to_uri, filename_from_uri, ControlFlow};
 use crate::engine::editing::types::EditingError;
 
 #[derive(Debug, Clone)]
@@ -103,7 +106,7 @@ impl IntermediateExporter {
     }
 
     pub fn start_export(&mut self) -> Result<(), EditingError> {
-        let output_uri = gst::filename_to_uri(&self.options.output_path)?;
+        let output_uri = filename_to_uri(&self.options.output_path)?;
 
         let profile = self.create_encoding_profile()?;
 
@@ -172,7 +175,7 @@ impl IntermediateExporter {
                 _ => (),
             }
 
-            glib::Continue(true)
+            ControlFlow::Continue
         })
         .expect("Failed to add bus watch");
 
@@ -195,7 +198,7 @@ impl IntermediateExporter {
                 }
             }
 
-            glib::Continue(true)
+            ControlFlow::Continue
         });
 
         pipeline.set_state(gst::State::Playing)?;

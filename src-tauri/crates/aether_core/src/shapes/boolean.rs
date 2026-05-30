@@ -107,7 +107,7 @@ impl ShapeBoolean {
         if !path_a.closed || !path_b.closed {
             return BooleanResult::failure(
                 operation,
-                __STRING_4__.to_string(),
+                "Paths must be closed for boolean operations".to_string(),
             );
         }
 
@@ -395,11 +395,11 @@ impl AdvancedBoolean {
         operations: &[BooleanOperation],
     ) -> Result<BooleanResult, String> {
         if shapes.len() < 2 {
-            return Err(__STRING_5__.to_string());
+            return Err("At least 2 shapes required for boolean operations".to_string());
         }
 
         if operations.len() != shapes.len() - 1 {
-            return Err(__STRING_6__.to_string());
+            return Err("Number of operations must be one less than number of shapes".to_string());
         }
 
         let mut current_path = shapes[0].to_path();

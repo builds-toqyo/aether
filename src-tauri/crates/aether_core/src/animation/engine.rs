@@ -1,9 +1,9 @@
 
 
 use aether_types::animation::{
-    AnimationTrack, AnimationTrackCollection, TrackValue, InterpolationMethod,
-    EasingFunction
+    AnimationTrack, AnimationTrackCollection, TrackValue
 };
+use crate::animation::{InterpolationMethod, EasingFunction};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 

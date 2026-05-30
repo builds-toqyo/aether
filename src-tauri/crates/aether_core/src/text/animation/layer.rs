@@ -321,15 +321,15 @@ impl TextLayer {
         animation.add_keyframe(TextKeyframe {
             time: 0.0,
             value: AnimationValue::Float(from_opacity),
-            easing: crate::animation::interpolation::EasingFunction::Linear,
-            interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
+            easing: crate::animation::EasingFunction::Linear,
+            interpolation: crate::animation::InterpolationMethod::Linear,
         });
 
         animation.add_keyframe(TextKeyframe {
             time: duration,
             value: AnimationValue::Float(to_opacity),
-            easing: crate::animation::interpolation::EasingFunction::Linear,
-            interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
+            easing: crate::animation::EasingFunction::Linear,
+            interpolation: crate::animation::InterpolationMethod::Linear,
         });
 
         self.add_animation(animation);
@@ -349,15 +349,15 @@ impl TextLayer {
         animation.add_keyframe(TextKeyframe {
             time: 0.0,
             value: AnimationValue::Vector2(from_offset.0, from_offset.1),
-            easing: crate::animation::interpolation::EasingFunction::Linear,
-            interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
+            easing: crate::animation::EasingFunction::Linear,
+            interpolation: crate::animation::InterpolationMethod::Linear,
         });
 
         animation.add_keyframe(TextKeyframe {
             time: duration,
             value: AnimationValue::Vector2(to_offset.0, to_offset.1),
-            easing: crate::animation::interpolation::EasingFunction::Linear,
-            interpolation: crate::animation::interpolation::InterpolationMethod::Linear,
+            easing: crate::animation::EasingFunction::Linear,
+            interpolation: crate::animation::InterpolationMethod::Linear,
         });
 
         self.add_animation(animation);
@@ -414,7 +414,7 @@ impl Default for TextLayer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::animation::interpolation::{EasingFunction, InterpolationMethod};
+    use crate::animation::{EasingFunction, InterpolationMethod};
 
     #[test]
     fn test_text_layer_creation() {

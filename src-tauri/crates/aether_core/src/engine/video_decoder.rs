@@ -566,27 +566,40 @@ impl VideoDecoder {
 
 
         if src_format != dst_format {
-
             let sws_ctx = match &mut self.sws_context {
                 Some(ctx) => ctx,
                 None => {
+                    let width = video_frame.width();
+                    let height = video_frame.height();
 
+                    let sws_ctx = SwsContext::get(
+                        width, height, src_format,
+                        width, height, dst_format,
+                        Flags::BILINEAR,
+                    ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+
+                    self.sws_context = Some(sws_ctx);
+                    self.sws_context.as_ref().unwrap()
+                }
+            };
+        }
+
+        Ok(output_frame)
+    }
+
+    pub fn select_video_stream(&mut self, stream_index: i32) -> Result<(), VideoDecoderError> {
         if self.current_video_stream == stream_index {
             return Ok(());
         }
 
-
         let format_ctx = self.format_context.as_mut()
             .ok_or_else(|| VideoDecoderError::DecodingError("Format context not initialized".to_string()))?;
-
 
         self.video_codec_context = None;
         self.sws_context = None;
 
-
         let stream = format_ctx.stream(stream_index as usize).unwrap();
         let codec_params = stream.codec().parameters();
-
 
         let decoder_id = codec_params.id();
         let decoder = ffmpeg::codec::decoder::find(decoder_id)
@@ -594,18 +607,15 @@ impl VideoDecoder {
                 format!("Failed to find decoder for codec id: {:?}", decoder_id)
             ))?;
 
-
         let mut codec_ctx = ffmpeg::codec::context::Context::new();
         codec_ctx.set_parameters(codec_params)
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
-
 
         let video_ctx = codec_ctx.decoder().open(decoder)
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
         self.video_codec_context = Some(video_ctx);
         self.current_video_stream = stream_index;
-
 
         if let Some(video_ctx) = &self.video_codec_context {
             let video_ctx = video_ctx.decoder().video().unwrap();

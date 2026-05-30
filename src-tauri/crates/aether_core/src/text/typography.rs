@@ -193,10 +193,8 @@ impl TypographyControls {
 
 
     pub fn get_font_metrics(&self) -> FontMetrics {
-
-
-        assert!(narrow_char < normal_char);
-        assert!(wide_char > normal_char);
+        // TODO: Implement font metrics calculation
+        FontMetrics::default()
     }
 
     #[test]

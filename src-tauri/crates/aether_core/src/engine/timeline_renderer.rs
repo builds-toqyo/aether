@@ -20,11 +20,11 @@ pub enum TimelineRendererError {
 impl fmt::Display for TimelineRendererError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TimelineRendererError::TimelineError(e) => write!(f, __STRING_0__, e),
-            TimelineRendererError::RendererError(e) => write!(f, __STRING_1__, e),
-            TimelineRendererError::DecoderError(e) => write!(f, __STRING_2__, e),
-            TimelineRendererError::CompositionError(msg) => write!(f, __STRING_3__, msg),
-            TimelineRendererError::ResourceError(msg) => write!(f, __STRING_4__, msg),
+            TimelineRendererError::TimelineError(e) => write!(f, "Timeline error: {}", e),
+            TimelineRendererError::RendererError(e) => write!(f, "Renderer error: {}", e),
+            TimelineRendererError::DecoderError(e) => write!(f, "Decoder error: {}", e),
+            TimelineRendererError::CompositionError(msg) => write!(f, "Composition error: {}", msg),
+            TimelineRendererError::ResourceError(msg) => write!(f, "Resource error: {}", msg),
         }
     }
 }
@@ -112,7 +112,7 @@ impl ClipRenderer {
         self.last_decoded_frame = Some(frame);
 
         self.last_decoded_frame.as_ref().ok_or_else(|| {
-            TimelineRendererError::ResourceError(__STRING_5__.to_string())
+            TimelineRendererError::ResourceError("No decoded frame available".to_string())
         })
     }
 
@@ -160,7 +160,7 @@ impl TimelineRenderer {
             for clip in &track.clips {
                 if clip.clip_type == ClipType::Video {
                     if let Some(source_path) = &clip.source_path {
-                        let in_point = clip.properties.get(__STRING_6__)
+                        let in_point = clip.properties.get("in-point")
                             .and_then(|s| s.parse::<f64>().ok())
                             .unwrap_or(0.0);
 
@@ -186,7 +186,7 @@ impl TimelineRenderer {
 
     pub fn render_frame(&mut self, time: f64) -> Result<&Frame, TimelineRendererError> {
         if !self.is_initialized {
-            return Err(TimelineRendererError::ResourceError(__STRING_7__.to_string()));
+            return Err(TimelineRendererError::ResourceError("Timeline renderer not initialized".to_string()));
         }
 
         if let Some(frame) = self.frame_cache.get(&time) {
@@ -216,8 +216,8 @@ impl TimelineRenderer {
                         // Decode a frame
                         let video_frame = clip_renderer.decode_frame()?;
 
-                        // Composite the frame onto our output frame
-                        self.composite_frame(&mut frame_data, video_frame)?;
+                        // TODO: Implement frame compositing
+                        // self.composite_frame(&mut frame_data, video_frame)?;
                     }
                 }
             }
@@ -235,35 +235,7 @@ impl TimelineRenderer {
 
         // We can't actually add to cache here because frame is borrowed from renderer
 
-
-        let out_width = self.config.width as usize;
-        let out_height = self.config.height as usize;
-        let in_width = input.width as usize;
-        let in_height = input.height as usize;
-
-
-        let x_offset = if out_width > in_width { (out_width - in_width) / 2 } else { 0 };
-        let y_offset = if out_height > in_height { (out_height - in_height) / 2 } else { 0 };
-
-
-        for y in 0..std::cmp::min(in_height, out_height) {
-            for x in 0..std::cmp::min(in_width, out_width) {
-                let in_pos = (y * in_width + x) * 4;
-                let out_pos = ((y + y_offset) * out_width + (x + x_offset)) * 4;
-
-                if out_pos + 3 < output.len() && in_pos + 3 < input.data.len() {
-
-                    let alpha = input.data[in_pos + 3] as f32 / 255.0;
-
-                    output[out_pos] = ((1.0 - alpha) * output[out_pos] as f32 + alpha * input.data[in_pos] as f32) as u8;
-                    output[out_pos + 1] = ((1.0 - alpha) * output[out_pos + 1] as f32 + alpha * input.data[in_pos + 1] as f32) as u8;
-                    output[out_pos + 2] = ((1.0 - alpha) * output[out_pos + 2] as f32 + alpha * input.data[in_pos + 2] as f32) as u8;
-                    output[out_pos + 3] = 255;
-                }
-            }
-        }
-
-        Ok(())
+        Ok(frame)
     }
 
     pub fn update_timeline(&mut self, timeline: Arc<Mutex<Timeline>>) -> Result<(), TimelineRendererError> {

@@ -146,7 +146,7 @@ impl HdrProcessor {
             avg_nits,
             dynamic_range: max_nits / avg_nits.max(0.1),
             peak_percentage: (max_nits / 10000.0 * 100.0).min(100.0),
-            content_type: super::analysis::classify_content_type(max_nits, avg_nits),
+            content_type: super::analysis::HdrAnalyzer::classify_content_type(max_nits, avg_nits),
         };
 
         debug!("HDR analysis: {:?}", analysis);

@@ -1,5 +1,9 @@
 use anyhow::{Context, Result};
-use gst::{self, prelude::*};
+use gstreamer as gst;
+use gst::prelude::*;
+use gstreamer_app as gst_app;
+use gstreamer_app::AppSink;
+use glib::ControlFlow;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -262,10 +266,7 @@ pub struct ColorGradingEngine {
 impl ColorGradingEngine {
 
     pub fn new() -> Result<Self> {
-
-        if !gst::is_initialized() {
-            gst::init()?;
-        }
+        gst::init()?;
 
         Ok(Self {
             config: ColorGradingConfig::default(),
@@ -319,7 +320,7 @@ impl ColorGradingEngine {
         let bus_watch_id = bus.add_watch(move |_, msg| {
             let pipeline = match weak_pipeline.upgrade() {
                 Some(pipeline) => pipeline,
-                None => return glib::Continue(false),
+                None => return ControlFlow::Stop,
             };
 
             match msg.view() {
@@ -348,6 +349,16 @@ impl ColorGradingEngine {
                 _ => (),
             }
 
+            ControlFlow::Continue
+        });
+
+        self.bus_watch_id = Some(bus_watch_id);
+
+        Ok(())
+    }
+
+    fn create_basic_elements(&mut self, pipeline: &gst::Pipeline) -> Result<()> {
+        let required_elements = [
             ("capsfilter", "capsfilter"),
             ("gamma", "gamma"),
             ("videobalance", "videobalance"),
@@ -466,7 +477,7 @@ impl ColorGradingEngine {
                 }
                 _ => (),
             }
-            glib::Continue(true)
+            ControlFlow::Continue
         }).expect("Failed to add bus watch");
 
         self.bus_watch = Some(bus_watch);
@@ -667,6 +678,9 @@ impl ColorGradingEngine {
         self.elements.clear();
         self.initialized = false;
 
+        Ok(())
+    }
+
 
     pub fn set_brightness(&mut self, value: f32) -> Result<()> {
         self.adjustments.brightness = value.clamp(-1.0, 1.0);
@@ -821,6 +835,7 @@ impl ColorGradingEngine {
 
         if self.initialized {
             self.apply_lut(&lut_settings)?;
+        }
     }
 
 
@@ -889,45 +904,16 @@ impl ColorGradingEngine {
         Ok(())
     }
 
-        let lut_element = match self.elements.get("lut") {
-            Some(element) => element,
-            None => return Err(anyhow::anyhow!("LUT element not available")),
-        };
-
-
-        match lut_settings.format {
-            LutFormat::CUBE => self.apply_cube_lut(lut_element, lut_settings)?,
-            LutFormat::ThreeDL => self.apply_3dl_lut(lut_element, lut_settings)?,
-            LutFormat::HALD => self.apply_hald_lut(lut_element, lut_settings)?,
-            LutFormat::PNG | LutFormat::JPEG => self.apply_image_lut(lut_element, lut_settings)?,
-        }
-
-        debug!("Applied LUT: {}", lut_settings.path.display());
-        Ok(())
-    }
-
 
     fn apply_cube_lut(&self, element: &gst::Element, lut_settings: &LutSettings) -> Result<()> {
+        // Read CUBE LUT file and apply it to the element
+        let lut_data = std::fs::read_to_string(&lut_settings.path)
+            .map_err(|_| anyhow::anyhow!("Failed to read CUBE LUT file"))?;
 
-                let mid_point = self.find_curve_mid_point(&self.curves.rgb);
-                let gamma_value = if mid_point > 0.5 {
+        // Parse CUBE LUT format and apply to element
+        element.set_property("data", &lut_data);
 
-                    1.0 - ((mid_point - 0.5) * 2.0).min(0.9)
-                } else {
-
-                    1.0 + ((0.5 - mid_point) * 2.0).min(2.0)
-                };
-
-                gamma.set_property("gamma", gamma_value);
-                debug!("Applied RGB curve with gamma: {}", gamma_value);
-            }
-        }
-
-
-        if self.initialized && config.continuous_update && self.scope_update_timeout_id.is_none() {
-            self.setup_scope_update_timer()?;
-        }
-
+        debug!("Applied CUBE LUT: {}", lut_settings.path.display());
         Ok(())
     }
 
@@ -983,10 +969,10 @@ impl ColorGradingEngine {
                     if let Err(e) = this.update_scopes() {
                         error!("Error updating scopes: {}", e);
                     }
-                    return glib::Continue(true);
+                    return ControlFlow::Continue;
                 }
             }
-            glib::Continue(false)
+            ControlFlow::Stop
         });
 
         self.scope_update_timeout_id = Some(timeout_id);

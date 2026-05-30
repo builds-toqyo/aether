@@ -13,9 +13,9 @@ pub enum RendererError {
 impl fmt::Display for RendererError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RendererError::InitializationError(msg) => write!(f, __STRING_0__, msg),
-            RendererError::RenderError(msg) => write!(f, __STRING_1__, msg),
-            RendererError::ResourceError(msg) => write!(f, __STRING_2__, msg),
+            RendererError::InitializationError(msg) => write!(f, "InitializationError: {}", msg),
+            RendererError::RenderError(msg) => write!(f, "RenderError: {}", msg),
+            RendererError::ResourceError(msg) => write!(f, "ResourceError: {}", msg),
         }
     }
 }
@@ -32,16 +32,16 @@ pub struct Frame {
 /// Hardware acceleration context types
 #[derive(Debug)]
 enum HardwareContext {
-    #[cfg(feature = __STRING_3__)]
+    #[cfg(feature = "cuda")]
     Cuda { context: *mut std::ffi::c_void },
 
-    #[cfg(all(feature = __STRING_4__, target_os = __STRING_5__))]
+    #[cfg(all(feature = "vaapi", target_os = "linux"))]
     Vaapi { display: *mut std::ffi::c_void },
 
-    #[cfg(all(feature = __STRING_6__, target_os = __STRING_7__))]
+    #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
     VideoToolbox { session: *mut std::ffi::c_void },
 
-    #[cfg(feature = __STRING_8__)]
+    #[cfg(feature = "amf")]
     Amf { factory: *mut std::ffi::c_void, context: *mut std::ffi::c_void },
 
     Software,
@@ -50,16 +50,16 @@ enum HardwareContext {
 /// Shader programs for different hardware backends
 #[derive(Debug)]
 enum Shaders {
-    #[cfg(feature = __STRING_9__)]
+    #[cfg(feature = "cuda")]
     Cuda { module: *mut std::ffi::c_void, kernel: *mut std::ffi::c_void },
 
-    #[cfg(all(feature = __STRING_10__, target_os = __STRING_11__))]
+    #[cfg(all(feature = "vaapi", target_os = "linux"))]
     Vaapi { config: VaapiConfig },
 
-    #[cfg(all(feature = __STRING_12__, target_os = __STRING_13__))]
+    #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
     VideoToolbox { config: VideoToolboxConfig },
 
-    #[cfg(feature = __STRING_14__)]
+    #[cfg(feature = "amf")]
     Amf { components: Vec<*mut std::ffi::c_void> },
 
     Software { functions: Vec<Box<dyn Fn(&[u8], &mut [u8], usize, usize) + Send>> },
@@ -68,16 +68,16 @@ enum Shaders {
 /// GPU buffer types for different hardware backends
 #[derive(Debug)]
 enum GpuBuffers {
-    #[cfg(feature = __STRING_15__)]
+    #[cfg(feature = "cuda")]
     Cuda { input: *mut std::ffi::c_void, output: *mut std::ffi::c_void, size: usize },
 
-    #[cfg(all(feature = __STRING_16__, target_os = __STRING_17__))]
+    #[cfg(all(feature = "vaapi", target_os = "linux"))]
     Vaapi { surfaces: Vec<*mut std::ffi::c_void> },
 
-    #[cfg(all(feature = __STRING_18__, target_os = __STRING_19__))]
+    #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
     VideoToolbox { pixel_buffers: Vec<*mut std::ffi::c_void> },
 
-    #[cfg(feature = __STRING_20__)]
+    #[cfg(feature = "amf")]
     Amf { surfaces: Vec<*mut std::ffi::c_void> },
 }
 
@@ -114,7 +114,7 @@ struct PostProcessPipeline {
     stages: Vec<PostProcessStage>,
 }
 
-#[cfg(all(feature = __STRING_21__, target_os = __STRING_22__))]
+#[cfg(all(feature = "vaapi", target_os = "linux"))]
 #[derive(Debug, Clone)]
 struct VaapiConfig {
     // VAAPI specific configuration
@@ -124,7 +124,7 @@ struct VaapiConfig {
     hue: f32,
 }
 
-#[cfg(all(feature = __STRING_23__, target_os = __STRING_24__))]
+#[cfg(all(feature = "vaapi", target_os = "linux"))]
 impl Default for VaapiConfig {
     fn default() -> Self {
         Self {
@@ -136,7 +136,7 @@ impl Default for VaapiConfig {
     }
 }
 
-#[cfg(all(feature = __STRING_25__, target_os = __STRING_26__))]
+#[cfg(all(feature = "videotoolbox", target_os = "macos"))]
 #[derive(Debug, Clone)]
 struct VideoToolboxConfig {
     // VideoToolbox specific configuration
@@ -144,7 +144,7 @@ struct VideoToolboxConfig {
     pixel_format: u32,
 }
 
-#[cfg(all(feature = __STRING_27__, target_os = __STRING_28__))]
+#[cfg(all(feature = "videotoolbox", target_os = "macos"))]
 impl Default for VideoToolboxConfig {
     fn default() -> Self {
         Self {
@@ -195,13 +195,13 @@ impl Renderer {
         }
 
         // Log initialization start
-        log::debug!(__STRING_29__, self.config.width, self.config.height);
+        log::debug!("Initializing renderer with resolution: {}x{}", self.config.width, self.config.height);
 
         // Initialize hardware acceleration if enabled
         if self.config.use_hardware_acceleration {
             self.initialize_hardware_acceleration()?;
         } else {
-            log::debug!(__STRING_30__);
+            log::debug!("Using software rendering");
         }
 
         // Allocate frame buffers
@@ -211,35 +211,35 @@ impl Renderer {
         self.initialize_resources()?;
 
         self.is_initialized = true;
-        log::debug!(__STRING_31__);
+        log::debug!("Renderer initialized successfully");
         Ok(())
     }
 
     /// Initialize hardware acceleration
     fn initialize_hardware_acceleration(&mut self) -> Result<(), RendererError> {
-        let device = self.config.hw_device.as_deref().unwrap_or(__STRING_32__);
-        log::info!(__STRING_33__, device);
+        let device = self.config.hw_device.as_deref().unwrap_or("auto");
+        log::info!("Initializing hardware acceleration with device: {}", device);
 
         match device {
-            __STRING_34__ => {
-                log::debug!(__STRING_35__);
+            "cuda" => {
+                log::debug!("Initializing CUDA acceleration");
                 self.initialize_cuda_acceleration()
             },
-            __STRING_36__ => {
-                log::debug!(__STRING_37__);
+            "vaapi" => {
+                log::debug!("Initializing VAAPI acceleration");
                 self.initialize_vaapi_acceleration()
             },
-            __STRING_38__ => {
-                log::debug!(__STRING_39__);
+            "videotoolbox" => {
+                log::debug!("Initializing VideoToolbox acceleration");
                 self.initialize_videotoolbox_acceleration()
             },
-            __STRING_40__ => {
-                log::debug!(__STRING_41__);
+            "amf" => {
+                log::debug!("Initializing AMF acceleration");
                 self.initialize_amf_acceleration()
             },
             _ => {
                 // Try to auto-detect the best hardware acceleration
-                log::debug!(__STRING_42__);
+                log::debug!("Auto-detecting hardware acceleration");
                 self.auto_detect_acceleration()
             }
         }
@@ -247,12 +247,12 @@ impl Renderer {
 
     /// Initialize CUDA acceleration for NVIDIA GPUs
     fn initialize_cuda_acceleration(&mut self) -> Result<(), RendererError> {
-        #[cfg(feature = __STRING_43__)]
+        #[cfg(feature = "cuda")]
         {
             // Check for NVIDIA GPU
             if !self.has_nvidia_gpu() {
                 return Err(RendererError::HardwareAccelerationError(
-                    __STRING_44__.to_string()
+                    "No NVIDIA GPU found".to_string()
                 ));
             }
 
@@ -287,26 +287,26 @@ impl Renderer {
                 // self.hw_context = Some(HardwareContext::Cuda { context });
             }
 
-            log::info!(__STRING_48__);
+            log::info!("CUDA acceleration initialized");
             Ok(())
         }
 
-        #[cfg(not(feature = __STRING_49__))]
+        #[cfg(not(feature = "cuda"))]
         {
             Err(RendererError::HardwareAccelerationError(
-                __STRING_50__.to_string()
+                "CUDA feature not enabled".to_string()
             ))
         }
     }
 
     /// Initialize VAAPI acceleration for Intel GPUs on Linux
     fn initialize_vaapi_acceleration(&mut self) -> Result<(), RendererError> {
-        #[cfg(all(feature = __STRING_51__, target_os = __STRING_52__))]
+        #[cfg(all(feature = "vaapi", target_os = "linux"))]
         {
             // Check for Intel GPU or other VAAPI-compatible hardware
             if !self.has_vaapi_support() {
                 return Err(RendererError::HardwareAccelerationError(
-                    __STRING_53__.to_string()
+                    "No VAAPI support found".to_string()
                 ));
             }
 
@@ -333,21 +333,21 @@ impl Renderer {
                 // self.hw_context = Some(HardwareContext::Vaapi { display });
             }
 
-            log::info!(__STRING_56__);
+            log::info!("VAAPI acceleration initialized");
             Ok(())
         }
 
-        #[cfg(not(all(feature = __STRING_57__, target_os = __STRING_58__)))]
+        #[cfg(not(all(feature = "vaapi", target_os = "linux")))]
         {
             Err(RendererError::HardwareAccelerationError(
-                __STRING_59__.to_string()
+                "VAAPI feature not enabled or not on Linux".to_string()
             ))
         }
     }
 
     /// Initialize VideoToolbox acceleration for macOS
     fn initialize_videotoolbox_acceleration(&mut self) -> Result<(), RendererError> {
-        #[cfg(all(feature = __STRING_60__, target_os = __STRING_61__))]
+        #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
         {
             // VideoToolbox is available on all macOS systems, so no need to check for hardware
 
@@ -387,26 +387,26 @@ impl Renderer {
                 // self.hw_context = Some(HardwareContext::VideoToolbox { session });
             }
 
-            log::info!(__STRING_63__);
+            log::info!("VideoToolbox acceleration initialized");
             Ok(())
         }
 
-        #[cfg(not(all(feature = __STRING_64__, target_os = __STRING_65__)))]
+        #[cfg(not(all(feature = "videotoolbox", target_os = "macos")))]
         {
             Err(RendererError::HardwareAccelerationError(
-                __STRING_66__.to_string()
+                "VideoToolbox feature not enabled or not on macOS".to_string()
             ))
         }
     }
 
     /// Initialize AMD AMF acceleration
     fn initialize_amf_acceleration(&mut self) -> Result<(), RendererError> {
-        #[cfg(feature = __STRING_67__)]
+        #[cfg(feature = "amf")]
         {
             // Check for AMD GPU
             if !self.has_amd_gpu() {
                 return Err(RendererError::HardwareAccelerationError(
-                    __STRING_68__.to_string()
+                    "No AMD GPU found".to_string()
                 ));
             }
 
@@ -433,64 +433,64 @@ impl Renderer {
                 // self.hw_context = Some(HardwareContext::Amf { factory, context });
             }
 
-            log::info!(__STRING_71__);
+            log::info!("AMF acceleration initialized");
             Ok(())
         }
 
-        #[cfg(not(feature = __STRING_72__))]
+        #[cfg(not(feature = "amf"))]
         {
             Err(RendererError::HardwareAccelerationError(
-                __STRING_73__.to_string()
+                "AMF feature not enabled".to_string()
             ))
         }
     }
 
     /// Auto-detect the best hardware acceleration method
     fn auto_detect_acceleration(&mut self) -> Result<(), RendererError> {
-        #[cfg(target_os = __STRING_74__)]
+        #[cfg(target_os = "macos")]
         {
             // On macOS, VideoToolbox is the best option
             return self.initialize_videotoolbox_acceleration();
         }
 
-        #[cfg(target_os = __STRING_75__)]
+        #[cfg(target_os = "windows")]
         {
             // On Windows, try CUDA first, then AMF, then fallback to software
             if self.has_nvidia_gpu() {
                 match self.initialize_cuda_acceleration() {
                     Ok(_) => return Ok(()),
-                    Err(e) => log::warn!(__STRING_76__, e),
+                    Err(e) => log::warn!("CUDA initialization failed: {}", e),
                 }
             }
 
             if self.has_amd_gpu() {
                 match self.initialize_amf_acceleration() {
                     Ok(_) => return Ok(()),
-                    Err(e) => log::warn!(__STRING_77__, e),
+                    Err(e) => log::warn!("AMF initialization failed: {}", e),
                 }
             }
         }
 
-        #[cfg(target_os = __STRING_78__)]
+        #[cfg(target_os = "linux")]
         {
             // On Linux, try VAAPI first, then CUDA, then fallback to software
             if self.has_vaapi_support() {
                 match self.initialize_vaapi_acceleration() {
                     Ok(_) => return Ok(()),
-                    Err(e) => log::warn!(__STRING_79__, e),
+                    Err(e) => log::warn!("VAAPI initialization failed: {}", e),
                 }
             }
 
             if self.has_nvidia_gpu() {
                 match self.initialize_cuda_acceleration() {
                     Ok(_) => return Ok(()),
-                    Err(e) => log::warn!(__STRING_80__, e),
+                    Err(e) => log::warn!("CUDA initialization failed: {}", e),
                 }
             }
         }
 
         // Fallback to software rendering
-        log::info!(__STRING_81__);
+        log::info!("Falling back to software rendering");
         self.config.use_hardware_acceleration = false;
         Ok(())
     }

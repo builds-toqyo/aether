@@ -418,15 +418,16 @@ impl Path {
     pub fn transform(&mut self, transform: &crate::shapes::primitives::transform::Transform) {
         let mut current_x = self.start_x;
         let mut current_y = self.start_y;
+        let is_first_segment = self.segments.is_empty();
 
-        for segment in &mut self.segments {
+        for (i, segment) in &mut self.segments.iter_mut().enumerate() {
             match segment.segment_type {
                 super::segments::PathSegmentType::MoveTo => {
                     let (tx, ty) = transform.transform_point(segment.x, segment.y);
                     segment.x = tx;
                     segment.y = ty;
 
-                    if self.segments.first() == Some(segment) {
+                    if i == 0 || is_first_segment {
                         self.start_x = tx;
                         self.start_y = ty;
                     }

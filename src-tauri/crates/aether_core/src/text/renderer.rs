@@ -471,8 +471,9 @@ impl GlyphCache {
 
 
     pub fn get(&mut self, key: &str) -> Option<&CachedGlyph> {
+        let current_time = self.get_current_time();
         if let Some(glyph) = self.glyphs.get_mut(key) {
-            glyph.last_access = self.get_current_time();
+            glyph.last_access = current_time;
             glyph.frequency += 1;
             self.hits += 1;
             Some(glyph)
@@ -515,8 +516,12 @@ impl GlyphCache {
         glyphs.sort_by(|a, b| a.1.frequency.cmp(&b.1.frequency));
 
         let remove_count = self.glyphs.len() - self.max_size;
-        for (key, _) in glyphs.iter().take(remove_count) {
-            self.glyphs.remove(*key);
+        let keys_to_remove: Vec<String> = glyphs.iter()
+            .take(remove_count)
+            .map(|(key, _)| key.clone())
+            .collect();
+        for key in keys_to_remove {
+            self.glyphs.remove(&key);
         }
     }
 
@@ -525,7 +530,7 @@ impl GlyphCache {
         if let Some(oldest_key) = self.glyphs
             .iter()
             .min_by_key(|(_, glyph)| glyph.last_access)
-            .map(|(key, _)| *key) {
+            .map(|(key, _)| key.clone()) {
             self.glyphs.remove(&oldest_key);
         }
     }

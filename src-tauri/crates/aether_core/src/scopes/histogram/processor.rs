@@ -10,7 +10,7 @@ use crate::types::{
     ScopeStats,
 };
 
-use super::{rendering::HistogramRenderer, analysis::HistogramAnalyzer};
+use super::{rendering::HistogramRenderer, analysis::{HistogramAnalyzer, HistogramStatistics}};
 use crate::scopes::{BaseScopeProcessor, FrameProcessor};
 
 

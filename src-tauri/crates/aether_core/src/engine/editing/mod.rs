@@ -3,7 +3,7 @@ mod import;
 mod preview;
 mod effects;
 mod export;
-mod types;
+pub mod types;
 
 pub use timeline::{Timeline, TimelineTrack, TimelineClip, TimelineEffect};
 pub use import::{MediaImporter, ImportOptions};
@@ -13,8 +13,9 @@ pub use export::{IntermediateExporter, ExportOptions, ExportProgress};
 pub use types::{EditingError, MediaInfo, ClipInfo, TrackType};
 
 use std::sync::{Arc, Mutex};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use gstreamer as gst;
+use gst::prelude::*;
 use gstreamer_editing_services as ges;
 
 pub struct EditingEngine {

@@ -117,7 +117,7 @@ impl MergeNode {
 }
 
 impl NodeExecutor for MergeNode {
-    fn execute(&mut self, context: &ExecutionContext) -> NodeResult {
+    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
 
         let mut inputs = Vec::new();
         let mut i = 0;
@@ -138,13 +138,18 @@ impl NodeExecutor for MergeNode {
         Ok(())
     }
 
-    fn get_node(&self) -> &Node {
-        &self.node
+    fn node_type(&self) -> NodeType {
+        NodeType::Merge
     }
 
-    fn get_node_mut(&mut self) -> &mut Node {
-        &mut self.node
+    fn get_inputs(&self) -> &[Uuid] {
+        &self.node.inputs
     }
+
+    fn get_outputs(&self) -> &[Uuid] {
+        &self.node.outputs
+    }
+
 }
 
 #[cfg(test)]

@@ -1,6 +1,9 @@
 use anyhow::Result;
+use gstreamer as gst;
 use gst::prelude::*;
-use gst_app;
+use gstreamer_app as gst_app;
+use gstreamer_app::AppSink;
+use gstreamer_app::AppSrc;
 use log::{debug, error};
 use std::sync::{Arc, Mutex};
 

@@ -40,18 +40,18 @@ pub enum LayerBlendMode {
 impl fmt::Display for LayerBlendMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LayerBlendMode::Normal => write!(f, __STRING_0__),
-            LayerBlendMode::Multiply => write!(f, __STRING_1__),
-            LayerBlendMode::Screen => write!(f, __STRING_2__),
-            LayerBlendMode::Overlay => write!(f, __STRING_3__),
-            LayerBlendMode::Darken => write!(f, __STRING_4__),
-            LayerBlendMode::Lighten => write!(f, __STRING_5__),
-            LayerBlendMode::ColorDodge => write!(f, __STRING_6__),
-            LayerBlendMode::ColorBurn => write!(f, __STRING_7__),
-            LayerBlendMode::HardLight => write!(f, __STRING_8__),
-            LayerBlendMode::SoftLight => write!(f, __STRING_9__),
-            LayerBlendMode::Difference => write!(f, __STRING_10__),
-            LayerBlendMode::Exclusion => write!(f, __STRING_11__),
+            LayerBlendMode::Normal => write!(f, "Normal"),
+            LayerBlendMode::Multiply => write!(f, "Multiply"),
+            LayerBlendMode::Screen => write!(f, "Screen"),
+            LayerBlendMode::Overlay => write!(f, "Overlay"),
+            LayerBlendMode::Darken => write!(f, "Darken"),
+            LayerBlendMode::Lighten => write!(f, "Lighten"),
+            LayerBlendMode::ColorDodge => write!(f, "Color Dodge"),
+            LayerBlendMode::ColorBurn => write!(f, "Color Burn"),
+            LayerBlendMode::HardLight => write!(f, "Hard Light"),
+            LayerBlendMode::SoftLight => write!(f, "Soft Light"),
+            LayerBlendMode::Difference => write!(f, "Difference"),
+            LayerBlendMode::Exclusion => write!(f, "Exclusion"),
         }
     }
 }
@@ -254,15 +254,15 @@ impl ShapeLayer {
     /// Validate layer
     pub fn validate(&self) -> Result<(), String> {
         if self.id.is_empty() {
-            return Err(__STRING_12__.to_string());
+            return Err("Layer ID cannot be empty".to_string());
         }
 
         if self.name.is_empty() {
-            return Err(__STRING_13__.to_string());
+            return Err("Layer name cannot be empty".to_string());
         }
 
         if self.opacity < 0.0 || self.opacity > 1.0 {
-            return Err(__STRING_14__.to_string());
+            return Err("Layer opacity must be between 0.0 and 1.0".to_string());
         }
 
         // Validate shape
@@ -309,7 +309,7 @@ impl ShapeLayerCollection {
 
         // Check for duplicate ID
         if self.layers.iter().any(|l| l.id == layer.id) {
-            return Err(format!(__STRING_15__, layer.id));
+            return Err(format!("Layer with ID {} already exists", layer.id));
         }
 
         self.layers.push(layer);
@@ -351,7 +351,7 @@ impl ShapeLayerCollection {
     /// Move layer to new position
     pub fn move_layer(&mut self, id: &str, new_order: i32) -> Result<(), String> {
         let index = self.find_layer_index(id)
-            .ok_or_else(|| format!(__STRING_16__, id))?;
+            .ok_or_else(|| format!("Layer with ID {} not found", id))?;
 
         let mut layer = self.layers.remove(index);
         layer.order = new_order;
@@ -364,10 +364,10 @@ impl ShapeLayerCollection {
     /// Move layer up in stack
     pub fn move_layer_up(&mut self, id: &str) -> Result<(), String> {
         let index = self.find_layer_index(id)
-            .ok_or_else(|| format!(__STRING_17__, id))?;
+            .ok_or_else(|| format!("Layer with ID {} not found", id))?;
 
         if index == 0 {
-            return Err(__STRING_18__.to_string());
+            return Err("Layer is already at the top of the stack".to_string());
         }
 
         self.layers.swap(index, index - 1);
@@ -378,10 +378,10 @@ impl ShapeLayerCollection {
     /// Move layer down in stack
     pub fn move_layer_down(&mut self, id: &str) -> Result<(), String> {
         let index = self.find_layer_index(id)
-            .ok_or_else(|| format!(__STRING_19__, id))?;
+            .ok_or_else(|| format!("Layer with ID {} not found", id))?;
 
         if index == self.layers.len() - 1 {
-            return Err(__STRING_20__.to_string());
+            return Err("Layer is already at the bottom of the stack".to_string());
         }
 
         self.layers.swap(index, index + 1);
@@ -507,7 +507,7 @@ impl ShapeLayerCollection {
         let selected_layers = self.get_selected_layers();
 
         if selected_layers.len() < 2 {
-            return Err(__STRING_21__.to_string());
+            return Err("At least 2 layers must be selected for boolean operations".to_string());
         }
 
         let shapes: Vec<&dyn ShapePrimitive> = selected_layers.iter()
@@ -523,16 +523,16 @@ impl ShapeLayerCollection {
         let visible_layers = self.get_visible_layers();
 
         if visible_layers.is_empty() {
-            return Err(__STRING_22__.to_string());
+            return Err("No visible layers to flatten".to_string());
         }
 
         if visible_layers.len() == 1 {
             let layer = visible_layers[0];
-            return Ok(layer.clone_with_id(__STRING_23__));
+            return Ok(layer.clone_with_id("flattened"));
         }
 
         // Perform union of all visible layers
-        let mut result_layer = visible_layers[0].clone_with_id(__STRING_24__);
+        let mut result_layer = visible_layers[0].clone_with_id("flattened");
 
         for layer in visible_layers.iter().skip(1) {
             let boolean_result = AdvancedBoolean::union(result_layer.shape.as_ref(), layer.shape.as_ref());

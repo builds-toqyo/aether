@@ -256,7 +256,7 @@ impl MaskCompositor {
         }
     }
 
-    pub fn evaluate_at(&self, x: f64, y: f64) -> MaskCompositionResult {
+    pub fn evaluate_at(&mut self, x: f64, y: f64) -> MaskCompositionResult {
         let cache_key = format!("{:.2}_{:.2}", x, y);
 
         if self.cache_enabled {
@@ -347,7 +347,7 @@ impl MaskCompositor {
         }
     }
 
-    pub fn evaluate_region(&self, bounds: (f64, f64, f64, f64), resolution: (u32, u32)) -> Vec<f64> {
+    pub fn evaluate_region(&mut self, bounds: (f64, f64, f64, f64), resolution: (u32, u32)) -> Vec<f64> {
         let (min_x, min_y, max_x, max_y) = bounds;
         let (width, height) = resolution;
         let mut result = Vec::with_capacity((width * height) as usize);
@@ -424,6 +424,7 @@ impl MaskCompositor {
         gradient_masks: Vec<GradientMask>,
     ) -> Self {
         let mut compositor = Self::new();
+        let shape_masks_len = shape_masks.len();
 
         for (i, shape_mask) in shape_masks.into_iter().enumerate() {
             let layer = MaskLayer::new(
@@ -439,7 +440,7 @@ impl MaskCompositor {
                 format!("gradient_{}", i),
                 format!("Gradient Layer {}", i),
                 MaskType::Gradient(gradient_mask),
-            ).with_z_index((shape_masks.len() + i) as i32);
+            ).with_z_index((shape_masks_len + i) as i32);
             compositor.add_layer(layer);
         }
 
@@ -472,7 +473,7 @@ impl Default for MaskCompositor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::animation::interpolation::{EasingFunction, InterpolationMethod};
+    use crate::animation::{EasingFunction, InterpolationMethod};
 
     #[test]
     fn test_mask_layer_creation() {

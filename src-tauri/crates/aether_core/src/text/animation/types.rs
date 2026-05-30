@@ -24,8 +24,8 @@ pub enum AnimationType {
 pub struct TextKeyframe {
     pub time: f64,
     pub value: AnimationValue,
-    pub easing: crate::animation::interpolation::EasingFunction,
-    pub interpolation: crate::animation::interpolation::InterpolationMethod,
+    pub easing: crate::animation::EasingFunction,
+    pub interpolation: crate::animation::InterpolationMethod,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -47,7 +47,7 @@ impl Default for AnimationValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::animation::interpolation::{EasingFunction, InterpolationMethod};
+    use crate::animation::{EasingFunction, InterpolationMethod};
 
     #[test]
     fn test_animation_value_creation() {

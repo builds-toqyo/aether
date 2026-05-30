@@ -26,6 +26,18 @@ pub struct HdrAnalyzer;
 
 impl HdrAnalyzer {
 
+    pub fn classify_content_type(max_nits: f32, avg_nits: f32) -> HdrContentType {
+        if max_nits > 1000.0 {
+            HdrContentType::TrueHdr
+        } else if max_nits > 400.0 {
+            HdrContentType::EnhancedHdr
+        } else if max_nits > 200.0 {
+            HdrContentType::LimitedHdr
+        } else {
+            HdrContentType::SdrUpscaled
+        }
+    }
+
     pub fn analyze_content(hdr_image: &super::types::HdrImage) -> HdrAnalysis {
         let mut max_nits = 0.0;
         let mut avg_nits = 0.0;
@@ -46,19 +58,6 @@ impl HdrAnalyzer {
             dynamic_range: max_nits / avg_nits.max(0.1),
             peak_percentage: (max_nits / 10000.0 * 100.0).min(100.0),
             content_type: classify_content_type(max_nits, avg_nits),
-        }
-    }
-
-
-    pub fn classify_content_type(max_nits: f32, avg_nits: f32) -> HdrContentType {
-        if max_nits > 1000.0 {
-            HdrContentType::TrueHdr
-        } else if max_nits > 400.0 {
-            HdrContentType::EnhancedHdr
-        } else if max_nits > 200.0 {
-            HdrContentType::LimitedHdr
-        } else {
-            HdrContentType::SdrUpscaled
         }
     }
 
@@ -106,15 +105,19 @@ impl HdrAnalyzer {
             saturation_avg,
             highlight_preservation,
             shadow_preservation,
-            overall_quality: self.calculate_overall_quality(contrast_ratio, saturation_avg),
+            overall_quality: Self::calculate_overall_quality_static(contrast_ratio, saturation_avg),
         }
     }
 
 
-    fn calculate_overall_quality(&self, contrast_ratio: f32, saturation_avg: f32) -> f32 {
+    fn calculate_overall_quality_static(contrast_ratio: f32, saturation_avg: f32) -> f32 {
         let contrast_score = (contrast_ratio.log10() / 4.0).min(1.0).max(0.0);
         let saturation_score = saturation_avg;
         (contrast_score * 0.6 + saturation_score * 0.4) * 100.0
+    }
+
+    fn calculate_overall_quality(&self, contrast_ratio: f32, saturation_avg: f32) -> f32 {
+        Self::calculate_overall_quality_static(contrast_ratio, saturation_avg)
     }
 
 

@@ -1,7 +1,16 @@
-use aether_types::{Node, NodeType, InputPin, OutputPin, Parameter, ParameterValue, ExecutionContext, MediaType};
+use aether_types::{Node, NodeType, InputPin, OutputPin, Parameter, ParameterValue};
+use crate::nodes::ExecutionContext;
 use std::collections::HashMap;
 use uuid::Uuid;
 use log::debug;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MediaType {
+    Video,
+    Image,
+    Audio,
+    Sequence,
+}
 
 mod video_decoder;
 mod image_decoder;

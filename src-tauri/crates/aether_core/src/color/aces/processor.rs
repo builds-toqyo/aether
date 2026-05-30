@@ -14,9 +14,8 @@ pub struct AcesProcessor {
     color_space: ColorSpace,
     video_range: VideoRange,
 
-
-    ocio_config: Option<Arc<ocio::Config>>,
-
+    // TODO: Implement OpenColorIO FFI bindings
+    // ocio_config: Option<Arc<ocio::Config>>,
 
     transform_manager: TransformManager,
     look_manager: LookManager,
@@ -51,21 +50,26 @@ impl AcesProcessor {
     }
 
 
+    // TODO: Implement OpenColorIO FFI bindings
+    // fn initialize_opencolorio(&mut self) -> Result<()> {
+    //     debug!("Initializing OpenColorIO configuration");
+    // 
+    //     match ocio::Config::create_from_file(&self.config.ocio_config_path) {
+    //         Ok(config) => {
+    //             self.ocio_config = Some(Arc::new(config));
+    //             info!("OpenColorIO configuration loaded successfully");
+    //         }
+    //         Err(e) => {
+    //             warn!("Failed to load OpenColorIO config: {}. Using fallback matrices.", e);
+    //             self.ocio_config = None;
+    //         }
+    //     }
+    // 
+    //     Ok(())
+    // }
+
     fn initialize_opencolorio(&mut self) -> Result<()> {
-        debug!("Initializing OpenColorIO configuration");
-
-
-        match ocio::Config::create_from_file(&self.config.ocio_config_path) {
-            Ok(config) => {
-                self.ocio_config = Some(Arc::new(config));
-                info!("OpenColorIO configuration loaded successfully");
-            }
-            Err(e) => {
-                warn!("Failed to load OpenColorIO config: {}. Using fallback matrices.", e);
-                self.ocio_config = None;
-            }
-        }
-
+        debug!("OpenColorIO not yet implemented - using fallback matrices");
         Ok(())
     }
 
@@ -261,7 +265,6 @@ impl AcesProcessor {
     pub fn get_available_output_transforms(&self) -> Vec<super::OutputTransform> {
         self.transform_manager.get_available_output_transforms()
     }
-
 
     pub fn get_available_looks(&self) -> Vec<String> {
         self.look_manager.get_available_looks()

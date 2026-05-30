@@ -424,7 +424,7 @@ impl Default for TextAnimator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::animation::interpolation::{EasingFunction, InterpolationMethod};
+    use crate::animation::{EasingFunction, InterpolationMethod};
 
     #[test]
     fn test_character_animation_creation() {

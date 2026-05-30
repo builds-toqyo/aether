@@ -2,9 +2,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use anyhow::{Context, Result};
-use glib::{MainContext, MainLoop, SourceId};
+use gstreamer as gst;
 use gst::prelude::*;
-use gst_pbutils::prelude::*;
+use gstreamer_pbutils as gst_pbutils;
+use gstreamer_editing_services as ges;
+use glib::{filename_to_uri, ControlFlow, MainLoop, SourceId};
 use crate::engine::editing::types::EditingError;
 use crate::engine::rendering::formats::{VideoFormat, AudioFormat, ContainerFormat};
 use crate::engine::rendering::encoder::EncoderPreset;
@@ -99,9 +101,7 @@ pub struct GstExporter {
 
 impl GstExporter {
     pub fn new(options: ExportOptions) -> Result<Self, EditingError> {
-        if !gst::is_initialized() {
-            gst::init().map_err(|e| EditingError::ExportError(format!(__STRING_0__, e)))?;
-        }
+        gst::init().map_err(|e| EditingError::ExportError(format!("Failed to initialize GStreamer: {}", e)))?;
 
         let progress = Arc::new(Mutex::new(ExportProgress {
             current_frame: 0,
@@ -157,7 +157,7 @@ impl GstExporter {
         let profile = self.create_encoding_profile()
             .context("Failed to create encoding profile")?;
 
-        let output_uri = gst::filename_to_uri(self.options.output_path.as_path())
+        let output_uri = filename_to_uri(self.options.output_path.as_path())
             .context("Failed to convert output path to URI")?;
 
         pipeline.set_render_settings(&output_uri, &profile)
@@ -230,7 +230,7 @@ impl GstExporter {
                 bus.post(&message).expect("Failed to post cancellation message");
             }
 
-            glib::Continue(true)
+            ControlFlow::Continue
         }).context("Failed to add bus watch")?;
 
         let pipeline_weak = pipeline.downgrade();
@@ -258,9 +258,9 @@ impl GstExporter {
                     }
                 }
 
-                glib::Continue(true)
+                ControlFlow::Continue
             } else {
-                glib::Continue(false)
+            ControlFlow::Stop
             }
         });
 

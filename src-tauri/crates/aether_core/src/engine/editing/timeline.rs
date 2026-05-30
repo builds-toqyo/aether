@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use gstreamer as gst;
+use gst::prelude::*;
 use gstreamer_editing_services as ges;
 use crate::engine::editing::types::{EditingError, ClipInfo, TrackType};
 

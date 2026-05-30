@@ -48,7 +48,7 @@ pub enum NodeError {
 pub type NodeResult<T> = Result<T, NodeError>;
 
 pub trait NodeExecutor {
-    fn execute(&self, context: &mut ExecutionContext) -> NodeResult<()>;
+    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()>;
     fn node_type(&self) -> NodeType;
 
     fn validate(&self) -> NodeResult<()> {
@@ -201,8 +201,6 @@ impl NodeManager {
 
     pub fn get_node_metadata(&self, node_id: &Uuid) -> Option<&Node> {
         self.node_metadata.get(node_id)
-    pub fn get_node_metadata(&self, node_id: &Uuid) -> Option<&Node> {
-        self.node_metadata.get(node_id)
     }
 
 
@@ -254,7 +252,7 @@ impl Default for NodeManager {
 struct DummyNode;
 
 impl NodeExecutor for DummyNode {
-    fn execute(&self, _context: &mut ExecutionContext) -> NodeResult<()> {
+    fn execute(&mut self, _context: &mut ExecutionContext) -> NodeResult<()> {
         Ok(())
     }
 

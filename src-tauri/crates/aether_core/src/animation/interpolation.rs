@@ -1,9 +1,9 @@
 
 
 use aether_types::animation::{
-    InterpolationMethod, EasingFunction, AnimationCurve, TrackValue,
-    KeyframeData, KeyframeCollection
+    AnimationCurve, TrackValue, KeyframeData, KeyframeCollection
 };
+use crate::animation::{InterpolationMethod, EasingFunction};
 use std::collections::HashMap;
 
 
@@ -167,34 +167,34 @@ impl AnimationInterpolator {
 
 
         let t = (time - prev_time) / (next_time - prev_time);
+        let curve_t = self.apply_easing(t, easing_function);
 
+        let mut result = self.linear_interpolate(prev_keyframe, next_keyframe, t)?;
 
-            match &mut result.value {
-                TrackValue::Float(v) => *v *= curve_t,
-                TrackValue::Vector2(v) => {
-                    v[0] *= curve_t;
-                    v[1] *= curve_t;
-                }
-                TrackValue::Vector3(v) => {
-                    v[0] *= curve_t;
-                    v[1] *= curve_t;
-                    v[2] *= curve_t;
-                }
-                TrackValue::Vector4(v) => {
-                    v[0] *= curve_t;
-                    v[1] *= curve_t;
-                    v[2] *= curve_t;
-                    v[3] *= curve_t;
-                }
-                TrackValue::Color(v) => {
-                    v[0] *= curve_t;
-                    v[1] *= curve_t;
-                    v[2] *= curve_t;
-                    v[3] *= curve_t;
-                }
-
-                TrackValue::Boolean(_) | TrackValue::String(_) => {}
+        match &mut result.value {
+            TrackValue::Float(v) => *v *= curve_t,
+            TrackValue::Vector2(v) => {
+                v[0] *= curve_t;
+                v[1] *= curve_t;
             }
+            TrackValue::Vector3(v) => {
+                v[0] *= curve_t;
+                v[1] *= curve_t;
+                v[2] *= curve_t;
+            }
+            TrackValue::Vector4(v) => {
+                v[0] *= curve_t;
+                v[1] *= curve_t;
+                v[2] *= curve_t;
+                v[3] *= curve_t;
+            }
+            TrackValue::Color(v) => {
+                v[0] *= curve_t;
+                v[1] *= curve_t;
+                v[2] *= curve_t;
+                v[3] *= curve_t;
+            }
+            TrackValue::Boolean(_) | TrackValue::String(_) => {}
         }
 
         result
@@ -309,7 +309,8 @@ impl BatchInterpolator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aether_types::animation::{Keyframe, InterpolationMethod, EasingFunction};
+    use aether_types::animation::{Keyframe};
+    use crate::animation::{InterpolationMethod, EasingFunction};
 
     #[test]
     fn test_linear_interpolation() {

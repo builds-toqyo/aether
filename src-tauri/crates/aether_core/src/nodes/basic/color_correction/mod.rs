@@ -2,7 +2,7 @@ use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, Output
 use uuid::Uuid;
 use log::debug;
 
-mod types;
+pub mod types;
 mod processor;
 mod gpu_ops;
 mod node;

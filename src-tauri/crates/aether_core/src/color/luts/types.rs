@@ -116,9 +116,9 @@ impl LutFormat {
 
     pub fn extension(&self) -> &'static str {
         match self {
-            LutFormat::Cube => __STRING_4__,
-            LutFormat::ThreeDL => __STRING_5__,
-            LutFormat::Look => __STRING_6__,
+            LutFormat::Cube => ".cube",
+            LutFormat::ThreeDL => ".3dl",
+            LutFormat::Look => ".look",
         }
     }
 

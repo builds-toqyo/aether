@@ -462,7 +462,7 @@ impl MaskEffectProcessor {
         self.effects.iter_mut().find(|effect| effect.id == effect_id)
     }
 
-    pub fn process_value(&self, value: f64, x: f64, y: f64) -> f64 {
+    pub fn process_value(&mut self, value: f64, x: f64, y: f64) -> f64 {
         let cache_key = format!("{:.2}_{:.2}_{:.4}", x, y, value);
 
         if self.cache_enabled {
@@ -487,7 +487,7 @@ impl MaskEffectProcessor {
         result
     }
 
-    pub fn process_region(&self, values: &[f64], bounds: (f64, f64, f64, f64), resolution: (u32, u32)) -> Vec<f64> {
+    pub fn process_region(&mut self, values: &[f64], bounds: (f64, f64, f64, f64), resolution: (u32, u32)) -> Vec<f64> {
         let (min_x, min_y, max_x, max_y) = bounds;
         let (width, height) = resolution;
         let mut result = Vec::with_capacity(values.len());

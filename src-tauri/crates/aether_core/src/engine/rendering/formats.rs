@@ -25,7 +25,7 @@ impl ContainerFormat {
             ContainerFormat::Webm => "webm",
             ContainerFormat::Avi => "avi",
             ContainerFormat::Flv => "flv",
-            ContainerFormat::Wmv => "asf",
+            ContainerFormat::Wmv => "wmv",
             ContainerFormat::Mpg => "mpeg",
             ContainerFormat::Ts => "mpegts",
             ContainerFormat::Mxf => "mxf",
@@ -51,17 +51,17 @@ impl ContainerFormat {
 
     pub fn display_name(&self) -> &'static str {
         match self {
-            ContainerFormat::Mp4 => "MP4 (MPEG-4 Part 14)",
+            ContainerFormat::Mp4 => "MP4",
             ContainerFormat::Mkv => "MKV (Matroska)",
             ContainerFormat::Mov => "MOV (QuickTime)",
             ContainerFormat::Webm => "WebM",
-            ContainerFormat::Avi => "AVI (Audio Video Interleave)",
-            ContainerFormat::Flv => "FLV (Flash Video)",
-            ContainerFormat::Wmv => "WMV (Windows Media Video)",
-            ContainerFormat::Mpg => "MPG (MPEG)",
-            ContainerFormat::Ts => "TS (MPEG Transport Stream)",
-            ContainerFormat::Mxf => "MXF (Material Exchange Format)",
-            ContainerFormat::Gif => "GIF (Graphics Interchange Format)",
+            ContainerFormat::Avi => "AVI",
+            ContainerFormat::Flv => "Flash Video",
+            ContainerFormat::Wmv => "Windows Media Video",
+            ContainerFormat::Mpg => "MPEG",
+            ContainerFormat::Ts => "MPEG-TS",
+            ContainerFormat::Mxf => "MXF",
+            ContainerFormat::Gif => "GIF",
         }
     }
 }
@@ -102,18 +102,18 @@ impl VideoFormat {
 
     pub fn display_name(&self) -> &'static str {
         match self {
-            VideoFormat::H264 => "H.264 (AVC)",
+            VideoFormat::H264 => "H.264",
             VideoFormat::H265 => "H.265 (HEVC)",
             VideoFormat::Vp8 => "VP8",
             VideoFormat::Vp9 => "VP9",
             VideoFormat::Av1 => "AV1",
-            VideoFormat::ProRes => "Apple ProRes",
-            VideoFormat::Dnxhd => "Avid DNxHD",
-            VideoFormat::Mjpeg => "Motion JPEG",
+            VideoFormat::ProRes => "ProRes",
+            VideoFormat::Dnxhd => "DNxHD",
+            VideoFormat::Mjpeg => "MJPEG",
             VideoFormat::Mpeg2 => "MPEG-2",
             VideoFormat::Mpeg4 => "MPEG-4",
             VideoFormat::Theora => "Theora",
-            VideoFormat::Raw => "Raw Video",
+            VideoFormat::Raw => "Raw",
         }
     }
 
