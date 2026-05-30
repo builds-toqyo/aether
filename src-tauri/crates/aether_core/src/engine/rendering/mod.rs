@@ -1,7 +1,7 @@
-mod export;
-mod formats;
-mod encoder;
-mod gst_exporter;
+pub mod export;
+pub mod formats;
+pub mod encoder;
+pub mod gst_exporter;
 
 pub use export::{Exporter, ExportOptions, ExportProgress, ExportCallback};
 pub use formats::{VideoFormat, AudioFormat, ContainerFormat, get_available_formats};
