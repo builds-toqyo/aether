@@ -513,55 +513,42 @@ impl VideoDecoder {
 
         let mut frame_decoded = false;
 
-        while !frame_decoded {
+        for (stream, packet) in format_ctx.packets() {
+            if stream.index() == video_stream_index {
+                video_ctx.send_packet(&packet)
+                    .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-            match format_ctx.packets().next() {
-                Some((stream_index, packet)) => {
+                // Try to receive frame - it's ok if we need more packets
+                while video_ctx.receive_frame(&mut decoded_frame).is_ok() {
+                    frame_decoded = true;
 
-                    if stream_index == video_stream_index {
+                    let time_base = stream.time_base();
+                    let pts = decoded_frame.pts().unwrap_or(0);
+                    self.current_position = pts as f64 * time_base.0 as f64 / time_base.1 as f64;
 
-                        video_ctx.send_packet(&packet)
-                            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+                    let mut state = self.state.lock().unwrap();
+                    state.last_decoded_frame_pts = pts;
 
-
-                        match video_ctx.receive_frame(&mut decoded_frame) {
-                            Ok(_) => {
-                                frame_decoded = true;
-
-
-                                let stream = format_ctx.stream(video_stream_index).unwrap();
-                                let time_base = stream.time_base();
-                                let pts = decoded_frame.pts().unwrap_or(0);
-                                self.current_position = pts as f64 * time_base.0 as f64 / time_base.1 as f64;
-
-
-                                let mut state = self.state.lock().unwrap();
-                                state.last_decoded_frame_pts = pts;
-                            },
-                            Err(FFmpegError::Again) => {
-
-                                continue;
-                            },
-                            Err(e) => {
-                                return Err(VideoDecoderError::FFmpegLibError(e));
-                            }
-                        }
+                    if frame_decoded {
+                        break;
                     }
-                },
-                None => {
+                }
 
-                    return Err(VideoDecoderError::DecodingError("End of stream reached".to_string()));
+                if frame_decoded {
+                    break;
                 }
             }
         }
 
+        if !frame_decoded {
+            return Err(VideoDecoderError::DecodingError("End of stream reached".to_string()));
+        }
 
-        let video_frame = decoded_frame.video()
-            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-        let width = video_frame.width() as u32;
-        let height = video_frame.height() as u32;
-        let src_format = video_frame.format();
+        // decoded_frame is already a frame::Video
+        let width = decoded_frame.width() as u32;
+        let height = decoded_frame.height() as u32;
+        let src_format = decoded_frame.format();
         let dst_format = self.config.output_format.to_ffmpeg_format();
 
 
@@ -574,8 +561,8 @@ impl VideoDecoder {
             let sws_ctx = match &mut self.sws_context {
                 Some(ctx) => ctx,
                 None => {
-                    let width = video_frame.width();
-                    let height = video_frame.height();
+                    let width = decoded_frame.width();
+                    let height = decoded_frame.height();
 
                     let sws_ctx = SwsContext::get(
                         width, height, src_format,
@@ -616,30 +603,29 @@ impl VideoDecoder {
         codec_ctx.set_parameters(codec_params)
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-        let video_ctx = codec_ctx.decoder().open()
+        let video_decoder = codec_ctx.decoder().video()
+            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?
+            .open()
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-        self.video_codec_context = Some(video_ctx);
-        self.current_video_stream = stream_index;
+        let src_format = video_decoder.format();
+        let dst_format = self.config.output_format.to_ffmpeg_format();
 
-        if let Some(video_ctx) = &self.video_codec_context {
-            let video_ctx = video_ctx.decoder().video().unwrap();
-            let src_format = video_ctx.format();
-            let dst_format = self.config.output_format.to_ffmpeg_format();
+        if src_format != dst_format {
+            let width = video_decoder.width();
+            let height = video_decoder.height();
 
-            if src_format != dst_format {
-                let width = video_ctx.width();
-                let height = video_ctx.height();
+            let sws_ctx = SwsContext::get(
+                width, height, src_format,
+                width, height, dst_format,
+                Flags::BILINEAR,
+            ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-                let sws_ctx = SwsContext::get(
-                    width, height, src_format,
-                    width, height, dst_format,
-                    Flags::BILINEAR,
-                ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
-
-                self.sws_context = Some(sws_ctx);
-            }
+            self.sws_context = Some(sws_ctx);
         }
+
+        self.video_codec_context = Some(video_decoder);
+        self.current_video_stream = stream_index;
 
         Ok(())
     }
@@ -689,10 +675,12 @@ impl VideoDecoder {
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
 
-        let audio_ctx = codec_ctx.decoder().open()
+        let audio_decoder = codec_ctx.decoder().audio()
+            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?
+            .open()
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-        self.audio_codec_context = Some(audio_ctx);
+        self.audio_codec_context = Some(audio_decoder);
         self.current_audio_stream = stream_index;
 
         Ok(())
