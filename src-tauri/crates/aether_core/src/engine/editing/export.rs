@@ -215,7 +215,7 @@ impl IntermediateExporter {
             Some("Export Profile"),
             &container_caps,
             None,
-        ).ok_or(EditingError::ExportError("Failed to create container profile".to_string()))?;
+        ).map_err(|_| EditingError::ExportError("Failed to create container profile".to_string()))?;
 
         let video_caps = gst::Caps::builder("video/x-raw")
             .field("format", "I420")
@@ -225,7 +225,7 @@ impl IntermediateExporter {
         let video_profile = gst_pbutils::EncodingVideoProfile::new(
             &video_codec_caps,
             None,
-            &video_caps,
+            Some(&video_caps),
             1,
         ).ok_or(EditingError::ExportError("Failed to create video profile".to_string()))?;
 
@@ -241,7 +241,7 @@ impl IntermediateExporter {
         let audio_profile = gst_pbutils::EncodingAudioProfile::new(
             &audio_codec_caps,
             None,
-            &audio_caps,
+            Some(&audio_caps),
             1,
         ).ok_or(EditingError::ExportError("Failed to create audio profile".to_string()))?;
 

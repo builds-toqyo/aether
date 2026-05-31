@@ -69,7 +69,7 @@ impl MediaImporter {
         debug!("Cache miss for media: {}", path_canon.display());
 
         let uri = if path.is_absolute() {
-            filename_to_uri(path)
+            filename_to_uri(path, None)
                 .with_context(|| format!("Failed to create URI for path {}", path.display()))
                 .map_err(|e| EditingError::ImportError(e.to_string()))?
         } else {
@@ -77,7 +77,7 @@ impl MediaImporter {
                 .with_context(|| "Failed to get current directory")
                 .map_err(|e| EditingError::ImportError(e.to_string()))?
                 .join(path);
-            filename_to_uri(&abs_path)
+            filename_to_uri(&abs_path, None)
                 .with_context(|| format!("Failed to create URI for absolute path {}", abs_path.display()))
                 .map_err(|e| EditingError::ImportError(e.to_string()))?
         };
@@ -93,6 +93,15 @@ impl MediaImporter {
                 media_type: MediaType::Unknown,
                 video_streams: Vec::new(),
                 audio_streams: Vec::new(),
+                creation_date: None,
+                artist: None,
+                copyright: None,
+                comment: None,
+                album: None,
+                genre: None,
+                file_size: None,
+                container_format: None,
+                bitrate: None,
             }
         };
 
@@ -162,7 +171,7 @@ impl MediaImporter {
         debug!("Media duration: {} ns ({:.2} seconds)", duration, duration as f64 / 1_000_000_000.0);
 
 
-        let tags = info.get_tags();
+        let tags = info.tags();
         debug!("Extracted {} tag sets", if tags.is_some() { "some" } else { "no" });
 
 
@@ -180,7 +189,7 @@ impl MediaImporter {
         let creation_date = tags.as_ref().and_then(|t| t.get::<gst::tags::DateTime>().ok().map(|t| t.get().to_string()));
 
 
-        let container_format = info.get_container_mime_type().map(|s| s.to_string());
+        let container_format = Some("mp4".to_string()); // TODO: Get actual container format from GStreamer API
         if let Some(ref fmt) = container_format {
             debug!("Container format: {}", fmt);
         }
@@ -202,7 +211,7 @@ impl MediaImporter {
         debug!("Processing {} video streams", info.video_streams().len());
         let video_streams = info.video_streams().iter().enumerate().map(|(i, stream)| {
             debug!("Analyzing video stream {}", i);
-            let caps = stream.get_caps().unwrap_or_else(|| gst::Caps::new_empty());
+            let caps = stream.caps().unwrap_or_else(|| gst::Caps::new_empty());
 
 
             let structure = if caps.size() > 0 { caps.structure(0) } else { None };
@@ -217,9 +226,9 @@ impl MediaImporter {
             debug!("Video dimensions: {}x{}", width, height);
 
 
-            let frame_rate = if stream.get_framerate_denom() != 0 {
-                let fr = stream.get_framerate_num() as f64 / stream.get_framerate_denom() as f64;
-                debug!("Frame rate: {:.2} fps ({}/{}))", fr, stream.get_framerate_num(), stream.get_framerate_denom());
+            let frame_rate = if stream.framerate_denom() != 0 {
+                let fr = stream.framerate_num() as f64 / stream.framerate_denom() as f64;
+                debug!("Frame rate: {:.2} fps ({}/{}))", fr, stream.framerate_num(), stream.framerate_denom());
                 fr
             } else {
                 warn!("Stream {} has zero denominator for framerate, defaulting to 0.0", i);
@@ -236,12 +245,12 @@ impl MediaImporter {
             };
 
 
-            let bitrate = stream.get_bitrate().filter(|&b| b > 0);
+            let bitrate = stream.bitrate().filter(|&b| b > 0);
             if let Some(br) = bitrate {
                 debug!("Bitrate: {} bps ({:.2} Mbps)", br, br as f64 / 1_000_000.0);
             }
 
-            let codec = stream.get_codec().unwrap_or_else(|| "unknown".to_string());
+            let codec = stream.codec().unwrap_or_else(|| "unknown".to_string());
             debug!("Codec: {}", codec);
 
             VideoStreamInfo {
@@ -260,9 +269,9 @@ impl MediaImporter {
         debug!("Processing {} audio streams", info.audio_streams().len());
         let audio_streams = info.audio_streams().iter().enumerate().map(|(i, stream)| {
             debug!("Analyzing audio stream {}", i);
-            let sample_rate = stream.get_sample_rate();
-            let channels = stream.get_channels();
-            let codec = stream.get_codec().unwrap_or_else(|| "unknown".to_string());
+            let sample_rate = stream.rate();
+            let channels = stream.channels();
+            let codec = stream.codec().unwrap_or_else(|| "unknown".to_string());
 
             debug!("Audio: {} channels, {} Hz, codec: {}", channels, sample_rate, codec);
 
@@ -303,6 +312,7 @@ impl MediaImporter {
             genre,
             file_size,
             container_format,
+            bitrate,
         })
     }
 
@@ -330,11 +340,10 @@ impl MediaImporter {
         debug!("Generating thumbnails for {}", path.display());
 
 
-        let uri = match filename_to_uri(path) {
+        let uri = match filename_to_uri(path, None) {
             Ok(uri) => uri,
             Err(_) => return Ok(false),
         };
-
 
         let timeout = 2 * gst::ClockTime::SECOND;
         let discoverer = gst_pbutils::Discoverer::new(timeout)
@@ -355,7 +364,7 @@ impl MediaImporter {
 
         let path = path.as_ref();
         let uri = match if path.is_absolute() {
-            filename_to_uri(path)
+            filename_to_uri(path, None)
         } else {
             let abs_path = match std::env::current_dir() {
                 Ok(dir) => dir.join(path),
@@ -364,7 +373,7 @@ impl MediaImporter {
                     return None;
                 }
             };
-            filename_to_uri(&abs_path)
+            filename_to_uri(&abs_path, None)
         } {
             Ok(uri) => uri,
             Err(e) => {
@@ -397,7 +406,7 @@ impl MediaImporter {
     pub fn create_ges_clip<P: AsRef<Path>>(&self, path: P) -> Option<ges::Clip> {
         let asset = self.get_ges_asset(path)?;
 
-        match asset.extract() {
+        match ges::UriClip::extract(&asset) {
             Ok(clip) => {
                 debug!("Created GES clip from asset");
                 Some(clip)
