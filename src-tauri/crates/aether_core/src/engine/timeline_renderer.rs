@@ -2,6 +2,33 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::error::Error;
 use std::fmt;
+use std::hash::{Hash, Hasher};
+
+// Wrapper type for f64 timestamps that implements Hash + Eq
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Timestamp(f64);
+
+impl Eq for Timestamp {}
+
+impl Hash for Timestamp {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Use a fixed-point representation for hashing
+        let scaled = (self.0 * 1000.0) as i64;
+        scaled.hash(state);
+    }
+}
+
+impl From<f64> for Timestamp {
+    fn from(time: f64) -> Self {
+        Timestamp(time)
+    }
+}
+
+impl From<Timestamp> for f64 {
+    fn from(ts: Timestamp) -> Self {
+        ts.0
+    }
+}
 
 use crate::engine::timeline::{Timeline, Clip, ClipType, TimelineError};
 use crate::engine::renderer::{Renderer, Frame, RendererError};
@@ -127,7 +154,7 @@ pub struct TimelineRenderer {
     timeline: Arc<Mutex<Timeline>>,
     renderer: Renderer,
     clip_renderers: HashMap<String, ClipRenderer>,
-    frame_cache: HashMap<f64, Frame>, // Cache frames by timestamp
+    frame_cache: HashMap<Timestamp, Frame>, // Cache frames by timestamp
     is_initialized: bool,
 }
 
@@ -189,7 +216,7 @@ impl TimelineRenderer {
             return Err(TimelineRendererError::ResourceError("Timeline renderer not initialized".to_string()));
         }
 
-        if let Some(frame) = self.frame_cache.get(&time) {
+        if let Some(frame) = self.frame_cache.get(&Timestamp::from(time)) {
             return Ok(frame);
         }
 
@@ -228,7 +255,7 @@ impl TimelineRenderer {
 
         // Add to cache (if cache is full, remove oldest entry)
         if self.frame_cache.len() >= self.config.cache_size {
-            if let Some(oldest_time) = self.frame_cache.keys().min_by(|a, b| a.partial_cmp(b).unwrap()).cloned() {
+            if let Some(oldest_time) = self.frame_cache.keys().min_by(|a, b| a.0.partial_cmp(&b.0).unwrap()).cloned() {
                 self.frame_cache.remove(&oldest_time);
             }
         }

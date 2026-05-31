@@ -304,16 +304,20 @@ impl VideoDecoder {
                     let pixel_format = decoder.format();
 
 
-                    let frame_rate = match stream.avg_frame_rate() {
-                        (0, _) | (_, 0) => 30.0,
-                        (num, den) => num as f64 / den as f64,
-                    };
+                    let frame_rate = stream.avg_frame_rate()
+                        .map(|(num, den)| {
+                            if num == 0 || den == 0 {
+                                30.0
+                            } else {
+                                num as f64 / den as f64
+                            }
+                        })
+                        .unwrap_or(30.0);
 
 
                     let duration = match stream.duration() {
                         Some(d) => {
-                            let tb = stream.time_base();
-                            d as f64 * tb.0 as f64 / tb.1 as f64
+                            d.seconds() as f64
                         },
                         None => 0.0, // TODO: Get duration from format context when API is available
                     };
@@ -348,8 +352,7 @@ impl VideoDecoder {
 
                     let duration = match stream.duration() {
                         Some(d) => {
-                            let tb = stream.time_base();
-                            d as f64 * tb.0 as f64 / tb.1 as f64
+                            d.seconds() as f64
                         },
                         None => 0.0, // TODO: Get duration from format context when API is available
                     };
@@ -388,21 +391,24 @@ impl VideoDecoder {
                 .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
 
-            let video_decoder = codec_ctx.decoder().video()
-                .map_err(|e| VideoDecoderError::FFmpegLibError(e))?
-                .open()
+            // Get decoder properties before opening
+            let decoder = codec_ctx.decoder().video()
+                .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+            
+            let src_format = decoder.format();
+            let dst_format = self.config.output_format.to_ffmpeg_format();
+            let width = decoder.width();
+            let height = decoder.height();
+
+            // Now open the decoder for actual use
+            let video_decoder = decoder.open()
                 .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-            let src_format = video_decoder.format();
-            let dst_format = self.config.output_format.to_ffmpeg_format();
-
             if src_format != dst_format {
-                let width = video_decoder.width();
-                let height = video_decoder.height();
 
-                let sws_ctx = SwsContext::get(
-                    width, height, src_format,
-                    width, height, dst_format,
+                let sws_ctx = SwsContext::get_context(
+                    width as i32, height as i32, src_format,
+                    width as i32, height as i32, dst_format,
                     Flags::BILINEAR,
                 ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
@@ -564,9 +570,9 @@ impl VideoDecoder {
                     let width = decoded_frame.width();
                     let height = decoded_frame.height();
 
-                    let sws_ctx = SwsContext::get(
-                        width, height, src_format,
-                        width, height, dst_format,
+                    let sws_ctx = SwsContext::get_context(
+                        width as i32, height as i32, src_format,
+                        width as i32, height as i32, dst_format,
                         Flags::BILINEAR,
                     ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
@@ -603,21 +609,24 @@ impl VideoDecoder {
         codec_ctx.set_parameters(codec_params)
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-        let video_decoder = codec_ctx.decoder().video()
-            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?
-            .open()
+        // Get decoder properties before opening
+        let decoder = codec_ctx.decoder().video()
+            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+        
+        let src_format = decoder.format();
+        let dst_format = self.config.output_format.to_ffmpeg_format();
+        let width = decoder.width();
+        let height = decoder.height();
+
+        // Now open the decoder for actual use
+        let video_decoder = decoder.open()
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-        let src_format = video_decoder.format();
-        let dst_format = self.config.output_format.to_ffmpeg_format();
-
         if src_format != dst_format {
-            let width = video_decoder.width();
-            let height = video_decoder.height();
 
-            let sws_ctx = SwsContext::get(
-                width, height, src_format,
-                width, height, dst_format,
+            let sws_ctx = SwsContext::get_context(
+                width as i32, height as i32, src_format,
+                width as i32, height as i32, dst_format,
                 Flags::BILINEAR,
             ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
@@ -736,6 +745,32 @@ impl VideoDecoder {
 
     pub fn get_media_info(&self) -> Option<&MediaInfo> {
         self.media_info.as_ref()
+    }
+
+    pub fn seek(&mut self, time: f64) -> Result<(), VideoDecoderError> {
+        if !self.is_initialized {
+            return Err(VideoDecoderError::NotInitialized);
+        }
+
+        // Convert time to stream time base
+        if let (Some(format_ctx), Some(video_stream_index)) = (&self.format_context, &self.current_video_stream) {
+            if let Some(stream) = format_ctx.streams().nth(*video_stream_index as usize) {
+                let time_base = stream.time_base();
+                let target_pts = (time * time_base.1 as f64 / time_base.0 as f64) as i64;
+                
+                // Seek to the target position
+                format_ctx.seek(target_pts, ..)?;
+                self.current_position = time;
+                
+                // Reset frame cache
+                let mut state = self.state.lock().unwrap();
+                state.last_decoded_frame_pts = target_pts;
+                
+                return Ok(());
+            }
+        }
+        
+        Err(VideoDecoderError::DecodingError("No video stream available for seeking".to_string()))
     }
 }
 
