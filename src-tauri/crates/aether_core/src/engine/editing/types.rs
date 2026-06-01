@@ -56,6 +56,24 @@ impl From<gstreamer::glib::BoolError> for EditingError {
     }
 }
 
+impl From<gstreamer::StateChangeError> for EditingError {
+    fn from(err: gstreamer::StateChangeError) -> Self {
+        EditingError::GstreamerError(err.to_string())
+    }
+}
+
+impl From<gstreamer::FlowError> for EditingError {
+    fn from(err: gstreamer::FlowError) -> Self {
+        EditingError::GstreamerError(err.to_string())
+    }
+}
+
+impl From<anyhow::Error> for EditingError {
+    fn from(err: anyhow::Error) -> Self {
+        EditingError::ImportError(err.to_string())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MediaInfo {
 
