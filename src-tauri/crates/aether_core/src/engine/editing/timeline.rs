@@ -113,7 +113,7 @@ impl Timeline {
         let clip_id = format!("clip_{}", self.clips.len());
         let timeline_clip = TimelineClip {
             id: clip_id.clone(),
-            name: asset.get_id().to_string(),
+            name: asset.id().to_string(),
             ges_clip: clip,
             track_type,
             start_time,

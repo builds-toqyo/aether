@@ -317,7 +317,7 @@ impl GstExporter {
         let video_profile = gst_pbutils::EncodingVideoProfile::new(
             &video_caps,
             None,
-            gst::Caps::builder("video/x-raw").build(),
+            Some(&gst::Caps::builder("video/x-raw").build()),
             1,
         ).context("Failed to create video profile")?;
 
