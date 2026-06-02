@@ -438,11 +438,9 @@ impl BezierUtils {
     fn cubic_bezier_extrema(p0: f64, p1: f64, p2: f64, p3: f64) -> Vec<f64> {
         let mut extrema = Vec::new();
 
-
-        let a = 3.0 * (p3.0 - 3.0 * p2.0 + 3.0 * p1.0 - p0.0);
-        let b = 6.0 * (p2.0 - 2.0 * p1.0 + p0.0);
-        let c = 3.0 * (p1.0 - p0.0);
-
+        let a = 3.0 * (p3 - 3.0 * p2 + 3.0 * p1 - p0);
+        let b = 6.0 * (p2 - 2.0 * p1 + p0);
+        let c = 3.0 * (p1 - p0);
 
         if a.abs() > f64::EPSILON {
             let discriminant = b * b - 4.0 * a * c;

@@ -33,7 +33,7 @@ impl fmt::Display for BooleanOperation {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BooleanResult {
     /// Resulting path
-    pub path: Path,
+    pub path: PathBuf,
     /// Operation performed
     pub operation: BooleanOperation,
     /// Whether operation was successful
@@ -46,7 +46,7 @@ impl BooleanResult {
     /// Create successful result
     pub fn success(path: Path, operation: BooleanOperation) -> Self {
         Self {
-            path,
+            path: path.to_path_buf(),
             operation,
             success: true,
             error: None,
@@ -56,7 +56,7 @@ impl BooleanResult {
     /// Create failed result
     pub fn failure(operation: BooleanOperation, error: String) -> Self {
         Self {
-            path: Path::new(),
+            path: PathBuf::new(),
             operation,
             success: false,
             error: Some(error),

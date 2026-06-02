@@ -83,6 +83,8 @@ impl OutputNode {
             default_value: ParameterValue::String("raw".to_string()),
             min_value: None,
             max_value: None,
+            animatable: false,
+            description: Some("Output format (raw, jpeg, png, video)".to_string()),
         };
         node.add_parameter(format_param);
 
@@ -92,8 +94,10 @@ impl OutputNode {
             data_type: PinDataType::Integer,
             value: ParameterValue::Integer(95),
             default_value: ParameterValue::Integer(95),
-            min_value: Some(ParameterValue::Integer(1)),
-            max_value: Some(ParameterValue::Integer(100)),
+            min_value: Some(1.0),
+            max_value: Some(100.0),
+            animatable: false,
+            description: Some("JPEG quality (1-100)".to_string()),
         };
         node.add_parameter(jpeg_quality_param);
 
@@ -103,8 +107,10 @@ impl OutputNode {
             data_type: PinDataType::Integer,
             value: ParameterValue::Integer(6),
             default_value: ParameterValue::Integer(6),
-            min_value: Some(ParameterValue::Integer(0)),
-            max_value: Some(ParameterValue::Integer(9)),
+            min_value: Some(0.0),
+            max_value: Some(9.0),
+            animatable: false,
+            description: Some("PNG compression level (0-9)".to_string()),
         };
         node.add_parameter(png_compression_param);
 
@@ -114,8 +120,10 @@ impl OutputNode {
             data_type: PinDataType::Integer,
             value: ParameterValue::Integer(50),
             default_value: ParameterValue::Integer(50),
-            min_value: Some(ParameterValue::Integer(1)),
-            max_value: Some(ParameterValue::Integer(1000)),
+            min_value: Some(1.0),
+            max_value: Some(1000.0),
+            animatable: false,
+            description: Some("Video bitrate in Mbps".to_string()),
         };
         node.add_parameter(video_bitrate_param);
 
@@ -125,8 +133,10 @@ impl OutputNode {
             data_type: PinDataType::Integer,
             value: ParameterValue::Integer(8),
             default_value: ParameterValue::Integer(8),
-            min_value: Some(ParameterValue::Integer(8)),
-            max_value: Some(ParameterValue::Integer(32)),
+            min_value: Some(8.0),
+            max_value: Some(32.0),
+            animatable: false,
+            description: Some("Color depth in bits per channel".to_string()),
         };
         node.add_parameter(color_depth_param);
 
@@ -270,11 +280,7 @@ mod tests {
     fn test_is_active() {
         let node = OutputNode::create_standard("Test".to_string());
         let mut output_node = OutputNode::new(node);
-
-
         assert!(!output_node.is_active());
-
-
         output_node.set_output_format(OutputFormat::PngSequence);
         assert!(output_node.is_active());
 
@@ -283,7 +289,6 @@ mod tests {
 
         output_node.set_output_format(OutputFormat::ExrSequence);
         assert!(output_node.is_active());
-
 
         output_node.set_output_format(OutputFormat::Raw);
         assert!(!output_node.is_active());
@@ -294,7 +299,6 @@ mod tests {
         let node = OutputNode::create_standard("Test".to_string());
         let mut output_node = OutputNode::new(node);
 
-
         let mut settings = QualitySettings::default();
         settings.set_jpeg_quality(50);
         settings.set_png_compression(9);
@@ -303,9 +307,7 @@ mod tests {
 
         output_node.set_quality_settings(settings);
 
-
         output_node.reset_quality_settings();
-
 
         assert_eq!(output_node.get_quality_settings().jpeg_quality, 95);
         assert_eq!(output_node.get_quality_settings().png_compression, 6);
@@ -322,7 +324,6 @@ mod tests {
         assert_eq!(node.inputs.len(), 1);
         assert_eq!(node.outputs.len(), 1);
         assert!(node.inputs[0].required);
-
 
         let param_names: Vec<String> = node.parameters.iter()
             .map(|p| p.name.clone())
