@@ -1,7 +1,6 @@
 
 
 use serde::{Serialize, Deserialize};
-use std::collections::VecDeque;
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -572,7 +571,7 @@ impl VectorscopeConfig {
 }
 
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum VectorscopeTarget {
     Primary,
     SkinTones,

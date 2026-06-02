@@ -2,7 +2,6 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::collections::HashMap;
 
 use super::types::{TrackType, ParameterBinding, BindingType};
 use super::value::TrackValue;
