@@ -104,14 +104,16 @@ impl CharacterAnimation {
 
         self.current_time = time;
 
+        // Extract keyframes first to avoid borrowing issues
         let prev_keyframe = self.get_keyframe_at_or_before(time);
         let next_keyframe = self.get_keyframe_at_or_after(time);
 
         match (prev_keyframe, next_keyframe) {
             (Some(prev), Some(next)) => {
                 if prev.time == next.time {
-                    self.current_value = Some(prev.value.clone());
-                    return self.current_value.clone();
+                    let result = prev.value.clone();
+                    self.current_value = Some(result.clone());
+                    return Some(result);
                 }
 
                 let t = (time - prev.time) / (next.time - prev.time);
@@ -121,13 +123,15 @@ impl CharacterAnimation {
                 Some(interpolated_value)
             }
             (Some(prev), None) => {
-                self.current_value = Some(prev.value.clone());
-                Some(prev.value.clone())
+                let result = prev.value.clone();
+                self.current_value = Some(result.clone());
+                Some(result)
             }
             (None, Some(next)) => {
                 if time >= next.time {
-                    self.current_value = Some(next.value.clone());
-                    Some(next.value.clone())
+                    let result = next.value.clone();
+                    self.current_value = Some(result.clone());
+                    Some(result)
                 } else {
                     None
                 }
@@ -257,7 +261,7 @@ impl CharacterAnimation {
         Self {
             id: new_id,
             name: self.name.clone(),
-            animation_type: self.animation_type,
+            animation_type: self.animation_type.clone(),
             keyframes: self.keyframes.clone(),
             target_characters: self.target_characters.clone(),
             duration: self.duration,
@@ -327,7 +331,7 @@ impl TextAnimator {
         for animation in &self.animations {
             if animation.affects_character(char_index) {
                 if let Some(value) = animation.evaluate(self.global_time, char_index) {
-                    values.insert(animation.animation_type, value);
+                    values.insert(animation.animation_type.clone(), value);
                 }
             }
         }
