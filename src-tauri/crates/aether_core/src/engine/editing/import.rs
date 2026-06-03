@@ -278,7 +278,7 @@ impl MediaImporter {
             AudioStreamInfo {
                 index: i as i32,
                 sample_rate,
-                channels,
+                channels as i32,
                 codec_name: codec,
                 bit_depth: None,
             }
@@ -299,7 +299,7 @@ impl MediaImporter {
 
         Ok(MediaInfo {
             path: path_buf,
-            duration,
+            duration: duration as i64,
             title,
             media_type,
             video_streams,

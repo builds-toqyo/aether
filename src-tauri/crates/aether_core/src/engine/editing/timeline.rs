@@ -104,9 +104,9 @@ impl Timeline {
         let clip = clip.downcast::<ges::Clip>()
             .map_err(|_| EditingError::TimelineError("Failed to downcast to Clip".to_string()))?;
 
-        clip.set_start(start_time);
-        clip.set_duration(duration);
-        clip.set_inpoint(in_point);
+        clip.set_start(gst::ClockTime::from_nseconds(start_time as u64));
+        clip.set_duration(gst::ClockTime::from_nseconds(duration as u64));
+        clip.set_inpoint(gst::ClockTime::from_nseconds(in_point as u64));
 
         layer.add_clip(&clip)?;
 
@@ -136,7 +136,7 @@ impl Timeline {
         let clip = self.clips.get_mut(clip_id)
             .ok_or(EditingError::InvalidParameter(format!("Clip not found: {}", clip_id)))?;
 
-        clip.ges_clip.set_start(new_start_time);
+        clip.ges_clip.set_start(gst::ClockTime::from_nseconds(new_start_time as u64));
 
         clip.start_time = new_start_time;
 
@@ -152,7 +152,7 @@ impl Timeline {
         let clip = self.clips.get_mut(clip_id)
             .ok_or(EditingError::InvalidParameter(format!("Clip not found: {}", clip_id)))?;
 
-        clip.ges_clip.set_duration(new_duration);
+        clip.ges_clip.set_duration(gst::ClockTime::from_nseconds(new_duration as u64));
 
         clip.duration = new_duration;
 
@@ -173,7 +173,7 @@ impl Timeline {
 
         let relative_position = position - clip.start_time;
 
-        let (_, right_clip) = clip.ges_clip.split(relative_position)?;
+        let (_, right_clip) = clip.ges_clip.split(relative_position as u64)?;
         let right_clip = right_clip.downcast::<ges::Clip>()
             .map_err(|_| EditingError::TimelineError("Failed to downcast to Clip".to_string()))?;
 
