@@ -108,7 +108,7 @@ pub struct ClipRenderer {
 impl ClipRenderer {
     pub fn new(clip_id: String, source_path: String, in_point: f64, out_point: f64) -> Result<Self, TimelineRendererError> {
         let mut config = VideoDecoderConfig::default();
-        config.target_format = VideoFormat::RGBA;
+        config.output_format = VideoFormat::RGBA;
 
         let decoder = VideoDecoder::new(config);
 

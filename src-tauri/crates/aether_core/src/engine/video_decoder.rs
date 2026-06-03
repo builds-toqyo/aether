@@ -304,23 +304,20 @@ impl VideoDecoder {
                     let pixel_format = decoder.format();
 
 
-                    let frame_rate = stream.avg_frame_rate()
-                        .map(|(num, den)| {
-                            if num == 0 || den == 0 {
-                                30.0
-                            } else {
-                                num as f64 / den as f64
-                            }
-                        })
-                        .unwrap_or(30.0);
-
-
-                    let duration = match stream.duration() {
-                        Some(d) => {
-                            d.seconds() as f64
-                        },
-                        None => 0.0, // TODO: Get duration from format context when API is available
+                    let frame_rate = if let Some(rational) = stream.avg_frame_rate() {
+                        if rational.numerator() == 0 || rational.denominator() == 0 {
+                            30.0
+                        } else {
+                            rational.numerator() as f64 / rational.denominator() as f64
+                        }
+                    } else {
+                        30.0
                     };
+
+
+                    let duration = stream.duration()
+                        .map(|d| d.seconds() as f64)
+                        .unwrap_or(0.0);
 
 
                     let video_info = VideoStreamInfo {
@@ -350,12 +347,9 @@ impl VideoDecoder {
                         .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
 
-                    let duration = match stream.duration() {
-                        Some(d) => {
-                            d.seconds() as f64
-                        },
-                        None => 0.0, // TODO: Get duration from format context when API is available
-                    };
+                    let duration = stream.duration()
+                        .map(|d| d.seconds() as f64)
+                        .unwrap_or(0.0);
 
 
                     let audio_info = AudioStreamInfo {
@@ -415,7 +409,7 @@ impl VideoDecoder {
                 self.sws_context = Some(sws_ctx);
             }
 
-            self.video_codec_context = Some(video_decoder);
+            self.video_codec_context = Some(ffmpeg_next::decoder::Video(video_decoder));
             self.current_video_stream = video_stream_index;
         }
 
@@ -443,7 +437,7 @@ impl VideoDecoder {
                 .open()
                 .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-            self.audio_codec_context = Some(audio_decoder);
+            self.audio_codec_context = Some(ffmpeg_next::decoder::Audio(audio_decoder));
             self.current_audio_stream = audio_stream_index;
         }
 
@@ -452,7 +446,7 @@ impl VideoDecoder {
         let metadata = HashMap::new();
 
 
-        let format_name = "unknown"; // TODO: Get format name when API is available
+        let format_name = "unknown".to_string(); // TODO: Get format name when API is available
         let duration = 0.0; // TODO: Get duration from format context when API is available
 
         let media_info = MediaInfo {
@@ -633,7 +627,7 @@ impl VideoDecoder {
             self.sws_context = Some(sws_ctx);
         }
 
-        self.video_codec_context = Some(video_decoder);
+        self.video_codec_context = Some(ffmpeg_next::decoder::Video(video_decoder));
         self.current_video_stream = stream_index;
 
         Ok(())
@@ -689,7 +683,7 @@ impl VideoDecoder {
             .open()
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-        self.audio_codec_context = Some(audio_decoder);
+        self.audio_codec_context = Some(ffmpeg_next::decoder::Audio(audio_decoder));
         self.current_audio_stream = stream_index;
 
         Ok(())
