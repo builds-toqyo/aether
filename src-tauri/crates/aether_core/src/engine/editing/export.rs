@@ -181,7 +181,7 @@ impl IntermediateExporter {
 
         let progress = self.progress.clone();
         let callback = self.progress_callback.clone();
-        let timeline_duration = self.timeline.get_duration();
+        let timeline_duration = self.timeline.duration();
 
         let _timeout_id = glib::timeout_add_seconds(1, move || {
             if let Some(position) = pipeline.query_position::<gst::ClockTime>() {

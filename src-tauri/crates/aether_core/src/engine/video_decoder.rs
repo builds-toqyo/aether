@@ -304,14 +304,13 @@ impl VideoDecoder {
                     let pixel_format = decoder.format();
 
 
-                    let frame_rate = if let Some(rational) = stream.avg_frame_rate() {
+                    let frame_rate = {
+                        let rational = stream.avg_frame_rate();
                         if rational.numerator() == 0 || rational.denominator() == 0 {
                             30.0
                         } else {
                             rational.numerator() as f64 / rational.denominator() as f64
                         }
-                    } else {
-                        30.0
                     };
 
 
@@ -551,7 +550,6 @@ impl VideoDecoder {
         let src_format = decoded_frame.format();
         let dst_format = self.config.output_format.to_ffmpeg_format();
 
-
         let mut output_frame = frame::Video::empty();
         let mut buffer: Vec<u8>;
         let stride: u32;
@@ -576,7 +574,7 @@ impl VideoDecoder {
             };
         }
 
-        Ok(output_frame)
+        Ok(VideoFrame::from_ffmpeg_frame(output_frame))
     }
 
     pub fn select_video_stream(&mut self, stream_index: i32) -> Result<(), VideoDecoderError> {
@@ -747,20 +745,22 @@ impl VideoDecoder {
         }
 
         // Convert time to stream time base
-        if let (Some(format_ctx), Some(video_stream_index)) = (&self.format_context, &self.current_video_stream) {
-            if let Some(stream) = format_ctx.streams().nth(*video_stream_index as usize) {
-                let time_base = stream.time_base();
-                let target_pts = (time * time_base.1 as f64 / time_base.0 as f64) as i64;
-                
-                // Seek to the target position
-                format_ctx.seek(target_pts, ..)?;
-                self.current_position = time;
-                
-                // Reset frame cache
-                let mut state = self.state.lock().unwrap();
-                state.last_decoded_frame_pts = target_pts;
-                
-                return Ok(());
+        if let (Some(format_ctx), video_stream_index) = (&self.format_context, self.current_video_stream) {
+            if video_stream_index >= 0 {
+                if let Some(stream) = format_ctx.streams().nth(video_stream_index as usize) {
+                    let time_base = stream.time_base();
+                    let target_pts = (time * time_base.1 as f64 / time_base.0 as f64) as i64;
+                    
+                    // Seek to the target position
+                    format_ctx.seek(target_pts, ..)?;
+                    self.current_position = time;
+                    
+                    // Reset frame cache
+                    let mut state = self.state.lock().unwrap();
+                    state.last_decoded_frame_pts = target_pts;
+                    
+                    return Ok(());
+                }
             }
         }
         
