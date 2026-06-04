@@ -172,7 +172,7 @@ impl PreviewEngine {
 
 
         let (state_change, new_state, _) = pipeline.state(gst::ClockTime::from_seconds(1));
-        if state_change == gst::StateChangeReturn::Failure || new_state != gst::State::Playing {
+        if state_change.is_err() || new_state != gst::State::Playing {
             return Err(EditingError::PreviewError(format!("Failed to set pipeline to Playing state, current state: {:?}", new_state)));
         }
 
@@ -190,7 +190,7 @@ impl PreviewEngine {
 
 
         let (state_change, new_state, _) = pipeline.state(gst::ClockTime::from_seconds(1));
-        if state_change == gst::StateChangeReturn::Failure {
+        if state_change.is_err() {
             return Err(EditingError::PreviewError(format!("Failed to set pipeline to Paused state, current state: {:?}", new_state)));
         }
 

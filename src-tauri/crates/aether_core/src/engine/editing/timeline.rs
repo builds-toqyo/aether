@@ -173,7 +173,7 @@ impl Timeline {
 
         let relative_position = position - clip.start_time;
 
-        let (_, right_clip) = clip.ges_clip.split(relative_position as u64)?;
+        let right_clip = clip.ges_clip.split(relative_position as u64)?;
         let right_clip = right_clip.downcast::<ges::Clip>()
             .map_err(|_| EditingError::TimelineError("Failed to downcast to Clip".to_string()))?;
 

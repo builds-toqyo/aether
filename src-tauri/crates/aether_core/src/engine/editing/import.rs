@@ -342,7 +342,7 @@ impl MediaImporter {
 
         let uri = match filename_to_uri(path, None) {
             Ok(uri) => uri,
-            Err(_) => return Ok(false),
+            Err(_) => return Ok(()),
         };
 
         let timeout = 2 * gst::ClockTime::SECOND;
@@ -351,8 +351,8 @@ impl MediaImporter {
             .map_err(|e| EditingError::ImportError(e.to_string()))?;
 
         match discoverer.discover_uri(&uri) {
-            Ok(_) => Ok(true),
-            Err(_) => Ok(false),
+            Ok(_) => Ok(()),
+            Err(_) => Ok(()),
         }
     }
 

@@ -168,10 +168,9 @@ impl Exporter {
                 let width = codec_context.width();
                 let height = codec_context.height();
 
-                let frame_rate = if let Some(rate) = stream.avg_frame_rate() {
+                let frame_rate = {
+                    let rate = stream.avg_frame_rate();
                     rate.numerator() as f64 / rate.denominator() as f64
-                } else {
-                    25.0
                 };
 
                 let duration = stream.duration() as f64 * f64::from(stream.time_base());
