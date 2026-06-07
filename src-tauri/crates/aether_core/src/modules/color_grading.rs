@@ -320,7 +320,7 @@ impl ColorGradingEngine {
         let bus_watch_id = bus.add_watch(move |_, msg| {
             let pipeline = match weak_pipeline.upgrade() {
                 Some(pipeline) => pipeline,
-                None => return ControlFlow::Stop,
+                None => return ControlFlow::Break,
             };
 
             match msg.view() {
@@ -681,7 +681,6 @@ impl ColorGradingEngine {
         Ok(())
     }
 
-
     pub fn set_brightness(&mut self, value: f32) -> Result<()> {
         self.adjustments.brightness = value.clamp(-1.0, 1.0);
         if self.initialized {
@@ -736,6 +735,16 @@ impl ColorGradingEngine {
         Ok(())
     }
 
+    pub fn apply_adjustments(&mut self) -> Result<()> {
+        if self.initialized {
+            self.set_brightness(self.adjustments.brightness)?;
+            self.set_contrast(self.adjustments.contrast)?;
+            self.set_saturation(self.adjustments.saturation)?;
+            self.set_gamma(self.adjustments.gamma)?;
+            self.set_hue(self.adjustments.hue)?;
+        }
+        Ok(())
+    }
 
     pub fn get_adjustments(&self) -> &ColorAdjustments {
         &self.adjustments
@@ -753,7 +762,6 @@ impl ColorGradingEngine {
         self.apply_adjustments()
     }
 
-
     pub fn create_preset(&mut self, name: &str) -> Result<()> {
         let preset = GradingPreset {
             name: name.to_string(),
@@ -769,7 +777,6 @@ impl ColorGradingEngine {
         Ok(())
     }
 
-
     pub fn apply_preset(&mut self, name: &str) -> Result<()> {
         let preset = self.presets.get(name).ok_or_else(|| {
             anyhow::anyhow!("Preset '{}' not found", name)
@@ -781,7 +788,6 @@ impl ColorGradingEngine {
         self.active_preset = Some(name.to_string());
 
         self.apply_adjustments()?;
-
 
         if let Some(lut) = &self.lut {
             self.apply_lut(lut)?;
@@ -942,16 +948,13 @@ impl ColorGradingEngine {
         Ok(())
     }
 
-
     fn has_continuous_scopes(&self) -> bool {
         self.scopes.values().any(|config| config.continuous_update)
     }
 
-
     fn setup_scope_update_timer(&mut self) -> Result<()> {
 
         self.remove_scope_update_timer();
-
 
         let min_interval = self.scopes.values()
             .filter(|config| config.continuous_update)
@@ -959,9 +962,7 @@ impl ColorGradingEngine {
             .min()
             .unwrap_or(100);
 
-
         let weak_self = Arc::downgrade(&Arc::new(Mutex::new(self)));
-
 
         let timeout_id = glib::timeout_add_local(std::time::Duration::from_millis(min_interval as u64), move || {
             if let Some(arc_self) = weak_self.upgrade() {
@@ -972,20 +973,18 @@ impl ColorGradingEngine {
                     return ControlFlow::Continue;
                 }
             }
-            ControlFlow::Stop
+            ControlFlow::Break
         });
 
         self.scope_update_timeout_id = Some(timeout_id);
         Ok(())
     }
 
-
     fn remove_scope_update_timer(&mut self) {
         if let Some(timeout_id) = self.scope_update_timeout_id.take() {
             timeout_id.remove();
         }
     }
-
 
     fn update_scopes(&mut self) -> Result<()> {
         if !self.initialized {
@@ -1001,12 +1000,9 @@ impl ColorGradingEngine {
         Ok(())
     }
 
-
     fn update_scope(&self, scope_type: ScopeType, config: &ScopeConfig) -> Result<ScopeData> {
 
-
         let mut histogram = vec![0u8; config.width as usize * 3];
-
 
         for i in 0..config.width as usize {
 
@@ -1122,7 +1118,6 @@ impl ColorGradingEngine {
         })
     }
 
-
     pub fn get_scope_data(&self, scope_type: ScopeType) -> Result<ScopeData> {
         let config = self.scopes.get(&scope_type).ok_or_else(|| {
             anyhow::anyhow!("Scope {:?} not configured", scope_type)
@@ -1131,16 +1126,13 @@ impl ColorGradingEngine {
         self.update_scope(scope_type, config)
     }
 
-
     pub fn get_configured_scopes(&self) -> Vec<ScopeType> {
         self.scopes.keys().copied().collect()
     }
 
-
     pub fn is_initialized(&self) -> bool {
         self.initialized
     }
-
 
     pub fn get_element(&self, name: &str) -> Option<&gst::Element> {
         self.elements.get(name)

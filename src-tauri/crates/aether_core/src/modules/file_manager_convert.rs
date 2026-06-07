@@ -200,17 +200,15 @@ impl MediaConverter {
             std::fs::create_dir_all(parent)?;
         }
 
-
-        let pipeline_str = self.build_image_pipeline_string(input_path, output_path, &options)?;
-        debug!("Image conversion pipeline: {}", pipeline_str);
-
+        // TODO: Need to implement audio pipeline string builder
+        // let pipeline_str = self.build_audio_pipeline_string(input_path, output_path, &options)?;
+        // debug!("Audio conversion pipeline: {}", pipeline_str);
 
         // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
         return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
 
         Ok(())
     }
-
 
     fn build_video_pipeline_string(
         &self,

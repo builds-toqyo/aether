@@ -55,9 +55,9 @@ pub trait NodeExecutor {
         Ok(())
     }
 
-    fn get_inputs(&self) -> &[Uuid];
+    fn get_inputs(&self) -> Vec<Uuid>;
 
-    fn get_outputs(&self) -> &[Uuid];
+    fn get_outputs(&self) -> Vec<Uuid>;
 
     fn can_execute(&self, context: &ExecutionContext) -> bool {
         true
@@ -277,12 +277,12 @@ impl NodeExecutor for DummyNode {
         NodeType::Custom("dummy".to_string())
     }
 
-    fn get_inputs(&self) -> &[Uuid] {
-        &[]
+    fn get_inputs(&self) -> Vec<Uuid> {
+        vec![]
     }
 
-    fn get_outputs(&self) -> &[Uuid] {
-        &[]
+    fn get_outputs(&self) -> Vec<Uuid> {
+        vec![]
     }
 }
 
@@ -317,16 +317,12 @@ mod tests {
     fn test_node_registry() {
         let mut registry = NodeRegistry::new();
 
-
         assert!(registry.create_node(&NodeType::Input).is_err());
-
 
         registry.register_node_type(NodeType::Input, || Box::new(DummyNode));
 
-
         let node = registry.create_node(&NodeType::Input);
         assert!(node.is_ok());
-
 
         let types = registry.get_node_types();
         assert!(types.contains(&NodeType::Input));
@@ -336,10 +332,8 @@ mod tests {
     fn test_node_manager() {
         let mut manager = NodeManager::new();
 
-
         assert_eq!(manager.node_count(), 0);
         assert!(manager.get_node(&Uuid::new_v4()).is_none());
-
 
         assert!(manager.validate_all().is_ok());
     }

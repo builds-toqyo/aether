@@ -32,21 +32,13 @@ impl AudioDecoder {
         }
 
 
-        let path_cstring = CString::new(media_path).unwrap_or_else(|_| CString::new("default.wav").unwrap());
-        let mut input_format_context = match format::Input::open(&path_cstring) {
+        let mut input_format_context = match format::input(media_path) {
             Ok(context) => context,
             Err(e) => {
                 error!("Failed to open audio file: {}", e);
                 return Uuid::new_v4();
             }
         };
-
-
-        if let Err(e) = input_format_context.find_stream_info(None) {
-            error!("Failed to find audio stream info: {}", e);
-            return Uuid::new_v4();
-        }
-
 
         let input_stream = match input_format_context.streams().best(media::Type::Audio) {
             Some(stream) => stream,

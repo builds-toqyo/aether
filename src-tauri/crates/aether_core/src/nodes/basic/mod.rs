@@ -23,12 +23,12 @@ impl BasicNodeFactory {
 
     pub fn create_basic_node(node_type: NodeType, node: Node) -> crate::nodes::NodeResult<Box<dyn NodeExecutor + Send + Sync>> {
         match node_type {
-            NodeType::Input => Ok(InputNode::new(node)),
-            NodeType::Output => Ok(OutputNode::new(node)),
-            NodeType::Merge => Ok(MergeNode::new(node)),
-            NodeType::Transform => Ok(TransformNode::new(node)),
-            NodeType::ColorCorrection => Ok(ColorCorrectionNode::new(node)),
-            NodeType::Blur => Ok(BlurNode::new(node)),
+            NodeType::Input => Ok(Box::new(InputNode::new(node))),
+            NodeType::Output => Ok(Box::new(OutputNode::new(node))),
+            NodeType::Merge => Ok(Box::new(MergeNode::new(node))),
+            NodeType::Transform => Ok(Box::new(TransformNode::new(node))),
+            NodeType::ColorCorrection => Ok(Box::new(ColorCorrectionNode::new(node))),
+            NodeType::Blur => Ok(Box::new(BlurNode::new(node))),
             _ => Err(crate::nodes::NodeError::ExecutionFailed(format!("Unsupported basic node type: {:?}", node_type))),
         }
     }

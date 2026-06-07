@@ -4,7 +4,6 @@ use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, Output
 use uuid::Uuid;
 use log::debug;
 
-
 pub struct ColorCorrectionNode {
     node: Node,
     parameters: ColorCorrectionParams,
@@ -27,116 +26,95 @@ impl ColorCorrectionNode {
         }
     }
 
-
     pub fn set_brightness(&mut self, brightness: f32) {
         self.parameters.brightness = brightness.clamp(-1.0, 1.0);
         self.update_processor();
     }
 
-
     pub fn get_brightness(&self) -> f32 {
         self.parameters.brightness
     }
-
 
     pub fn set_contrast(&mut self, contrast: f32) {
         self.parameters.contrast = contrast.clamp(0.0, 2.0);
         self.update_processor();
     }
 
-
     pub fn get_contrast(&self) -> f32 {
         self.parameters.contrast
     }
-
 
     pub fn set_saturation(&mut self, saturation: f32) {
         self.parameters.saturation = saturation.clamp(0.0, 2.0);
         self.update_processor();
     }
 
-
     pub fn get_saturation(&self) -> f32 {
         self.parameters.saturation
     }
-
 
     pub fn set_gamma(&mut self, gamma: f32) {
         self.parameters.gamma = gamma.clamp(0.1, 3.0);
         self.update_processor();
     }
 
-
     pub fn get_gamma(&self) -> f32 {
         self.parameters.gamma
     }
-
 
     pub fn set_temperature(&mut self, temperature: f32) {
         self.parameters.temperature = temperature.clamp(2000.0, 12000.0);
         self.update_processor();
     }
 
-
     pub fn get_temperature(&self) -> f32 {
         self.parameters.temperature
     }
-
 
     pub fn set_tint(&mut self, tint: f32) {
         self.parameters.tint = tint.clamp(-100.0, 100.0);
         self.update_processor();
     }
 
-
     pub fn get_tint(&self) -> f32 {
         self.parameters.tint
     }
-
 
     pub fn set_hue(&mut self, hue: f32) {
         self.parameters.hue = hue.clamp(-180.0, 180.0);
         self.update_processor();
     }
 
-
     pub fn get_hue(&self) -> f32 {
         self.parameters.hue
     }
-
 
     pub fn set_lift(&mut self, lift: f32) {
         self.parameters.lift = lift.clamp(-1.0, 1.0);
         self.update_processor();
     }
 
-
     pub fn get_lift(&self) -> f32 {
         self.parameters.lift
     }
-
 
     pub fn set_gamma_gain(&mut self, gamma_gain: f32) {
         self.parameters.gamma_gain = gamma_gain.clamp(0.1, 3.0);
         self.update_processor();
     }
 
-
     pub fn get_gamma_gain(&self) -> f32 {
         self.parameters.gamma_gain
     }
-
 
     pub fn set_gain(&mut self, gain: f32) {
         self.parameters.gain = gain.clamp(0.0, 2.0);
         self.update_processor();
     }
 
-
     pub fn get_gain(&self) -> f32 {
         self.parameters.gain
     }
-
 
     pub fn set_parameters(&mut self, params: ColorCorrectionParams) {
         self.parameters = params;
@@ -144,33 +122,25 @@ impl ColorCorrectionNode {
         self.update_processor();
     }
 
-
     pub fn get_parameters(&self) -> &ColorCorrectionParams {
         &self.parameters
     }
-
 
     fn update_processor(&mut self) {
         self.processor.set_parameters(self.parameters.clone());
     }
 
-
     pub fn process_image_texture(&mut self, input_id: Uuid, corrected_id: Uuid) -> Result<Uuid, String> {
 
         let texture_info = self.gpu_ops.bind_texture(input_id)?;
 
-
         let raw_data = self.gpu_ops.read_pixel_data(&texture_info);
-
 
         let rgb_data = self.gpu_ops.convert_to_rgb_float(&raw_data, &texture_info);
 
-
         let corrected_image = self.processor.apply_corrections(&rgb_data, corrected_id);
 
-
         let corrected_raw_data = self.gpu_ops.convert_from_rgb_float(&corrected_image.data, &texture_info);
-
 
         self.gpu_ops.upload_corrected_texture(corrected_id, &corrected_raw_data, &texture_info)?;
 
@@ -211,8 +181,10 @@ impl ColorCorrectionNode {
             data_type: PinDataType::Float,
             value: ParameterValue::Float(0.0),
             default_value: ParameterValue::Float(0.0),
-            min_value: Some(ParameterValue::Float(-1.0)),
-            max_value: Some(ParameterValue::Float(1.0)),
+            min_value: Some(-1.0),
+            max_value: Some(1.0),
+            animatable: true,
+            description: Some("Brightness adjustment".to_string()),
         };
         node.add_parameter(brightness_param);
 
@@ -222,8 +194,10 @@ impl ColorCorrectionNode {
             data_type: PinDataType::Float,
             value: ParameterValue::Float(1.0),
             default_value: ParameterValue::Float(1.0),
-            min_value: Some(ParameterValue::Float(0.0)),
-            max_value: Some(ParameterValue::Float(2.0)),
+            min_value: Some(0.0),
+            max_value: Some(2.0),
+            animatable: true,
+            description: Some("Contrast adjustment".to_string()),
         };
         node.add_parameter(contrast_param);
 
@@ -233,8 +207,10 @@ impl ColorCorrectionNode {
             data_type: PinDataType::Float,
             value: ParameterValue::Float(1.0),
             default_value: ParameterValue::Float(1.0),
-            min_value: Some(ParameterValue::Float(0.0)),
-            max_value: Some(ParameterValue::Float(2.0)),
+            min_value: Some(0.0),
+            max_value: Some(2.0),
+            animatable: true,
+            description: Some("Saturation adjustment".to_string()),
         };
         node.add_parameter(saturation_param);
 
@@ -244,8 +220,10 @@ impl ColorCorrectionNode {
             data_type: PinDataType::Float,
             value: ParameterValue::Float(1.0),
             default_value: ParameterValue::Float(1.0),
-            min_value: Some(ParameterValue::Float(0.1)),
-            max_value: Some(ParameterValue::Float(3.0)),
+            min_value: Some(0.1),
+            max_value: Some(3.0),
+            animatable: true,
+            description: Some("Gamma correction".to_string()),
         };
         node.add_parameter(gamma_param);
 
@@ -277,7 +255,7 @@ impl ColorCorrectionNode {
 impl NodeExecutor for ColorCorrectionNode {
     fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
 
-        let input_value = self.node.get_input_value("input", context);
+        let input_value = self.node.get_input_value("input").unwrap_or(ParameterValue::None);
 
         match input_value {
             ParameterValue::Image(input_id) => {
@@ -285,9 +263,7 @@ impl NodeExecutor for ColorCorrectionNode {
                     self.parameters.brightness, self.parameters.contrast, self.parameters.saturation, self.parameters.gamma,
                     self.parameters.temperature, self.parameters.tint, self.parameters.hue, self.parameters.lift, self.parameters.gamma_gain, self.parameters.gain);
 
-
                 let corrected_id = Uuid::new_v4();
-
 
                 match self.process_image_texture(input_id, corrected_id) {
                     Ok(_) => {
@@ -313,12 +289,12 @@ impl NodeExecutor for ColorCorrectionNode {
         NodeType::ColorCorrection
     }
 
-    fn get_inputs(&self) -> &[Uuid] {
-        &self.node.inputs
+    fn get_inputs(&self) -> Vec<Uuid> {
+        self.node.inputs.iter().map(|pin| pin.id).collect()
     }
 
-    fn get_outputs(&self) -> &[Uuid] {
-        &self.node.outputs
+    fn get_outputs(&self) -> Vec<Uuid> {
+        self.node.outputs.iter().map(|pin| pin.id).collect()
     }
 
 }
