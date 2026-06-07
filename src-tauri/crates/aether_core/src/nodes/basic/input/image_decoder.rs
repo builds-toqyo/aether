@@ -90,26 +90,26 @@ impl ImageDecoder {
         ffmpeg::init().map_err(|e| format!("Failed to initialize FFmpeg: {}", e))?;
 
         let source_format = match decoded_frame.format.as_str() {
-            "rgb24" => scaling::Flags::RGB24,
-            "bgr24" => scaling::Flags::BGR24,
-            "rgba" => scaling::Flags::RGBA,
-            "bgra" => scaling::Flags::BGRA,
-            "rgb48be" => scaling::Flags::RGB48,
-            "bgr48be" => scaling::Flags::BGR48,
-            "rgba64be" => scaling::Flags::RGBA64,
-            "bgra64be" => scaling::Flags::BGRA64,
-            _ => scaling::Flags::RGB24,
+            "rgb24" => format::Pixel::RGB24,
+            "bgr24" => format::Pixel::BGR24,
+            "rgba" => format::Pixel::RGBA,
+            "bgra" => format::Pixel::BGRA,
+            "rgb48be" => format::Pixel::RGB48BE,
+            "bgr48be" => format::Pixel::BGR48BE,
+            "rgba64be" => format::Pixel::RGBA64BE,
+            "bgra64be" => format::Pixel::BGRA64BE,
+            _ => format::Pixel::RGB24,
         };
 
-        let target_format = scaling::Flags::RGB24;
+        let target_format = format::Pixel::RGB24;
 
-        let mut scaler = scaling::Context::get_context(
-            decoded_frame.width as i32,
-            decoded_frame.height as i32,
+        let mut scaler = scaling::Context::get(
             source_format,
-            decoded_frame.width as i32,
-            decoded_frame.height as i32,
+            decoded_frame.width as u32,
+            decoded_frame.height as u32,
             target_format,
+            decoded_frame.width as u32,
+            decoded_frame.height as u32,
             scaling::Flags::BILINEAR,
         ).map_err(|e| format!("Failed to create scaling context: {}", e))?;
 
