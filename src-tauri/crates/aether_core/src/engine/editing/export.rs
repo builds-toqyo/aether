@@ -129,7 +129,7 @@ impl IntermediateExporter {
         pipeline.add_many(&[&encodebin, &filesink])?;
         gst::Element::link_many(&[&encodebin, &filesink])?;
 
-        let ges_pipeline = ges::Pipeline::new()?;
+        let ges_pipeline = ges::Pipeline::new();
         ges_pipeline.set_timeline(&self.timeline)?;
 
         let src_pad = ges_pipeline.get_video_pad()?;

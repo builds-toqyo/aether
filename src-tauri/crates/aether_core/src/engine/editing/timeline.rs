@@ -47,7 +47,7 @@ impl Timeline {
         let timeline = self.ges_timeline.as_ref()
             .ok_or(EditingError::NotInitialized)?;
 
-        let track = ges::VideoTrack::new()?;
+        let track = ges::VideoTrack::new();
         timeline.add_track(&track)?;
 
         let track_id = format!("video_{}", self.video_tracks.len());
@@ -67,7 +67,7 @@ impl Timeline {
         let timeline = self.ges_timeline.as_ref()
             .ok_or(EditingError::NotInitialized)?;
 
-        let track = ges::AudioTrack::new()?;
+        let track = ges::AudioTrack::new();
         timeline.add_track(&track)?;
 
         let track_id = format!("audio_{}", self.audio_tracks.len());
@@ -93,7 +93,7 @@ impl Timeline {
             .ok_or(EditingError::NotInitialized)?;
 
         let layer = if timeline.layers().is_empty() {
-            timeline.append_layer()?  
+            timeline.append_layer()  
         } else {
             timeline.layer(0).ok_or(EditingError::TimelineError("No layers available".to_string()))?
         };
