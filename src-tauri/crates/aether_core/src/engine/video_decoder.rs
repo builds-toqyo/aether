@@ -399,9 +399,9 @@ impl VideoDecoder {
 
             if src_format != dst_format {
 
-                let sws_ctx = SwsContext::get_context(
-                    width as i32, height as i32, src_format,
-                    width as i32, height as i32, dst_format,
+                let sws_ctx = SwsContext::get(
+                    src_format, width as u32, height as u32,
+                    dst_format, width as u32, height as u32,
                     Flags::BILINEAR,
                 ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
@@ -562,9 +562,9 @@ impl VideoDecoder {
                     let width = decoded_frame.width();
                     let height = decoded_frame.height();
 
-                    let sws_ctx = SwsContext::get_context(
-                        width as i32, height as i32, src_format,
-                        width as i32, height as i32, dst_format,
+                    let sws_ctx = SwsContext::get(
+                        src_format, width as u32, height as u32,
+                        dst_format, width as u32, height as u32,
                         Flags::BILINEAR,
                     ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
@@ -616,9 +616,9 @@ impl VideoDecoder {
 
         if src_format != dst_format {
 
-            let sws_ctx = SwsContext::get_context(
-                width as i32, height as i32, src_format,
-                width as i32, height as i32, dst_format,
+            let sws_ctx = SwsContext::get(
+                src_format, width as u32, height as u32,
+                dst_format, width as u32, height as u32,
                 Flags::BILINEAR,
             ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 

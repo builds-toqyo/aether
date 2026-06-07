@@ -39,8 +39,8 @@ impl HdrAnalyzer {
     }
 
     pub fn analyze_content(hdr_image: &super::types::HdrImage) -> HdrAnalysis {
-        let mut max_nits = 0.0;
-        let mut avg_nits = 0.0;
+        let mut max_nits: f32 = 0.0;
+        let mut avg_nits: f32 = 0.0;
         let mut pixel_count = 0u64;
 
         for pixel in &hdr_image.data {
@@ -71,7 +71,7 @@ impl HdrAnalyzer {
 
 
         let mut min_luma = f32::MAX;
-        let mut max_luma = 0.0;
+        let mut max_luma: f32 = 0.0;
         let mut highlight_pixels = 0u64;
         let mut shadow_pixels = 0u64;
 

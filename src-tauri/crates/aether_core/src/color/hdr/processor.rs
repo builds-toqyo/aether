@@ -128,8 +128,8 @@ impl HdrProcessor {
     pub fn analyze_hdr_content(&self, hdr_image: &HdrImage) -> Result<super::analysis::HdrAnalysis> {
         debug!("Analyzing HDR content");
 
-        let mut max_nits = 0.0;
-        let mut avg_nits = 0.0;
+        let mut max_nits: f32 = 0.0;
+        let mut avg_nits: f32 = 0.0;
         let mut pixel_count = 0u64;
 
         for pixel in &hdr_image.data {
