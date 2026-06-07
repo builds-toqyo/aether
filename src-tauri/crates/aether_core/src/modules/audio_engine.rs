@@ -403,7 +403,7 @@ impl AudioTrack {
         let next_element = if index < self.effects.len() - 1 {
             &self.effects[index + 1]
         } else {
-            audio_bin.by_name(&format!("resample-{}", self.id)).unwrap()
+            &audio_bin.by_name(&format!("resample-{}", self.id)).unwrap()
         };
 
 

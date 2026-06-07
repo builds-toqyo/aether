@@ -84,7 +84,7 @@ pub struct ExportProgress {
 pub struct GstExporter {
     options: ExportOptions,
 
-    pipeline: Option<ges::Pipeline>,
+    pipeline: Option<ges::Context>,
 
     main_loop: Option<MainLoop>,
 
@@ -342,7 +342,7 @@ impl GstExporter {
         let audio_profile = gst_pbutils::EncodingAudioProfile::new(
             &audio_caps,
             None,
-            gst::Caps::builder("audio/x-raw").build(),
+            Some(&gst::Caps::builder("audio/x-raw").build()),
             1,
         ).context("Failed to create audio profile")?;
 
