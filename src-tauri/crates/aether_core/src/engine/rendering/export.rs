@@ -395,7 +395,7 @@ impl Exporter {
                                     out_stream.time_base(),
                                 );
 
-                                output_context.write_packet(&out_packet)?;
+                                out_packet.write_interleaved(&mut output_context)?;
                             }
 
                             frame_count += 1;
@@ -460,7 +460,6 @@ impl Exporter {
                                         }
                                     };
 
-
                                     if let Err(e) = encoder.send_frame(&audio_encoded) {
                                         let error_msg = format!("Audio encoding error: {}", e);
                                         Self::update_progress_with_error(&progress, &callback, &error_msg);
@@ -477,17 +476,14 @@ impl Exporter {
                                             out_stream.time_base(),
                                         );
 
-
-                                        if let Err(e) = output_context.write_packet(&out_packet) {
+                                        if let Err(e) = out_packet.write_interleaved(&mut output_context) {
                                             let error_msg = format!("Error writing audio packet: {}", e);
                                             Self::update_progress_with_error(&progress, &callback, &error_msg);
                                             return Err(EditingError::ExportError(error_msg));
                                         }
 
-
                                         packet_result = encoder.receive_packet(&mut out_packet);
                                     }
-
 
                                     audio_frame_result = audio_decoder.receive_frame(&mut audio_decoded);
                                 }
@@ -512,7 +508,7 @@ impl Exporter {
                         out_stream.time_base(),
                     );
 
-                    output_context.write_packet(&out_packet)?;
+                    out_packet.write_interleaved(&mut output_context)?;
                 }
 
                 if let Some(audio_stream_out) = audio_stream_index_out {
@@ -530,7 +526,7 @@ impl Exporter {
                             out_stream.time_base(),
                         );
 
-                        output_context.write_packet(&out_packet)?;
+                        out_packet.write_interleaved(&mut output_context)?;
                     }
                 }
             }

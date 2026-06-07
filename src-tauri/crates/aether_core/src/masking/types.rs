@@ -216,7 +216,7 @@ impl MaskProperties {
         self.update_modified_time();
     }
 
-    fn update_modified_time(&mut self) {
+    pub fn update_modified_time(&mut self) {
         self.modified_at = chrono::Utc::now().to_rfc3339();
     }
 

@@ -119,6 +119,10 @@ pub struct AudioTrack {
     peak_levels: (f64, f64),
 
     level_watch_id: Option<glib::SourceId>,
+
+    devices: Vec<AudioDevice>,
+
+    initialized: bool,
 }
 
 impl AudioTrack {
@@ -140,9 +144,15 @@ impl AudioTrack {
             effects: Vec::new(),
             peak_levels: (0.0, 0.0),
             level_watch_id: None,
+            devices: Vec::new(),
+            initialized: false,
         }
     }
 
+    fn initialize(&mut self) -> Result<(), EditingError> {
+        self.initialized = true;
+        Ok(())
+    }
 
     pub fn play(&mut self) -> Result<(), EditingError> {
         if self.pipeline.is_none() {
@@ -153,36 +163,33 @@ impl AudioTrack {
             pipeline.set_state(gst::State::Playing)
                 .map_err(|_| EditingError::AudioError("Failed to set pipeline to playing state".to_string()))?;
 
-            self.state = PlaybackState::Playing;
+            self.playback_state = PlaybackState::Playing;
         }
 
         Ok(())
     }
-
 
     pub fn pause(&mut self) -> Result<(), EditingError> {
         if let Some(pipeline) = &self.pipeline {
             pipeline.set_state(gst::State::Paused)
                 .map_err(|_| EditingError::AudioError("Failed to set pipeline to paused state".to_string()))?;
 
-            self.state = PlaybackState::Paused;
+            self.playback_state = PlaybackState::Paused;
         }
 
         Ok(())
     }
-
 
     pub fn stop(&mut self) -> Result<(), EditingError> {
         if let Some(pipeline) = &self.pipeline {
             pipeline.set_state(gst::State::Ready)
                 .map_err(|_| EditingError::AudioError("Failed to set pipeline to ready state".to_string()))?;
 
-            self.state = PlaybackState::Stopped;
+            self.playback_state = PlaybackState::Stopped;
         }
 
         Ok(())
     }
-
 
     pub fn set_volume(&mut self, volume: f64) -> Result<(), EditingError> {
         let volume = volume.max(0.0).min(1.0);
@@ -195,7 +202,6 @@ impl AudioTrack {
         Ok(())
     }
 
-
     pub fn set_pan(&mut self, pan: f64) -> Result<(), EditingError> {
         let pan = pan.max(-1.0).min(1.0);
         self.pan_position = pan;
@@ -206,7 +212,6 @@ impl AudioTrack {
 
         Ok(())
     }
-
 
     pub fn set_mute(&mut self, mute: bool) -> Result<(), EditingError> {
         self.muted = mute;

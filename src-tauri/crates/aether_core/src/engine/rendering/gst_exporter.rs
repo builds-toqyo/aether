@@ -260,7 +260,7 @@ impl GstExporter {
 
                 ControlFlow::Continue
             } else {
-            ControlFlow::Stop
+            ControlFlow::Break
             }
         });
 

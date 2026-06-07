@@ -68,6 +68,12 @@ impl From<gstreamer::FlowError> for EditingError {
     }
 }
 
+impl From<ffmpeg_next::Error> for EditingError {
+    fn from(err: ffmpeg_next::Error) -> Self {
+        EditingError::ExportError(err.to_string())
+    }
+}
+
 impl From<anyhow::Error> for EditingError {
     fn from(err: anyhow::Error) -> Self {
         EditingError::ImportError(err.to_string())
