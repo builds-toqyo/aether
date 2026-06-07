@@ -66,6 +66,18 @@ impl AnimationInterpolator {
         }
     }
 
+    fn keyframe_to_track_value(&self, keyframe: &KeyframeData) -> TrackValue {
+        match keyframe {
+            KeyframeData::Float(k) => TrackValue::Float(k.value),
+            KeyframeData::Vector2(k) => TrackValue::Vector2(k.value),
+            KeyframeData::Vector3(k) => TrackValue::Vector3(k.value),
+            KeyframeData::Vector4(k) => TrackValue::Vector4(k.value),
+            KeyframeData::Color(k) => TrackValue::Color(k.value),
+            KeyframeData::Transform(k) => TrackValue::Vector3(k.value.position),
+            KeyframeData::Boolean(k) => TrackValue::Boolean(k.value),
+            KeyframeData::String(k) => TrackValue::String(k.value.clone()),
+        }
+    }
 
     pub fn interpolate_at_time(
         &mut self,
@@ -73,7 +85,6 @@ impl AnimationInterpolator {
         time: f64,
     ) -> InterpolationResult {
         self.stats.total_interpolations += 1;
-
 
         let cache_key = format!("{:.6}_{}", time, keyframes.len());
         if let Some(cached) = self.cache.get(&cache_key) {
@@ -83,7 +94,6 @@ impl AnimationInterpolator {
 
         self.stats.cache_misses += 1;
 
-
         let result = if keyframes.is_empty() {
             InterpolationResult::failure(time)
         } else if keyframes.len() == 1 {
@@ -92,8 +102,8 @@ impl AnimationInterpolator {
             InterpolationResult::success(
                 self.keyframe_to_track_value(keyframe),
                 time,
-                keyframe.interpolation(),
-                keyframe.easing(),
+                keyframe.interpolation,
+                keyframe.easing,
             )
         } else {
 
@@ -107,8 +117,8 @@ impl AnimationInterpolator {
                         InterpolationResult::success(
                             self.keyframe_to_track_value(prev),
                             time,
-                            prev.interpolation(),
-                            prev.easing(),
+                            prev.interpolation,
+                            prev.easing,
                         )
                     } else {
 
@@ -120,8 +130,8 @@ impl AnimationInterpolator {
                     InterpolationResult::success(
                         self.keyframe_to_track_value(prev),
                         time,
-                        prev.interpolation(),
-                        prev.easing(),
+                        prev.interpolation,
+                        prev.easing,
                     )
                 }
                 (None, Some(next)) => {
@@ -129,14 +139,13 @@ impl AnimationInterpolator {
                     InterpolationResult::success(
                         self.keyframe_to_track_value(next),
                         time,
-                        next.interpolation(),
-                        next.easing(),
+                        next.interpolation,
+                        next.easing,
                     )
                 }
                 (None, None) => InterpolationResult::failure(time),
             }
         };
-
 
         if self.cache.len() >= self.max_cache_size {
 
@@ -153,7 +162,6 @@ impl AnimationInterpolator {
         result
     }
 
-
     fn interpolate_between_keyframes(
         &self,
         prev_keyframe: &KeyframeData,
@@ -162,9 +170,8 @@ impl AnimationInterpolator {
     ) -> InterpolationResult {
         let prev_time = prev_keyframe.time();
         let next_time = next_keyframe.time();
-        let interpolation_method = prev_keyframe.interpolation();
-        let easing_function = prev_keyframe.easing();
-
+        let interpolation_method = prev_keyframe.interpolation;
+        let easing_function = prev_keyframe.easing;
 
         let t = (time - prev_time) / (next_time - prev_time);
         let curve_t = self.apply_easing(t, easing_function);
@@ -199,7 +206,6 @@ impl AnimationInterpolator {
 
         result
     }
-
 
     pub fn clear_cache(&mut self) {
         self.cache.clear();
@@ -246,7 +252,6 @@ impl InterpolationStats {
         }
     }
 
-
     pub fn cache_miss_ratio(&self) -> f64 {
         if self.total_interpolations == 0 {
             0.0
@@ -255,7 +260,6 @@ impl InterpolationStats {
         }
     }
 }
-
 
 pub struct BatchInterpolator;
 
@@ -276,7 +280,6 @@ impl BatchInterpolator {
         results
     }
 
-
     pub fn interpolate_track_at_times(
         interpolator: &mut AnimationInterpolator,
         keyframes: &[KeyframeData],
@@ -286,7 +289,6 @@ impl BatchInterpolator {
             .map(|&time| interpolator.interpolate_at_time(keyframes, time))
             .collect()
     }
-
 
     pub fn interpolate_tracks_at_times(
         interpolator: &mut AnimationInterpolator,
