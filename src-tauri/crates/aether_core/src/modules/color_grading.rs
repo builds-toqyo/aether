@@ -260,7 +260,7 @@ pub struct ColorGradingEngine {
 
     scope_update_timeout_id: Option<glib::SourceId>,
 
-    bus_watch: Option<glib::SourceId>,
+    bus_watch: Option<gst::BusWatchGuard>,
 }
 
 impl ColorGradingEngine {
@@ -834,7 +834,7 @@ impl ColorGradingEngine {
         self.lut = Some(lut_settings.clone());
 
         if self.initialized {
-            self.apply_lut(&lut_settings)?;
+            self.apply_lut(&lut_settings);
         }
     }
 
