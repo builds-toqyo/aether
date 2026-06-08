@@ -56,9 +56,10 @@ impl CoreNodes {
 
     pub fn register_core_nodes(registry: &mut crate::nodes::NodeRegistry) {
         for node_type in Self::get_supported_types() {
-            registry.register_node_type(node_type, || {
-                let node = aether_types::Node::new(node_type.clone(), "Core Node".to_string());
-                Self::create_node_by_type(node_type.clone(), node).unwrap()
+            let node_type_clone = node_type.clone();
+            registry.register_node_type(node_type, move || {
+                let node = aether_types::Node::new(node_type_clone.clone(), "Core Node".to_string());
+                Self::create_node_by_type(node_type_clone.clone(), node).unwrap()
             });
         }
     }

@@ -179,8 +179,14 @@ impl TypographyControls {
         word.len() as f64 * self.font_size * 0.5
     }
 
-    pub fn layout_text(&self, _text: &str, _width: f64) -> Vec<(f64, f64, f64, f64)> {
-        Vec::new()
+    pub fn layout_text(&self, _text: &str, _width: f64) -> TextLayout {
+        TextLayout {
+            lines: Vec::new(),
+            width: 0.0,
+            height: 0.0,
+            baselines: Vec::new(),
+            metrics: FontMetrics::default(),
+        }
     }
 }
 

@@ -75,7 +75,7 @@ impl VectorscopeProcessor {
 
 
     pub fn add_uv_point(&mut self, u: f32, v: f32, intensity: u16) {
-        let mut data = self.data.write().map_err(|e| anyhow!("Data lock error: {}", e))?;
+        let mut data = self.data.write().expect("Data lock error");
         data.add_point(u, v, intensity);
     }
 
@@ -137,6 +137,6 @@ impl VectorscopeProcessor {
 
 impl Default for VectorscopeProcessor {
     fn default() -> Self {
-        Self::new(VectorscopeConfig::default()).unwrap()
+        Self::new(VectorscopeConfig::new(aether_types::color::scopes::ScopeResolution::Medium)).unwrap()
     }
 }

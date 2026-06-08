@@ -76,7 +76,11 @@ impl Polygon {
     }
 
     pub fn remove_vertex(&mut self, index: usize) -> Option<(f64, f64)> {
-        self.vertices.remove(index)
+        if index < self.vertices.len() {
+            Some(self.vertices.remove(index))
+        } else {
+            None
+        }
     }
 
     pub fn is_valid(&self) -> bool {
@@ -93,7 +97,7 @@ impl Polygon {
         }
 
         let n = self.vertices.len();
-        let mut sign = 0;
+        let mut sign = 0.0;
 
         for i in 0..n {
             let p1 = self.vertices[i];
@@ -103,8 +107,8 @@ impl Polygon {
             let cross = (p2.0 - p1.0) * (p3.1 - p2.1) - (p2.1 - p1.1) * (p3.0 - p2.0);
 
             if cross != 0.0 {
-                if sign == 0 {
-                    sign = if cross > 0.0 { 1 } else { -1 };
+                if sign == 0.0 {
+                    sign = if cross > 0.0 { 1.0 } else { -1.0 };
                 } else if cross.signum() != sign {
                     return false;
                 }

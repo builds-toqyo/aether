@@ -189,23 +189,21 @@ impl BezierCurve {
         (left, right)
     }
 
-
     pub fn subdivide_quadratic_bezier(
         t: f64,
         p0: (f64, f64),
         p1: (f64, f64),
         p2: (f64, f64),
-    ) -> (((f64, f64), (f64, f64)), ((f64, f64), (f64, f64))) {
+    ) -> (((f64, f64), (f64, f64), (f64, f64)), ((f64, f64), (f64, f64), (f64, f64))) {
         let p01 = ((p0.0 + p1.0) / 2.0, (p0.1 + p1.1) / 2.0);
         let p12 = ((p1.0 + p2.0) / 2.0, (p1.1 + p2.1) / 2.0);
         let p012 = ((p01.0 + p12.0) / 2.0, (p01.1 + p12.1) / 2.0);
 
-        let left = (p0, p01);
-        let right = (p012, p2);
+        let left = (p0, p01, p012);
+        let right = (p012, p12, p2);
 
         (left, right)
     }
-
 
     pub fn cubic_bezier_closest_point(
         point: (f64, f64),
