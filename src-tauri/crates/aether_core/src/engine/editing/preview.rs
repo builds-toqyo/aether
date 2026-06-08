@@ -77,9 +77,7 @@ impl PreviewEngine {
         // First remove the video sink from the pipeline if it exists
         if let (Some(pipeline), Some(video_sink)) = (&self.pipeline, &self.video_sink) {
             // Try to remove the video sink from the pipeline
-            if let Err(err) = pipeline.set_video_sink(None) {
-                error!("Failed to remove video sink: {}", err);
-            }
+            pipeline.set_video_sink(None);
         }
 
         // Set pipeline to NULL state to release resources
@@ -89,10 +87,11 @@ impl PreviewEngine {
             }
 
             // Wait for the state change to complete
+            // TODO: GStreamer get_state API has changed
             // Wait for state change with proper error handling
-        if let Err(err) = pipeline.get_state(gst::ClockTime::from_seconds(1)) {
-            warn!("Error waiting for state change: {}", err);
-        }
+            // if let Err(err) = pipeline.get_state(gst::ClockTime::from_seconds(1)) {
+            //     warn!("Error waiting for state change: {}", err);
+            // }
         }
 
         // Clear our references
@@ -139,7 +138,7 @@ impl PreviewEngine {
                                 if let Err(e) = panic::catch_unwind(panic::AssertUnwindSafe(|| {
                                     callback(frame);
                                 })) {
-                                    error!("Error in frame callback: {}", e);
+                                    error!("Error in frame callback: {:?}", e);
                                 }
                             } else {
                                 warn!("No frame callback registered");

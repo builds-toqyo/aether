@@ -368,6 +368,7 @@ impl Exporter {
                             encoded.set_pts(Some(frame_count as i64));
 
                             let out_stream = output_context.stream(0).unwrap();
+                            let out_time_base = out_stream.time_base();
                             let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
                             let mut encoder = out_codec_context.encoder().video()?;
 
@@ -378,7 +379,7 @@ impl Exporter {
                                 out_packet.set_stream(0);
                                 out_packet.rescale_ts(
                                     encoder.time_base(),
-                                    out_stream.time_base(),
+                                    out_time_base,
                                 );
 
                                 out_packet.write_interleaved(&mut output_context)?;
@@ -436,6 +437,7 @@ impl Exporter {
                                     }
 
                                     let out_stream = output_context.stream(audio_stream_out).unwrap();
+                                    let out_time_base = out_stream.time_base();
                                     let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
                                     let mut encoder = match out_codec_context.encoder().audio() {
                                         Ok(enc) => enc,
@@ -459,7 +461,7 @@ impl Exporter {
                                         out_packet.set_stream(audio_stream_out);
                                         out_packet.rescale_ts(
                                             encoder.time_base(),
-                                            out_stream.time_base(),
+                                            out_time_base,
                                         );
 
                                         if let Err(e) = out_packet.write_interleaved(&mut output_context) {

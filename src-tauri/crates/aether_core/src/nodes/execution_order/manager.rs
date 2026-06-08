@@ -19,18 +19,15 @@ impl ExecutionOrderManager {
         }
     }
 
-
     pub fn get_execution_order(&mut self, graph: &Graph) -> NodeResult<Vec<Uuid>> {
         debug!("Getting execution order for graph with {} nodes", graph.nodes.len());
-
 
         if let Some(cached_order) = self.cache.get_cached_order(graph) {
             debug!("Using cached execution order");
             return Ok(cached_order);
         }
 
-
-        let order = self.calculator.calculate_order(graph)?;
+        let order = ExecutionOrderCalculator::calculate_order(graph)?;
 
         ExecutionOrderCalculator::validate_order(&order, graph)?;
 
@@ -44,7 +41,7 @@ impl ExecutionOrderManager {
     pub fn get_partial_execution_order(&mut self, graph: &Graph, start_nodes: &[Uuid]) -> NodeResult<Vec<Uuid>> {
         debug!("Getting partial execution order from {} start nodes", start_nodes.len());
 
-        let order = self.calculator.calculate_order_from_nodes(graph, start_nodes)?;
+        let order = ExecutionOrderCalculator::calculate_order_from_nodes(graph, start_nodes)?;
 
         ExecutionOrderCalculator::validate_order(&order, graph)?;
 
@@ -57,7 +54,6 @@ impl ExecutionOrderManager {
     pub fn force_recalculate(&mut self, graph: &Graph) -> NodeResult<Vec<Uuid>> {
         debug!("Force recalculating execution order");
         self.cache.invalidate_cache(graph);
-
 
         self.get_execution_order(graph)
     }
@@ -84,12 +80,12 @@ impl ExecutionOrderManager {
 
 
     pub fn get_node_dependencies(&self, graph: &Graph, node_id: Uuid) -> NodeResult<Vec<Uuid>> {
-        self.calculator.get_node_dependencies(graph, node_id)
+        ExecutionOrderCalculator::get_node_dependencies(graph, node_id)
     }
 
 
     pub fn get_node_dependents(&self, graph: &Graph, node_id: Uuid) -> NodeResult<Vec<Uuid>> {
-        self.calculator.get_node_dependents(graph, node_id)
+        ExecutionOrderCalculator::get_node_dependents(graph, node_id)
     }
 
 

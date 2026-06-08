@@ -87,7 +87,7 @@ impl OutputEncoders {
                 let metadata = OutputMetadata {
                     frame_number: frame,
                     format: OutputFormat::PngSequence,
-                    output_path: Some(file_path),
+                    output_path: Some(file_path.clone()),
                     file_size: Some(png_data.len()),
                     encoding_time: None,
                     quality_settings: self.quality_settings.clone(),
@@ -123,7 +123,7 @@ impl OutputEncoders {
                 let metadata = OutputMetadata {
                     frame_number: frame,
                     format: OutputFormat::JpegSequence,
-                    output_path: Some(file_path),
+                    output_path: Some(file_path.clone()),
                     file_size: Some(jpeg_data.len()),
                     encoding_time: None,
                     quality_settings: self.quality_settings.clone(),
@@ -226,7 +226,7 @@ impl OutputEncoders {
                 let metadata = OutputMetadata {
                     frame_number: frame,
                     format: OutputFormat::ExrSequence,
-                    output_path: Some(file_path),
+                    output_path: Some(file_path.clone()),
                     file_size: Some(exr_data.len()),
                     encoding_time: None,
                     quality_settings: self.quality_settings.clone(),

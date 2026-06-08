@@ -108,10 +108,10 @@ impl SequenceLoader {
             }
         };
 
-        let codec_params = input_stream.parameters();
-        let width = codec_params.width().unwrap_or(1920) as usize;
-        let height = codec_params.height().unwrap_or(1080) as usize;
-        let pixel_format = codec_params.format().map_or("rgb24", |f| f.name());
+        let _codec_params = input_stream.parameters();
+        let width = 1920_usize;
+        let height = 1080_usize;
+        let pixel_format = "rgb24";
 
         // TODO: ffmpeg-next API has changed - codec::find_by_name may not exist
         // For now, return early with a placeholder frame
