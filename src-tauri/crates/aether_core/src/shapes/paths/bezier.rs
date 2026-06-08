@@ -81,7 +81,6 @@ impl BezierCurve {
         }
     }
 
-
     pub fn quadratic_bezier_normal(
         t: f64,
         p0: (f64, f64),
@@ -97,7 +96,6 @@ impl BezierCurve {
             (0.0, 1.0)
         }
     }
-
 
     pub fn cubic_bezier_curvature(
         t: f64,
@@ -197,13 +195,13 @@ impl BezierCurve {
         p0: (f64, f64),
         p1: (f64, f64),
         p2: (f64, f64),
-    ) -> ((f64, f64, f64, f64), (f64, f64, f64, f64)) {
+    ) -> (((f64, f64), (f64, f64)), ((f64, f64), (f64, f64))) {
         let p01 = ((p0.0 + p1.0) / 2.0, (p0.1 + p1.1) / 2.0);
         let p12 = ((p1.0 + p2.0) / 2.0, (p1.1 + p2.1) / 2.0);
         let p012 = ((p01.0 + p12.0) / 2.0, (p01.1 + p12.1) / 2.0);
 
-        let left = (p0.0, p0.1, p01.0, p01.1);
-        let right = (p012.0, p012.1, p2.0, p2.1);
+        let left = (p0, p01);
+        let right = (p012, p2);
 
         (left, right)
     }
@@ -287,8 +285,8 @@ impl BezierCurve {
 
                 let (left, right) = Self::subdivide_cubic_bezier(0.5, cp0, cp1, cp2, cp3);
 
-                stack.push((right.0, right.2, right.4, right.6, mid_t, t1));
-                stack.push((left.0, left.2, left.4, left.6, t0, mid_t));
+                stack.push((right.0, right.1, right.2, right.3, mid_t, t1));
+                stack.push((left.0, left.1, left.2, left.3, t0, mid_t));
             }
         }
 
@@ -322,8 +320,8 @@ impl BezierCurve {
 
                 let (left, right) = Self::subdivide_quadratic_bezier(0.5, cp0, cp1, cp2);
 
-                stack.push((right.0, right.2, mid_t, t1));
-                stack.push((left.0, left.2, left.3, t0, mid_t));
+                stack.push((right.0, right.1, mid_t, t1));
+                stack.push((left.0, left.1, t0, mid_t));
             }
         }
 

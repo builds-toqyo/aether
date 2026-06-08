@@ -1,11 +1,8 @@
-
-
 use anyhow::{Result};
 use log::debug;
 use image::{Rgb, RgbImage};
 
 use crate::types::{VectorscopeData, VectorscopeConfig};
-
 
 pub struct VectorscopeRenderer {
     intensity_colors: Vec<Rgb<u8>>,
@@ -16,14 +13,12 @@ impl VectorscopeRenderer {
     pub fn new() -> Self {
         let mut intensity_colors = Vec::new();
 
-
         for i in 0..1000 {
             intensity_colors.push(Self::intensity_to_color(i));
         }
 
         Self { intensity_colors }
     }
-
 
     pub fn generate_image(
         &self,

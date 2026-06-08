@@ -1,8 +1,5 @@
-
-
 use serde::{Deserialize, Serialize};
 use std::fmt;
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum PathSegmentType {
@@ -16,11 +13,11 @@ pub enum PathSegmentType {
 impl fmt::Display for PathSegmentType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PathSegmentType::MoveTo => write!(f, __STRING_0__),
-            PathSegmentType::LineTo => write!(f, __STRING_1__),
-            PathSegmentType::QuadraticTo => write!(f, __STRING_2__),
-            PathSegmentType::CubicTo => write!(f, __STRING_3__),
-            PathSegmentType::Close => write!(f, __STRING_4__),
+            PathSegmentType::MoveTo => write!(f, "MoveTo"),
+            PathSegmentType::LineTo => write!(f, "LineTo"),
+            PathSegmentType::QuadraticTo => write!(f, "QuadraticTo"),
+            PathSegmentType::CubicTo => write!(f, "CubicTo"),
+            PathSegmentType::Close => write!(f, "Close"),
         }
     }
 }

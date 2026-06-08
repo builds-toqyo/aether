@@ -143,11 +143,7 @@ impl Exporter {
                 }
             };
 
-            if let Err(e) = input_context.dump() {
-                let error_msg = format!("Failed to read stream information: {}", e);
-                Self::update_progress_with_error(&progress, &callback, &error_msg);
-                return Err(EditingError::ExportError(error_msg));
-            }
+            ffmpeg::format::context::input::Input::dump(&input_context, 0, None);
 
             let (video_stream_index, audio_stream_index) = {
                 let video_stream = input_context.streams()
@@ -164,9 +160,10 @@ impl Exporter {
             let (width, height, frame_rate, total_frames, duration) = if let Some(stream_index) = video_stream_index {
                 let stream = input_context.stream(stream_index).unwrap();
                 let codec_context = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
+                let decoder = codec_context.decoder().video()?;
 
-                let width = codec_context.width();
-                let height = codec_context.height();
+                let width = decoder.width();
+                let height = decoder.height();
 
                 let frame_rate = {
                     let rate = stream.avg_frame_rate();
@@ -204,7 +201,6 @@ impl Exporter {
             };
 
             let format_name = options.container_format.to_ffmpeg_name();
-            output_context.set_format(format_name);
 
             let video_codec_name = options.video_format.to_ffmpeg_name();
             let video_codec = ffmpeg::encoder::find_by_name(video_codec_name)
@@ -267,14 +263,12 @@ impl Exporter {
 
                 {
                     let input_stream = input_context.stream(audio_index).unwrap();
-                    let input_codec_context = ffmpeg::codec::context::Context::from_parameters(input_stream.parameters())?;
-                    let input_codec_par = input_codec_context.parameters();
+                    let input_codec_par = input_stream.parameters();
 
                     let mut context = ffmpeg::codec::context::Context::new_with_codec(audio_codec);
                     let mut audio = context.encoder().audio()?;
 
                     audio.set_rate(input_codec_par.rate() as i32);
-                    audio.set_channels(input_codec_par.channels() as i32);
                     audio.set_channel_layout(input_codec_par.channel_layout());
                     audio.set_format(ffmpeg::format::sample::Sample::F32(ffmpeg::format::sample::Type::Planar));
 
@@ -324,16 +318,16 @@ impl Exporter {
 
             let mut resampler = if let Some(ref audio_decoder) = audio_decoder {
                 let out_stream = output_context.stream(audio_stream_index_out.unwrap()).unwrap();
-                let out_codec = out_stream.codec();
-                let out_codec_context = out_codec.encoder().audio()?;
+                let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
+                let out_codec = out_codec_context.encoder().audio()?;
 
                 Some(ffmpeg::software::resampling::context::Context::get(
                     audio_decoder.format(),
                     audio_decoder.channel_layout(),
                     audio_decoder.rate(),
                     ffmpeg::format::sample::Sample::F32(ffmpeg::format::sample::Type::Planar),
-                    out_codec_context.channel_layout(),
-                    out_codec_context.rate(),
+                    out_codec.channel_layout(),
+                    out_codec.rate(),
                 )?)
             } else {
                 None
@@ -357,7 +351,7 @@ impl Exporter {
 
             let mut frame_count = 0;
 
-            while let Ok(true) = input_context.read(&mut packet) {
+            for (stream, packet) in input_context.packets() {
                 if *cancel_flag.lock().unwrap() {
                     let error_msg = "Export cancelled".to_string();
                     Self::update_progress_with_error(&progress, &callback, &error_msg);
@@ -365,7 +359,7 @@ impl Exporter {
                 }
 
                 if let Some(stream_index) = video_stream_index {
-                    if packet.stream() == stream_index {
+                    if stream.index() == stream_index {
                         video_decoder.send_packet(&packet)?;
 
                         while video_decoder.receive_frame(&mut decoded).is_ok() {
@@ -386,8 +380,8 @@ impl Exporter {
                             encoded.set_pts(Some(frame_count as i64));
 
                             let out_stream = output_context.stream(0).unwrap();
-                            let mut out_codec = out_stream.codec();
-                            let mut encoder = out_codec.encoder().video()?;
+                            let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
+                            let mut encoder = out_codec_context.encoder().video()?;
 
                             encoder.send_frame(&encoded)?;
 
@@ -419,7 +413,7 @@ impl Exporter {
 
                 if let Some(audio_index) = audio_stream_index {
                     if let Some(audio_stream_out) = audio_stream_index_out {
-                        if packet.stream() == audio_index {
+                        if stream.index() == audio_index {
                             if let Some(ref mut audio_decoder) = audio_decoder {
 
                                 if *cancel_flag.lock().unwrap() {
@@ -454,8 +448,8 @@ impl Exporter {
                                     }
 
                                     let out_stream = output_context.stream(audio_stream_out).unwrap();
-                                    let mut out_codec = out_stream.codec();
-                                    let mut encoder = match out_codec.encoder().audio() {
+                                    let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
+                                    let mut encoder = match out_codec_context.encoder().audio() {
                                         Ok(enc) => enc,
                                         Err(e) => {
                                             let error_msg = format!("Audio encoder error: {}", e);
@@ -499,8 +493,8 @@ impl Exporter {
 
             {
                 let out_stream = output_context.stream(0).unwrap();
-                let mut out_codec = out_stream.codec();
-                let mut encoder = out_codec.encoder().video()?;
+                let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
+                let mut encoder = out_codec_context.encoder().video()?;
 
                 encoder.send_eof()?;
 
@@ -517,8 +511,8 @@ impl Exporter {
 
                 if let Some(audio_stream_out) = audio_stream_index_out {
                     let out_stream = output_context.stream(audio_stream_out).unwrap();
-                    let mut out_codec = out_stream.codec();
-                    let mut encoder = out_codec.encoder().audio()?;
+                    let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
+                    let mut encoder = out_codec_context.encoder().audio()?;
 
                     encoder.send_eof()?;
 

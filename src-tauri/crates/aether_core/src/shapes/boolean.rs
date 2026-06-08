@@ -1,30 +1,23 @@
-
-
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use crate::shapes::primitives::{ShapePrimitive, BoundingBox};
 use crate::shapes::paths::{Path, PathBuilder};
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum BooleanOperation {
-
     Union,
-
     Subtract,
-
     Intersect,
-
     Xor,
 }
 
 impl fmt::Display for BooleanOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BooleanOperation::Union => write!(f, __STRING_0__),
-            BooleanOperation::Subtract => write!(f, __STRING_1__),
-            BooleanOperation::Intersect => write!(f, __STRING_2__),
-            BooleanOperation::Xor => write!(f, __STRING_3__),
+            BooleanOperation::Union => write!(f, "Union"),
+            BooleanOperation::Subtract => write!(f, "Subtract"),
+            BooleanOperation::Intersect => write!(f, "Intersect"),
+            BooleanOperation::Xor => write!(f, "Xor"),
         }
     }
 }
@@ -32,13 +25,9 @@ impl fmt::Display for BooleanOperation {
 /// Result of boolean operation
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BooleanResult {
-    /// Resulting path
     pub path: PathBuf,
-    /// Operation performed
     pub operation: BooleanOperation,
-    /// Whether operation was successful
     pub success: bool,
-    /// Error message if failed
     pub error: Option<String>,
 }
 
@@ -412,7 +401,7 @@ impl AdvancedBoolean {
             let result = ShapeBoolean::operate_paths(&current_path, &shape_path, current_operation);
 
             if !result.success {
-                return Err(format!(__STRING_7__, i, result.error));
+                return Err(format!("Boolean operation failed on shape {}: {}", i, result.error));
             }
 
             current_path = result.path;
