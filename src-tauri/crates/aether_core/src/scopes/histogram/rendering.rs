@@ -68,7 +68,7 @@ impl HistogramRenderer {
 
 
             for y in (height - red_height)..height {
-                if let Some(pixel) = image.get_pixel_mut(x, y) {
+                { let pixel = image.get_pixel_mut(x, y);
                     let [r, g, b] = pixel.0;
                     *pixel = Rgb([255.min(r + 128), g, b]);
                 }
@@ -76,7 +76,7 @@ impl HistogramRenderer {
 
 
             for y in (height - green_height)..height {
-                if let Some(pixel) = image.get_pixel_mut(x, y) {
+                { let pixel = image.get_pixel_mut(x, y);
                     let [r, g, b] = pixel.0;
                     *pixel = Rgb([r, 255.min(g + 128), b]);
                 }
@@ -84,7 +84,7 @@ impl HistogramRenderer {
 
 
             for y in (height - blue_height)..height {
-                if let Some(pixel) = image.get_pixel_mut(x, y) {
+                { let pixel = image.get_pixel_mut(x, y);
                     let [r, g, b] = pixel.0;
                     *pixel = Rgb([r, g, 255.min(b + 128)]);
                 }
@@ -105,7 +105,7 @@ impl HistogramRenderer {
             let luma_height = (luma_norm[bin] as u32 * height / 256) as u32;
 
             for y in (height - luma_height)..height {
-                if let Some(pixel) = image.get_pixel_mut(x, y) {
+                { let pixel = image.get_pixel_mut(x, y);
                     *pixel = Rgb([200, 200, 200]);
                 }
             }
@@ -135,7 +135,8 @@ impl HistogramRenderer {
 
                 for y in (height - bin_height)..height {
                     let img_x = x_offset + x;
-                    if img_x < width && let Some(pixel) = image.get_pixel_mut(img_x, y) {
+                    if img_x < width {
+                        let pixel = image.get_pixel_mut(img_x, y);
                         *pixel = color;
                     }
                 }
@@ -166,7 +167,8 @@ impl HistogramRenderer {
 
                 for y in 0..bin_height {
                     let img_y = y_offset + (channel_height - y);
-                    if img_y < height && let Some(pixel) = image.get_pixel_mut(x, img_y) {
+                    if img_y < height {
+                        let pixel = image.get_pixel_mut(x, img_y);
                         *pixel = color;
                     }
                 }
@@ -183,7 +185,7 @@ impl HistogramRenderer {
 
         for x in (0..width.min(256)).step_by(32) {
             for y in 0..height {
-                if let Some(pixel) = image.get_pixel_mut(x, y) {
+                { let pixel = image.get_pixel_mut(x, y);
                     let [r, g, b] = pixel.0;
                     *pixel = Rgb([r/2, g/2, b/2]);
                 }
@@ -194,7 +196,7 @@ impl HistogramRenderer {
         for y_percent in [25, 50, 75] {
             let y = height * (100 - y_percent) / 100;
             for x in 0..width {
-                if let Some(pixel) = image.get_pixel_mut(x, y) {
+                { let pixel = image.get_pixel_mut(x, y);
                     let [r, g, b] = pixel.0;
                     *pixel = Rgb([r/2, g/2, b/2]);
                 }

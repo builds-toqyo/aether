@@ -25,7 +25,7 @@ impl fmt::Display for BooleanOperation {
 /// Result of boolean operation
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BooleanResult {
-    pub path: PathBuf,
+    pub path: Path,
     pub operation: BooleanOperation,
     pub success: bool,
     pub error: Option<String>,
@@ -35,7 +35,7 @@ impl BooleanResult {
     /// Create successful result
     pub fn success(path: Path, operation: BooleanOperation) -> Self {
         Self {
-            path: path.to_path_buf(),
+            path: path.clone(),
             operation,
             success: true,
             error: None,
@@ -45,7 +45,7 @@ impl BooleanResult {
     /// Create failed result
     pub fn failure(operation: BooleanOperation, error: String) -> Self {
         Self {
-            path: PathBuf::new(),
+            path: Path::default(),
             operation,
             success: false,
             error: Some(error),
@@ -176,7 +176,7 @@ impl ShapeBoolean {
 
     /// Convert path to polygon (sample points)
     fn path_to_polygon(path: &Path) -> Vec<(f64, f64)> {
-        let mut vertices = Vec::new();
+        let mut vertices: Vec<(f64, f64)> = Vec::new();
 
         // Sample points along path
         let samples = if path.segments.len() > 10 {
@@ -401,7 +401,7 @@ impl AdvancedBoolean {
             let result = ShapeBoolean::operate_paths(&current_path, &shape_path, current_operation);
 
             if !result.success {
-                return Err(format!("Boolean operation failed on shape {}: {}", i, result.error));
+                return Err(format!("Boolean operation failed on shape {}: {}", i, result.error.as_deref().unwrap_or("unknown error")));
             }
 
             current_path = result.path;
