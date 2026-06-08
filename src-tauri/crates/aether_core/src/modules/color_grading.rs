@@ -846,8 +846,9 @@ impl ColorGradingEngine {
         self.lut = Some(lut_settings.clone());
 
         if self.initialized {
-            self.apply_lut(&lut_settings);
+            self.apply_lut(&lut_settings)?;
         }
+        Ok(())
     }
 
 
@@ -954,7 +955,8 @@ impl ColorGradingEngine {
             update_interval_ms: 100,
         };
 
-        self.configure_scope(scope_type, config)
+        self.scopes.insert(scope_type, config);
+        Ok(())
     }
 
 

@@ -93,7 +93,7 @@ pub struct GstExporter {
 
     progress_callback: Option<ExportCallback>,
 
-    bus_watch_id: Option<SourceId>,
+    bus_watch_id: Option<gst::BusWatchGuard>,
 
     timeout_id: Option<SourceId>,
 
@@ -137,9 +137,6 @@ impl GstExporter {
         *self.cancel_flag.lock().unwrap() = false;
 
         let pipeline = ges::Pipeline::new();
-
-        pipeline.set_timeline(&self.options.timeline)
-            .context("Failed to set timeline on pipeline")?;
 
         let duration = self.options.timeline.duration();
         let duration_nanos = duration.nseconds();
@@ -240,7 +237,7 @@ impl GstExporter {
 
         let timeout_id = glib::timeout_add_seconds(1, move || {
             if let Some(pipeline) = pipeline_weak.upgrade() {
-                if let Ok(position) = pipeline.query_position::<gst::ClockTime>() {
+                if let Some(position) = pipeline.query_position::<gst::ClockTime>() {
                     let position_seconds = position.nseconds() as f64 / gst::ClockTime::SECOND.nseconds() as f64;
                     let duration_seconds = progress_clone.lock().unwrap().total_duration;
 
@@ -322,8 +319,8 @@ impl GstExporter {
         let container_profile = gst_pbutils::EncodingContainerProfile::builder(&container_caps)
             .name("container")
             .description("Container profile")
-            .add_profile(video_profile.upcast_ref())
-            .add_profile(audio_profile.upcast_ref())
+            .add_profile(&video_profile)
+            .add_profile(&audio_profile)
             .build();
 
         Ok(container_profile.upcast())

@@ -56,18 +56,18 @@ impl HistogramAnalyzer {
         analysis.midtone_percentage = (midtone_samples as f32 / total_samples as f32) * 100.0;
         analysis.highlight_percentage = (highlight_samples as f32 / total_samples as f32) * 100.0;
 
-        analysis.black_clipped = luma_data[0] > total_samples / 1000;
-        analysis.white_clipped = luma_data[255] > total_samples / 1000;
+        analysis.black_clipped = (luma_data[0] as u64) > total_samples / 1000;
+        analysis.white_clipped = (luma_data[255] as u64) > total_samples / 1000;
 
-        let mut min_bin = 255;
-        let mut max_bin = 0;
+        let mut min_bin = 255usize;
+        let mut max_bin = 0usize;
         for (bin, &count) in luma_data.iter().enumerate() {
             if count > 0 {
                 min_bin = min_bin.min(bin);
                 max_bin = max_bin.max(bin);
             }
         }
-        analysis.dynamic_range = max_bin - min_bin;
+        analysis.dynamic_range = (max_bin - min_bin) as u8;
 
         Ok(analysis)
     }

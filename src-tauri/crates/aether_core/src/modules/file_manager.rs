@@ -203,7 +203,7 @@ impl FileManager {
         fs::create_dir_all(output_dir)?;
 
 
-        let pipeline_str = format!(
+        let _pipeline_str = format!(
             "filesrc location=\"{}\" ! decodebin ! videorate ! video/x-raw,framerate={}/1 ! \
              videoconvert ! jpegenc quality=90 ! multifilesink location=\"{}/frame-%04d.jpg\"",
             video_path.to_str().unwrap(),
@@ -213,21 +213,7 @@ impl FileManager {
 
         // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
         return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
-
-        let mut frame_paths = Vec::new();
-        for entry in fs::read_dir(output_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "jpg") {
-                frame_paths.push(path);
-            }
-        }
-
-        frame_paths.sort();
-
-        Ok(frame_paths)
     }
-
 
     pub fn cleanup(&self) -> Result<()> {
 
@@ -242,7 +228,6 @@ impl FileManager {
         Ok(())
     }
 
-
     fn determine_media_type(&self, path: &Path) -> MediaType {
         if let Some(extension) = path.extension() {
             let ext = extension.to_string_lossy().to_lowercase();
@@ -252,11 +237,9 @@ impl FileManager {
                 return MediaType::Video;
             }
 
-
             if ["mp3", "wav", "ogg", "flac", "aac", "m4a"].contains(&ext.as_str()) {
                 return MediaType::Audio;
             }
-
 
             if ["jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff"].contains(&ext.as_str()) {
                 return MediaType::Image;
@@ -266,22 +249,18 @@ impl FileManager {
         MediaType::Unknown
     }
 
-
     fn extract_media_info_gstreamer(&self, path: &Path, info: &mut MediaInfo) -> Result<()> {
 
         let timeout = 5 * gst::ClockTime::SECOND;
         let discoverer = gst_pbutils::Discoverer::new(timeout)
             .map_err(|_| anyhow!("Failed to create GStreamer discoverer"))?;
 
-
         let uri = format!("file://{}", path.to_str().unwrap());
         let discover_info = discoverer.discover_uri(&uri)
             .map_err(|err| anyhow!("Failed to discover media info: {}", err))?;
 
-
-        let duration = discover_info.duration();
-        if duration != gst::ClockTime::NONE {
-            info.duration = Some(duration.seconds() as f64 + (duration.nanoseconds() as f64 / 1_000_000_000.0));
+        if let Some(duration) = discover_info.duration() {
+            info.duration = Some(duration.seconds() as f64 + (duration.nseconds() as f64 / 1_000_000_000.0));
         }
 
 
@@ -290,10 +269,8 @@ impl FileManager {
             info.height = Some(video_info.height());
 
 
-            let fps_num = video_info.framerate_num();
-            let fps_denom = video_info.framerate_denom();
-            if fps_denom > 0 {
-                info.frame_rate = Some(fps_num as f64 / fps_denom as f64);
+            if let Some(framerate) = video_info.framerate() {
+                info.frame_rate = Some(framerate.numer() as f64 / framerate.denom() as f64);
             }
 
 
@@ -319,11 +296,10 @@ impl FileManager {
             }
         }
 
-
         for tag_list in discover_info.tags() {
-            for tag in tag_list.iter() {
-                if let Some(value) = tag_list.get::<gst::tags::TagValue>(tag) {
-                    info.metadata.insert(tag.to_string(), value.get().to_string());
+            for (tag, value) in tag_list.iter() {
+                if let Ok(serialized) = value.serialize() {
+                    info.metadata.insert(tag.to_string(), serialized.to_string());
                 }
             }
         }
@@ -331,19 +307,15 @@ impl FileManager {
         Ok(())
     }
 
-
-    fn extract_image_info(&self, path: &Path, info: &mut MediaInfo) -> Result<()> {
-        let pipeline_str = format!(
+    fn extract_image_info(&self, path: &Path, _info: &mut MediaInfo) -> Result<()> {
+        let _pipeline_str = format!(
             "filesrc location=\"{}\" ! decodebin ! imagefreeze ! fakesink",
             path.to_str().unwrap()
         );
 
         // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
         return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
-
-        Ok(())
     }
-
 
     fn generate_video_thumbnail(&self, path: &Path, options: &ThumbnailOptions) -> Result<PathBuf> {
 
@@ -356,9 +328,8 @@ impl FileManager {
             options.position.unwrap_or(0.0)
         ));
 
-
-        let position_ns = (options.position.unwrap_or(0.0) * 1_000_000_000.0) as i64;
-        let pipeline_str = format!(
+        let _position_ns = (options.position.unwrap_or(0.0) * 1_000_000_000.0) as i64;
+        let _pipeline_str = format!(
             "filesrc location=\"{}\" ! decodebin ! videoconvert ! videoscale ! \
              video/x-raw,width={},height={} ! jpegenc quality={} ! filesink location=\"{}\"",
             options.width,
@@ -369,10 +340,7 @@ impl FileManager {
 
         // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
         return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
-
-        Ok(thumbnail_path)
     }
-
 
     fn generate_audio_thumbnail(&self, path: &Path, options: &ThumbnailOptions) -> Result<PathBuf> {
 
@@ -384,20 +352,17 @@ impl FileManager {
             options.height
         ));
 
-
-        let pipeline_str = format!(
+        let _pipeline_str = format!(
             "filesrc location=\"{}\" ! decodebin ! audioconvert ! \
              audiowaveform wave-mode=lines style=lines fill=true background-color=0x000000ff \
              foreground-color=0x00FF00FF scale-digitized=true ! \
-             pngenc compression-level=6 ! filesink location=\"{}\"",
+             pngenc compression-level=6 ! filesink location=\"{}\"\",
             path.to_str().unwrap(),
             thumbnail_path.to_str().unwrap()
         );
 
         // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
         return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
-
-        Ok(thumbnail_path)
     }
 
 
@@ -410,7 +375,7 @@ impl FileManager {
         ));
 
 
-        let pipeline_str = format!(
+        let _pipeline_str = format!(
             "videotestsrc pattern=black ! video/x-raw,width={},height={} ! \
              videooverlay text=\"Audio File\" font-desc=\"Sans 24\" ! \
              pngenc compression-level=6 ! filesink location=\"{}\"",
@@ -421,7 +386,5 @@ impl FileManager {
 
         // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
         return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
-
-        Ok(thumbnail_path)
     }
 }
