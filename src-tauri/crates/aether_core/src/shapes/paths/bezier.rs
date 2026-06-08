@@ -1,9 +1,6 @@
-
-
 pub struct BezierCurve;
 
 impl BezierCurve {
-
     pub fn cubic_bezier_point(
         t: f64,
         p0: (f64, f64),
@@ -22,7 +19,6 @@ impl BezierCurve {
 
         (x, y)
     }
-
 
     pub fn quadratic_bezier_point(
         t: f64,
@@ -179,7 +175,7 @@ impl BezierCurve {
         p1: (f64, f64),
         p2: (f64, f64),
         p3: (f64, f64),
-    ) -> ((f64, f64, f64, f64, f64, f64, f64, f64), (f64, f64, f64, f64, f64, f64, f64, f64)) {
+    ) -> (((f64, f64), (f64, f64), (f64, f64), (f64, f64)), ((f64, f64), (f64, f64), (f64, f64), (f64, f64))) {
         let p01 = ((p0.0 + p1.0) / 2.0, (p0.1 + p1.1) / 2.0);
         let p12 = ((p1.0 + p2.0) / 2.0, (p1.1 + p2.1) / 2.0);
         let p23 = ((p2.0 + p3.0) / 2.0, (p2.1 + p3.1) / 2.0);
@@ -189,8 +185,8 @@ impl BezierCurve {
 
         let p0123 = ((p012.0 + p123.0) / 2.0, (p012.1 + p123.1) / 2.0);
 
-        let left = (p0.0, p0.1, p01.0, p01.1, p012.0, p012.1, p0123.0, p0123.1);
-        let right = (p0123.0, p0123.1, p123.0, p123.1, p23.0, p23.1, p3.0, p3.1);
+        let left = (p0, p01, p012, p0123);
+        let right = (p0123, p123, p23, p3);
 
         (left, right)
     }
@@ -505,8 +501,8 @@ impl BezierUtils {
         let mut extrema = Vec::new();
 
 
-        let a = 2.0 * (p2.0 - 2.0 * p1.0 + p0.0);
-        let b = 2.0 * (p1.0 - p0.0);
+        let a = 2.0 * (p2 - 2.0 * p1 + p0);
+        let b = 2.0 * (p1 - p0);
 
         if a.abs() > f64::EPSILON {
             let t = -b / a;

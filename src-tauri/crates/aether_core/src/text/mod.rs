@@ -1,11 +1,8 @@
-
-
 pub mod types;
 pub mod typography;
 pub mod animation;
 pub mod path_text;
 pub mod renderer;
-
 
 pub use types::{TextLayer, TextContent, TextStyle, TextAlignment, TextDirection};
 pub use typography::{TypographyControls, FontMetrics, TextLayout};

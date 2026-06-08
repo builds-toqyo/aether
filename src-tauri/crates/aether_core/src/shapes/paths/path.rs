@@ -1,7 +1,4 @@
-
-
 use std::fmt;
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Path {
@@ -89,6 +86,74 @@ impl Path {
         length
     }
 
+    pub fn sample_points(&self, samples: usize) -> Vec<(f64, f64)> {
+        if self.segments.is_empty() {
+            return Vec::new();
+        }
+
+        let total_length = self.length();
+        if total_length == 0.0 {
+            return vec![(self.start_x, self.start_y)];
+        }
+
+        let mut points = Vec::with_capacity(samples);
+        let step = total_length / (samples as f64);
+
+        let mut current_dist = 0.0;
+        let mut seg_start_x = self.start_x;
+        let mut seg_start_y = self.start_y;
+
+        for segment in &self.segments {
+            let seg_len = segment.length(seg_start_x, seg_start_y);
+            if seg_len == 0.0 {
+                match segment.segment_type {
+                    super::segments::PathSegmentType::MoveTo |
+                    super::segments::PathSegmentType::LineTo |
+                    super::segments::PathSegmentType::QuadraticTo |
+                    super::segments::PathSegmentType::CubicTo => {
+                        seg_start_x = segment.x;
+                        seg_start_y = segment.y;
+                    }
+                    super::segments::PathSegmentType::Close => {
+                        seg_start_x = self.start_x;
+                        seg_start_y = self.start_y;
+                    }
+                }
+                continue;
+            }
+
+            while current_dist <= seg_len + f64::EPSILON {
+                let t = if seg_len > 0.0 { current_dist / seg_len } else { 0.0 };
+                let (px, py) = segment.point_at(t, seg_start_x, seg_start_y);
+                points.push((px, py));
+                current_dist += step;
+                if points.len() >= samples {
+                    break;
+                }
+            }
+            current_dist -= seg_len;
+
+            match segment.segment_type {
+                super::segments::PathSegmentType::MoveTo |
+                super::segments::PathSegmentType::LineTo |
+                super::segments::PathSegmentType::QuadraticTo |
+                super::segments::PathSegmentType::CubicTo => {
+                    seg_start_x = segment.x;
+                    seg_start_y = segment.y;
+                }
+                super::segments::PathSegmentType::Close => {
+                    seg_start_x = self.start_x;
+                    seg_start_y = self.start_y;
+                }
+            }
+        }
+
+        if points.len() < samples {
+            points.push((seg_start_x, seg_start_y));
+        }
+
+        points
+    }
 
     pub fn bounds(&self) -> crate::shapes::primitives::transform::BoundingBox {
         if self.segments.is_empty() {

@@ -1,17 +1,13 @@
-
-
 pub struct PathBuilder {
     path: super::path::Path,
 }
 
 impl PathBuilder {
-
     pub fn new() -> Self {
         Self {
             path: super::path::Path::new(),
         }
     }
-
 
     pub fn move_to(&mut self, x: f64, y: f64) -> &mut Self {
         let segment = super::segments::PathSegment::move_to(x, y);
@@ -27,7 +23,6 @@ impl PathBuilder {
         self
     }
 
-
     pub fn line_to(&mut self, x: f64, y: f64) -> &mut Self {
         let segment = super::segments::PathSegment::line_to(x, y);
         self.path.segments.push(segment);
@@ -35,7 +30,6 @@ impl PathBuilder {
         self.path.current_y = y;
         self
     }
-
 
     pub fn quadratic_to(&mut self, x: f64, y: f64, cp_x: f64, cp_y: f64) -> &mut Self {
         let segment = super::segments::PathSegment::quadratic_to(x, y, cp_x, cp_y);
