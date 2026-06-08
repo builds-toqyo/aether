@@ -34,7 +34,7 @@ impl TypeChecker {
             (PinDataType::Color, PinDataType::Vector4) => Ok(()),
 
 
-            (PinDataType::Array(ref output_inner), PinDataType::Array(ref input_inner)) => {
+            (PinDataType::Array(output_inner), PinDataType::Array(input_inner)) => {
                 Self::check_type_compatibility(output_inner, input_inner)
             }
 
@@ -179,6 +179,7 @@ impl TypeChecker {
             ParameterValue::Vector4(_, _, _, _) => Some(&PinDataType::Vector4),
             ParameterValue::Color(_, _, _, _) => Some(&PinDataType::Color),
             ParameterValue::Array(_) => Some(&PinDataType::Array(Box::new(PinDataType::Float))),
+            ParameterValue::Binary(_) => Some(&PinDataType::Binary),
             ParameterValue::Image(_) => Some(&PinDataType::Image),
             ParameterValue::None => None,
         }
@@ -206,6 +207,7 @@ impl TypeChecker {
             PinDataType::Vector3 => 3,
             PinDataType::Vector4 => 4,
             PinDataType::Color => 4,
+            PinDataType::Binary => 0,
             PinDataType::Array(_) => 0,
             PinDataType::Image => 1,
         }
@@ -222,6 +224,7 @@ impl TypeChecker {
             PinDataType::Vector3 => 12,
             PinDataType::Vector4 => 16,
             PinDataType::Color => 16,
+            PinDataType::Binary => 0,
             PinDataType::Array(_) => 8,
             PinDataType::Image => 8,
         }

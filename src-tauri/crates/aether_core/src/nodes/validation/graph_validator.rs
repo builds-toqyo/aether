@@ -163,6 +163,7 @@ impl GraphValidator {
                 aether_types::NodeType::Merge => stats.merge_nodes += 1,
                 aether_types::NodeType::ColorCorrection => stats.color_correction_nodes += 1,
                 aether_types::NodeType::Blur => stats.blur_nodes += 1,
+                _ => {}
             }
         }
 
@@ -194,7 +195,6 @@ impl GraphValidator {
 
     fn count_unconnected_required_inputs(graph: &Graph) -> usize {
         graph.get_nodes()
-            .iter()
             .flat_map(|node| node.inputs.iter())
             .filter(|pin| pin.required && pin.connection.is_none())
             .count()
@@ -210,7 +210,7 @@ impl GraphValidator {
         debug!("Validating graph for realtime execution");
 
 
-        Self::validate_execution_readiness(graph)?;
+        Self::validate_graph(graph)?;
 
 
         Self::check_realtime_issues(graph)?;

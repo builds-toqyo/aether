@@ -23,7 +23,7 @@ impl fmt::Display for BooleanOperation {
 }
 
 /// Result of boolean operation
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BooleanResult {
     pub path: Path,
     pub operation: BooleanOperation,
