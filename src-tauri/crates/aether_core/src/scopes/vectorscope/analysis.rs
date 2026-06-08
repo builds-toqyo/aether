@@ -1,5 +1,3 @@
-
-
 use anyhow::{Result};
 use log::debug;
 
@@ -9,23 +7,19 @@ use crate::types::{
 
 use crate::scopes::ColorConverter;
 
-
 pub struct VectorscopeAnalyzer {
     color_converter: ColorConverter,
 }
 
 impl VectorscopeAnalyzer {
-
     pub fn new() -> Self {
         Self {
             color_converter: ColorConverter::new(ColorSpace::Rec709),
         }
     }
 
-
     pub fn analyze_color_distribution(&self, data: &VectorscopeData) -> Result<ColorDistribution> {
         let mut distribution = ColorDistribution::new();
-
 
         let max_intensity = data.intensity_grid.iter().copied().max().unwrap_or(0);
         let total_intensity: u64 = data.intensity_grid.iter().map(|&v| v as u64).sum();
@@ -37,7 +31,6 @@ impl VectorscopeAnalyzer {
         } else {
             0.0
         };
-
 
         let mut red_sum = 0.0;
         let mut green_sum = 0.0;

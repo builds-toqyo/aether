@@ -196,7 +196,7 @@ impl ExecutionOrderCalculator {
 
             match (output_pos, input_pos) {
                 (Some(out_pos), Some(in_pos)) => {
-                    if out_pos >= *in_pos {
+                    if out_pos >= in_pos {
                         debug!("Invalid dependency order: {} ({}) should come before {} ({})",
                             connection.output_node_id, out_pos,
                             connection.input_node_id, in_pos);
@@ -273,7 +273,6 @@ mod tests {
     fn create_test_graph() -> Graph {
         let mut graph = Graph::new();
 
-
         let node1_id = Uuid::new_v4();
         let node2_id = Uuid::new_v4();
         let node3_id = Uuid::new_v4();
@@ -281,7 +280,6 @@ mod tests {
         let mut node1 = Node::new(NodeType::Input, "Node1".to_string());
         let mut node2 = Node::new(NodeType::Input, "Node2".to_string());
         let mut node3 = Node::new(NodeType::Input, "Node3".to_string());
-
 
         let output_pin1 = OutputPin {
             id: Uuid::new_v4(),
@@ -321,7 +319,6 @@ mod tests {
         };
         node3.add_input(input_pin3);
 
-
         graph.nodes.insert(node1_id, node1);
         graph.nodes.insert(node2_id, node2);
         graph.nodes.insert(node3_id, node3);
@@ -360,7 +357,6 @@ mod tests {
 
         assert_eq!(order.len(), 3);
 
-
         let node_ids: Vec<Uuid> = graph.nodes.keys().copied().collect();
         assert!(order.contains(&node_ids[0]));
         assert!(order.contains(&node_ids[1]));
@@ -383,13 +379,11 @@ mod tests {
     fn test_circular_dependency() {
         let mut graph = Graph::new();
 
-
         let node1_id = Uuid::new_v4();
         let node2_id = Uuid::new_v4();
 
         let mut node1 = Node::new(NodeType::Input, "Node1".to_string());
         let mut node2 = Node::new(NodeType::Input, "Node2".to_string());
-
 
         let output_pin1 = OutputPin {
             id: Uuid::new_v4(),
@@ -432,7 +426,6 @@ mod tests {
         graph.nodes.insert(node1_id, node1);
         graph.nodes.insert(node2_id, node2);
 
-
         let connection1 = Connection {
             id: Uuid::new_v4(),
             output_node_id: node1_id,
@@ -454,7 +447,6 @@ mod tests {
         graph.connections.push(connection1);
         graph.connections.push(connection2);
 
-
         let result = ExecutionOrderCalculator::calculate_order(&graph);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), NodeError::CircularDependency));
@@ -465,9 +457,7 @@ mod tests {
         let graph = create_test_graph();
         let order = ExecutionOrderCalculator::calculate_order(&graph).unwrap();
 
-
         assert!(ExecutionOrderCalculator::validate_order(&order, &graph).is_ok());
-
 
         let mut invalid_order = order.clone();
         invalid_order.reverse();
@@ -480,7 +470,6 @@ mod tests {
     fn test_get_node_dependencies() {
         let graph = create_test_graph();
         let node_ids: Vec<Uuid> = graph.nodes.keys().copied().collect();
-
 
         let deps = ExecutionOrderCalculator::get_node_dependencies(&graph, node_ids[2]).unwrap();
         assert_eq!(deps.len(), 2);

@@ -68,7 +68,6 @@ impl TypeChecker {
         }
     }
 
-
     pub fn is_value_in_bounds(value: &ParameterValue, min: &ParameterValue, max: &ParameterValue) -> Result<bool, NodeError> {
         match (value, min, max) {
             (ParameterValue::Float(val), ParameterValue::Float(min_val), ParameterValue::Float(max_val)) => {
@@ -86,7 +85,6 @@ impl TypeChecker {
         }
     }
 
-
     pub fn is_value_ge(value: &ParameterValue, min: &ParameterValue) -> Result<bool, NodeError> {
         match (value, min) {
             (ParameterValue::Float(val), ParameterValue::Float(min_val)) => Ok(val >= min_val),
@@ -97,7 +95,6 @@ impl TypeChecker {
             )),
         }
     }
-
 
     pub fn is_value_le(value: &ParameterValue, max: &ParameterValue) -> Result<bool, NodeError> {
         match (value, max) {
@@ -115,64 +112,52 @@ impl TypeChecker {
         match (value, target_type) {
 
             (ParameterValue::Float(val), PinDataType::Integer) => {
-                Ok(ParameterValue::Integer(val as i64))
+                Ok(ParameterValue::Integer(*val as i32))
             }
-
 
             (ParameterValue::Float(val), PinDataType::Vector2) => {
                 Ok(ParameterValue::Vector2(*val, *val))
             }
 
-
             (ParameterValue::Float(val), PinDataType::Vector3) => {
                 Ok(ParameterValue::Vector3(*val, *val, *val))
             }
-
 
             (ParameterValue::Float(val), PinDataType::Vector4) => {
                 Ok(ParameterValue::Vector4(*val, *val, *val, *val))
             }
 
-
             (ParameterValue::Vector2(x, y), PinDataType::Vector3) => {
                 Ok(ParameterValue::Vector3(*x, *y, 0.0))
             }
-
 
             (ParameterValue::Vector2(x, y), PinDataType::Vector4) => {
                 Ok(ParameterValue::Vector4(*x, *y, 0.0, 1.0))
             }
 
-
             (ParameterValue::Vector3(x, y, _), PinDataType::Vector2) => {
                 Ok(ParameterValue::Vector2(*x, *y))
             }
-
 
             (ParameterValue::Vector3(x, y, z), PinDataType::Vector4) => {
                 Ok(ParameterValue::Vector4(*x, *y, *z, 1.0))
             }
 
-
             (ParameterValue::Vector4(x, y, _, _), PinDataType::Vector2) => {
                 Ok(ParameterValue::Vector2(*x, *y))
             }
-
 
             (ParameterValue::Vector4(x, y, z, _), PinDataType::Vector3) => {
                 Ok(ParameterValue::Vector3(*x, *y, *z))
             }
 
-
             (ParameterValue::Vector4(r, g, b, a), PinDataType::Color) => {
                 Ok(ParameterValue::Color(*r, *g, *b, *a))
             }
 
-
             (ParameterValue::Color(r, g, b, a), PinDataType::Vector4) => {
                 Ok(ParameterValue::Vector4(*r, *g, *b, *a))
             }
-
 
             _ if Self::get_value_type(value) == Some(target_type) => Ok(value.clone()),
 
@@ -182,7 +167,6 @@ impl TypeChecker {
             }),
         }
     }
-
 
     pub fn get_value_type(value: &ParameterValue) -> Option<&PinDataType> {
         match value {
@@ -200,21 +184,17 @@ impl TypeChecker {
         }
     }
 
-
     pub fn is_numeric_type(data_type: &PinDataType) -> bool {
         matches!(data_type, PinDataType::Float | PinDataType::Integer)
     }
-
 
     pub fn is_vector_type(data_type: &PinDataType) -> bool {
         matches!(data_type, PinDataType::Vector2 | PinDataType::Vector3 | PinDataType::Vector4)
     }
 
-
     pub fn is_color_type(data_type: &PinDataType) -> bool {
         matches!(data_type, PinDataType::Color)
     }
-
 
     pub fn get_component_count(data_type: &PinDataType) -> usize {
         match data_type {
@@ -266,10 +246,8 @@ impl TypeChecker {
             (PinDataType::Vector2, PinDataType::Vector4) => false,
             (PinDataType::Vector3, PinDataType::Vector4) => false,
 
-
             (PinDataType::Vector4, PinDataType::Color) => false,
             (PinDataType::Color, PinDataType::Vector4) => false,
-
 
             _ => false,
         }

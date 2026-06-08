@@ -1,5 +1,3 @@
-
-
 use std::sync::{Arc, RwLock};
 use anyhow::{Result, anyhow};
 use log::{debug, info};
@@ -12,12 +10,10 @@ use crate::types::{
 use super::{targets::TargetRenderer, rendering::VectorscopeRenderer};
 use crate::scopes::{BaseScopeProcessor, ColorConverter, FrameProcessor};
 
-
 pub struct VectorscopeProcessor {
     config: VectorscopeConfig,
     data: Arc<RwLock<VectorscopeData>>,
     base: BaseScopeProcessor,
-
 
     uv_buffer: Vec<(f32, f32)>,
     intensity_cache: Vec<u16>,

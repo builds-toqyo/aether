@@ -144,14 +144,14 @@ impl NodeValidator {
         match (&param.min_value, &param.max_value, &param.value) {
             (Some(min), Some(max), value) => {
 
-                if !TypeChecker::are_values_compatible(min, max) {
+                if !TypeChecker::are_values_compatible(&ParameterValue::Float(*min), &ParameterValue::Float(*max)) {
                     return Err(NodeError::InvalidParameterValue(
                         format!("Parameter '{}' min and max values are incompatible", name)
                     ));
                 }
 
 
-                if !TypeChecker::is_value_in_bounds(value, min, max)? {
+                if !TypeChecker::is_value_in_bounds(value, &ParameterValue::Float(*min), &ParameterValue::Float(*max))? {
                     return Err(NodeError::InvalidParameterValue(
                         format!("Parameter '{}' value is out of bounds", name)
                     ));
@@ -159,7 +159,7 @@ impl NodeValidator {
             }
             (Some(min), None, value) => {
 
-                if !TypeChecker::is_value_ge(value, min)? {
+                if !TypeChecker::is_value_ge(value, &ParameterValue::Float(*min))? {
                     return Err(NodeError::InvalidParameterValue(
                         format!("Parameter '{}' value is below minimum", name)
                     ));
@@ -167,7 +167,7 @@ impl NodeValidator {
             }
             (None, Some(max), value) => {
 
-                if !TypeChecker::is_value_le(value, max)? {
+                if !TypeChecker::is_value_le(value, &ParameterValue::Float(*max))? {
                     return Err(NodeError::InvalidParameterValue(
                         format!("Parameter '{}' value is above maximum", name)
                     ));
@@ -206,7 +206,6 @@ impl NodeValidator {
             return Ok(false);
         }
 
-
         for input_pin in &node.inputs {
             if input_pin.required && input_pin.connection.is_none() {
                 return Ok(false);
@@ -222,7 +221,6 @@ impl NodeValidator {
 
         Ok(true)
     }
-
 
     pub fn get_validation_issues(node: &Node) -> Vec<String> {
         let mut issues = Vec::new();
@@ -288,7 +286,6 @@ impl NodeValidator {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct NodeStats {
 
@@ -332,7 +329,6 @@ mod tests {
     fn test_validate_node() {
         let mut node = Node::new(NodeType::Input, "Test Node".to_string());
 
-
         let input_pin = InputPin {
             id: Uuid::new_v4(),
             name: "input".to_string(),
@@ -361,7 +357,6 @@ mod tests {
     fn test_validate_node_required_input_not_connected() {
         let mut node = Node::new(NodeType::Input, "Test Node".to_string());
 
-
         let input_pin = InputPin {
             id: Uuid::new_v4(),
             name: "input".to_string(),
@@ -373,7 +368,6 @@ mod tests {
         };
         node.add_input(input_pin);
 
-
         let result = NodeValidator::validate_node(&node);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), NodeError::RequiredInputNotConnected(_)));
@@ -382,7 +376,6 @@ mod tests {
     #[test]
     fn test_validate_node_empty_name() {
         let node = Node::new(NodeType::Input, "".to_string());
-
 
         let result = NodeValidator::validate_node(&node);
         assert!(result.is_err());
@@ -416,7 +409,6 @@ mod tests {
             min_value: Some(ParameterValue::Float(0.0)),
             max_value: Some(ParameterValue::Float(2.0)),
         };
-
 
         let result = NodeValidator::validate_parameter("test_param", &param);
         assert!(result.is_err());

@@ -168,7 +168,7 @@ impl GraphValidator {
 
 
         stats.total_connections = graph.connections.len();
-        stats.enabled_connections = graph.connections.iter().filter(|c| c.enabled).count();
+        stats.enabled_connections = graph.connections.iter().filter(|(_, c)| c.enabled).count();
         stats.disabled_connections = stats.total_connections - stats.enabled_connections;
 
 

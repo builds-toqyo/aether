@@ -239,9 +239,8 @@ impl ImageRenderer {
 
         for x in (0..width.min(256)).step_by(32) {
             for y in 0..height {
-                if let Some(pixel) = image.get_pixel_mut(x, y) {
+                let pixel = image.get_pixel_mut(x, y);
                     Self::blend_pixel(pixel, grid_color, 0.5);
-                }
             }
         }
 
@@ -249,29 +248,25 @@ impl ImageRenderer {
         for y_percent in [25, 50, 75] {
             let y = height * (100 - y_percent) / 100;
             for x in 0..width {
-                if let Some(pixel) = image.get_pixel_mut(x, y) {
+                let pixel = image.get_pixel_mut(x, y);
                     Self::blend_pixel(pixel, grid_color, 0.5);
-                }
             }
         }
     }
-
 
     pub fn draw_crosshair(image: &mut RgbImage, cx: u32, cy: u32, color: Rgb<u8>) {
         let (width, height) = image.dimensions();
 
 
         for x in 0..width {
-            if let Some(pixel) = image.get_pixel_mut(x, cy) {
+            let pixel = image.get_pixel_mut(x, cy);
                 *pixel = color;
-            }
         }
 
 
         for y in 0..height {
-            if let Some(pixel) = image.get_pixel_mut(cx, y) {
+            let pixel = image.get_pixel_mut(cx, y);
                 *pixel = color;
-            }
         }
     }
 
@@ -286,20 +281,17 @@ impl ImageRenderer {
 
             for dx in -2..=2 {
                 if x as i32 + dx >= 0 && x as i32 + dx < width as i32 {
-                    if let Some(pixel) = image.get_pixel_mut((x as i32 + dx) as u32, y) {
+                    let pixel = image.get_pixel_mut((x as i32 + dx) as u32, y);
                         *pixel = color;
-                    }
                 }
             }
 
             for dy in -2..=2 {
                 if y as i32 + dy >= 0 && y as i32 + dy < height as i32 {
-                    if let Some(pixel) = image.get_pixel_mut(x, (y as i32 + dy) as u32) {
+                    let pixel = image.get_pixel_mut(x, (y as i32 + dy) as u32);
                         *pixel = color;
-                    }
                 }
             }
-
 
             for angle in 0..360 {
                 let rad = angle as f32 * std::f32::consts::PI / 180.0;
@@ -307,9 +299,8 @@ impl ImageRenderer {
                 let cy = y as f32 + rad.sin() * 5.0;
 
                 if cx >= 0.0 && cx < width as f32 && cy >= 0.0 && cy < height as f32 {
-                    if let Some(pixel) = image.get_pixel_mut(cx as u32, cy as u32) {
+                    let pixel = image.get_pixel_mut(cx as u32, cy as u32);
                         *pixel = color;
-                    }
                 }
             }
         }
@@ -388,7 +379,7 @@ impl Statistics {
         let mut stats = ChannelStatistics::new();
 
 
-        stats.total_samples = data.iter().sum();
+        stats.total_samples = data.iter().map(|&x| x as u64).sum();
 
         if stats.total_samples == 0 {
             return stats;
@@ -421,7 +412,7 @@ impl Statistics {
 
         let variance: f64 = data.iter().enumerate()
             .map(|(bin, &count)| {
-                let diff = bin as f32 - stats.mean as f32;
+                let diff = bin as f64 - stats.mean as f64;
                 count as f64 * diff * diff
             })
             .sum();

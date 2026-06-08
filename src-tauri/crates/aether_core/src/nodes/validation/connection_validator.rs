@@ -197,7 +197,7 @@ impl ConnectionValidator {
 
     pub fn get_connection_stats(graph: &Graph) -> ConnectionStats {
         let total = graph.connections.len();
-        let enabled = graph.connections.iter().filter(|c| c.enabled).count();
+        let enabled = graph.connections.iter().filter(|(_, c)| c.enabled).count();
         let disabled = total - enabled;
 
 

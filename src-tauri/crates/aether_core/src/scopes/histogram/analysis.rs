@@ -20,14 +20,12 @@ impl HistogramAnalyzer {
         }
     }
 
-
     pub fn get_statistics(&self, data: &HistogramData) -> Result<HistogramStatistics> {
         let mut stats = HistogramStatistics::new();
 
-
         for channel in [HistogramChannel::Red, HistogramChannel::Green, HistogramChannel::Blue, HistogramChannel::Luma] {
             let channel_data = data.channel_data(channel);
-            let channel_stats = self.statistics.calculate_channel_stats(channel_data);
+            let channel_stats = Statistics::calculate_channel_stats(channel_data);
 
             match channel {
                 HistogramChannel::Red => stats.red = channel_stats,
@@ -40,31 +38,26 @@ impl HistogramAnalyzer {
         Ok(stats)
     }
 
-
     pub fn analyze_exposure(&self, data: &HistogramData) -> Result<ExposureAnalysis> {
         let mut analysis = ExposureAnalysis::new();
 
-
         let luma_data = data.channel_data(HistogramChannel::Luma);
-        let total_samples: u64 = luma_data.iter().sum();
+        let total_samples: u64 = luma_data.iter().map(|&x| x as u64).sum();
 
         if total_samples == 0 {
             return Ok(analysis);
         }
 
-
-        let shadow_samples: u64 = luma_data[0..64].iter().sum();
-        let midtone_samples: u64 = luma_data[64..192].iter().sum();
-        let highlight_samples: u64 = luma_data[192..256].iter().sum();
+        let shadow_samples: u64 = luma_data[0..64].iter().map(|&x| x as u64).sum();
+        let midtone_samples: u64 = luma_data[64..192].iter().map(|&x| x as u64).sum();
+        let highlight_samples: u64 = luma_data[192..256].iter().map(|&x| x as u64).sum();
 
         analysis.shadow_percentage = (shadow_samples as f32 / total_samples as f32) * 100.0;
         analysis.midtone_percentage = (midtone_samples as f32 / total_samples as f32) * 100.0;
         analysis.highlight_percentage = (highlight_samples as f32 / total_samples as f32) * 100.0;
 
-
         analysis.black_clipped = luma_data[0] > total_samples / 1000;
         analysis.white_clipped = luma_data[255] > total_samples / 1000;
-
 
         let mut min_bin = 255;
         let mut max_bin = 0;
@@ -79,14 +72,12 @@ impl HistogramAnalyzer {
         Ok(analysis)
     }
 
-
     pub fn analyze_color_balance(&self, data: &HistogramData) -> Result<ColorBalanceAnalysis> {
         let mut analysis = ColorBalanceAnalysis::new();
 
-
-        let red_stats = self.statistics.calculate_channel_stats(data.channel_data(HistogramChannel::Red));
-        let green_stats = self.statistics.calculate_channel_stats(data.channel_data(HistogramChannel::Green));
-        let blue_stats = self.statistics.calculate_channel_stats(data.channel_data(HistogramChannel::Blue));
+        let red_stats = Statistics::calculate_channel_stats(data.channel_data(HistogramChannel::Red));
+        let green_stats = Statistics::calculate_channel_stats(data.channel_data(HistogramChannel::Green));
+        let blue_stats = Statistics::calculate_channel_stats(data.channel_data(HistogramChannel::Blue));
 
         analysis.red_mean = red_stats.mean;
         analysis.green_mean = green_stats.mean;
@@ -113,13 +104,11 @@ impl HistogramAnalyzer {
         Ok(analysis)
     }
 
-
     pub fn check_issues(&self, data: &HistogramData) -> Result<Vec<HistogramIssue>> {
         let mut issues = Vec::new();
 
-
         let luma_data = data.channel_data(HistogramChannel::Luma);
-        let total_samples: u64 = luma_data.iter().sum();
+        let total_samples: u64 = luma_data.iter().map(|&x| x as u64).sum();
 
         if total_samples > 0 {
             let black_percentage = (luma_data[0] as f32 / total_samples as f32) * 100.0;
@@ -134,12 +123,10 @@ impl HistogramAnalyzer {
             }
         }
 
-
         let exposure_analysis = self.analyze_exposure(data)?;
         if exposure_analysis.dynamic_range < 200 {
             issues.push(HistogramIssue::LimitedDynamicRange(exposure_analysis.dynamic_range));
         }
-
 
         let color_analysis = self.analyze_color_balance(data)?;
         if color_analysis.dominant_cast != ColorCast::Neutral {
@@ -158,7 +145,6 @@ impl Default for HistogramAnalyzer {
         Self::new()
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct HistogramStatistics {

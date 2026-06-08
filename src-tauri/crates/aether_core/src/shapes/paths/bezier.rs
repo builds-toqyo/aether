@@ -385,8 +385,8 @@ impl BezierUtils {
             } else {
 
                 let (left, right) = BezierCurve::subdivide_cubic_bezier(0.5, cp0, cp1, cp2, cp3);
-                stack.push((right.0, right.2, right.4, right.6));
-                stack.push((left.0, left.2, left.4, left.6));
+                stack.push((right.0, right.1, right.2, right.3));
+                stack.push((left.0, left.1, left.2, left.3));
             }
         }
 
@@ -544,8 +544,8 @@ impl BezierUtils {
 
                 let (left, right) = BezierCurve::subdivide_cubic_bezier(0.5, cp0, cp1, cp2, cp3);
 
-                stack.push((right.0, right.2, right.4, right.6, mid_t, t1));
-                stack.push((left.0, left.2, left.4, left.6, t0, mid_t));
+                stack.push((right.0, right.1, right.2, right.3, mid_t, t1));
+                stack.push((left.0, left.1, left.2, left.3, t0, mid_t));
             }
         }
 

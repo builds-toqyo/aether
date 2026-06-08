@@ -32,9 +32,7 @@ impl ExecutionOrderManager {
 
         let order = self.calculator.calculate_order(graph)?;
 
-
-        self.calculator.validate_order(&order, graph)?;
-
+        ExecutionOrderCalculator::validate_order(&order, graph)?;
 
         self.cache.cache_order(graph, &order);
 
@@ -43,15 +41,12 @@ impl ExecutionOrderManager {
         Ok(order)
     }
 
-
     pub fn get_partial_execution_order(&mut self, graph: &Graph, start_nodes: &[Uuid]) -> NodeResult<Vec<Uuid>> {
         debug!("Getting partial execution order from {} start nodes", start_nodes.len());
 
-
         let order = self.calculator.calculate_order_from_nodes(graph, start_nodes)?;
 
-
-        self.calculator.validate_order(&order, graph)?;
+        ExecutionOrderCalculator::validate_order(&order, graph)?;
 
         debug!("Calculated partial execution order: {} nodes", order.len());
 
@@ -61,8 +56,6 @@ impl ExecutionOrderManager {
 
     pub fn force_recalculate(&mut self, graph: &Graph) -> NodeResult<Vec<Uuid>> {
         debug!("Force recalculating execution order");
-
-
         self.cache.invalidate_cache(graph);
 
 
@@ -101,7 +94,7 @@ impl ExecutionOrderManager {
 
 
     pub fn validate_node_order(&self, graph: &Graph, node_order: &[Uuid]) -> NodeResult<()> {
-        self.calculator.validate_order(node_order, graph)
+        ExecutionOrderCalculator::validate_order(node_order, graph)
     }
 
 
