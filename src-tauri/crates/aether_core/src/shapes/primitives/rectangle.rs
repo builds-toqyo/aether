@@ -1,11 +1,7 @@
-
-
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Rectangle {
-
     pub x: f64,
     pub y: f64,
     pub width: f64,
@@ -14,7 +10,6 @@ pub struct Rectangle {
 }
 
 impl Rectangle {
-
     pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
         Self {
             x,
@@ -24,7 +19,6 @@ impl Rectangle {
             corner_radius: 0.0,
         }
     }
-
 
     pub fn rounded(x: f64, y: f64, width: f64, height: f64, corner_radius: f64) -> Self {
         Self {
@@ -36,16 +30,13 @@ impl Rectangle {
         }
     }
 
-
     pub fn center(&self) -> (f64, f64) {
         (self.x + self.width / 2.0, self.y + self.height / 2.0)
     }
 
-
     pub fn is_square(&self) -> bool {
         (self.width - self.height).abs() < f64::EPSILON
     }
-
 
     pub fn is_valid(&self) -> bool {
         self.width > 0.0 && self.height > 0.0
@@ -119,6 +110,10 @@ impl super::types::ShapePrimitive for Rectangle {
         let mut copy = *self;
         copy.transform(transform);
         copy
+    }
+
+    fn clone_box(&self) -> Box<dyn super::types::ShapePrimitive> {
+        Box::new(self.clone())
     }
 
     fn validate(&self) -> Result<(), String> {

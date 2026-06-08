@@ -1,87 +1,56 @@
-
-
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlyphRenderInfo {
 
     pub character: char,
-
     pub char_index: usize,
-
     pub position: (f64, f64),
-
     pub size: (f64, f64),
-
     pub rotation: f64,
-
     pub scale: f64,
-
     pub color: (f64, f64, f64, f64),
-
     pub opacity: f64,
-
     pub blur: f64,
-
     pub baseline_offset: f64,
-
     pub tracking: f64,
 }
 
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextRenderer {
-
     pub backend: RenderBackend,
-
     pub anti_aliasing: bool,
-
     pub subpixel_positioning: bool,
-
     pub hinting: HintingMode,
-
     pub color_space: ColorSpace,
-
     pub glyph_cache: GlyphCache,
-
     pub performance: PerformanceSettings,
 }
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum RenderBackend {
-
     Cpu,
-
     Gpu,
-
     Hybrid,
 }
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum HintingMode {
-
     None,
-
     Light,
-
     Normal,
-
     Full,
 }
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ColorSpace {
-
     Srgb,
-
     LinearRgb,
-
     DisplayP3,
-
     Aces,
 }
 
@@ -116,80 +85,54 @@ pub struct CachedGlyph {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlyphMetrics {
-
     pub width: f64,
-
     pub height: f64,
-
     pub bearing_x: f64,
-
     pub bearing_y: f64,
-
     pub advance: f64,
-
     pub lsb: f64,
 }
 
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PerformanceSettings {
-
     pub max_batch_size: usize,
-
     pub parallel_rendering: bool,
-
     pub render_threads: usize,
-
     pub instanced_rendering: bool,
-
     pub texture_atlas_size: (u32, u32),
 }
 
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlyphRenderer {
-
     pub font_family: String,
-
     pub font_size: f64,
-
     pub font_weight: u16,
-
     pub font_style: crate::text::types::FontStyle,
-
     pub render_mode: GlyphRenderMode,
-
     pub quality: RenderQuality,
 }
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum GlyphRenderMode {
-
     Fill,
-
     Stroke,
-
     FillAndStroke,
-
     Outline,
 }
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum RenderQuality {
-
     Low,
-
     Medium,
-
     High,
-
     Ultra,
 }
 
 impl TextRenderer {
-
     pub fn new() -> Self {
         Self {
             backend: RenderBackend::Cpu,
@@ -201,7 +144,6 @@ impl TextRenderer {
             performance: PerformanceSettings::default(),
         }
     }
-
 
     pub fn with_backend(backend: RenderBackend) -> Self {
         Self {
@@ -215,7 +157,6 @@ impl TextRenderer {
         }
     }
 
-
     pub fn render_text_layer(&mut self, text_layer: &crate::text::types::TextLayer, time: f64) -> Vec<GlyphRenderInfo> {
         let mut render_infos = Vec::new();
 
@@ -223,13 +164,10 @@ impl TextRenderer {
             return render_infos;
         }
 
-
         let typography = crate::text::typography::TypographyControls::from_style(&text_layer.style);
         let layout = typography.layout_text(&text_layer.content.text, text_layer.size.0);
 
-
         let animated_values = self.get_animated_values(text_layer, time);
-
 
         for line in &layout.lines {
             for glyph_pos in &line.glyph_positions {
@@ -242,7 +180,6 @@ impl TextRenderer {
                 render_infos.push(render_info);
             }
         }
-
 
         if let Some(path_text) = &text_layer.path_text {
             let path_glyphs = self.render_path_text(path_text, text_layer, time);
@@ -266,16 +203,13 @@ impl TextRenderer {
             text_layer.position.1 + glyph_pos.y,
         );
 
-
         if let Some(crate::text::animation::AnimationValue::Vector2(dx, dy)) =
             animated_values.get(&crate::text::animation::AnimationType::Position) {
             position.0 += dx;
             position.1 += dy;
         }
 
-
         let mut size = (glyph_pos.width, glyph_pos.height);
-
 
         if let Some(crate::text::animation::AnimationValue::Float(scale)) =
             animated_values.get(&crate::text::animation::AnimationType::Scale) {
@@ -283,50 +217,40 @@ impl TextRenderer {
             size.1 *= scale;
         }
 
-
         let mut rotation = text_layer.rotation.to_radians();
-
 
         if let Some(crate::text::animation::AnimationValue::Float(rot)) =
             animated_values.get(&crate::text::animation::AnimationType::Rotation) {
             rotation += rot.to_radians();
         }
 
-
         let mut color = self.parse_color(&text_layer.style.color);
-
 
         if let Some(crate::text::animation::AnimationValue::Color(r, g, b, a)) =
             animated_values.get(&crate::text::animation::AnimationType::Color) {
             color = (r, g, b, a);
         }
 
-
         let mut opacity = text_layer.opacity;
-
 
         if let Some(crate::text::animation::AnimationValue::Float(op)) =
             animated_values.get(&crate::text::animation::AnimationType::Opacity) {
-            opacity *= op;
+            opacity *= *op;
         }
-
 
         let mut blur = 0.0;
 
-
-        if let Some(crate::text::animation::AnimationValue::Blur(blur_val)) =
+        if let Some(crate::text::animation::AnimationValue::Float(blur_val)) =
             animated_values.get(&crate::text::animation::AnimationType::Blur) {
-            blur = blur_val;
+            blur = *blur_val;
         }
 
-
         let baseline_offset = glyph_pos.y - metrics.ascent;
-
 
         let mut tracking = 0.0;
         if let Some(crate::text::animation::AnimationValue::Float(track)) =
             animated_values.get(&crate::text::animation::AnimationType::Tracking) {
-            tracking = track;
+            tracking = *track;
         }
 
         GlyphRenderInfo {
@@ -344,7 +268,6 @@ impl TextRenderer {
         }
     }
 
-
     fn render_path_text(
         &self,
         path_text: &crate::text::path_text::TextOnPath,
@@ -353,10 +276,8 @@ impl TextRenderer {
     ) -> Vec<GlyphRenderInfo> {
         let mut render_infos = Vec::new();
 
-
         render_infos
     }
-
 
     fn get_animated_values(
         &self,
@@ -365,23 +286,18 @@ impl TextRenderer {
     ) -> std::collections::HashMap<crate::text::animation::AnimationType, crate::text::animation::AnimationValue> {
         let mut values = std::collections::HashMap::new();
 
-
         let mut animator = crate::text::animation::TextAnimator::new();
         for animation in &text_layer.animations {
             animator.add_animation(animation.clone());
         }
 
-
         animator.global_time = time;
 
-
-        if let Some(char_values) = animator.get_character_values(0) {
-            values.extend(char_values);
-        }
+        let char_values = animator.get_character_values(0);
+        values.extend(char_values);
 
         values
     }
-
 
     fn parse_color(&self, color_str: &str) -> (f64, f64, f64, f64) {
 
@@ -395,25 +311,20 @@ impl TextRenderer {
             }
         }
 
-
         (0.0, 0.0, 0.0, 1.0)
     }
-
 
     pub fn clear_cache(&mut self) {
         self.glyph_cache.clear();
     }
 
-
     pub fn get_cache_stats(&self) -> (usize, u64, u64) {
         (self.glyph_cache.glyphs.len(), self.glyph_cache.hits, self.glyph_cache.misses)
     }
 
-
     pub fn optimize_cache(&mut self) {
         self.glyph_cache.optimize();
     }
-
 
     pub fn set_quality(&mut self, quality: RenderQuality) {
         match quality {
@@ -440,7 +351,6 @@ impl TextRenderer {
         }
     }
 
-
     pub fn validate(&self) -> Result<(), String> {
         if self.performance.max_batch_size == 0 {
             return Err("Max batch size must be greater than 0".to_string());
@@ -459,7 +369,6 @@ impl TextRenderer {
 }
 
 impl GlyphCache {
-
     pub fn new() -> Self {
         Self {
             glyphs: std::collections::HashMap::new(),
@@ -468,7 +377,6 @@ impl GlyphCache {
             misses: 0,
         }
     }
-
 
     pub fn get(&mut self, key: &str) -> Option<&CachedGlyph> {
         let current_time = self.get_current_time();
@@ -483,21 +391,17 @@ impl GlyphCache {
         }
     }
 
-
     pub fn add(&mut self, key: String, glyph: CachedGlyph) {
 
         if self.glyphs.len() >= self.max_size {
             self.remove_oldest();
         }
-
         self.glyphs.insert(key, glyph);
     }
-
 
     pub fn remove(&mut self, key: &str) -> Option<CachedGlyph> {
         self.glyphs.remove(key)
     }
-
 
     pub fn clear(&mut self) {
         self.glyphs.clear();
@@ -505,12 +409,10 @@ impl GlyphCache {
         self.misses = 0;
     }
 
-
     pub fn optimize(&mut self) {
         if self.glyphs.len() <= self.max_size {
             return;
         }
-
 
         let mut glyphs: Vec<_> = self.glyphs.iter().collect();
         glyphs.sort_by(|a, b| a.1.frequency.cmp(&b.1.frequency));
@@ -518,13 +420,12 @@ impl GlyphCache {
         let remove_count = self.glyphs.len() - self.max_size;
         let keys_to_remove: Vec<String> = glyphs.iter()
             .take(remove_count)
-            .map(|(key, _)| key.clone())
+            .map(|(key, _)| (*key).clone())
             .collect();
         for key in keys_to_remove {
             self.glyphs.remove(&key);
         }
     }
-
 
     fn remove_oldest(&mut self) {
         if let Some(oldest_key) = self.glyphs
@@ -535,12 +436,10 @@ impl GlyphCache {
         }
     }
 
-
     fn get_current_time(&self) -> u64 {
 
         0
     }
-
 
     pub fn hit_rate(&self) -> f64 {
         let total = self.hits + self.misses;
@@ -553,7 +452,6 @@ impl GlyphCache {
 }
 
 impl GlyphRenderer {
-
     pub fn new() -> Self {
         Self {
             font_family: "Arial".to_string(),
@@ -577,18 +475,15 @@ impl GlyphRenderer {
         }
     }
 
-
     pub fn with_render_mode(mut self, mode: GlyphRenderMode) -> Self {
         self.render_mode = mode;
         self
     }
 
-
     pub fn with_quality(mut self, quality: RenderQuality) -> Self {
         self.quality = quality;
         self
     }
-
 
     pub fn create_glyph_key(&self, character: char) -> String {
         format!(
@@ -601,7 +496,6 @@ impl GlyphRenderer {
             self.quality
         )
     }
-
 
     pub fn validate(&self) -> Result<(), String> {
         if self.font_family.is_empty() {
