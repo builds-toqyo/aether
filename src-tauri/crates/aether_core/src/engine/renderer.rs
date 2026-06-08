@@ -768,9 +768,10 @@ impl Renderer {
         }
 
 
+        let stage_count = stages.len();
         self.post_process_pipeline = Some(PostProcessPipeline { stages });
 
-        log::debug!("Post-processing pipeline initialized with {} stages", stages.len());
+        log::debug!("Post-processing pipeline initialized with {} stages", stage_count);
         Ok(())
     }
 
@@ -1083,18 +1084,17 @@ impl Renderer {
         self.frame_count = 0;
 
 
-        let mut state = self.state.lock().unwrap();
-        state.is_rendering = false;
-        state.last_render_time = std::time::Instant::now();
-
+        {
+            let mut state = self.state.lock().unwrap();
+            state.is_rendering = false;
+            state.last_render_time = std::time::Instant::now();
+        }
 
         if self.config.use_hardware_acceleration {
             self.cleanup_hardware_acceleration();
         }
 
-
         self.cleanup_frame_buffers();
-
 
         self.cleanup_resources();
 

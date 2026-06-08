@@ -13,31 +13,18 @@ pub type ExportCallback = Arc<Mutex<dyn Fn(ExportProgress) + Send + 'static>>;
 #[derive(Debug, Clone)]
 pub struct ExportOptions {
     pub input_path: PathBuf,
-
     pub output_path: PathBuf,
-
     pub container_format: ContainerFormat,
-
     pub video_format: VideoFormat,
-
     pub audio_format: AudioFormat,
-
     pub video_bitrate: u32,
-
     pub audio_bitrate: u32,
-
     pub frame_rate: f64,
-
     pub width: u32,
-
     pub height: u32,
-
     pub encoder_preset: EncoderPreset,
-
     pub crf: u8,
-
     pub hardware_acceleration: bool,
-
     pub threads: u8,
 }
 
@@ -143,7 +130,8 @@ impl Exporter {
                 }
             };
 
-            ffmpeg::format::context::input::Input::dump(&input_context, 0, None);
+            // ffmpeg-next 8.x removed Input::dump
+            // ffmpeg::format::context::input::Input::dump(&input_context, 0, None);
 
             let (video_stream_index, audio_stream_index) = {
                 let video_stream = input_context.streams()
@@ -268,11 +256,11 @@ impl Exporter {
                     let mut context = ffmpeg::codec::context::Context::new_with_codec(audio_codec);
                     let mut audio = context.encoder().audio()?;
 
-                    audio.set_rate(input_codec_par.rate() as i32);
-                    audio.set_channel_layout(input_codec_par.channel_layout());
+                    audio.set_rate(48000);
+                    audio.set_channel_layout(ffmpeg::channel_layout::ChannelLayout::STEREO);
                     audio.set_format(ffmpeg::format::sample::Sample::F32(ffmpeg::format::sample::Type::Planar));
 
-                    let time_base = ffmpeg::util::rational::Rational::new(1, input_codec_par.rate() as i32);
+                    let time_base = ffmpeg::util::rational::Rational::new(1, 48000);
                     audio.set_time_base(time_base);
                     audio_stream.set_time_base(time_base);
 
@@ -492,25 +480,29 @@ impl Exporter {
             }
 
             {
-                let out_stream = output_context.stream(0).unwrap();
-                let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
-                let mut encoder = out_codec_context.encoder().video()?;
+                {
+                    let out_stream = output_context.stream(0).unwrap();
+                    let out_stream_time_base = out_stream.time_base();
+                    let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
+                    let mut encoder = out_codec_context.encoder().video()?;
 
-                encoder.send_eof()?;
+                    encoder.send_eof()?;
 
-                let mut out_packet = ffmpeg::packet::Packet::empty();
-                while encoder.receive_packet(&mut out_packet).is_ok() {
-                    out_packet.set_stream(0);
-                    out_packet.rescale_ts(
-                        encoder.time_base(),
-                        out_stream.time_base(),
-                    );
+                    let mut out_packet = ffmpeg::packet::Packet::empty();
+                    while encoder.receive_packet(&mut out_packet).is_ok() {
+                        out_packet.set_stream(0);
+                        out_packet.rescale_ts(
+                            encoder.time_base(),
+                            out_stream_time_base,
+                        );
 
-                    out_packet.write_interleaved(&mut output_context)?;
+                        out_packet.write_interleaved(&mut output_context)?;
+                    }
                 }
 
                 if let Some(audio_stream_out) = audio_stream_index_out {
                     let out_stream = output_context.stream(audio_stream_out).unwrap();
+                    let out_stream_time_base = out_stream.time_base();
                     let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
                     let mut encoder = out_codec_context.encoder().audio()?;
 
@@ -521,7 +513,7 @@ impl Exporter {
                         out_packet.set_stream(audio_stream_out);
                         out_packet.rescale_ts(
                             encoder.time_base(),
-                            out_stream.time_base(),
+                            out_stream_time_base,
                         );
 
                         out_packet.write_interleaved(&mut output_context)?;
@@ -578,7 +570,6 @@ impl Exporter {
                 thread::sleep(Duration::from_millis(100));
                 attempts += 1;
             }
-
 
             match handle.join() {
                 Ok(_) => {

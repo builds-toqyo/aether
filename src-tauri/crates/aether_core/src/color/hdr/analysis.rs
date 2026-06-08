@@ -51,7 +51,7 @@ impl HdrAnalyzer {
             avg_nits,
             dynamic_range: max_nits / avg_nits.max(0.1),
             peak_percentage: (max_nits / 10000.0 * 100.0).min(100.0),
-            content_type: classify_content_type(max_nits, avg_nits),
+            content_type: Self::classify_content_type(max_nits, avg_nits),
         }
     }
 
@@ -261,13 +261,13 @@ mod tests {
     #[test]
     fn test_content_classification() {
 
-        assert_eq!(classify_content_type(100.0, 50.0), HdrContentType::SdrUpscaled);
+        assert_eq!(HdrAnalyzer::classify_content_type(100.0, 50.0), HdrContentType::SdrUpscaled);
 
-        assert_eq!(classify_content_type(300.0, 100.0), HdrContentType::LimitedHdr);
+        assert_eq!(HdrAnalyzer::classify_content_type(300.0, 100.0), HdrContentType::LimitedHdr);
 
-        assert_eq!(classify_content_type(600.0, 200.0), HdrContentType::EnhancedHdr);
+        assert_eq!(HdrAnalyzer::classify_content_type(600.0, 200.0), HdrContentType::EnhancedHdr);
 
-        assert_eq!(classify_content_type(1500.0, 500.0), HdrContentType::TrueHdr);
+        assert_eq!(HdrAnalyzer::classify_content_type(1500.0, 500.0), HdrContentType::TrueHdr);
     }
 
     #[test]
