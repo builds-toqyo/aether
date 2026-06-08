@@ -155,7 +155,7 @@ impl FileManager {
     {
         // Check if source exists
         if !source.exists() {
-            return Err(anyhow!("Source path does not exist: {}", source));
+            return Err(anyhow!("Source path does not exist: {}", source.display()));
         }
 
         // Create destination directory if it doesn't exist
@@ -212,7 +212,7 @@ impl FileManager {
         );
 
         // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
+        return Err(anyhow!("parse_launch not available in current GStreamer version"));
     }
 
     pub fn cleanup(&self) -> Result<()> {
@@ -269,9 +269,8 @@ impl FileManager {
             info.height = Some(video_info.height());
 
 
-            if let Some(framerate) = video_info.framerate() {
-                info.frame_rate = Some(framerate.numer() as f64 / framerate.denom() as f64);
-            }
+            let framerate = video_info.framerate();
+            info.frame_rate = Some(framerate.numer() as f64 / framerate.denom() as f64);
 
 
             if let Some(caps) = video_info.caps() {
@@ -314,7 +313,7 @@ impl FileManager {
         );
 
         // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
+        return Err(anyhow!("parse_launch not available in current GStreamer version"));
     }
 
     fn generate_video_thumbnail(&self, path: &Path, options: &ThumbnailOptions) -> Result<PathBuf> {
@@ -339,7 +338,19 @@ impl FileManager {
         );
 
         // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
+        return Err(anyhow!("parse_launch not available in current GStreamer version"));
+    }
+
+    fn generate_image_thumbnail(&self, path: &Path, options: &ThumbnailOptions) -> Result<PathBuf> {
+        let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
+        let thumbnail_path = self.temp_dir.join(format!(
+            "{}-thumbnail-{}x{}.png",
+            file_stem,
+            options.width,
+            options.height
+        ));
+        // TODO: implement image thumbnail generation
+        return Err(anyhow!("Image thumbnail generation not yet implemented"));
     }
 
     fn generate_audio_thumbnail(&self, path: &Path, options: &ThumbnailOptions) -> Result<PathBuf> {
@@ -356,16 +367,15 @@ impl FileManager {
             "filesrc location=\"{}\" ! decodebin ! audioconvert ! \
              audiowaveform wave-mode=lines style=lines fill=true background-color=0x000000ff \
              foreground-color=0x00FF00FF scale-digitized=true ! \
-             pngenc compression-level=6 ! filesink location=\"{}\"\",
+             pngenc compression-level=6 ! filesink location=\"{}\",
             path.to_str().unwrap(),
             thumbnail_path.to_str().unwrap()
         );
 
         // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
+        return Err(anyhow!("parse_launch not available in current GStreamer version"));
     }
-
-
+        
     fn generate_generic_audio_thumbnail(&self, options: &ThumbnailOptions) -> Result<PathBuf> {
 
         let thumbnail_path = self.temp_dir.join(format!(
@@ -374,10 +384,9 @@ impl FileManager {
             options.height
         ));
 
-
         let _pipeline_str = format!(
             "videotestsrc pattern=black ! video/x-raw,width={},height={} ! \
-             videooverlay text=\"Audio File\" font-desc=\"Sans 24\" ! \
+             textoverlay text=\"Audio File\" font-desc=\"Sans 24\" ! \
              pngenc compression-level=6 ! filesink location=\"{}\"",
             options.width,
             options.height,
@@ -385,6 +394,6 @@ impl FileManager {
         );
 
         // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
+        return Err(anyhow!("parse_launch not available in current GStreamer version"));
     }
 }

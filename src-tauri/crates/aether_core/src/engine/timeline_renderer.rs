@@ -108,7 +108,7 @@ pub struct ClipRenderer {
 impl ClipRenderer {
     pub fn new(clip_id: String, source_path: String, in_point: f64, out_point: f64) -> Result<Self, TimelineRendererError> {
         let mut config = VideoDecoderConfig::default();
-        config.output_format = VideoFormat::RGBA;
+        config.output_format = VideoFormat::RGBA32;
 
         let decoder = VideoDecoder::new(config);
 
@@ -163,7 +163,7 @@ impl TimelineRenderer {
         let renderer_config = crate::engine::renderer::RendererConfig {
             width: config.width,
             height: config.height,
-            fps: config.fps as u32,
+            frame_rate: config.fps as u32,
         };
 
         let renderer = Renderer::new(renderer_config);
@@ -216,9 +216,10 @@ impl TimelineRenderer {
             return Err(TimelineRendererError::ResourceError("Timeline renderer not initialized".to_string()));
         }
 
-        if let Some(frame) = self.frame_cache.get(&Timestamp::from(time)) {
-            return Ok(frame);
-        }
+        // TODO: fix frame_cache borrow checker issue
+        // if let Some(frame) = self.frame_cache.get(&Timestamp::from(time)) {
+        //     return Ok(frame);
+        // }
 
         let timeline = self.timeline.lock().unwrap();
         let active_clips = timeline.active_clips();
@@ -252,13 +253,6 @@ impl TimelineRenderer {
 
         // Render the final frame
         let frame = self.renderer.render(&frame_data, time)?;
-
-        // Add to cache (if cache is full, remove oldest entry)
-        if self.frame_cache.len() >= self.config.cache_size {
-            if let Some(oldest_time) = self.frame_cache.keys().min_by(|a, b| a.0.partial_cmp(&b.0).unwrap()).cloned() {
-                self.frame_cache.remove(&oldest_time);
-            }
-        }
 
         // We can't actually add to cache here because frame is borrowed from renderer
 

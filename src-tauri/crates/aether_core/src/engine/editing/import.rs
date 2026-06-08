@@ -143,7 +143,7 @@ impl MediaImporter {
             }
 
 
-            match ges::UriClipAsset::request_sync(&uri, Some(&structure)) {
+            match ges::UriClipAsset::request_sync(&uri) {
                 Ok(_) => debug!("Successfully requested GES asset for {}", uri),
                 Err(e) => warn!("Failed to request GES asset: {}", e),
             }
@@ -231,9 +231,9 @@ impl MediaImporter {
                 None
             };
 
-            let bitrate = stream.bitrate().filter(|&b| b > 0);
-            if let Some(br) = bitrate {
-                debug!("Bitrate: {} bps ({:.2} Mbps)", br, br as f64 / 1_000_000.0);
+            let bitrate = stream.bitrate();
+            if bitrate > 0 {
+                debug!("Bitrate: {} bps ({:.2} Mbps)", bitrate, bitrate as f64 / 1_000_000.0);
             }
 
             let codec = "unknown".to_string();
@@ -254,7 +254,7 @@ impl MediaImporter {
         debug!("Processing {} audio streams", info.audio_streams().len());
         let audio_streams = info.audio_streams().iter().enumerate().map(|(i, stream)| {
             debug!("Analyzing audio stream {}", i);
-            let sample_rate = stream.bitrate().unwrap_or(48000);
+            let sample_rate = 48000;
             let channels = stream.channels();
             let codec = "unknown".to_string();
 
@@ -263,7 +263,7 @@ impl MediaImporter {
             AudioStreamInfo {
                 index: i as i32,
                 sample_rate,
-                channels as i32,
+                channels: channels as i32,
                 codec_name: codec,
                 bit_depth: None,
             }

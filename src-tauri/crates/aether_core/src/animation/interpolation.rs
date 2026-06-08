@@ -1,8 +1,9 @@
 use aether_types::animation::{
-    AnimationCurve, TrackValue, KeyframeData, KeyframeCollection
+    TrackValue, KeyframeData, KeyframeCollection
 };
 use crate::animation::{InterpolationMethod, EasingFunction};
 use std::collections::HashMap;
+use anyhow::Result;
 
 #[derive(Debug, Clone)]
 pub struct InterpolationResult {
@@ -168,10 +169,10 @@ impl AnimationInterpolator {
         let t = (time - prev_time) / (next_time - prev_time);
         let curve_t = self.apply_easing(t, easing_function);
 
-        let mut result = self.linear_interpolate(prev_keyframe, next_keyframe, t)?;
+        let mut result = self.linear_interpolate(prev_keyframe, next_keyframe, t).unwrap_or_else(|_| InterpolationResult::failure(time));
 
         match &mut result.value {
-            TrackValue::Float(v) => *v *= curve_t,
+            TrackValue::Float(ref mut v) => *v *= curve_t,
             TrackValue::Vector2(v) => {
                 v[0] *= curve_t;
                 v[1] *= curve_t;
@@ -209,9 +210,70 @@ impl AnimationInterpolator {
         &self.stats
     }
 
-
     pub fn reset_stats(&mut self) {
         self.stats = InterpolationStats::default();
+    }
+
+    fn apply_easing(&self, t: f64, _easing: EasingFunction) -> f64 {
+        // TODO: implement actual easing functions
+        t
+    }
+
+    fn linear_interpolate(
+        &self,
+        prev: &KeyframeData,
+        next: &KeyframeData,
+        t: f64,
+    ) -> Result<InterpolationResult> {
+        let value = match (prev, next) {
+            (KeyframeData::Float(p), KeyframeData::Float(n)) => {
+                TrackValue::Float(p.value + (n.value - p.value) * t)
+            }
+            (KeyframeData::Vector2(p), KeyframeData::Vector2(n)) => {
+                TrackValue::Vector2([
+                    p.value[0] + (n.value[0] - p.value[0]) * t,
+                    p.value[1] + (n.value[1] - p.value[1]) * t,
+                ])
+            }
+            (KeyframeData::Vector3(p), KeyframeData::Vector3(n)) => {
+                TrackValue::Vector3([
+                    p.value[0] + (n.value[0] - p.value[0]) * t,
+                    p.value[1] + (n.value[1] - p.value[1]) * t,
+                    p.value[2] + (n.value[2] - p.value[2]) * t,
+                ])
+            }
+            (KeyframeData::Vector4(p), KeyframeData::Vector4(n)) => {
+                TrackValue::Vector4([
+                    p.value[0] + (n.value[0] - p.value[0]) * t,
+                    p.value[1] + (n.value[1] - p.value[1]) * t,
+                    p.value[2] + (n.value[2] - p.value[2]) * t,
+                    p.value[3] + (n.value[3] - p.value[3]) * t,
+                ])
+            }
+            (KeyframeData::Color(p), KeyframeData::Color(n)) => {
+                TrackValue::Color([
+                    p.value[0] + (n.value[0] - p.value[0]) * t,
+                    p.value[1] + (n.value[1] - p.value[1]) * t,
+                    p.value[2] + (n.value[2] - p.value[2]) * t,
+                    p.value[3] + (n.value[3] - p.value[3]) * t,
+                ])
+            }
+            (KeyframeData::Boolean(p), KeyframeData::Boolean(n)) => {
+                TrackValue::Boolean(if t < 0.5 { p.value } else { n.value })
+            }
+            (KeyframeData::String(p), KeyframeData::String(n)) => {
+                TrackValue::String(if t < 0.5 { p.value.clone() } else { n.value.clone() })
+            }
+            _ => {
+                return Ok(InterpolationResult::failure(0.0));
+            }
+        };
+        Ok(InterpolationResult::success(
+            value,
+            0.0,
+            InterpolationMethod::Linear,
+            EasingFunction::Linear,
+        ))
     }
 }
 

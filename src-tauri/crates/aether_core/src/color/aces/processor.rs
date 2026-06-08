@@ -25,8 +25,7 @@ impl AcesProcessor {
         let mut processor = Self {
             config: config.clone(),
             color_space: ColorSpace::Rec709,
-            video_range: VideoRange::Legal,
-            ocio_config: None,
+            video_range: VideoRange::Limited,
             transform_manager: TransformManager::new()?,
             look_manager: LookManager::new(),
         };
@@ -80,7 +79,8 @@ impl AcesProcessor {
 
                 let linear_rgb = self.gamma_decode([r, g, b], self.color_space);
 
-                let aces_rgb = self.transform_manager.apply_input_transform(linear_rgb, input_transform)?;
+                // TODO: apply_input_transform expects [u8; 3] but linear_rgb is [f32; 3]
+                let aces_rgb = self.transform_manager.apply_input_transform([r, g, b], input_transform)?;
 
                 aces_image.put_pixel(x, y, Rgb(aces_rgb));
             }

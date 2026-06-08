@@ -108,7 +108,7 @@ impl IntermediateExporter {
     }
 
     pub fn start_export(&mut self) -> Result<(), EditingError> {
-        let output_uri = filename_to_uri(&self.options.output_path)?;
+        let output_uri = filename_to_uri(&self.options.output_path, None)?;
 
         let profile = self.create_encoding_profile()?;
 
@@ -144,6 +144,7 @@ impl IntermediateExporter {
         let callback = self.progress_callback.clone();
 
         let bus = pipeline.bus().unwrap();
+        let pipeline_for_bus = pipeline.clone();
         let _watch_id = bus.add_watch(move |_, msg| {
             match msg.view() {
                 gst::MessageView::Eos(..) => {
@@ -166,7 +167,7 @@ impl IntermediateExporter {
                 },
                 gst::MessageView::StateChanged(state_changed) => {
 
-                    if state_changed.src().map(|s| s == pipeline.upcast_ref()).unwrap_or(false) {
+                    if state_changed.src().map(|s| s == pipeline_for_bus.upcast_ref::<glib::Object>()).unwrap_or(false) {
                         if state_changed.current() == gst::State::Playing {
 
                         }
@@ -183,8 +184,9 @@ impl IntermediateExporter {
         let callback = self.progress_callback.clone();
         let timeline_duration = self.timeline.duration().nseconds() as i64;
 
+        let pipeline_for_timer = pipeline.clone();
         let _timeout_id = glib::timeout_add_seconds(1, move || {
-            if let Some(position) = pipeline.query_position::<gst::ClockTime>() {
+            if let Some(position) = pipeline_for_timer.query_position::<gst::ClockTime>() {
                 let mut progress_guard = progress.lock().unwrap();
                 progress_guard.position = position.nseconds() as i64;
                 progress_guard.duration = timeline_duration;
@@ -209,35 +211,9 @@ impl IntermediateExporter {
     }
 
     fn create_encoding_profile(&self) -> Result<gst_pbutils::EncodingContainerProfile, EditingError> {
-        let video_caps = gst::Caps::builder("video/x-raw")
-            .field("format", "I420")
-            .build();
-
-        let video_codec_caps = gst::Caps::builder(&format!("video/{}", self.options.video_codec)).build();
-        let video_profile = gst_pbutils::EncodingVideoProfile::builder(&video_codec_caps)
-            .restriction(&video_caps)
-            .presence(1)
-            .build();
-
-        let audio_caps = gst::Caps::builder("audio/x-raw")
-            .field("format", "S16LE")
-            .build();
-
-        let audio_codec_caps = gst::Caps::builder(&format!("audio/{}", self.options.audio_codec)).build();
-        let audio_profile = gst_pbutils::EncodingAudioProfile::builder(&audio_codec_caps)
-            .restriction(&audio_caps)
-            .presence(1)
-            .build();
-
-        let container_caps = gst::Caps::builder(&format!("video/{}", self.options.container)).build();
-        let container_profile = gst_pbutils::EncodingContainerProfile::builder(&container_caps)
-            .name("export-profile")
-            .description("Export Profile")
-            .add_profile(&video_profile)
-            .add_profile(&audio_profile)
-            .build();
-
-        Ok(container_profile)
+        // TODO: GStreamer 0.25 API changed - EncodingVideoProfile/EncodingAudioProfile no longer implement IsA<EncodingProfile>
+        // For now, stub this out
+        return Err(EditingError::ExportError("Encoding profile creation not yet implemented for GStreamer 0.25".to_string()));
     }
 
     pub fn cancel_export(&mut self) -> Result<(), EditingError> {
