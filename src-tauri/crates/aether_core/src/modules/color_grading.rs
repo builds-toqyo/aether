@@ -311,7 +311,7 @@ impl ColorGradingEngine {
         debug!("Initializing color grading engine");
 
 
-        let pipeline = gst::Pipeline::new(Some("color-grading-pipeline"));
+        let pipeline = gst::Pipeline::with_name("color-grading-pipeline");
         self.pipeline = Some(pipeline.clone());
 
 
@@ -344,7 +344,7 @@ impl ColorGradingEngine {
                     pipeline.set_state(gst::State::Ready).unwrap();
                 }
                 gst::MessageView::StateChanged(state_changed) => {
-                    if state_changed.src().map(|s| s == pipeline).unwrap_or(false) {
+                    if state_changed.src().map(|s| s == pipeline.upcast_ref::<gst::Object>()).unwrap_or(false) {
                         debug!(
                             "Pipeline state changed from {:?} to {:?}",
                             state_changed.old(),
