@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use log::debug;
 
-
 #[derive(Debug)]
 pub struct CoreInputNode {
     node: Node,
@@ -22,11 +21,9 @@ impl CoreInputNode {
         }
     }
 
-
     pub fn set_media_path(&mut self, path: String) {
         self.media_path = Some(path);
     }
-
 
     pub fn get_media_path(&self) -> Option<&String> {
         self.media_path.as_ref()
@@ -88,12 +85,12 @@ impl NodeExecutor for CoreInputNode {
         NodeType::Input
     }
 
-    fn get_inputs(&self) -> &[Uuid] {
-        &[]
+    fn get_inputs(&self) -> Vec<Uuid> {
+        vec![]
     }
 
-    fn get_outputs(&self) -> &[Uuid] {
-        &self.node.outputs.iter().map(|pin| pin.id).collect::<Vec<_>>()
+    fn get_outputs(&self) -> Vec<Uuid> {
+        self.node.outputs.iter().map(|pin| pin.id).collect()
     }
 
     fn can_execute(&self, _context: &ExecutionContext) -> bool {

@@ -111,12 +111,12 @@ impl NodeExecutor for CoreTransformNode {
         NodeType::Transform
     }
 
-    fn get_inputs(&self) -> &[Uuid] {
-        &self.node.inputs.iter().map(|pin| pin.id).collect::<Vec<_>>()
+    fn get_inputs(&self) -> Vec<Uuid> {
+        self.node.inputs.iter().map(|pin| pin.id).collect()
     }
 
-    fn get_outputs(&self) -> &[Uuid] {
-        &self.node.outputs.iter().map(|pin| pin.id).collect::<Vec<_>>()
+    fn get_outputs(&self) -> Vec<Uuid> {
+        self.node.outputs.iter().map(|pin| pin.id).collect()
     }
 
     fn can_execute(&self, context: &ExecutionContext) -> bool {

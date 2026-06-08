@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use anyhow::{Context, Result};
@@ -6,7 +6,7 @@ use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_pbutils as gst_pbutils;
 use gstreamer_editing_services as ges;
-use gstreamer_editing_services::prelude::TimelineExt;
+use gstreamer_editing_services::prelude::{TimelineExt, PipelineExt, EncodingProfileBuilder};
 use glib::{filename_to_uri, ControlFlow, MainLoop, SourceId};
 use crate::engine::editing::types::EditingError;
 use crate::engine::rendering::formats::{VideoFormat, AudioFormat, ContainerFormat};
@@ -85,7 +85,7 @@ pub struct ExportProgress {
 pub struct GstExporter {
     options: ExportOptions,
 
-    pipeline: Option<ges::Context>,
+    pipeline: Option<ges::Pipeline>,
 
     main_loop: Option<MainLoop>,
 
@@ -136,19 +136,19 @@ impl GstExporter {
     pub fn start_export(&mut self) -> Result<(), EditingError> {
         *self.cancel_flag.lock().unwrap() = false;
 
-        let pipeline = ges::Pipeline::new()
-            .context("Failed to create GES pipeline")?;
+        let pipeline = ges::Pipeline::new();
 
         pipeline.set_timeline(&self.options.timeline)
             .context("Failed to set timeline on pipeline")?;
 
         let duration = self.options.timeline.duration();
-        let total_frames = (duration as f64 / gst::ClockTime::SECOND.nseconds() as f64 * self.options.frame_rate) as u64;
+        let duration_nanos = duration.nseconds();
+        let total_frames = (duration_nanos as f64 / gst::ClockTime::SECOND.nseconds() as f64 * self.options.frame_rate) as u64;
 
         {
             let mut progress = self.progress.lock().unwrap();
             progress.total_frames = total_frames;
-            progress.total_duration = duration as f64 / gst::ClockTime::SECOND.nseconds() as f64;
+            progress.total_duration = duration_nanos as f64 / gst::ClockTime::SECOND.nseconds() as f64;
 
             if let Some(callback) = &self.progress_callback {
                 callback(progress.clone());
@@ -158,7 +158,7 @@ impl GstExporter {
         let profile = self.create_encoding_profile()
             .context("Failed to create encoding profile")?;
 
-        let output_uri = filename_to_uri(self.options.output_path.as_path())
+        let output_uri = filename_to_uri(self.options.output_path.as_path(), None)
             .context("Failed to convert output path to URI")?;
 
         pipeline.set_render_settings(&output_uri, &profile)
@@ -228,7 +228,7 @@ impl GstExporter {
                 let structure = gst::Structure::builder("export-cancelled")
                     .build();
                 let message = gst::message::Application::new(structure);
-                bus.post(&message).expect("Failed to post cancellation message");
+                bus.post(message).expect("Failed to post cancellation message");
             }
 
             ControlFlow::Continue
@@ -282,16 +282,6 @@ impl GstExporter {
     }
 
     fn create_encoding_profile(&self) -> Result<gst_pbutils::EncodingProfile, EditingError> {
-        let container_caps = gst::Caps::builder(self.options.container_format.to_mime_type())
-            .build();
-
-        let container_profile = gst_pbutils::EncodingContainerProfile::new(
-            Some("container"),
-            Some("Container profile"),
-            &container_caps,
-            None,
-        ).context("Failed to create container profile")?;
-
         let video_caps = if self.options.hardware_acceleration {
             match self.options.video_format {
                 VideoFormat::H264 => {
@@ -315,44 +305,26 @@ impl GstExporter {
                 .build()
         };
 
-        let video_profile = gst_pbutils::EncodingVideoProfile::new(
-            &video_caps,
-            None,
-            Some(&gst::Caps::builder("video/x-raw").build()),
-            1,
-        ).context("Failed to create video profile")?;
-
-        if self.options.video_bitrate > 0 {
-            video_profile.set_bitrate(self.options.video_bitrate as u32);
-        }
-
-        if self.options.width > 0 && self.options.height > 0 {
-            let restriction = gst::Caps::builder("video/x-raw")
-                .field("width", self.options.width as i32)
-                .field("height", self.options.height as i32)
-                .build();
-            video_profile.set_restriction(Some(&restriction));
-        }
-
-        container_profile.add_profile(&video_profile.upcast())
-            .context("Failed to add video profile to container")?;
+        let video_profile = gst_pbutils::EncodingVideoProfile::builder(&video_caps)
+            .presence(1)
+            .build();
 
         let audio_caps = gst::Caps::builder(self.options.audio_format.to_mime_type())
             .build();
 
-        let audio_profile = gst_pbutils::EncodingAudioProfile::new(
-            &audio_caps,
-            None,
-            Some(&gst::Caps::builder("audio/x-raw").build()),
-            1,
-        ).context("Failed to create audio profile")?;
+        let audio_profile = gst_pbutils::EncodingAudioProfile::builder(&audio_caps)
+            .presence(1)
+            .build();
 
-        if self.options.audio_bitrate > 0 {
-            audio_profile.set_bitrate(self.options.audio_bitrate as u32);
-        }
+        let container_caps = gst::Caps::builder(self.options.container_format.to_mime_type())
+            .build();
 
-        container_profile.add_profile(&audio_profile.upcast())
-            .context("Failed to add audio profile to container")?;
+        let container_profile = gst_pbutils::EncodingContainerProfile::builder(&container_caps)
+            .name("container")
+            .description("Container profile")
+            .add_profile(video_profile.upcast_ref())
+            .add_profile(audio_profile.upcast_ref())
+            .build();
 
         Ok(container_profile.upcast())
     }
@@ -367,7 +339,7 @@ impl GstExporter {
                 let structure = gst::Structure::builder("export-cancelled")
                     .build();
                 let message = gst::message::Application::new(structure);
-                bus.post(&message).expect("Failed to post cancellation message");
+                bus.post(message).expect("Failed to post cancellation message");
             }
         }
 
@@ -422,9 +394,15 @@ impl ContainerFormatExt for ContainerFormat {
         match self {
             ContainerFormat::Mp4 => "video/quicktime, variant=iso",
             ContainerFormat::Mkv => "video/x-matroska",
-            ContainerFormat::WebM => "video/webm",
+            ContainerFormat::Webm => "video/webm",
             ContainerFormat::Mov => "video/quicktime",
             ContainerFormat::Avi => "video/x-msvideo",
+            ContainerFormat::Flv => "video/x-flv",
+            ContainerFormat::Wmv => "video/x-ms-wmv",
+            ContainerFormat::Mpg => "video/mpeg",
+            ContainerFormat::Ts => "video/mpegts",
+            ContainerFormat::Mxf => "application/mxf",
+            ContainerFormat::Gif => "image/gif",
         }
     }
 }
@@ -443,6 +421,11 @@ impl VideoFormatExt for VideoFormat {
             VideoFormat::Av1 => "video/x-av1",
             VideoFormat::ProRes => "video/x-prores",
             VideoFormat::Dnxhd => "video/x-dnxhd",
+            VideoFormat::Mjpeg => "video/x-mjpeg",
+            VideoFormat::Mpeg2 => "video/x-mpeg2video",
+            VideoFormat::Mpeg4 => "video/x-mpeg4",
+            VideoFormat::Theora => "video/x-theora",
+            VideoFormat::Raw => "video/x-raw",
         }
     }
 }
@@ -460,6 +443,9 @@ impl AudioFormatExt for AudioFormat {
             AudioFormat::Vorbis => "audio/x-vorbis",
             AudioFormat::Opus => "audio/x-opus",
             AudioFormat::Pcm => "audio/x-raw",
+            AudioFormat::Ac3 => "audio/x-ac3",
+            AudioFormat::Eac3 => "audio/x-eac3",
+            AudioFormat::Wma => "audio/x-wma",
         }
     }
 }
