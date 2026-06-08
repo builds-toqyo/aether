@@ -209,11 +209,17 @@ impl NodeManager {
     }
 
     pub fn get_node(&self, node_id: &Uuid) -> Option<&dyn NodeExecutor> {
-        self.nodes.get(node_id).map(|executor| executor.as_ref())
+        self.nodes.get(node_id).map(|executor| {
+            let executor: &(dyn NodeExecutor + Send + Sync) = executor.as_ref();
+            executor as &dyn NodeExecutor
+        })
     }
 
     pub fn get_node_mut(&mut self, node_id: &Uuid) -> Option<&mut dyn NodeExecutor> {
-        self.nodes.get_mut(node_id).map(|executor| executor.as_mut())
+        self.nodes.get_mut(node_id).map(|executor| {
+            let executor: &mut (dyn NodeExecutor + Send + Sync) = executor.as_mut();
+            executor as &mut dyn NodeExecutor
+        })
     }
 
     pub fn get_node_metadata(&self, node_id: &Uuid) -> Option<&Node> {

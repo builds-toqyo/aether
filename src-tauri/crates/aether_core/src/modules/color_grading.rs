@@ -260,7 +260,7 @@ pub struct ColorGradingEngine {
 
     scope_update_timeout_id: Option<glib::SourceId>,
 
-    bus_watch: Option<gst::BusWatchGuard>,
+    bus_watch: Option<gst::bus::BusWatchGuard>,
 
     self_weak: Option<std::sync::Weak<Mutex<ColorGradingEngine>>>,
 }
@@ -358,7 +358,7 @@ impl ColorGradingEngine {
             ControlFlow::Continue
         });
 
-        self.bus_watch = Some(bus_watch_id);
+        self.bus_watch = Some(bus_watch_id?);
 
         Ok(())
     }
@@ -377,7 +377,7 @@ impl ColorGradingEngine {
 
         for (factory, name) in required_elements.iter() {
             let element = gst::ElementFactory::make(factory)
-                .name(name)
+                .name(*name)
                 .build()
                 .map_err(|_| anyhow::anyhow!("Failed to create {} element", name))?;
 
@@ -671,9 +671,8 @@ impl ColorGradingEngine {
         debug!("Shutting down color grading engine");
 
 
-        if let Some(bus_watch_id) = self.bus_watch.take() {
-            bus_watch_id.remove();
-        }
+        // BusWatchGuard removed on drop
+        self.bus_watch = None;
 
 
         if let Some(pipeline) = self.pipeline.take() {

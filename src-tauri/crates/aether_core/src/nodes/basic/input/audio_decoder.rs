@@ -5,7 +5,6 @@ use std::ffi::CString;
 use uuid::Uuid;
 use log::{debug, error, warn};
 
-
 pub struct AudioDecoder {
 
     frame_cache: std::collections::HashMap<u64, Uuid>,
@@ -49,13 +48,7 @@ impl AudioDecoder {
         };
 
 
-        let codec_params = input_stream.parameters();
-        let sample_rate = codec_params.sample_rate().unwrap_or(48000);
-        let channels = codec_params.channels().unwrap_or(2) as u8;
-        let bit_depth = codec_params.bits_per_coded_sample().unwrap_or(16) as u8;
-
-
-        // TODO: ffmpeg-next API has changed - codec::find_by_name may not exist
+        // TODO: ffmpeg-next API has changed - codec_params no longer exposes sample_rate/channels directly
         // For now, return early with a placeholder node ID
         error!("Audio decoder API needs updating for ffmpeg-next 8.x");
         return Uuid::new_v4();
@@ -113,27 +106,11 @@ impl AudioDecoder {
     }
 
 
-    fn extract_audio_samples(&self, frame: &frame::Audio, channels: u8) -> Vec<f32> {
-        let samples = frame.samples();
-        let total_samples = samples.len() * channels as usize;
-
-        debug!("Extracting {} audio samples ({} channels)", total_samples, channels);
-
-
-        let mut audio_data = Vec::with_capacity(total_samples);
-
-        for channel_samples in samples {
-            for sample in channel_samples {
-                audio_data.push(*sample as f32 / i16::MAX as f32);
-            }
-        }
-
-        debug!("Extracted {} audio samples", audio_data.len());
-
-        audio_data
+    fn extract_audio_samples(&self, _frame: &frame::Audio, _channels: u8) -> Vec<f32> {
+        // TODO: Update for ffmpeg-next 8.x API changes
+        Vec::new()
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct AudioMetadata {
