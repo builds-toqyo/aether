@@ -123,6 +123,12 @@ pub struct AudioTrack {
     devices: Vec<AudioDevice>,
 
     initialized: bool,
+
+    tracks: std::collections::HashMap<String, Arc<Mutex<AudioTrack>>>,
+
+    master_volume_element: Option<gst::Element>,
+
+    master_volume: f64,
 }
 
 impl AudioTrack {
@@ -146,6 +152,9 @@ impl AudioTrack {
             level_watch_id: None,
             devices: Vec::new(),
             initialized: false,
+            tracks: std::collections::HashMap::new(),
+            master_volume_element: None,
+            master_volume: 1.0,
         }
     }
 

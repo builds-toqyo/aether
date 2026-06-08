@@ -1,5 +1,3 @@
-
-
 pub mod processor;
 pub mod types;
 pub mod config;
@@ -7,7 +5,6 @@ pub mod display;
 pub mod tone;
 pub mod gamut;
 pub mod analysis;
-
 
 pub use processor::HdrProcessor;
 pub use config::HdrConfig;

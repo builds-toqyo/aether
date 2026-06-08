@@ -1,5 +1,5 @@
 //! Memory Allocation Tracker
-//! 
+//!
 //! Provides utilities for tracking memory allocations and detecting leaks.
 
 use std::collections::HashMap;
@@ -59,7 +59,7 @@ impl MemoryTracker {
         }
 
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        
+
         let record = AllocationRecord {
             id,
             size,
@@ -181,7 +181,7 @@ impl MemoryTracker {
                 count: allocations.values().filter(|a| a.category == *name).count(),
             })
             .collect();
-        
+
         category_stats.sort_by(|a, b| b.size.cmp(&a.size));
 
         MemoryReport {
@@ -230,9 +230,9 @@ pub struct MemoryReport {
 impl MemoryReport {
     pub fn print(&self) {
         println!("=== Memory Report ===");
-        println!("Current usage: {} bytes ({:.2} MB)", 
+        println!("Current usage: {} bytes ({:.2} MB)",
             self.current_usage, self.current_usage as f64 / 1_048_576.0);
-        println!("Peak usage: {} bytes ({:.2} MB)", 
+        println!("Peak usage: {} bytes ({:.2} MB)",
             self.peak_usage, self.peak_usage as f64 / 1_048_576.0);
         println!("Total allocated: {} bytes", self.total_allocated);
         println!("Total freed: {} bytes", self.total_freed);
@@ -355,7 +355,7 @@ mod tests {
 
         let id1 = tracker.allocate(1024, "test");
         let id2 = tracker.allocate(2048, "test");
-        
+
         assert_eq!(tracker.peak_usage(), 3072);
 
         tracker.free(id1);
@@ -399,9 +399,9 @@ mod tests {
         budget.set_budget("video", 1024);
 
         assert!(budget.can_allocate("video", 512));
-        
+
         tracker.allocate(512, "video");
-        
+
         assert!(budget.can_allocate("video", 512));
         assert!(!budget.can_allocate("video", 1024));
 

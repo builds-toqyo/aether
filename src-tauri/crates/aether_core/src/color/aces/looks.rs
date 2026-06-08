@@ -1,8 +1,6 @@
-
-
 use std::collections::HashMap;
 use anyhow::{Result, anyhow};
-
+use log::debug;
 
 #[derive(Debug, Clone)]
 pub struct LookTransform {
@@ -14,7 +12,6 @@ pub struct LookTransform {
 }
 
 impl LookTransform {
-
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -29,22 +26,18 @@ impl LookTransform {
         }
     }
 
-
     pub fn apply(&self, rgb: [u8; 3]) -> [u8; 3] {
         let rf = rgb[0] as f32 / 65535.0;
         let gf = rgb[1] as f32 / 65535.0;
         let bf = rgb[2] as f32 / 65535.0;
 
-
         let r = self.color_matrix[0][0] * rf + self.color_matrix[0][1] * gf + self.color_matrix[0][2] * bf;
         let g = self.color_matrix[1][0] * rf + self.color_matrix[1][1] * gf + self.color_matrix[1][2] * bf;
         let b = self.color_matrix[2][0] * rf + self.color_matrix[2][1] * gf + self.color_matrix[2][2] * bf;
 
-
         let r = (r - self.pivot) * self.contrast + self.pivot;
         let g = (g - self.pivot) * self.contrast + self.pivot;
         let b = (b - self.pivot) * self.contrast + self.pivot;
-
 
         let luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
         let r = luma + (r - luma) * self.saturation;
@@ -58,16 +51,13 @@ impl LookTransform {
         ]
     }
 
-
     pub fn name(&self) -> &str {
         &self.name
     }
 
-
     pub fn new_neutral() -> Self {
         Self::new("neutral".to_string())
     }
-
 
     pub fn new_teal_orange() -> Self {
         let mut look = Self::new("teal_orange".to_string());
@@ -81,7 +71,6 @@ impl LookTransform {
         look
     }
 
-
     pub fn new_vintage() -> Self {
         let mut look = Self::new("vintage".to_string());
         look.color_matrix = [
@@ -93,7 +82,6 @@ impl LookTransform {
         look.contrast = 0.9;
         look
     }
-
 
     pub fn new_dramatic() -> Self {
         let mut look = Self::new("dramatic".to_string());
@@ -108,7 +96,6 @@ impl LookTransform {
     }
 }
 
-
 pub struct LookManager {
     looks: HashMap<String, LookTransform>,
 }
@@ -121,7 +108,6 @@ impl LookManager {
         }
     }
 
-
     pub fn initialize_default_looks(&mut self) {
         debug!("Initializing default looks");
 
@@ -131,18 +117,15 @@ impl LookManager {
         self.looks.insert("dramatic".to_string(), LookTransform::new_dramatic());
     }
 
-
     pub fn get_look(&self, look_name: &str) -> Result<&LookTransform> {
         self.looks.get(look_name)
             .ok_or_else(|| anyhow!("Look not found: {}", look_name))
     }
 
-
     pub fn add_look(&mut self, look: LookTransform) {
         let name = look.name().to_string();
         self.looks.insert(name, look);
     }
-
 
     pub fn remove_look(&mut self, look_name: &str) -> Result<()> {
         self.looks.remove(look_name)
@@ -150,11 +133,9 @@ impl LookManager {
         Ok(())
     }
 
-
     pub fn get_available_looks(&self) -> Vec<String> {
         self.looks.keys().cloned().collect()
     }
-
 
     pub fn list_looks(&self) -> Vec<&str> {
         self.looks.keys().map(|s| s.as_str()).collect()

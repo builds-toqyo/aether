@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use gstreamer as gst;
 use gstreamer_pbutils as gst_pbutils;
+use gstreamer_pbutils::prelude::DiscovererStreamInfoExt;
 use gst::prelude::*;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
@@ -154,7 +155,7 @@ impl FileManager {
     {
         // Check if source exists
         if !source.exists() {
-            return Err(anyhow!(__STRING_3__, source));
+            return Err(anyhow!("Source path does not exist: {}", source));
         }
 
         // Create destination directory if it doesn't exist

@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_pbutils as gst_pbutils;
+use gstreamer_pbutils::prelude::DiscovererStreamInfoExt;
 use gstreamer_editing_services as ges;
 use glib::{filename_to_uri, filename_from_uri};
 use log::{debug, info, warn, error};

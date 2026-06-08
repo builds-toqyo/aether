@@ -6,7 +6,6 @@ pub fn rec709_gamma_decode(value: f32) -> f32 {
     }
 }
 
-
 pub fn rec709_gamma_encode(value: f32) -> f32 {
     if value < 0.0181 {
         value * 4.5
@@ -14,7 +13,6 @@ pub fn rec709_gamma_encode(value: f32) -> f32 {
         1.099 * value.powf(0.45) - 0.099
     }
 }
-
 
 pub fn rec2020_gamma_decode(value: f32) -> f32 {
     if value < 0.0812 {
@@ -24,7 +22,6 @@ pub fn rec2020_gamma_decode(value: f32) -> f32 {
     }
 }
 
-
 pub fn rec2020_gamma_encode(value: f32) -> f32 {
     if value < 0.0181 {
         value * 4.5
@@ -33,7 +30,6 @@ pub fn rec2020_gamma_encode(value: f32) -> f32 {
     }
 }
 
-
 pub fn srgb_gamma_decode(value: f32) -> f32 {
     if value < 0.04045 {
         value / 12.92
@@ -41,7 +37,6 @@ pub fn srgb_gamma_decode(value: f32) -> f32 {
         ((value + 0.055) / 1.055).powf(2.4)
     }
 }
-
 
 pub fn srgb_gamma_encode(value: f32) -> f32 {
     if value < 0.0031308 {
@@ -55,7 +50,7 @@ pub fn srgb_gamma_encode(value: f32) -> f32 {
 mod tests {
     use super::*;
 
-    #[test]
+   #[test]
     fn test_gamma_roundtrip() {
 
         let original = 0.5;

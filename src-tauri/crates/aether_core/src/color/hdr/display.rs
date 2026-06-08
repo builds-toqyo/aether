@@ -1,11 +1,8 @@
-
-
 use std::collections::HashMap;
 use anyhow::{Result, anyhow};
 use log::debug;
 
 use super::types::{HdrDisplayType, ColorPrimaries, TransferFunction};
-
 
 pub struct HdrDisplayManager {
     config: super::config::HdrDisplayConfig,

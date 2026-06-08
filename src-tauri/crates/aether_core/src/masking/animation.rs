@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use super::types::*;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MaskAnimationTarget {
     Position,
     Rotation,
@@ -29,7 +29,6 @@ pub struct MaskKeyframe {
     pub interpolation: crate::animation::InterpolationMethod,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AnimationValue {
     Float(f64),
@@ -38,7 +37,6 @@ pub enum AnimationValue {
     Color(f64, f64, f64, f64),
     Boolean(bool),
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaskAnimationTrack {

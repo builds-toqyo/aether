@@ -93,7 +93,7 @@ impl Timeline {
             .ok_or(EditingError::NotInitialized)?;
 
         let layer = if timeline.layers().is_empty() {
-            timeline.append_layer()  
+            timeline.append_layer()
         } else {
             timeline.layer(0).ok_or(EditingError::TimelineError("No layers available".to_string()))?
         };

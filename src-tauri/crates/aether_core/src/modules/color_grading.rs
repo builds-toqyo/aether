@@ -352,7 +352,7 @@ impl ColorGradingEngine {
             ControlFlow::Continue
         });
 
-        self.bus_watch_id = Some(bus_watch_id);
+        self.bus_watch = Some(bus_watch_id);
 
         Ok(())
     }
@@ -844,6 +844,21 @@ impl ColorGradingEngine {
         }
     }
 
+
+    fn apply_curves(&mut self) -> Result<()> {
+        debug!("Applying curves");
+        Ok(())
+    }
+
+    fn apply_lut(&mut self, _lut: &LutSettings) -> Result<()> {
+        debug!("Applying LUT");
+        Ok(())
+    }
+
+    fn clear_lut(&mut self) -> Result<()> {
+        debug!("Clearing LUT");
+        Ok(())
+    }
 
     fn pull_processed_frame(&self) -> Result<Vec<u8>> {
 

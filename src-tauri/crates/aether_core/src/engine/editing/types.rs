@@ -84,44 +84,19 @@ impl From<anyhow::Error> for EditingError {
 pub struct MediaInfo {
 
     pub path: PathBuf,
-
-
     pub duration: i64,
-
-
     pub title: Option<String>,
-
-
     pub media_type: MediaType,
-
-
     pub video_streams: Vec<VideoStreamInfo>,
-
-
     pub audio_streams: Vec<AudioStreamInfo>,
-
-
+    pub bitrate: Option<u64>,
     pub creation_date: Option<String>,
-
-
     pub artist: Option<String>,
-
-
     pub copyright: Option<String>,
-
-
     pub comment: Option<String>,
-
-
     pub album: Option<String>,
-
-
     pub genre: Option<String>,
-
-
     pub file_size: Option<u64>,
-
-
     pub container_format: Option<String>,
 }
 
@@ -136,55 +111,34 @@ pub enum MediaType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VideoStreamInfo {
     pub index: i32,
-
     pub width: i32,
-
     pub height: i32,
-
     pub frame_rate: f64,
-
     pub codec_name: String,
-
     pub pixel_format: String,
-
-
     pub aspect_ratio: Option<f64>,
-
-
     pub bitrate: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioStreamInfo {
     pub index: i32,
-
     pub sample_rate: i32,
-
     pub channels: i32,
-
     pub codec_name: String,
-
     pub bit_depth: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClipInfo {
     pub id: String,
-
     pub name: String,
-
     pub source_path: Option<PathBuf>,
-
     pub start_time: i64,
-
     pub duration: i64,
-
     pub in_point: i64,
-
     pub out_point: i64,
-
     pub track_type: TrackType,
-
     pub effects: Vec<EffectInfo>,
 }
 
@@ -197,14 +151,9 @@ pub enum TrackType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EffectInfo {
     pub id: String,
-
     pub name: String,
-
     pub effect_type: String,
-
     pub parameters: std::collections::HashMap<String, String>,
-
     pub start_time: i64,
-
     pub duration: i64,
 }

@@ -1,12 +1,9 @@
-
-
 use anyhow::{Result, anyhow};
 use log::{debug, info};
 use image::{Rgb, RgbImage};
 
 use crate::types::{ColorSpace, VideoRange};
 use super::{display::HdrDisplayManager, tone::ToneMapper, gamut::GamutMapper, config::HdrConfig, types::HdrImage};
-
 
 pub struct HdrProcessor {
     config: HdrConfig,
@@ -16,7 +13,6 @@ pub struct HdrProcessor {
 }
 
 impl HdrProcessor {
-
     pub fn new(config: HdrConfig) -> Result<Self> {
         info!("Creating HDR processor with config: {:?}", config);
 
@@ -32,7 +28,6 @@ impl HdrProcessor {
         Ok(processor)
     }
 
-
     pub fn process_hdr_image(
         &self,
         hdr_image: &HdrImage,
@@ -41,9 +36,7 @@ impl HdrProcessor {
     ) -> Result<RgbImage> {
         debug!("Processing HDR image for display: {:?}", target_display);
 
-
         let display_info = self.display_manager.get_display_info(target_display)?;
-
 
         let tone_mapped = self.tone_mapper.apply_tone_mapping(
             hdr_image,
@@ -51,13 +44,11 @@ impl HdrProcessor {
             &self.config.tone_mapping_config,
         )?;
 
-
         let gamut_mapped = self.gamut_mapper.apply_gamut_mapping(
             &tone_mapped,
             output_color_space,
             &self.config.gamut_mapping_config,
         )?;
-
 
         let output_image = self.hdr_to_sdr(&gamut_mapped, output_color_space)?;
 
@@ -65,7 +56,6 @@ impl HdrProcessor {
 
         Ok(output_image)
     }
-
 
     pub fn sdr_to_hdr(&self, sdr_image: &RgbImage, target_nits: f32) -> Result<HdrImage> {
         debug!("Converting SDR to HDR with {} nits", target_nits);
@@ -77,7 +67,6 @@ impl HdrProcessor {
             for x in 0..width {
                 let pixel = sdr_image.get_pixel(x, y);
                 let [r, g, b] = pixel.0;
-
 
                 let hdr_pixel = super::types::HdrPixel {
                     r: (r as f32 / 255.0) * target_nits,
@@ -103,7 +92,6 @@ impl HdrProcessor {
         Ok(hdr_image)
     }
 
-
     fn hdr_to_sdr(&self, hdr_image: &HdrImage, output_color_space: ColorSpace) -> Result<RgbImage> {
         let (width, height) = (hdr_image.width, hdr_image.height);
         let mut sdr_image = RgbImage::new(width, height);
@@ -111,7 +99,6 @@ impl HdrProcessor {
         for y in 0..height {
             for x in 0..width {
                 let hdr_pixel = &hdr_image.data[(y * width + x) as usize];
-
 
                 let sdr_r = (hdr_pixel.r / 1000.0 * 255.0).clamp(0.0, 255.0) as u8;
                 let sdr_g = (hdr_pixel.g / 1000.0 * 255.0).clamp(0.0, 255.0) as u8;
@@ -123,7 +110,6 @@ impl HdrProcessor {
 
         Ok(sdr_image)
     }
-
 
     pub fn analyze_hdr_content(&self, hdr_image: &HdrImage) -> Result<super::analysis::HdrAnalysis> {
         debug!("Analyzing HDR content");
@@ -154,7 +140,6 @@ impl HdrProcessor {
         Ok(analysis)
     }
 
-
     pub fn update_config(&mut self, config: HdrConfig) -> Result<()> {
         debug!("Updating HDR configuration");
 
@@ -168,16 +153,13 @@ impl HdrProcessor {
         Ok(())
     }
 
-
     pub fn get_available_displays(&self) -> Vec<super::types::HdrDisplayType> {
         self.display_manager.get_available_displays()
     }
 
-
     pub fn get_available_tone_mappers(&self) -> Vec<super::tone::ToneMappingAlgorithm> {
         self.tone_mapper.get_available_algorithms()
     }
-
 
     pub fn get_available_gamut_mappers(&self) -> Vec<super::gamut::GamutMappingAlgorithm> {
         self.gamut_mapper.get_available_algorithms()

@@ -313,11 +313,11 @@ impl VideoDecoder {
                         }
                     };
 
-
-                    let duration = stream.duration()
-                        .map(|d| d.seconds() as f64)
-                        .unwrap_or(0.0);
-
+                    let duration = if stream.duration() > 0 {
+                        (stream.duration() as f64) * stream.time_base().numerator() as f64 / stream.time_base().denominator() as f64
+                    } else {
+                        0.0
+                    };
 
                     let video_info = VideoStreamInfo {
                         index: stream_idx,
@@ -346,9 +346,11 @@ impl VideoDecoder {
                         .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
 
-                    let duration = stream.duration()
-                        .map(|d| d.seconds() as f64)
-                        .unwrap_or(0.0);
+                    let duration = if stream.duration() > 0 {
+                        (stream.duration() as f64) * stream.time_base().numerator() as f64 / stream.time_base().denominator() as f64
+                    } else {
+                        0.0
+                    };
 
 
                     let audio_info = AudioStreamInfo {
@@ -387,7 +389,7 @@ impl VideoDecoder {
             // Get decoder properties before opening
             let decoder = codec_ctx.decoder().video()
                 .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
-            
+
             let src_format = decoder.format();
             let dst_format = self.config.output_format.to_ffmpeg_format();
             let width = decoder.width();
@@ -604,7 +606,7 @@ impl VideoDecoder {
         // Get decoder properties before opening
         let decoder = codec_ctx.decoder().video()
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
-        
+
         let src_format = decoder.format();
         let dst_format = self.config.output_format.to_ffmpeg_format();
         let width = decoder.width();
@@ -750,20 +752,20 @@ impl VideoDecoder {
                 if let Some(stream) = format_ctx.streams().nth(video_stream_index as usize) {
                     let time_base = stream.time_base();
                     let target_pts = (time * time_base.1 as f64 / time_base.0 as f64) as i64;
-                    
+
                     // Seek to the target position
                     format_ctx.seek(target_pts, ..)?;
                     self.current_position = time;
-                    
+
                     // Reset frame cache
                     let mut state = self.state.lock().unwrap();
                     state.last_decoded_frame_pts = target_pts;
-                    
+
                     return Ok(());
                 }
             }
         }
-        
+
         Err(VideoDecoderError::DecodingError("No video stream available for seeking".to_string()))
     }
 }

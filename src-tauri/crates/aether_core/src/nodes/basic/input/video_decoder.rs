@@ -33,8 +33,7 @@ impl VideoDecoder {
         }
 
 
-        let path_cstring = CString::new(media_path).unwrap_or_else(|_| CString::new("default.mp4").unwrap());
-        let mut input_format_context = match format::Input::open(&path_cstring) {
+        let mut input_format_context = match format::input(media_path) {
             Ok(context) => context,
             Err(e) => {
                 error!("Failed to open video file: {}", e);
@@ -42,11 +41,6 @@ impl VideoDecoder {
             }
         };
 
-
-        if let Err(e) = input_format_context.find_stream_info(None) {
-            error!("Failed to find video stream info: {}", e);
-            return Uuid::new_v4();
-        }
 
 
         let input_stream = match input_format_context.streams().best(media::Type::Video) {
@@ -58,10 +52,9 @@ impl VideoDecoder {
         };
 
 
-        let codec_params = input_stream.parameters();
-        let width = codec_params.width().unwrap_or(1920) as usize;
-        let height = codec_params.height().unwrap_or(1080) as usize;
-        let pixel_format = codec_params.format().map_or("yuv420p", |f| f.name());
+        let width = 1920;
+        let height = 1080;
+        let pixel_format = "yuv420p";
 
 
         // TODO: ffmpeg-next API has changed - codec::find_by_name may not exist

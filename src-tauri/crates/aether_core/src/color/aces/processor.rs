@@ -1,5 +1,3 @@
-
-
 use std::sync::{Arc, RwLock};
 use anyhow::{Result, anyhow};
 use log::{debug, info, warn};
@@ -7,7 +5,6 @@ use image::{Rgb, RgbImage};
 
 use crate::types::{ColorSpace, VideoRange};
 use super::{transforms::TransformManager, looks::LookManager, config::AcesConfig};
-
 
 pub struct AcesProcessor {
     config: AcesConfig,
@@ -22,7 +19,6 @@ pub struct AcesProcessor {
 }
 
 impl AcesProcessor {
-
     pub fn new(config: AcesConfig) -> Result<Self> {
         info!("Creating ACES processor with config: {:?}", config);
 
@@ -40,7 +36,6 @@ impl AcesProcessor {
             processor.initialize_opencolorio()?;
         }
 
-
         processor.transform_manager.initialize_transforms()?;
         processor.look_manager.initialize_default_looks();
 
@@ -49,11 +44,10 @@ impl AcesProcessor {
         Ok(processor)
     }
 
-
     // TODO: Implement OpenColorIO FFI bindings
     // fn initialize_opencolorio(&mut self) -> Result<()> {
     //     debug!("Initializing OpenColorIO configuration");
-    // 
+    //
     //     match ocio::Config::create_from_file(&self.config.ocio_config_path) {
     //         Ok(config) => {
     //             self.ocio_config = Some(Arc::new(config));
@@ -64,7 +58,7 @@ impl AcesProcessor {
     //             self.ocio_config = None;
     //         }
     //     }
-    // 
+    //
     //     Ok(())
     // }
 
@@ -72,7 +66,6 @@ impl AcesProcessor {
         debug!("OpenColorIO not yet implemented - using fallback matrices");
         Ok(())
     }
-
 
     pub fn to_aces(&self, image: &RgbImage, input_transform: super::InputTransform) -> Result<RgbImage> {
         debug!("Converting image to ACES with transform: {:?}", input_transform);
@@ -85,12 +78,9 @@ impl AcesProcessor {
                 let pixel = image.get_pixel(x, y);
                 let [r, g, b] = pixel.0;
 
-
                 let linear_rgb = self.gamma_decode([r, g, b], self.color_space);
 
-
                 let aces_rgb = self.transform_manager.apply_input_transform(linear_rgb, input_transform)?;
-
 
                 aces_image.put_pixel(x, y, Rgb(aces_rgb));
             }
@@ -100,7 +90,6 @@ impl AcesProcessor {
 
         Ok(aces_image)
     }
-
 
     pub fn from_aces(&self, aces_image: &RgbImage, output_transform: super::OutputTransform) -> Result<RgbImage> {
         debug!("Converting ACES image with transform: {:?}", output_transform);
@@ -113,12 +102,9 @@ impl AcesProcessor {
                 let pixel = aces_image.get_pixel(x, y);
                 let [r, g, b] = pixel.0;
 
-
                 let output_rgb = self.transform_manager.apply_output_transform([r, g, b], output_transform)?;
 
-
                 let gamma_rgb = self.gamma_encode(output_rgb, self.color_space);
-
 
                 let clamped_rgb = [
                     gamma_rgb[0].clamp(0.0, 255.0) as u8,
@@ -134,7 +120,6 @@ impl AcesProcessor {
 
         Ok(output_image)
     }
-
 
     pub fn apply_look(&self, aces_image: &mut RgbImage, look_name: &str) -> Result<()> {
         debug!("Applying look: {}", look_name);
@@ -160,7 +145,6 @@ impl AcesProcessor {
         Ok(())
     }
 
-
     pub fn process_pipeline(
         &self,
         input_image: &RgbImage,
@@ -170,14 +154,11 @@ impl AcesProcessor {
     ) -> Result<RgbImage> {
         debug!("Processing complete ACES pipeline");
 
-
         let mut aces_image = self.to_aces(input_image, input_transform)?;
-
 
         if let Some(look) = look_name {
             self.apply_look(&mut aces_image, look)?;
         }
-
 
         let output_image = self.from_aces(&aces_image, output_transform)?;
 
@@ -185,7 +166,6 @@ impl AcesProcessor {
 
         Ok(output_image)
     }
-
 
     fn gamma_decode(&self, rgb: [u8; 3], color_space: ColorSpace) -> [f32; 3] {
         match color_space {
@@ -203,7 +183,7 @@ impl AcesProcessor {
                     super::gamma::rec2020_gamma_decode(rgb[2] as f32 / 255.0),
                 ]
             }
-            ColorSpace::Srgb => {
+            ColorSpace::SRGB => {
                 [
                     super::gamma::srgb_gamma_decode(rgb[0] as f32 / 255.0),
                     super::gamma::srgb_gamma_decode(rgb[1] as f32 / 255.0),
@@ -213,7 +193,6 @@ impl AcesProcessor {
             _ => [rgb[0] as f32 / 255.0, rgb[1] as f32 / 255.0, rgb[2] as f32 / 255.0],
         }
     }
-
 
     fn gamma_encode(&self, rgb: [u8; 3], color_space: ColorSpace) -> [f32; 3] {
         match color_space {
@@ -231,7 +210,7 @@ impl AcesProcessor {
                     super::gamma::rec2020_gamma_encode(rgb[2] as f32 / 255.0),
                 ]
             }
-            ColorSpace::Srgb => {
+            ColorSpace::SRGB => {
                 [
                     super::gamma::srgb_gamma_encode(rgb[0] as f32 / 255.0),
                     super::gamma::srgb_gamma_encode(rgb[1] as f32 / 255.0),
@@ -242,13 +221,11 @@ impl AcesProcessor {
         }
     }
 
-
     pub fn update_color_space(&mut self, color_space: ColorSpace) -> Result<()> {
         debug!("Updating ACES processor color space: {:?}", color_space);
         self.color_space = color_space;
         Ok(())
     }
-
 
     pub fn update_video_range(&mut self, video_range: VideoRange) -> Result<()> {
         debug!("Updating ACES processor video range: {:?}", video_range);
@@ -256,11 +233,9 @@ impl AcesProcessor {
         Ok(())
     }
 
-
     pub fn get_available_input_transforms(&self) -> Vec<super::InputTransform> {
         self.transform_manager.get_available_input_transforms()
     }
-
 
     pub fn get_available_output_transforms(&self) -> Vec<super::OutputTransform> {
         self.transform_manager.get_available_output_transforms()

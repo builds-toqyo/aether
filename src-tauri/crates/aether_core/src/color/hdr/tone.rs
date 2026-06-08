@@ -1,12 +1,9 @@
-
-
 use anyhow::{Result, anyhow};
 use log::debug;
 
 use super::types::HdrImage;
 use super::config::ToneMappingConfig;
 use super::display::HdrDisplayProfile;
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToneMappingAlgorithm {
@@ -17,7 +14,6 @@ pub enum ToneMappingAlgorithm {
     Drago,
 }
 
-
 pub struct ToneMapper {
     config: ToneMappingConfig,
 }
@@ -27,7 +23,6 @@ impl ToneMapper {
     pub fn new(config: ToneMappingConfig) -> Self {
         Self { config }
     }
-
 
     pub fn apply_tone_mapping(
         &self,

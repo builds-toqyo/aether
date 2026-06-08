@@ -1,5 +1,3 @@
-
-
 #[derive(Debug, Clone)]
 pub struct HdrConfig {
     pub display_config: HdrDisplayConfig,
@@ -16,7 +14,6 @@ impl Default for HdrConfig {
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct HdrDisplayConfig {
@@ -36,7 +33,6 @@ impl Default for HdrDisplayConfig {
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct ToneMappingConfig {
@@ -59,7 +55,6 @@ impl Default for ToneMappingConfig {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct GamutMappingConfig {
     pub algorithm: crate::color::hdr::gamut::GamutMappingAlgorithm,
@@ -80,41 +75,34 @@ impl Default for GamutMappingConfig {
 }
 
 impl HdrConfig {
-
     pub fn new() -> Self {
         Self::default()
     }
-
 
     pub fn with_display_config(mut self, config: HdrDisplayConfig) -> Self {
         self.display_config = config;
         self
     }
 
-
     pub fn with_tone_mapping_config(mut self, config: ToneMappingConfig) -> Self {
         self.tone_mapping_config = config;
         self
     }
-
 
     pub fn with_gamut_mapping_config(mut self, config: GamutMappingConfig) -> Self {
         self.gamut_mapping_config = config;
         self
     }
 
-
     pub fn with_default_display(mut self, display_type: crate::color::hdr::types::HdrDisplayType) -> Self {
         self.display_config.default_display = display_type;
         self
     }
 
-
     pub fn with_tone_mapping_algorithm(mut self, algorithm: crate::color::hdr::tone::ToneMappingAlgorithm) -> Self {
         self.tone_mapping_config.algorithm = algorithm;
         self
     }
-
 
     pub fn with_gamut_mapping_algorithm(mut self, algorithm: crate::color::hdr::gamut::GamutMappingAlgorithm) -> Self {
         self.gamut_mapping_config.algorithm = algorithm;

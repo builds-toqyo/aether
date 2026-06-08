@@ -13,7 +13,6 @@ pub struct OutputNode {
 }
 
 impl OutputNode {
-
     pub fn new(node: Node) -> Self {
         let output_format = OutputFormat::Raw;
         let quality_settings = QualitySettings::default();
@@ -27,21 +26,17 @@ impl OutputNode {
         }
     }
 
-
     pub fn set_output_format(&mut self, format: OutputFormat) {
         self.output_format = format;
     }
-
 
     pub fn get_output_format(&self) -> OutputFormat {
         self.output_format.clone()
     }
 
-
     pub fn get_quality_settings(&self) -> &QualitySettings {
         &self.quality_settings
     }
-
 
     pub fn set_quality_settings(&mut self, settings: QualitySettings) {
         self.quality_settings = settings.clone();
@@ -49,10 +44,8 @@ impl OutputNode {
         self.encoders.update_quality_settings(self.quality_settings.clone());
     }
 
-
     pub fn create_standard(name: String) -> Node {
         let mut node = Node::new(NodeType::Output, name);
-
 
         let input_pin = InputPin {
             id: Uuid::new_v4(),
@@ -65,7 +58,6 @@ impl OutputNode {
         };
         node.add_input(input_pin);
 
-
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
@@ -73,7 +65,6 @@ impl OutputNode {
             value: ParameterValue::None,
         };
         node.add_output(output_pin);
-
 
         let format_param = aether_types::Parameter {
             id: Uuid::new_v4(),
@@ -143,12 +134,10 @@ impl OutputNode {
         node
     }
 
-
     pub fn reset_quality_settings(&mut self) {
         self.quality_settings = QualitySettings::default();
         self.encoders.update_quality_settings(self.quality_settings.clone());
     }
-
 
     pub fn is_active(&self) -> bool {
         self.output_format != OutputFormat::Raw
@@ -158,8 +147,7 @@ impl OutputNode {
 impl NodeExecutor for OutputNode {
     fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
 
-        let input_value = self.node.get_input_value("input", context);
-
+        let input_value = self.node.get_input_value("input").unwrap_or(ParameterValue::None);
 
         let encoding_result = self.encoders.process_output(input_value, context.frame);
 
@@ -180,12 +168,12 @@ impl NodeExecutor for OutputNode {
         NodeType::Output
     }
 
-    fn get_inputs(&self) -> &[Uuid] {
-        &self.node.inputs
+    fn get_inputs(&self) -> Vec<Uuid> {
+        self.node.inputs.iter().map(|pin| pin.id).collect()
     }
 
-    fn get_outputs(&self) -> &[Uuid] {
-        &self.node.outputs
+    fn get_outputs(&self) -> Vec<Uuid> {
+        self.node.outputs.iter().map(|pin| pin.id).collect()
     }
 
 }
@@ -243,7 +231,6 @@ mod tests {
     #[test]
     fn test_quality_settings_validation() {
         let mut settings = QualitySettings::default();
-
 
         settings.set_jpeg_quality(150);
         assert_eq!(settings.jpeg_quality, 100);

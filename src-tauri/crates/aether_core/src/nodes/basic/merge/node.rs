@@ -4,14 +4,12 @@ use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, Output
 use uuid::Uuid;
 use log::debug;
 
-
 pub struct MergeNode {
     node: Node,
     blend_ops: BlendOperations,
 }
 
 impl MergeNode {
-
     pub fn new(node: Node) -> Self {
         let blend_ops = BlendOperations::new(BlendMode::Normal, 1.0);
 
@@ -21,30 +19,24 @@ impl MergeNode {
         }
     }
 
-
     pub fn set_blend_mode(&mut self, mode: BlendMode) {
         self.blend_ops.set_blend_mode(mode);
     }
-
 
     pub fn get_blend_mode(&self) -> BlendMode {
         self.blend_ops.get_blend_mode()
     }
 
-
     pub fn set_opacity(&mut self, opacity: f32) {
         self.blend_ops.set_opacity(opacity);
     }
-
 
     pub fn get_opacity(&self) -> f32 {
         self.blend_ops.get_opacity()
     }
 
-
     pub fn create_standard(name: String, input_count: usize) -> Node {
         let mut node = Node::new(NodeType::Merge, name);
-
 
         for i in 0..input_count {
             let input_pin = InputPin {
@@ -58,7 +50,6 @@ impl MergeNode {
             };
             node.add_input(input_pin);
         }
-
 
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
@@ -77,6 +68,8 @@ impl MergeNode {
             default_value: ParameterValue::String("normal".to_string()),
             min_value: None,
             max_value: None,
+            animatable: false,
+            description: Some("Blend mode for merging".to_string()),
         };
         node.add_parameter(blend_mode_param);
 
@@ -86,14 +79,15 @@ impl MergeNode {
             data_type: PinDataType::Float,
             value: ParameterValue::Float(1.0),
             default_value: ParameterValue::Float(1.0),
-            min_value: Some(ParameterValue::Float(0.0)),
-            max_value: Some(ParameterValue::Float(1.0)),
+            min_value: Some(0.0),
+            max_value: Some(1.0),
+            animatable: true,
+            description: Some("Opacity for blending".to_string()),
         };
         node.add_parameter(opacity_param);
 
         node
     }
-
 
     fn process_multiple_inputs(&self, inputs: &[ParameterValue]) -> ParameterValue {
         if inputs.is_empty() {
@@ -104,14 +98,11 @@ impl MergeNode {
             return inputs[0].clone();
         }
 
-
         let mut result = inputs[0].clone();
-
 
         for i in 1..inputs.len() {
             result = self.blend_ops.apply_blend(result, inputs[i].clone());
         }
-
         result
     }
 }
@@ -122,16 +113,15 @@ impl NodeExecutor for MergeNode {
         let mut inputs = Vec::new();
         let mut i = 0;
 
-        while let Some(input_value) = self.node.get_input_value(&format!("input_{}", i), context) {
+        while let Some(input_value) = self.node.get_input_value(&format!("input_{}", i)) {
+            let input_value = input_value;
             inputs.push(input_value);
             i += 1;
         }
 
         debug!("Processing merge with {} inputs", inputs.len());
 
-
         let output_value = self.process_multiple_inputs(&inputs);
-
 
         self.node.set_output_value("output", output_value);
 
@@ -142,12 +132,12 @@ impl NodeExecutor for MergeNode {
         NodeType::Merge
     }
 
-    fn get_inputs(&self) -> &[Uuid] {
-        &self.node.inputs
+    fn get_inputs(&self) -> Vec<Uuid> {
+        self.node.inputs.iter().map(|pin| pin.id).collect()
     }
 
-    fn get_outputs(&self) -> &[Uuid] {
-        &self.node.outputs
+    fn get_outputs(&self) -> Vec<Uuid> {
+        self.node.outputs.iter().map(|pin| pin.id).collect()
     }
 
 }

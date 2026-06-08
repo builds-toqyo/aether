@@ -6,6 +6,7 @@ use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_pbutils as gst_pbutils;
 use gstreamer_editing_services as ges;
+use gstreamer_editing_services::prelude::TimelineExt;
 use glib::{filename_to_uri, ControlFlow, MainLoop, SourceId};
 use crate::engine::editing::types::EditingError;
 use crate::engine::rendering::formats::{VideoFormat, AudioFormat, ContainerFormat};

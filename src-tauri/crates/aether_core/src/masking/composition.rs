@@ -590,7 +590,6 @@ mod tests {
     fn test_composition_modes() {
         let compositor = MaskCompositor::new();
 
-
         assert_eq!(compositor.compose_values(0.5, 0.5, MaskCompositionMode::Add), 1.0);
         assert_eq!(compositor.compose_values(0.7, 0.3, MaskCompositionMode::Subtract), 0.4);
         assert_eq!(compositor.compose_values(0.5, 0.5, MaskCompositionMode::Intersect), 0.25);

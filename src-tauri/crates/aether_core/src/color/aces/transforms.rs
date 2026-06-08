@@ -1,8 +1,6 @@
-
-
 use std::collections::HashMap;
 use anyhow::{Result, anyhow};
-
+use log::debug;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum InputTransform {
@@ -12,7 +10,6 @@ pub enum InputTransform {
     RawToAces,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OutputTransform {
     AcesToRec709,
@@ -21,14 +18,12 @@ pub enum OutputTransform {
     AcesToHdr10,
 }
 
-
 pub struct TransformManager {
     input_transforms: HashMap<InputTransform, [[f32; 3]; 3]>,
     output_transforms: HashMap<OutputTransform, [[f32; 3]; 3]>,
 }
 
 impl TransformManager {
-
     pub fn new() -> Result<Self> {
         Ok(Self {
             input_transforms: HashMap::new(),
@@ -36,16 +31,13 @@ impl TransformManager {
         })
     }
 
-
     pub fn initialize_transforms(&mut self) -> Result<()> {
         debug!("Initializing transformation matrices");
-
 
         self.input_transforms.insert(InputTransform::Rec709ToAces, Self::rec709_to_aces_matrix());
         self.input_transforms.insert(InputTransform::Rec2020ToAces, Self::rec2020_to_aces_matrix());
         self.input_transforms.insert(InputTransform::SrgbToAces, Self::srgb_to_aces_matrix());
         self.input_transforms.insert(InputTransform::RawToAces, Self::raw_to_aces_matrix());
-
 
         self.output_transforms.insert(OutputTransform::AcesToRec709, Self::aces_to_rec709_matrix());
         self.output_transforms.insert(OutputTransform::AcesToRec2020, Self::aces_to_rec2020_matrix());
@@ -55,7 +47,6 @@ impl TransformManager {
         Ok(())
     }
 
-
     pub fn apply_input_transform(&self, rgb: [u8; 3], transform: InputTransform) -> Result<[u8; 3]> {
         let matrix = self.input_transforms.get(&transform)
             .ok_or_else(|| anyhow!("Input transform not found: {:?}", transform))?;
@@ -63,14 +54,12 @@ impl TransformManager {
         Ok(self.apply_matrix(rgb, *matrix))
     }
 
-
     pub fn apply_output_transform(&self, rgb: [u8; 3], transform: OutputTransform) -> Result<[u8; 3]> {
         let matrix = self.output_transforms.get(&transform)
             .ok_or_else(|| anyhow!("Output transform not found: {:?}", transform))?;
 
         Ok(self.apply_matrix(rgb, *matrix))
     }
-
 
     fn apply_matrix(&self, rgb: [u8; 3], matrix: [[f32; 3]; 3]) -> [u8; 3] {
         let rf = rgb[0] as f32 / 255.0;
@@ -88,16 +77,13 @@ impl TransformManager {
         ]
     }
 
-
     pub fn get_available_input_transforms(&self) -> Vec<InputTransform> {
         self.input_transforms.keys().copied().collect()
     }
 
-
     pub fn get_available_output_transforms(&self) -> Vec<OutputTransform> {
         self.output_transforms.keys().copied().collect()
     }
-
 
     fn rec709_to_aces_matrix() -> [[f32; 3]; 3] {
         [
@@ -124,7 +110,6 @@ impl TransformManager {
     }
 
     fn raw_to_aces_matrix() -> [[f32; 3]; 3] {
-
         [
             [1.0, 0.0, 0.0],
             [0.0, 1.0, 0.0],

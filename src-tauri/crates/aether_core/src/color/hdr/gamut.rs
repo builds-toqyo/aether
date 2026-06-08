@@ -1,11 +1,8 @@
-
-
 use anyhow::{Result, anyhow};
 use log::debug;
 
 use super::types::HdrImage;
 use super::config::GamutMappingConfig;
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GamutMappingAlgorithm {
@@ -15,17 +12,14 @@ pub enum GamutMappingAlgorithm {
     Perceptual,
 }
 
-
 pub struct GamutMapper {
     config: GamutMappingConfig,
 }
 
 impl GamutMapper {
-
     pub fn new(config: GamutMappingConfig) -> Self {
         Self { config }
     }
-
 
     pub fn apply_gamut_mapping(
         &self,
@@ -49,20 +43,15 @@ impl GamutMapper {
         Ok(gamut_mapped)
     }
 
-
     fn itp_gamut_map(&self, pixel: super::types::HdrPixel, config: &GamutMappingConfig) -> super::types::HdrPixel {
-
         let (l, m, s) = self.rgb_to_itp(pixel.r, pixel.g, pixel.b);
 
-
         let (l_mapped, m_mapped, s_mapped) = self.map_itp_gamut(l, m, s, config);
-
 
         let (r, g, b) = self.itp_to_rgb(l_mapped, m_mapped, s_mapped);
 
         super::types::HdrPixel { r, g, b }
     }
-
 
     fn rgb_to_itp(&self, r: f32, g: f32, b: f32) -> (f32, f32, f32) {
 
@@ -73,7 +62,6 @@ impl GamutMapper {
         (l, m, s)
     }
 
-
     fn itp_to_rgb(&self, l: f32, m: f32, s: f32) -> (f32, f32, f32) {
         let r = l + m + s;
         let g = l - m + s;
@@ -81,7 +69,6 @@ impl GamutMapper {
 
         (r, g, b)
     }
-
 
     fn map_itp_gamut(&self, l: f32, m: f32, s: f32, config: &GamutMappingConfig) -> (f32, f32, f32) {
         let saturation_factor = config.saturation_preservation;
@@ -93,19 +80,16 @@ impl GamutMapper {
         (l_mapped, m_mapped, s_mapped)
     }
 
-
     fn yuv_gamut_map(&self, pixel: super::types::HdrPixel, config: &GamutMappingConfig) -> super::types::HdrPixel {
 
         let y = 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
         let u = (pixel.b - y) * 0.5;
         let v = (pixel.r - y) * 0.5;
 
-
         let saturation_factor = config.saturation_preservation;
         let y_mapped = y;
         let u_mapped = u * saturation_factor;
         let v_mapped = v * saturation_factor;
-
 
         let r = y_mapped + 1.403 * v_mapped;
         let g = y_mapped - 0.344 * u_mapped - 0.714 * v_mapped;
@@ -113,7 +97,6 @@ impl GamutMapper {
 
         super::types::HdrPixel { r, g, b }
     }
-
 
     fn saturation_gamut_map(&self, pixel: super::types::HdrPixel, config: &GamutMappingConfig) -> super::types::HdrPixel {
         let luma = 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
@@ -126,12 +109,9 @@ impl GamutMapper {
         super::types::HdrPixel { r, g, b }
     }
 
-
     fn perceptual_gamut_map(&self, pixel: super::types::HdrPixel, config: &GamutMappingConfig) -> super::types::HdrPixel {
-
         let luma = 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
         let saturation_factor = config.saturation_preservation;
-
 
         let r_weight = 0.299;
         let g_weight = 0.587;
@@ -148,11 +128,9 @@ impl GamutMapper {
         }
     }
 
-
     pub fn update_config(&mut self, config: GamutMappingConfig) {
         self.config = config;
     }
-
 
     pub fn get_available_algorithms(&self) -> Vec<GamutMappingAlgorithm> {
         vec![
@@ -163,7 +141,6 @@ impl GamutMapper {
         ]
     }
 
-
     pub fn get_algorithm_description(&self, algorithm: GamutMappingAlgorithm) -> &'static str {
         match algorithm {
             GamutMappingAlgorithm::Itp => "ICTCP perceptual color space mapping",
@@ -172,7 +149,6 @@ impl GamutMapper {
             GamutMappingAlgorithm::Perceptual => "Weighted perceptual gamut mapping",
         }
     }
-
 
     pub fn get_algorithm_characteristics(&self, algorithm: GamutMappingAlgorithm) -> GamutMappingCharacteristics {
         match algorithm {
@@ -203,7 +179,6 @@ impl GamutMapper {
         }
     }
 
-
     pub fn convert_color_primaries(
         &self,
         pixel: super::types::HdrPixel,
@@ -221,7 +196,6 @@ impl GamutMapper {
 
         Ok(super::types::HdrPixel { r, g, b })
     }
-
 
     fn get_conversion_matrix(&self, from: super::types::ColorPrimaries, to: super::types::ColorPrimaries) -> Result<[[f32; 3]; 3]> {
         match (from, to) {
@@ -249,7 +223,6 @@ impl GamutMapper {
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct GamutMappingCharacteristics {

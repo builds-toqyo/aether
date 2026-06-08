@@ -2,7 +2,6 @@ use std::sync::{Arc, Mutex};
 use std::error::Error;
 use std::fmt;
 
-
 #[derive(Debug)]
 pub enum RendererError {
     InitializationError(String),
@@ -1133,13 +1132,13 @@ pub struct RendererConfig {
 
 
     pub hw_device: Option<String>,
-    
+
     pub gamma: f64,
-    
+
     pub enable_color_correction: bool,
-    
+
     pub enable_color_grading: bool,
-    
+
     pub enable_vignette: bool,
 }
 

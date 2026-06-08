@@ -5,6 +5,8 @@ use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_pbutils as gst_pbutils;
 use gstreamer_editing_services as ges;
+use gstreamer_editing_services::prelude::TimelineExt;
+use gstreamer_pbutils::prelude::EncodingProfileBuilder;
 use glib::{filename_to_uri, filename_from_uri, ControlFlow};
 use crate::engine::editing::types::EditingError;
 
@@ -209,48 +211,33 @@ impl IntermediateExporter {
     }
 
     fn create_encoding_profile(&self) -> Result<gst_pbutils::EncodingContainerProfile, EditingError> {
-        let container_caps = gst::Caps::builder(&format!("video/{}", self.options.container)).build();
-        let container_profile = gst_pbutils::EncodingContainerProfile::new(
-            Some("export-profile"),
-            Some("Export Profile"),
-            &container_caps,
-            None,
-        ).map_err(|_| EditingError::ExportError("Failed to create container profile".to_string()))?;
-
         let video_caps = gst::Caps::builder("video/x-raw")
             .field("format", "I420")
             .build();
 
         let video_codec_caps = gst::Caps::builder(&format!("video/{}", self.options.video_codec)).build();
-        let video_profile = gst_pbutils::EncodingVideoProfile::new(
-            &video_codec_caps,
-            None,
-            Some(&video_caps),
-            1,
-        ).ok_or(EditingError::ExportError("Failed to create video profile".to_string()))?;
-
-        if self.options.video_bitrate > 0 {
-            video_profile.set_bitrate(self.options.video_bitrate);
-        }
+        let video_profile = gst_pbutils::EncodingVideoProfile::builder(&video_codec_caps)
+            .restriction(&video_caps)
+            .presence(1)
+            .build();
 
         let audio_caps = gst::Caps::builder("audio/x-raw")
             .field("format", "S16LE")
             .build();
 
         let audio_codec_caps = gst::Caps::builder(&format!("audio/{}", self.options.audio_codec)).build();
-        let audio_profile = gst_pbutils::EncodingAudioProfile::new(
-            &audio_codec_caps,
-            None,
-            Some(&audio_caps),
-            1,
-        ).ok_or(EditingError::ExportError("Failed to create audio profile".to_string()))?;
+        let audio_profile = gst_pbutils::EncodingAudioProfile::builder(&audio_codec_caps)
+            .restriction(&audio_caps)
+            .presence(1)
+            .build();
 
-        if self.options.audio_bitrate > 0 {
-            audio_profile.set_bitrate(self.options.audio_bitrate);
-        }
-
-        container_profile.add_profile(&video_profile.upcast())?;
-        container_profile.add_profile(&audio_profile.upcast())?;
+        let container_caps = gst::Caps::builder(&format!("video/{}", self.options.container)).build();
+        let container_profile = gst_pbutils::EncodingContainerProfile::builder(&container_caps)
+            .name("export-profile")
+            .description("Export Profile")
+            .add_profile(&video_profile)
+            .add_profile(&audio_profile)
+            .build();
 
         Ok(container_profile)
     }

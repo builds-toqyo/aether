@@ -91,9 +91,7 @@ impl SequenceLoader {
             return Uuid::new_v4();
         }
 
-
-        let path_cstring = CString::new(filename).unwrap_or_else(|_| CString::new("default.png").unwrap());
-        let mut input_format_context = match format::Input::open(&path_cstring) {
+        let mut input_format_context = match format::input(filename) {
             Ok(context) => context,
             Err(e) => {
                 warn!("Failed to open sequence frame {}: {}", filename, e);
@@ -101,13 +99,6 @@ impl SequenceLoader {
                 return self.create_default_sequence_frame(frame);
             }
         };
-
-
-        if let Err(e) = input_format_context.find_stream_info(None) {
-            warn!("Failed to find stream info for sequence frame {}: {}", filename, e);
-            return self.create_default_sequence_frame(frame);
-        }
-
 
         let input_stream = match input_format_context.streams().best(media::Type::Video) {
             Some(stream) => stream,
@@ -117,12 +108,10 @@ impl SequenceLoader {
             }
         };
 
-
         let codec_params = input_stream.parameters();
         let width = codec_params.width().unwrap_or(1920) as usize;
         let height = codec_params.height().unwrap_or(1080) as usize;
         let pixel_format = codec_params.format().map_or("rgb24", |f| f.name());
-
 
         // TODO: ffmpeg-next API has changed - codec::find_by_name may not exist
         // For now, return early with a placeholder frame
@@ -188,7 +177,6 @@ impl SequenceLoader {
         let height = 1080;
         let channels = 3;
 
-
         let mut data = Vec::with_capacity(width * height * channels);
         for y in 0..height {
             for x in 0..width {
@@ -198,14 +186,12 @@ impl SequenceLoader {
             }
         }
 
-
         self.upload_sequence_frame_to_gpu(&data, width, height, channels)
             .unwrap_or_else(|_| {
                 error!("Failed to upload default sequence frame");
                 Uuid::new_v4()
             })
     }
-
 
     fn extract_frame_data(&self, frame: &frame::Video, channels: usize, pixel_format: &str) -> Result<Vec<u8>, String> {
         let width = frame.width() as usize;
@@ -235,12 +221,9 @@ impl SequenceLoader {
 
     fn upload_sequence_frame_to_gpu(&self, data: &[u8], width: usize, height: usize, channels: usize) -> Result<Uuid, String> {
 
-
         debug!("Uploading sequence frame to GPU: {}x{} ({} channels)", width, height, channels);
 
-
         let texture_id = Uuid::new_v4();
-
 
         debug!("Sequence frame uploaded to GPU with texture ID: {}", texture_id);
 

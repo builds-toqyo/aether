@@ -8,6 +8,7 @@ use gstreamer_video as gst_video;
 use gstreamer_app as gst_app;
 use gstreamer_app::AppSink;
 use gstreamer_editing_services as ges;
+use gstreamer_editing_services::prelude::GESPipelineExt;
 use crate::engine::editing::types::EditingError;
 
 #[derive(Clone)]
@@ -77,20 +78,20 @@ impl PreviewEngine {
         if let (Some(pipeline), Some(video_sink)) = (&self.pipeline, &self.video_sink) {
             // Try to remove the video sink from the pipeline
             if let Err(err) = pipeline.set_video_sink(None) {
-                error!(__STRING_0__, err);
+                error!("Failed to remove video sink: {}", err);
             }
         }
 
         // Set pipeline to NULL state to release resources
         if let Some(pipeline) = &self.pipeline {
             if let Err(err) = pipeline.set_state(gst::State::Null) {
-                error!(__STRING_1__, err);
+                error!("Failed to set pipeline to NULL state: {}", err);
             }
 
             // Wait for the state change to complete
             // Wait for state change with proper error handling
         if let Err(err) = pipeline.get_state(gst::ClockTime::from_seconds(1)) {
-            warn!(__STRING_2__, err);
+            warn!("Error waiting for state change: {}", err);
         }
         }
 
@@ -138,10 +139,10 @@ impl PreviewEngine {
                                 if let Err(e) = panic::catch_unwind(panic::AssertUnwindSafe(|| {
                                     callback(frame);
                                 })) {
-                                    error!(__STRING_13__, e);
+                                    error!("Error in frame callback: {}", e);
                                 }
                             } else {
-                                warn!(__STRING_14__);
+                                warn!("No frame callback registered");
                             }
                         }
                     }

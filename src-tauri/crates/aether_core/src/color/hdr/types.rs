@@ -1,5 +1,3 @@
-
-
 #[derive(Debug, Clone)]
 pub struct HdrImage {
     pub width: u32,
@@ -10,14 +8,12 @@ pub struct HdrImage {
     pub max_nits: f32,
 }
 
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct HdrPixel {
     pub r: f32,
     pub g: f32,
     pub b: f32,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HdrDisplayType {

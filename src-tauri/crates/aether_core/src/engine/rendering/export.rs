@@ -96,7 +96,7 @@ pub struct Exporter {
 
 impl Exporter {
     pub fn new(options: ExportOptions) -> Result<Self, EditingError> {
-        ffmpeg::init().map_err(|e| EditingError::ExportError(format!(__STRING_0__, e)))?;
+        ffmpeg::init().map_err(|e| EditingError::ExportError(format!("FFmpeg initialization failed: {}", e)))?;
 
         let progress = Arc::new(Mutex::new(ExportProgress {
             current_frame: 0,
@@ -217,36 +217,39 @@ impl Exporter {
             let mut video_stream = output_context.add_stream(video_codec)?;
 
             {
-                let mut encoder = video_stream.codec().encoder().video()?;
+                let mut context = ffmpeg::codec::context::Context::new_with_codec(video_codec);
+                let mut video = context.encoder().video()?;
 
                 let out_width = if options.width > 0 { options.width } else { width as u32 };
                 let out_height = if options.height > 0 { options.height } else { height as u32 };
-                encoder.set_width(out_width);
-                encoder.set_height(out_height);
+                video.set_width(out_width);
+                video.set_height(out_height);
 
-                encoder.set_format(ffmpeg::format::pixel::Pixel::YUV420P);
+                video.set_format(ffmpeg::format::pixel::Pixel::YUV420P);
 
                 let out_frame_rate = if options.frame_rate > 0.0 { options.frame_rate } else { frame_rate };
                 let frame_rate_rational = ffmpeg::util::rational::Rational::new(
                     (out_frame_rate * 1000.0) as i32,
                     1000,
                 );
-                encoder.set_time_base(frame_rate_rational.invert());
+                video.set_time_base(frame_rate_rational.invert());
                 video_stream.set_time_base(frame_rate_rational.invert());
 
                 if options.video_bitrate > 0 {
-                    encoder.set_bit_rate(options.video_bitrate as i64);
-                } else {
-                    encoder.set_option("crf", &options.crf.to_string())?;
+                    video.set_bit_rate(options.video_bitrate as usize);
                 }
 
-                encoder.set_option("preset", options.encoder_preset.to_ffmpeg_name())?;
-
+                let mut dict = ffmpeg::Dictionary::new();
+                if options.video_bitrate <= 0 {
+                    dict.set("crf", &options.crf.to_string());
+                }
+                dict.set("preset", options.encoder_preset.to_ffmpeg_name());
                 if options.threads > 0 {
-                    encoder.set_option("threads", &options.threads.to_string())?;
+                    dict.set("threads", &options.threads.to_string());
                 }
 
-                encoder.open()?;
+                let opened = video.open_with(dict)?;
+                video_stream.set_parameters(opened);
             }
 
             let mut audio_stream_index_out = None;
@@ -267,22 +270,24 @@ impl Exporter {
                     let input_codec_context = ffmpeg::codec::context::Context::from_parameters(input_stream.parameters())?;
                     let input_codec_par = input_codec_context.parameters();
 
-                    let mut encoder = audio_stream.codec().encoder().audio()?;
+                    let mut context = ffmpeg::codec::context::Context::new_with_codec(audio_codec);
+                    let mut audio = context.encoder().audio()?;
 
-                    encoder.set_rate(input_codec_par.rate() as i32);
-                    encoder.set_channels(input_codec_par.channels() as i32);
-                    encoder.set_channel_layout(input_codec_par.channel_layout());
-                    encoder.set_format(ffmpeg::format::sample::Sample::F32(ffmpeg::format::sample::Type::Planar));
+                    audio.set_rate(input_codec_par.rate() as i32);
+                    audio.set_channels(input_codec_par.channels() as i32);
+                    audio.set_channel_layout(input_codec_par.channel_layout());
+                    audio.set_format(ffmpeg::format::sample::Sample::F32(ffmpeg::format::sample::Type::Planar));
 
                     let time_base = ffmpeg::util::rational::Rational::new(1, input_codec_par.rate() as i32);
-                    encoder.set_time_base(time_base);
+                    audio.set_time_base(time_base);
                     audio_stream.set_time_base(time_base);
 
                     if options.audio_bitrate > 0 {
-                        encoder.set_bit_rate(options.audio_bitrate as i64);
+                        audio.set_bit_rate(options.audio_bitrate as usize);
                     }
 
-                    encoder.open()?;
+                    let opened = audio.open()?;
+                    audio_stream.set_parameters(opened);
                 }
             }
 
@@ -333,7 +338,6 @@ impl Exporter {
             } else {
                 None
             };
-
 
             let mut decoded = ffmpeg::frame::Video::new(
                 video_decoder.format(),

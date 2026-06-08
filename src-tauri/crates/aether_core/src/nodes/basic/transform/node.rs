@@ -270,7 +270,7 @@ impl TransformNode {
 impl NodeExecutor for TransformNode {
     fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
 
-        let input_value = self.node.get_input_value("input", context);
+        let input_value = self.node.get_input_value("input").unwrap_or(ParameterValue::None);
 
 
         let output_value = self.operations.apply_transform(input_value);
@@ -285,12 +285,12 @@ impl NodeExecutor for TransformNode {
         NodeType::Transform
     }
 
-    fn get_inputs(&self) -> &[Uuid] {
-        &self.node.inputs
+    fn get_inputs(&self) -> Vec<Uuid> {
+        self.node.inputs.iter().map(|pin| pin.id).collect()
     }
 
-    fn get_outputs(&self) -> &[Uuid] {
-        &self.node.outputs
+    fn get_outputs(&self) -> Vec<Uuid> {
+        self.node.outputs.iter().map(|pin| pin.id).collect()
     }
 
 }
