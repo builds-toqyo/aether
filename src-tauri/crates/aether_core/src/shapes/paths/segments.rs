@@ -39,6 +39,31 @@ pub struct PathSegment {
 }
 
 impl PathSegment {
+    pub fn point_at(&self, t: f64, start_x: f64, start_y: f64) -> (f64, f64) {
+        match self.segment_type {
+            PathSegmentType::MoveTo => (self.x, self.y),
+            PathSegmentType::LineTo => {
+                (start_x + t * (self.x - start_x), start_y + t * (self.y - start_y))
+            }
+            PathSegmentType::QuadraticTo => {
+                let one_t = 1.0 - t;
+                let x = one_t * one_t * start_x + 2.0 * one_t * t * self.cp1_x + t * t * self.x;
+                let y = one_t * one_t * start_y + 2.0 * one_t * t * self.cp1_y + t * t * self.y;
+                (x, y)
+            }
+            PathSegmentType::CubicTo => {
+                let one_t = 1.0 - t;
+                let one_t2 = one_t * one_t;
+                let one_t3 = one_t2 * one_t;
+                let t2 = t * t;
+                let t3 = t2 * t;
+                let x = one_t3 * start_x + 3.0 * one_t2 * t * self.cp1_x + 3.0 * one_t * t2 * self.cp2_x + t3 * self.x;
+                let y = one_t3 * start_y + 3.0 * one_t2 * t * self.cp1_y + 3.0 * one_t * t2 * self.cp2_y + t3 * self.y;
+                (x, y)
+            }
+            PathSegmentType::Close => (self.x, self.y),
+        }
+    }
     /// Create move to segment
     pub fn move_to(x: f64, y: f64) -> Self {
         Self {

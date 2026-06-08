@@ -13,6 +13,7 @@ pub enum PinDataType {
     Integer,
     Boolean,
     String,
+    Binary,
     Array(Box<PinDataType>),
 }
 
@@ -70,7 +71,7 @@ impl Default for ParameterValue {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum NodeType {
     Input,
     Output,

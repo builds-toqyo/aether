@@ -271,7 +271,6 @@ impl BezierCurve {
             let mid_t = (t0 + t1) / 2.0;
             let mid_point = Self::cubic_bezier_point(mid_t, cp0, cp1, cp2, cp3);
 
-
             let d1 = Self::point_to_line_distance(mid_point, cp0, cp3);
             let d2 = Self::point_to_line_distance(cp1, cp0, cp3);
             let d3 = Self::point_to_line_distance(cp2, cp0, cp3);
@@ -293,7 +292,6 @@ impl BezierCurve {
         length
     }
 
-
     pub fn quadratic_bezier_length(
         p0: (f64, f64),
         p1: (f64, f64),
@@ -307,12 +305,10 @@ impl BezierCurve {
             let mid_t = (t0 + t1) / 2.0;
             let mid_point = Self::quadratic_bezier_point(mid_t, cp0, cp1, cp2);
 
-
             let d1 = Self::point_to_line_distance(mid_point, cp0, cp2);
             let d2 = Self::point_to_line_distance(cp1, cp0, cp2);
 
             if d1.max(d2) <= tolerance {
-
                 let dx = cp2.0 - cp0.0;
                 let dy = cp2.1 - cp0.1;
                 length += (dx * dx + dy * dy).sqrt();
@@ -320,14 +316,13 @@ impl BezierCurve {
 
                 let (left, right) = Self::subdivide_quadratic_bezier(0.5, cp0, cp1, cp2);
 
-                stack.push((right.0, right.1, mid_t, t1));
-                stack.push((left.0, left.1, t0, mid_t));
+                stack.push((right.0, right.1, right.2, mid_t, t1));
+                stack.push((left.0, left.1, left.2, t0, mid_t));
             }
         }
 
         length
     }
-
 
     fn point_to_line_distance(point: (f64, f64), line_start: (f64, f64), line_end: (f64, f64)) -> f64 {
         let dx = line_end.0 - line_start.0;

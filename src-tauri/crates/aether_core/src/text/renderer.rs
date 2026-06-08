@@ -228,7 +228,7 @@ impl TextRenderer {
 
         if let Some(crate::text::animation::AnimationValue::Color(r, g, b, a)) =
             animated_values.get(&crate::text::animation::AnimationType::Color) {
-            color = (r, g, b, a);
+            color = (*r, *g, *b, *a);
         }
 
         let mut opacity = text_layer.opacity;

@@ -81,14 +81,14 @@ pub struct PathGlyph {
 }
 
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PathTextRenderer {
 
     pub path_texts: Vec<TextOnPath>,
 
     pub rendered_glyphs: Vec<PathGlyph>,
 
-    pub path_cache: std::collections::HashMap<String, crate::shapes::paths::PathBuf>,
+    pub path_cache: std::collections::HashMap<String, crate::shapes::paths::Path>,
 
     pub is_dirty: bool,
 }
@@ -207,7 +207,7 @@ impl PathTextRenderer {
 
 
     pub fn update_path_cache(&mut self, path_id: &str, path: crate::shapes::paths::Path) {
-        self.path_cache.insert(path_id.to_string(), path.to_path_buf());
+        self.path_cache.insert(path_id.to_string(), path);
         self.is_dirty = true;
     }
 
@@ -221,7 +221,7 @@ impl PathTextRenderer {
 
         for text_on_path in &self.path_texts {
             if let Some(path_buf) = self.path_cache.get(&text_on_path.path_id) {
-                let glyphs = self.render_text_on_path(text_on_path, path_buf.as_path())?;
+                let glyphs = self.render_text_on_path(text_on_path, path_buf)?;
                 self.rendered_glyphs.extend(glyphs);
             } else {
                 return Err(format!("Path not found in cache: {}", text_on_path.path_id));

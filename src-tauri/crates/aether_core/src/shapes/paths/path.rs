@@ -326,9 +326,56 @@ impl Path {
             }
         }
 
-        vertices
+        let mut area = 0.0;
+        for i in 0..vertices.len() {
+            let j = (i + 1) % vertices.len();
+            area += vertices[i].0 * vertices[j].1;
+            area -= vertices[j].0 * vertices[i].1;
+        }
+        area.abs() / 2.0
     }
 
+    pub fn vertices(&self, tolerance: f64) -> Vec<(f64, f64)> {
+        let mut verts = vec![(self.start_x, self.start_y)];
+        let mut current_x = self.start_x;
+        let mut current_y = self.start_y;
+
+        for segment in &self.segments {
+            match segment.segment_type {
+                super::segments::PathSegmentType::MoveTo => {
+                    verts.push((segment.x, segment.y));
+                    current_x = segment.x;
+                    current_y = segment.y;
+                }
+                super::segments::PathSegmentType::LineTo => {
+                    verts.push((segment.x, segment.y));
+                    current_x = segment.x;
+                    current_y = segment.y;
+                }
+                super::segments::PathSegmentType::QuadraticTo => {
+                    let points = segment.sample_points(current_x, current_y, 10);
+                    for point in points.iter().skip(1) {
+                        verts.push(*point);
+                    }
+                    current_x = segment.x;
+                    current_y = segment.y;
+                }
+                super::segments::PathSegmentType::CubicTo => {
+                    let points = segment.sample_points(current_x, current_y, 20);
+                    for point in points.iter().skip(1) {
+                        verts.push(*point);
+                    }
+                    current_x = segment.x;
+                    current_y = segment.y;
+                }
+                super::segments::PathSegmentType::Close => {
+                    current_x = self.start_x;
+                    current_y = self.start_y;
+                }
+            }
+        }
+        verts
+    }
 
     pub fn simplify(&self, tolerance: f64) -> Path {
         let vertices = self.vertices(tolerance);

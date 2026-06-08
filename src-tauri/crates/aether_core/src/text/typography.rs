@@ -57,32 +57,20 @@ pub struct HyphenationSettings {
 }
 
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct FontMetrics {
-
     pub font_family: String,
-
     pub font_size: f64,
-
     pub ascent: f64,
-
     pub descent: f64,
-
     pub line_gap: f64,
-
     pub cap_height: f64,
-
     pub x_height: f64,
-
     pub avg_char_width: f64,
-
     pub max_char_width: f64,
-
     pub underline_position: f64,
-
     pub underline_thickness: f64,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextLayout {
@@ -189,6 +177,10 @@ impl TypographyControls {
 
     pub fn estimate_word_width(&self, word: &str, _metrics: &FontMetrics) -> f64 {
         word.len() as f64 * self.font_size * 0.5
+    }
+
+    pub fn layout_text(&self, _text: &str, _width: f64) -> Vec<(f64, f64, f64, f64)> {
+        Vec::new()
     }
 }
 
