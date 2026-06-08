@@ -261,6 +261,8 @@ pub struct ColorGradingEngine {
     scope_update_timeout_id: Option<glib::SourceId>,
 
     bus_watch: Option<gst::BusWatchGuard>,
+
+    self_weak: Option<std::sync::Weak<Mutex<ColorGradingEngine>>>,
 }
 
 impl ColorGradingEngine {
@@ -286,6 +288,7 @@ impl ColorGradingEngine {
                 (ScopeType::RGBParade, ScopeConfig::default()),
             ]),
             scope_update_timeout_id: None,
+            self_weak: None,
         })
     }
 
@@ -296,6 +299,9 @@ impl ColorGradingEngine {
         Ok(engine)
     }
 
+    pub fn set_self_weak(&mut self, weak: std::sync::Weak<Mutex<ColorGradingEngine>>) {
+        self.self_weak = Some(weak);
+    }
 
     pub fn initialize(&mut self) -> Result<()> {
         if self.initialized {
@@ -595,7 +601,7 @@ impl ColorGradingEngine {
 
             let appsink = sink.clone().dynamic_cast::<gst_app::AppSink>().expect("Not an appsink");
             let scope_type_clone = scope_type;
-            let weak_self = Arc::downgrade(&Arc::new(Mutex::new(self)));
+            let weak_self = self.self_weak.clone().unwrap_or_else(|| Arc::downgrade(&Arc::new(Mutex::new(ColorGradingEngine::new().unwrap()))));
 
             appsink.set_callbacks(
                 gst_app::AppSinkCallbacks::builder()
@@ -789,8 +795,8 @@ impl ColorGradingEngine {
 
         self.apply_adjustments()?;
 
-        if let Some(lut) = &self.lut {
-            self.apply_lut(lut)?;
+        if let Some(lut) = self.lut.clone() {
+            self.apply_lut(&lut)?;
         } else {
             self.clear_lut()?;
         }
@@ -977,7 +983,7 @@ impl ColorGradingEngine {
             .min()
             .unwrap_or(100);
 
-        let weak_self = Arc::downgrade(&Arc::new(Mutex::new(self)));
+        let weak_self = self.self_weak.clone().unwrap_or_else(|| Arc::downgrade(&Arc::new(Mutex::new(ColorGradingEngine::new().unwrap()))));
 
         let timeout_id = glib::timeout_add_local(std::time::Duration::from_millis(min_interval as u64), move || {
             if let Some(arc_self) = weak_self.upgrade() {

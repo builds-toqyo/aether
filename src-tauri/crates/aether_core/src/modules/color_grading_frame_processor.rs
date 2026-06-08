@@ -17,9 +17,13 @@ pub struct ColorGradingFrameProcessor {
 
 impl ColorGradingFrameProcessor {
 
-    pub fn new(engine: ColorGradingEngine) -> Self {
+    pub fn new(mut engine: ColorGradingEngine) -> Self {
+        let engine_arc = Arc::new(Mutex::new(engine));
+        if let Ok(mut e) = engine_arc.lock() {
+            e.set_self_weak(Arc::downgrade(&engine_arc));
+        }
         Self {
-            engine: Arc::new(Mutex::new(engine)),
+            engine: engine_arc,
         }
     }
 
