@@ -1,11 +1,8 @@
-
-
 use aether_types::animation::{
     AnimationCurve, TrackValue, KeyframeData, KeyframeCollection
 };
 use crate::animation::{InterpolationMethod, EasingFunction};
 use std::collections::HashMap;
-
 
 #[derive(Debug, Clone)]
 pub struct InterpolationResult {
@@ -17,7 +14,6 @@ pub struct InterpolationResult {
 }
 
 impl InterpolationResult {
-
     pub fn success(value: TrackValue, time: f64, method: InterpolationMethod, easing: EasingFunction) -> Self {
         Self {
             value,
@@ -27,7 +23,6 @@ impl InterpolationResult {
             success: true,
         }
     }
-
 
     pub fn failure(time: f64) -> Self {
         Self {
@@ -40,7 +35,6 @@ impl InterpolationResult {
     }
 }
 
-
 pub struct AnimationInterpolator {
     cache: HashMap<String, InterpolationResult>,
     max_cache_size: usize,
@@ -48,7 +42,6 @@ pub struct AnimationInterpolator {
 }
 
 impl AnimationInterpolator {
-
     pub fn new() -> Self {
         Self {
             cache: HashMap::new(),
@@ -56,7 +49,6 @@ impl AnimationInterpolator {
             stats: InterpolationStats::default(),
         }
     }
-
 
     pub fn with_cache_size(max_cache_size: usize) -> Self {
         Self {
@@ -102,13 +94,13 @@ impl AnimationInterpolator {
             InterpolationResult::success(
                 self.keyframe_to_track_value(keyframe),
                 time,
-                keyframe.interpolation,
-                keyframe.easing,
+                keyframe.interpolation(),
+                keyframe.easing(),
             )
         } else {
 
             let (prev_keyframe, next_keyframe) =
-                KeyframeCollection::find_surrounding_keyframes(keyframes, time);
+                KeyframeCollection::find_surrounding_keyframes_data(keyframes, time);
 
             match (prev_keyframe, next_keyframe) {
                 (Some(prev), Some(next)) => {
@@ -117,8 +109,8 @@ impl AnimationInterpolator {
                         InterpolationResult::success(
                             self.keyframe_to_track_value(prev),
                             time,
-                            prev.interpolation,
-                            prev.easing,
+                            prev.interpolation(),
+                            prev.easing(),
                         )
                     } else {
 
@@ -130,8 +122,8 @@ impl AnimationInterpolator {
                     InterpolationResult::success(
                         self.keyframe_to_track_value(prev),
                         time,
-                        prev.interpolation,
-                        prev.easing,
+                        prev.interpolation(),
+                        prev.easing(),
                     )
                 }
                 (None, Some(next)) => {
@@ -139,8 +131,8 @@ impl AnimationInterpolator {
                     InterpolationResult::success(
                         self.keyframe_to_track_value(next),
                         time,
-                        next.interpolation,
-                        next.easing,
+                        next.interpolation(),
+                        next.easing(),
                     )
                 }
                 (None, None) => InterpolationResult::failure(time),
@@ -170,8 +162,8 @@ impl AnimationInterpolator {
     ) -> InterpolationResult {
         let prev_time = prev_keyframe.time();
         let next_time = next_keyframe.time();
-        let interpolation_method = prev_keyframe.interpolation;
-        let easing_function = prev_keyframe.easing;
+        let interpolation_method = prev_keyframe.interpolation();
+        let easing_function = prev_keyframe.easing();
 
         let t = (time - prev_time) / (next_time - prev_time);
         let curve_t = self.apply_easing(t, easing_function);

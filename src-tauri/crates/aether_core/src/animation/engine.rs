@@ -1,5 +1,3 @@
-
-
 use aether_types::animation::{
     AnimationTrack, AnimationTrackCollection, TrackValue
 };
@@ -8,7 +6,6 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use super::interpolation::{AnimationInterpolator, InterpolationResult};
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PlaybackState {
@@ -24,7 +21,6 @@ impl Default for PlaybackState {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct AnimationState {
     pub playback_state: PlaybackState,
@@ -38,7 +34,6 @@ pub struct AnimationState {
 }
 
 impl AnimationState {
-
     pub fn new() -> Self {
         Self {
             playback_state: PlaybackState::Stopped,
@@ -51,7 +46,6 @@ impl AnimationState {
             reversed: false,
         }
     }
-
 
     pub fn set_duration(&mut self, duration: f64) {
         self.duration = duration.max(0.0);
