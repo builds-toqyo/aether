@@ -15,7 +15,7 @@ pub enum ShapeMaskType {
     Custom,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ShapeMask {
     pub properties: MaskProperties,
     pub shape_type: ShapeMaskType,

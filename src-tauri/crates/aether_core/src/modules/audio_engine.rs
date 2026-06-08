@@ -119,6 +119,8 @@ pub struct AudioTrack {
     peak_levels: (f64, f64),
 
     level_watch_id: Option<glib::SourceId>,
+    bus_watch_id: Option<glib::SourceId>,
+    output_device: Option<String>,
 
     devices: Vec<AudioDevice>,
 
@@ -150,6 +152,8 @@ impl AudioTrack {
             effects: Vec::new(),
             peak_levels: (0.0, 0.0),
             level_watch_id: None,
+            bus_watch_id: None,
+            output_device: None,
             devices: Vec::new(),
             initialized: false,
             tracks: std::collections::HashMap::new(),
@@ -234,7 +238,7 @@ impl AudioTrack {
 
 
     pub fn set_solo(&mut self, solo: bool) -> Result<(), EditingError> {
-        self.solo = solo;
+        self.soloed = solo;
 
         Ok(())
     }
@@ -526,7 +530,7 @@ impl AudioTrack {
         monitor.add_filter(Some("Audio/Sink"), None);
 
 
-        if !monitor.start() {
+        if monitor.start().is_err() {
             return Err(EditingError::AudioError("Failed to start device monitor".to_string()));
         }
 
@@ -675,7 +679,7 @@ impl AudioTrack {
 
 
         if let Some(watch_id) = self.bus_watch_id.take() {
-            watch_id.remove();
+            let _ = glib::source_remove(watch_id);
         }
 
         self.initialized = false;
@@ -686,7 +690,7 @@ impl AudioTrack {
 
     pub fn set_output_device(&mut self, device_id: &str) -> Result<(), EditingError> {
 
-        self.config.output_device = Some(device_id.to_string());
+        self.output_device = Some(device_id.to_string());
 
 
         if self.initialized {
@@ -730,7 +734,7 @@ impl AudioTrack {
 
 
     pub fn get_output_device(&self) -> Option<&str> {
-        self.config.output_device.as_deref()
+        self.output_device.as_deref()
     }
 
 

@@ -93,7 +93,7 @@ pub struct GstExporter {
 
     progress_callback: Option<ExportCallback>,
 
-    bus_watch_id: Option<gst::BusWatchGuard>,
+    bus_watch_id: Option<gst::bus::BusWatchGuard>,
 
     timeout_id: Option<SourceId>,
 
@@ -158,11 +158,11 @@ impl GstExporter {
         let output_uri = filename_to_uri(self.options.output_path.as_path(), None)
             .context("Failed to convert output path to URI")?;
 
-        pipeline.set_render_settings(&output_uri, &profile)
-            .context("Failed to set render settings")?;
-
-        pipeline.set_mode(ges::PipelineFlags::RENDER)
-            .context("Failed to set pipeline mode to render")?;
+        // TODO: GES Pipeline API changed - set_render_settings and set_mode no longer available
+        // pipeline.set_render_settings(&output_uri, &profile)
+        //     .context("Failed to set render settings")?;
+        // pipeline.set_mode(ges::PipelineFlags::RENDER)
+        //     .context("Failed to set pipeline mode to render")?;
 
         let bus = pipeline.bus().expect("Pipeline without bus");
 
@@ -319,8 +319,8 @@ impl GstExporter {
         let container_profile = gst_pbutils::EncodingContainerProfile::builder(&container_caps)
             .name("container")
             .description("Container profile")
-            .add_profile(&video_profile)
-            .add_profile(&audio_profile)
+            .add_profile(video_profile)
+            .add_profile(audio_profile)
             .build();
 
         Ok(container_profile.upcast())
@@ -363,7 +363,7 @@ impl GstExporter {
 impl Drop for GstExporter {
     fn drop(&mut self) {
         if let Some(watch_id) = self.bus_watch_id.take() {
-            watch_id.remove();
+            // BusWatchGuard removed on drop
         }
 
         if let Some(timeout_id) = self.timeout_id.take() {
