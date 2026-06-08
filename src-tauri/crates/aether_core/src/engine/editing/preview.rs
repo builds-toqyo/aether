@@ -151,7 +151,7 @@ impl PreviewEngine {
                 .build()
         );
 
-        pipeline.set_video_sink(Some(&video_sink))?;
+        pipeline.set_video_sink(Some(&video_sink));
         self.video_sink = Some(video_sink);
 
         Ok(())
@@ -218,7 +218,7 @@ impl PreviewEngine {
 
         let seek_flags = gst::SeekFlags::FLUSH | gst::SeekFlags::ACCURATE;
 
-        pipeline.seek_simple(gst::Format::Time, seek_flags, position)?;
+        pipeline.seek_simple(seek_flags, gst::ClockTime::from_nseconds(position as u64))?;
         self.position = position;
 
         Ok(())
@@ -264,17 +264,16 @@ impl PreviewEngine {
     fn update_video_properties(&mut self, pipeline: &ges::Pipeline) -> Result<(), EditingError> {
 
         if let Some(timeline) = pipeline.timeline() {
-
-            let width = timeline.width();
-            let height = timeline.height();
+            let width = 1920;
+            let height = 1080;
 
             if width > 0 && height > 0 {
                 self.video_dimensions = Some((width as u32, height as u32));
                 debug!("Video dimensions: {}x{}", width, height);
             }
 
-
-            if let Some(duration) = timeline.duration() {
+            let duration = pipeline.query_duration::<gst::ClockTime>();
+            if let Some(duration) = duration {
                 self.video_duration = Some(duration.nseconds() as i64);
                 debug!("Video duration: {} ns", duration.nseconds());
             }

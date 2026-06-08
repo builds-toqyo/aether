@@ -231,7 +231,7 @@ impl MediaImporter {
                 None
             };
 
-            let bitrate = stream.bitrate().filter(|&b| b > 0);
+            let bitrate = stream.bit_rate().filter(|&b| b > 0);
             if let Some(br) = bitrate {
                 debug!("Bitrate: {} bps ({:.2} Mbps)", br, br as f64 / 1_000_000.0);
             }
@@ -270,20 +270,19 @@ impl MediaImporter {
         }).collect();
 
 
-        let path = filename_from_uri(uri)
+        let (path, _hostname) = filename_from_uri(uri)
             .with_context(|| format!("Failed to convert URI back to path: {}", uri))
             .map_err(|e| EditingError::ImportError(e.to_string()))?;
 
-        let path_buf = PathBuf::from(&path);
-        let file_size = std::fs::metadata(&path_buf).ok().map(|m| m.len());
+        let file_size = std::fs::metadata(&path).ok().map(|m| m.len());
         if let Some(size) = file_size {
             debug!("File size: {} bytes ({:.2} MB)", size, size as f64 / (1024.0 * 1024.0));
         }
 
-        info!("Media analysis complete for {}", path);
+        info!("Media analysis complete for {}", path.display());
 
         Ok(MediaInfo {
-            path: path_buf,
+            path,
             duration: duration as i64,
             title,
             media_type,
@@ -368,12 +367,6 @@ impl MediaImporter {
         };
 
 
-        if let Some(asset) = project.get_asset(&uri) {
-            debug!("Found existing GES asset for {}", uri);
-            return asset.downcast::<ges::UriClipAsset>().ok();
-        }
-
-
         debug!("Creating new GES asset for {}", uri);
         match ges::UriClipAsset::request_sync(&uri) {
             Ok(asset) => {
@@ -389,15 +382,22 @@ impl MediaImporter {
 
 
     pub fn create_ges_clip<P: AsRef<Path>>(&self, path: P) -> Option<ges::Clip> {
-        let asset = self.get_ges_asset(path)?;
+        let path = path.as_ref();
+        let uri = match filename_to_uri(path, None) {
+            Ok(uri) => uri.to_string(),
+            Err(e) => {
+                error!("Failed to convert path to URI: {}", e);
+                return None;
+            }
+        };
 
-        match ges::UriClip::extract(&asset) {
+        match ges::UriClip::new(&uri) {
             Ok(clip) => {
-                debug!("Created GES clip from asset");
-                Some(clip)
+                debug!("Created GES clip from URI");
+                Some(clip.upcast())
             },
             Err(e) => {
-                error!("Failed to extract clip from asset: {}", e);
+                error!("Failed to create clip from URI: {}", e);
                 None
             }
         }
