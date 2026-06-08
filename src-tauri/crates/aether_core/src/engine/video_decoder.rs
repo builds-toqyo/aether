@@ -726,7 +726,7 @@ impl VideoDecoder {
 
     pub fn seek(&mut self, time: f64) -> Result<(), VideoDecoderError> {
         if !self.is_initialized {
-            return Err(VideoDecoderError::NotInitialized);
+            return Err(VideoDecoderError::InitializationError("Not initialized".to_string()));
         }
 
         // Convert time to stream time base

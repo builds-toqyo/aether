@@ -57,7 +57,7 @@ pub struct MaskCompositor {
 }
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MaskType {
     Shape(ShapeMask),
     Gradient(GradientMask),
