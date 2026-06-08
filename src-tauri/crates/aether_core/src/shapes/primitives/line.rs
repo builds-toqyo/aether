@@ -177,6 +177,10 @@ impl super::types::ShapePrimitive for Line {
         copy
     }
 
+    fn clone_box(&self) -> Box<dyn super::types::ShapePrimitive> {
+        Box::new(self.clone())
+    }
+
     fn validate(&self) -> Result<(), String> {
         if self.thickness < 0.0 {
             return Err("Line thickness cannot be negative".to_string());

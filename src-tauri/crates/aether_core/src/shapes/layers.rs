@@ -9,29 +9,17 @@ use crate::shapes::boolean::{BooleanResult, BooleanOperation, AdvancedBoolean};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LayerBlendMode {
-
     Normal,
-
     Multiply,
-
     Screen,
-
     Overlay,
-
     Darken,
-
     Lighten,
-
     ColorDodge,
-
     ColorBurn,
-
     HardLight,
-
     SoftLight,
-
     Difference,
-
     Exclusion,
 }
 
@@ -57,11 +45,8 @@ impl fmt::Display for LayerBlendMode {
 /// Layer visibility state
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LayerVisibility {
-    /// Layer is visible
     Visible,
-    /// Layer is hidden
     Hidden,
-    /// Layer is locked (visible but not editable)
     Locked,
 }
 
@@ -72,30 +57,38 @@ impl Default for LayerVisibility {
 }
 
 /// Shape layer
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ShapeLayer {
-    /// Unique layer identifier
+#[derive(Serialize, Deserialize)]
+pub struct ShapeLayer { 
     pub id: String,
-    /// Layer name
     pub name: String,
-    /// Shape primitive
+    #[serde(skip)]
     pub shape: Box<dyn ShapePrimitive>,
-    /// Layer transform
     pub transform: Transform,
-    /// Layer visibility
     pub visibility: LayerVisibility,
-    /// Layer opacity (0.0 to 1.0)
     pub opacity: f64,
-    /// Layer blend mode
     pub blend_mode: LayerBlendMode,
-    /// Layer order (z-index)
     pub order: i32,
-    /// Layer is selected
     pub selected: bool,
-    /// Layer is locked
     pub locked: bool,
-    /// Layer metadata
     pub metadata: HashMap<String, String>,
+}
+
+impl Clone for ShapeLayer {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            shape: self.shape.clone_box(),
+            transform: self.transform.clone(),
+            visibility: self.visibility.clone(),
+            opacity: self.opacity,
+            blend_mode: self.blend_mode.clone(),
+            order: self.order,
+            selected: self.selected,
+            locked: self.locked,
+            metadata: self.metadata.clone(),
+        }
+    }
 }
 
 impl std::fmt::Debug for ShapeLayer {
@@ -117,7 +110,6 @@ impl std::fmt::Debug for ShapeLayer {
 }
 
 impl ShapeLayer {
-    /// Create new shape layer
     pub fn new<S: Into<String>>(
         id: S,
         name: S,
@@ -138,7 +130,6 @@ impl ShapeLayer {
         }
     }
 
-    /// Create layer with transform
     pub fn with_transform<S: Into<String>>(
         id: S,
         name: S,
@@ -160,24 +151,22 @@ impl ShapeLayer {
         }
     }
 
-    /// Get transformed shape
     pub fn transformed_shape(&self) -> Box<dyn ShapePrimitive> {
-        self.shape.transformed(&self.transform)
+        let mut shape = self.shape.clone_box();
+        shape.transform(&self.transform);
+        shape
     }
 
-    /// Get layer bounds (including transform)
     pub fn bounds(&self) -> BoundingBox {
         let transformed_shape = self.transformed_shape();
         transformed_shape.bounds()
     }
 
-    /// Get layer path (including transform)
     pub fn path(&self) -> Path {
         let transformed_shape = self.transformed_shape();
         transformed_shape.to_path()
     }
 
-    /// Check if point is inside layer
     pub fn contains_point(&self, x: f64, y: f64) -> bool {
         if !self.is_visible() {
             return false;
@@ -187,87 +176,71 @@ impl ShapeLayer {
         transformed_shape.contains_point(x, y)
     }
 
-    /// Get layer area
     pub fn area(&self) -> f64 {
         let transformed_shape = self.transformed_shape();
         transformed_shape.area()
     }
 
-    /// Get layer perimeter
     pub fn perimeter(&self) -> f64 {
         let transformed_shape = self.transformed_shape();
         transformed_shape.perimeter()
     }
 
-    /// Check if layer is visible
     pub fn is_visible(&self) -> bool {
         matches!(self.visibility, LayerVisibility::Visible) &&
         self.opacity > 0.0 &&
         !self.locked
     }
 
-    /// Set layer visibility
     pub fn set_visibility(&mut self, visibility: LayerVisibility) {
         self.visibility = visibility;
     }
 
-    /// Set layer opacity
     pub fn set_opacity(&mut self, opacity: f64) {
         self.opacity = opacity.clamp(0.0, 1.0);
     }
 
-    /// Set layer blend mode
     pub fn set_blend_mode(&mut self, blend_mode: LayerBlendMode) {
         self.blend_mode = blend_mode;
     }
 
-    /// Set layer transform
     pub fn set_transform(&mut self, transform: Transform) {
         self.transform = transform;
     }
 
-    /// Apply transform to layer
     pub fn apply_transform(&mut self, transform: &Transform) {
         self.transform = self.transform.combine(transform);
     }
 
-    /// Select layer
     pub fn select(&mut self) {
         self.selected = true;
     }
 
-    /// Deselect layer
     pub fn deselect(&mut self) {
         self.selected = false;
     }
 
-    /// Lock layer
     pub fn lock(&mut self) {
         self.locked = true;
         self.deselect();
     }
 
-    /// Unlock layer
     pub fn unlock(&mut self) {
         self.locked = false;
     }
 
-    /// Get metadata value
     pub fn get_metadata(&self, key: &str) -> Option<&String> {
         self.metadata.get(key)
     }
 
-    /// Set metadata value
     pub fn set_metadata(&mut self, key: String, value: String) {
         self.metadata.insert(key, value);
     }
 
-    /// Remove metadata value
     pub fn remove_metadata(&mut self, key: &str) -> Option<String> {
         self.metadata.remove(key)
     }
 
-    /// Validate layer
     pub fn validate(&self) -> Result<(), String> {
         if self.id.is_empty() {
             return Err("Layer ID cannot be empty".to_string());
@@ -281,11 +254,9 @@ impl ShapeLayer {
             return Err("Layer opacity must be between 0.0 and 1.0".to_string());
         }
 
-        // Validate shape
         self.shape.validate()
     }
 
-    /// Clone layer with new ID
     pub fn clone_with_id<S: Into<String>>(&self, new_id: S) -> Self {
         let mut clone = self.clone();
         clone.id = new_id.into();
@@ -294,21 +265,15 @@ impl ShapeLayer {
     }
 }
 
-/// Collection of shape layers
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShapeLayerCollection {
-    /// Layers in the collection
     pub layers: Vec<ShapeLayer>,
-    /// Collection name
     pub name: String,
-    /// Global transform applied to all layers
     pub global_transform: Transform,
-    /// Collection metadata
     pub metadata: HashMap<String, String>,
 }
 
 impl ShapeLayerCollection {
-    /// Create new collection
     pub fn new<S: Into<String>>(name: S) -> Self {
         Self {
             layers: Vec::new(),
@@ -318,12 +283,9 @@ impl ShapeLayerCollection {
         }
     }
 
-    /// Add layer to collection
     pub fn add_layer(&mut self, layer: ShapeLayer) -> Result<(), String> {
-        // Validate layer
         layer.validate()?;
 
-        // Check for duplicate ID
         if self.layers.iter().any(|l| l.id == layer.id) {
             return Err(format!("Layer with ID {} already exists", layer.id));
         }
@@ -333,33 +295,27 @@ impl ShapeLayerCollection {
         Ok(())
     }
 
-    /// Remove layer by ID
     pub fn remove_layer(&mut self, id: &str) -> Option<ShapeLayer> {
         let index = self.layers.iter().position(|l| l.id == id)?;
         Some(self.layers.remove(index))
     }
 
-    /// Get layer by ID
     pub fn get_layer(&self, id: &str) -> Option<&ShapeLayer> {
         self.layers.iter().find(|l| l.id == id)
     }
 
-    /// Get mutable layer by ID
     pub fn get_layer_mut(&mut self, id: &str) -> Option<&mut ShapeLayer> {
         self.layers.iter_mut().find(|l| l.id == id)
     }
 
-    /// Get layer by index
     pub fn get_layer_at(&self, index: usize) -> Option<&ShapeLayer> {
         self.layers.get(index)
     }
 
-    /// Get mutable layer by index
     pub fn get_layer_at_mut(&mut self, index: usize) -> Option<&mut ShapeLayer> {
         self.layers.get_mut(index)
     }
 
-    /// Find layer index by ID
     pub fn find_layer_index(&self, id: &str) -> Option<usize> {
         self.layers.iter().position(|l| l.id == id)
     }

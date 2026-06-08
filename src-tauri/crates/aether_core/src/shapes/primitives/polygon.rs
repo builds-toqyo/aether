@@ -1,7 +1,4 @@
-
-
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Polygon {
@@ -10,7 +7,6 @@ pub struct Polygon {
 }
 
 impl Polygon {
-
     pub fn new(vertices: Vec<(f64, f64)>) -> Self {
         Self {
             vertices,
@@ -18,14 +14,12 @@ impl Polygon {
         }
     }
 
-
     pub fn open(vertices: Vec<(f64, f64)>) -> Self {
         Self {
             vertices,
             closed: false,
         }
     }
-
 
     pub fn regular(cx: f64, cy: f64, radius: f64, sides: usize) -> Self {
         let mut vertices = Vec::with_capacity(sides);
@@ -41,7 +35,6 @@ impl Polygon {
         Self::new(vertices)
     }
 
-
     pub fn regular_rotated(cx: f64, cy: f64, radius: f64, sides: usize, rotation: f64) -> Self {
         let mut vertices = Vec::with_capacity(sides);
         let angle_step = 2.0 * std::f64::consts::PI / sides as f64;
@@ -56,7 +49,6 @@ impl Polygon {
         Self::new(vertices)
     }
 
-
     pub fn from_rectangle(x: f64, y: f64, width: f64, height: f64) -> Self {
         let vertices = vec![
             (x, y),
@@ -67,31 +59,25 @@ impl Polygon {
         Self::new(vertices)
     }
 
-
     pub fn vertex_count(&self) -> usize {
         self.vertices.len()
     }
-
 
     pub fn vertex(&self, index: usize) -> Option<(f64, f64)> {
         self.vertices.get(index).copied()
     }
 
-
     pub fn add_vertex(&mut self, x: f64, y: f64) {
         self.vertices.push((x, y));
     }
-
 
     pub fn insert_vertex(&mut self, index: usize, x: f64, y: f64) {
         self.vertices.insert(index, (x, y));
     }
 
-
     pub fn remove_vertex(&mut self, index: usize) -> Option<(f64, f64)> {
         self.vertices.remove(index)
     }
-
 
     pub fn is_valid(&self) -> bool {
         if self.closed {
@@ -100,7 +86,6 @@ impl Polygon {
             self.vertices.len() >= 2
         }
     }
-
 
     pub fn is_convex(&self) -> bool {
         if self.vertices.len() < 3 {
@@ -302,6 +287,10 @@ impl super::types::ShapePrimitive for Polygon {
         let mut copy = self.clone();
         copy.transform(transform);
         copy
+    }
+
+    fn clone_box(&self) -> Box<dyn super::types::ShapePrimitive> {
+        Box::new(self.clone())
     }
 
     fn validate(&self) -> Result<(), String> {

@@ -110,6 +110,10 @@ impl super::types::ShapePrimitive for Circle {
         copy
     }
 
+    fn clone_box(&self) -> Box<dyn super::types::ShapePrimitive> {
+        Box::new(self.clone())
+    }
+
     fn validate(&self) -> Result<(), String> {
         if self.radius <= 0.0 {
             return Err("Circle radius must be positive".to_string());

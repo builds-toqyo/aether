@@ -152,10 +152,8 @@ impl super::types::ShapePrimitive for Ellipse {
         self.cx = cx;
         self.cy = cy;
 
-
         self.rx *= transform.sx;
         self.ry *= transform.sy;
-
 
         self.rotation += transform.rotation;
     }
@@ -164,6 +162,10 @@ impl super::types::ShapePrimitive for Ellipse {
         let mut copy = *self;
         copy.transform(transform);
         copy
+    }
+
+    fn clone_box(&self) -> Box<dyn super::types::ShapePrimitive> {
+        Box::new(self.clone())
     }
 
     fn validate(&self) -> Result<(), String> {

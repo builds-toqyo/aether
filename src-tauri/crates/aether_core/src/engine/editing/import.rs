@@ -296,7 +296,7 @@ impl MediaImporter {
             genre,
             file_size,
             container_format,
-            bitrate,
+            bitrate: None,
         })
     }
 
