@@ -61,6 +61,7 @@ pub enum ParameterValue {
     Boolean(bool),
     String(String),
     Array(Vec<ParameterValue>),
+    Binary(Vec<u8>),
 }
 
 impl Default for ParameterValue {
@@ -174,8 +175,17 @@ impl Node {
     pub fn set_selected(&mut self, selected: bool) {
         self.selected = selected;
     }
-}
 
+    pub fn set_output_value(&mut self, name: &str, value: ParameterValue) {
+        if let Some(pin) = self.outputs.iter_mut().find(|pin| pin.name == name) {
+            pin.value = value;
+        }
+    }
+
+    pub fn get_input_value(&self, name: &str) -> Option<ParameterValue> {
+        self.inputs.iter().find(|pin| pin.name == name).map(|pin| pin.current_value.clone())
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Connection {
@@ -188,7 +198,6 @@ pub struct Connection {
 }
 
 impl Connection {
-
     pub fn new(
         output_node_id: Uuid,
         output_pin_id: Uuid,
@@ -205,12 +214,10 @@ impl Connection {
         }
     }
 
-
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Graph {
@@ -223,7 +230,6 @@ pub struct Graph {
 }
 
 impl Graph {
-
     pub fn new(name: String) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -283,41 +289,33 @@ impl Graph {
         self.nodes.values().filter(move |node| node.node_type == node_type)
     }
 
-
     pub fn get_input_nodes(&self) -> impl Iterator<Item = &Node> {
         self.get_nodes_by_type(NodeType::Input)
     }
-
 
     pub fn get_output_nodes(&self) -> impl Iterator<Item = &Node> {
         self.get_nodes_by_type(NodeType::Output)
     }
 
-
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
-
 
     pub fn clear(&mut self) {
         self.nodes.clear();
         self.connections.clear();
     }
 
-
     pub fn node_count(&self) -> usize {
         self.nodes.len()
     }
-
 
     pub fn connection_count(&self) -> usize {
         self.connections.len()
     }
 
-
     pub fn validate(&self) -> Vec<String> {
         let mut errors = Vec::new();
-
 
         for connection in self.get_connections() {
             if !self.nodes.contains_key(&connection.output_node_id) {
@@ -333,7 +331,6 @@ impl Graph {
                 ));
             }
         }
-
 
         for node in self.get_nodes() {
             for input_pin in &node.inputs {
@@ -372,7 +369,6 @@ pub enum BlendMode {
     Luminosity,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum KeyType {
     ChromaKey,
@@ -380,7 +376,6 @@ pub enum KeyType {
     DifferenceKey,
     ColorKey,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GeneratorType {
@@ -390,7 +385,6 @@ pub enum GeneratorType {
     Checkerboard,
     Grid,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ShapeType {
@@ -403,7 +397,6 @@ pub enum ShapeType {
     Path,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FilterType {
     GaussianBlur,
@@ -415,7 +408,6 @@ pub enum FilterType {
     Emboss,
     EdgeDetect,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AdjustmentType {

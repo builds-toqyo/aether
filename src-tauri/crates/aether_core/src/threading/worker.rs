@@ -1,7 +1,3 @@
-//! Worker Thread Utilities
-//! 
-//! Provides worker thread management and parallel processing utilities.
-
 use std::sync::{Arc, Mutex, Condvar, atomic::{AtomicBool, AtomicUsize, Ordering}};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -45,7 +41,7 @@ impl Worker {
             .name(name.to_string())
             .spawn(move || {
                 let mut work = work;
-                
+
                 loop {
                     // Check for stop
                     if should_stop_clone.load(Ordering::Acquire) {
@@ -255,7 +251,7 @@ impl<T: Send + 'static, R: Send + 'static> ParallelWork<T, R> {
             let handle = thread::spawn(move || {
                 loop {
                     let index = next_index.fetch_add(1, Ordering::AcqRel);
-                    
+
                     let item = {
                         let mut items = items.lock().unwrap();
                         if index >= items.len() {
@@ -355,9 +351,9 @@ mod tests {
         });
 
         thread::sleep(Duration::from_millis(100));
-        
+
         assert!(counter.load(Ordering::Relaxed) >= 1);
-        
+
         worker.stop();
     }
 
@@ -374,20 +370,20 @@ mod tests {
 
         thread::sleep(Duration::from_millis(50));
         let count_before_pause = counter.load(Ordering::Relaxed);
-        
+
         worker.pause();
         thread::sleep(Duration::from_millis(50));
         let count_during_pause = counter.load(Ordering::Relaxed);
-        
+
         // Count should not increase much during pause
         assert!(count_during_pause <= count_before_pause + 1);
-        
+
         worker.resume();
         thread::sleep(Duration::from_millis(50));
         let count_after_resume = counter.load(Ordering::Relaxed);
-        
+
         assert!(count_after_resume > count_during_pause);
-        
+
         worker.stop();
     }
 
@@ -405,7 +401,7 @@ mod tests {
 
         // Wait for interval to reset
         thread::sleep(Duration::from_millis(110));
-        
+
         assert!(limiter.try_acquire());
     }
 
@@ -414,7 +410,7 @@ mod tests {
         let pool = WorkerPool::new(2, 4);
 
         let counter = Arc::new(AtomicUsize::new(0));
-        
+
         for i in 0..3 {
             let counter = Arc::clone(&counter);
             pool.add_worker(&format!("worker-{}", i), move || {
@@ -425,7 +421,7 @@ mod tests {
         }
 
         assert_eq!(pool.worker_count(), 3);
-        
+
         thread::sleep(Duration::from_millis(50));
         pool.stop_all();
     }

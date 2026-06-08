@@ -1,8 +1,5 @@
-
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypographyControls {
@@ -36,23 +33,16 @@ pub struct TypographyControls {
     pub font_features: HashMap<String, f64>,
 }
 
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct TextJustification {
-
     pub enabled: bool,
-
     pub min_word_spacing: f64,
-
     pub max_word_spacing: f64,
-
     pub min_glyph_spacing: f64,
-
     pub max_glyph_spacing: f64,
 }
 
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct HyphenationSettings {
 
     pub enabled: bool,
@@ -196,6 +186,15 @@ impl TypographyControls {
         // TODO: Implement font metrics calculation
         FontMetrics::default()
     }
+
+    pub fn estimate_word_width(&self, word: &str, _metrics: &FontMetrics) -> f64 {
+        word.len() as f64 * self.font_size * 0.5
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 
     #[test]
     fn test_word_width_estimation() {

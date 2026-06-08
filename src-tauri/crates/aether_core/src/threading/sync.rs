@@ -150,7 +150,7 @@ impl<T> BlockingQueue<T> {
         }
 
         let mut queue = self.queue.lock().unwrap();
-        
+
         while queue.len() >= self.capacity && !self.closed.load(Ordering::Acquire) {
             queue = self.not_full.wait(queue).unwrap();
         }
@@ -171,7 +171,7 @@ impl<T> BlockingQueue<T> {
         }
 
         let mut queue = self.queue.lock().unwrap();
-        
+
         while queue.len() >= self.capacity && !self.closed.load(Ordering::Acquire) {
             let (new_queue, result) = self.not_full.wait_timeout(queue, timeout).unwrap();
             queue = new_queue;
@@ -192,7 +192,7 @@ impl<T> BlockingQueue<T> {
     /// Pop an item, blocking if empty
     pub fn pop(&self) -> Option<T> {
         let mut queue = self.queue.lock().unwrap();
-        
+
         while queue.is_empty() && !self.closed.load(Ordering::Acquire) {
             queue = self.not_empty.wait(queue).unwrap();
         }
@@ -207,7 +207,7 @@ impl<T> BlockingQueue<T> {
     /// Pop with timeout
     pub fn pop_timeout(&self, timeout: Duration) -> Option<T> {
         let mut queue = self.queue.lock().unwrap();
-        
+
         while queue.is_empty() && !self.closed.load(Ordering::Acquire) {
             let (new_queue, result) = self.not_empty.wait_timeout(queue, timeout).unwrap();
             queue = new_queue;
@@ -322,7 +322,7 @@ impl AtomicCounter {
 
     pub fn set(&self, value: u64) {
         self.value.store(value, Ordering::Release);
-        
+
         // Update min
         let mut current_min = self.min.load(Ordering::Acquire);
         while value < current_min {
@@ -407,10 +407,10 @@ mod tests {
         let buffer: DoubleBuffer<i32> = DoubleBuffer::with_values(1, 2);
 
         assert_eq!(*buffer.read_front(), 1);
-        
+
         *buffer.write_back() = 3;
         buffer.swap();
-        
+
         assert_eq!(*buffer.read_front(), 3);
     }
 

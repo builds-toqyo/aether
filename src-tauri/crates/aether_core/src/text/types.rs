@@ -1,40 +1,29 @@
-
-
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TextAlignment {
-
     Left,
-
     Center,
-
     Right,
-
     Justify,
 }
 
 impl fmt::Display for TextAlignment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TextAlignment::Left => write!(f, __STRING_0__),
-            TextAlignment::Center => write!(f, __STRING_1__),
-            TextAlignment::Right => write!(f, __STRING_2__),
-            TextAlignment::Justify => write!(f, __STRING_3__),
+            TextAlignment::Left => write!(f, "Left"),
+            TextAlignment::Center => write!(f, "Center"),
+            TextAlignment::Right => write!(f, "Right"),
+            TextAlignment::Justify => write!(f, "Justify"),
         }
     }
 }
 
-/// Text writing direction
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TextDirection {
-    /// Left-to-right text
     LeftToRight,
-    /// Right-to-left text
     RightToLeft,
-    /// Top-to-bottom text
     TopToBottom,
 }
 
@@ -48,146 +37,92 @@ impl fmt::Display for TextDirection {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextStyle {
 
     pub font_family: String,
-
     pub font_size: f64,
-
     pub font_weight: u16,
-
     pub font_style: FontStyle,
-
     pub color: String,
-
     pub background_color: Option<String>,
-
     pub line_height: f64,
-
     pub letter_spacing: f64,
-
     pub word_spacing: f64,
-
     pub text_decoration: Option<TextDecoration>,
-
     pub text_transform: Option<TextTransform>,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum FontStyle {
 
     Normal,
-
     Italic,
-
     Oblique,
 }
 
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextDecoration {
-
     pub underline: bool,
-
     pub overline: bool,
-
     pub line_through: bool,
-
     pub color: Option<String>,
-
     pub style: TextDecorationStyle,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TextDecorationStyle {
-
     Solid,
-
     Double,
-
     Dotted,
-
     Dashed,
-
     Wavy,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TextTransform {
 
     Uppercase,
-
     Lowercase,
-
     Capitalize,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextContent {
-
     pub text: String,
-
     pub segments: Option<Vec<TextSegment>>,
-
     pub direction: TextDirection,
-
     pub alignment: TextAlignment,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextSegment {
-
     pub text: String,
-
     pub style: Option<TextStyle>,
-
     pub start: usize,
-
     pub end: usize,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextLayer {
-
     pub id: String,
-
     pub name: String,
-
     pub content: TextContent,
-
     pub style: TextStyle,
-
     pub position: (f64, f64),
-
     pub size: (f64, f64),
-
     pub rotation: f64,
-
     pub opacity: f64,
-
     pub visible: bool,
-
     pub locked: bool,
-
     pub z_index: i32,
-
     pub path_text: Option<crate::text::path_text::TextOnPath>,
-
     pub animations: Vec<crate::text::animation::CharacterAnimation>,
-
     pub metadata: std::collections::HashMap<String, String>,
 }
 
 impl TextLayer {
-
     pub fn new(id: String, name: String, text: String) -> Self {
         Self {
             id,
@@ -212,7 +147,6 @@ impl TextLayer {
         }
     }
 
-
     pub fn bounds(&self) -> crate::shapes::primitives::transform::BoundingBox {
         crate::shapes::primitives::transform::BoundingBox::new(
             self.position.0,
@@ -222,24 +156,19 @@ impl TextLayer {
         )
     }
 
-
     pub fn contains_point(&self, x: f64, y: f64) -> bool {
         self.bounds().contains_point(x, y)
     }
-
 
     pub fn transform(&mut self, transform: &crate::shapes::primitives::transform::Transform) {
         let (tx, ty) = transform.transform_point(self.position.0, self.position.1);
         self.position = (tx, ty);
 
-
         self.size.0 *= transform.sx;
         self.size.1 *= transform.sy;
 
-
         self.rotation += transform.rotation.to_degrees();
     }
-
 
     pub fn transformed(&self, transform: &crate::shapes::primitives::transform::Transform) -> Self {
         let mut copy = self.clone();
@@ -247,11 +176,9 @@ impl TextLayer {
         copy
     }
 
-
     pub fn add_animation(&mut self, animation: crate::text::animation::CharacterAnimation) {
         self.animations.push(animation);
     }
-
 
     pub fn remove_animation(&mut self, animation_id: &str) -> bool {
         let initial_len = self.animations.len();
@@ -259,16 +186,13 @@ impl TextLayer {
         self.animations.len() < initial_len
     }
 
-
     pub fn get_animation(&self, animation_id: &str) -> Option<&crate::text::animation::CharacterAnimation> {
         self.animations.iter().find(|anim| anim.id == animation_id)
     }
 
-
     pub fn get_animation_mut(&mut self, animation_id: &str) -> Option<&mut crate::text::animation::CharacterAnimation> {
         self.animations.iter_mut().find(|anim| anim.id == animation_id)
     }
-
 
     pub fn validate(&self) -> Result<(), String> {
         if self.id.is_empty() {
