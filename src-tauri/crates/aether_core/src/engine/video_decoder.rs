@@ -338,7 +338,6 @@ impl VideoDecoder {
                         audio_stream_index = stream_idx;
                     }
 
-
                     let decoder = ffmpeg::codec::context::Context::from_parameters(codec_params)
                         .map_err(|e| VideoDecoderError::FFmpegLibError(e))?
                         .decoder()
@@ -386,18 +385,14 @@ impl VideoDecoder {
                 .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
 
-            // Get decoder properties before opening
-            let decoder = codec_ctx.decoder().video()
+            // Get decoder properties and open
+            let mut decoder = codec_ctx.decoder().video()
                 .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
             let src_format = decoder.format();
             let dst_format = self.config.output_format.to_ffmpeg_format();
             let width = decoder.width();
             let height = decoder.height();
-
-            // Now open the decoder for actual use
-            let video_decoder = decoder.open()
-                .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
             if src_format != dst_format {
 
@@ -410,16 +405,14 @@ impl VideoDecoder {
                 self.sws_context = Some(sws_ctx);
             }
 
-            self.video_codec_context = Some(ffmpeg_next::decoder::Video(video_decoder));
+            self.video_codec_context = Some(decoder);
             self.current_video_stream = video_stream_index;
         }
-
 
         if audio_stream_index >= 0 {
             let stream = format_ctx.stream(audio_stream_index as usize)
                 .ok_or_else(|| VideoDecoderError::DecodingError("Audio stream not found".to_string()))?;
             let codec_params = stream.parameters();
-
 
             let decoder_id = codec_params.id();
             let decoder = ffmpeg::codec::decoder::find(decoder_id)
@@ -427,21 +420,17 @@ impl VideoDecoder {
                     format!("Failed to find decoder for codec id: {:?}", decoder_id)
                 ))?;
 
-
             let mut codec_ctx = ffmpeg::codec::context::Context::new();
             codec_ctx.set_parameters(codec_params)
                 .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
 
             let audio_decoder = codec_ctx.decoder().audio()
-                .map_err(|e| VideoDecoderError::FFmpegLibError(e))?
-                .open()
                 .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-            self.audio_codec_context = Some(ffmpeg_next::decoder::Audio(audio_decoder));
+            self.audio_codec_context = Some(audio_decoder);
             self.current_audio_stream = audio_stream_index;
         }
-
 
         // TODO: Get metadata when API is available
         let metadata = HashMap::new();
@@ -604,17 +593,13 @@ impl VideoDecoder {
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
         // Get decoder properties before opening
-        let decoder = codec_ctx.decoder().video()
+        let mut decoder = codec_ctx.decoder().video()
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
         let src_format = decoder.format();
         let dst_format = self.config.output_format.to_ffmpeg_format();
         let width = decoder.width();
         let height = decoder.height();
-
-        // Now open the decoder for actual use
-        let video_decoder = decoder.open()
-            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
         if src_format != dst_format {
 
@@ -627,7 +612,7 @@ impl VideoDecoder {
             self.sws_context = Some(sws_ctx);
         }
 
-        self.video_codec_context = Some(ffmpeg_next::decoder::Video(video_decoder));
+        self.video_codec_context = Some(decoder);
         self.current_video_stream = stream_index;
 
         Ok(())
@@ -679,11 +664,9 @@ impl VideoDecoder {
 
 
         let audio_decoder = codec_ctx.decoder().audio()
-            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?
-            .open()
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
-        self.audio_codec_context = Some(ffmpeg_next::decoder::Audio(audio_decoder));
+        self.audio_codec_context = Some(audio_decoder);
         self.current_audio_stream = stream_index;
 
         Ok(())

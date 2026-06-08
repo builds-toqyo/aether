@@ -23,7 +23,6 @@ pub use audio_decoder::{AudioDecoder, AudioMetadata};
 pub use sequence_loader::SequenceLoader;
 
 
-#[derive(Clone)]
 pub struct InputNode {
 
     node: Node,
@@ -202,7 +201,7 @@ impl InputNode {
             debug!("Loading audio frame {} from file: {}", frame, media_path);
 
             let audio_data = self.audio_decoder.decode_audio_frame_with_ffmpeg(frame, media_path);
-            ParameterValue::Audio(audio_data)
+            ParameterValue::Image(audio_data)
         } else {
             debug!("No media path set for audio input");
             ParameterValue::None
@@ -236,6 +235,34 @@ impl From<NodeType> for MediaType {
             NodeType::Input => MediaType::Image,
             _ => MediaType::Image,
         }
+    }
+}
+
+impl NodeExecutor for InputNode {
+    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
+        if !self.node.enabled {
+            return Ok(());
+        }
+
+        let frame_data = self.generate_frame(context.frame);
+
+        if let Some(output_pin) = self.node.outputs.first() {
+            context.set_output(output_pin.id, frame_data);
+        }
+
+        Ok(())
+    }
+
+    fn node_type(&self) -> NodeType {
+        NodeType::Input
+    }
+
+    fn get_inputs(&self) -> Vec<Uuid> {
+        self.node.inputs.iter().map(|pin| pin.id).collect()
+    }
+
+    fn get_outputs(&self) -> Vec<Uuid> {
+        self.node.outputs.iter().map(|pin| pin.id).collect()
     }
 }
 

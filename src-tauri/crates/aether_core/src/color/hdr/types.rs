@@ -15,7 +15,7 @@ pub struct HdrPixel {
     pub b: f32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HdrDisplayType {
     Sdr,
     Hdr10,
@@ -23,7 +23,6 @@ pub enum HdrDisplayType {
     Hdr10Plus,
     Hlg,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorPrimaries {
@@ -56,7 +55,6 @@ impl HdrImage {
         }
     }
 
-
     pub fn get_pixel(&self, x: u32, y: u32) -> Option<&HdrPixel> {
         if x < self.width && y < self.height {
             self.data.get((y * self.width + x) as usize)
@@ -64,7 +62,6 @@ impl HdrImage {
             None
         }
     }
-
 
     pub fn set_pixel(&mut self, x: u32, y: u32, pixel: HdrPixel) -> Result<(), &'static str> {
         if x < self.width && y < self.height {
@@ -75,11 +72,9 @@ impl HdrImage {
         }
     }
 
-
     pub fn dimensions(&self) -> (u32, u32) {
         (self.width, self.height)
     }
-
 
     pub fn total_pixels(&self) -> usize {
         (self.width * self.height) as usize
@@ -87,11 +82,9 @@ impl HdrImage {
 }
 
 impl HdrPixel {
-
     pub fn new(r: f32, g: f32, b: f32) -> Self {
         Self { r, g, b }
     }
-
 
     pub fn luminance(&self) -> f32 {
         0.2126 * self.r + 0.7152 * self.g + 0.0722 * self.b

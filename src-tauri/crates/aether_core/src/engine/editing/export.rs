@@ -112,7 +112,7 @@ impl IntermediateExporter {
 
         let profile = self.create_encoding_profile()?;
 
-        let pipeline = gst::Pipeline::new(None);
+        let pipeline = gst::Pipeline::new();
 
         let filesink = gst::ElementFactory::make("filesink")
             .name("export_sink")
@@ -132,15 +132,13 @@ impl IntermediateExporter {
         gst::Element::link_many(&[&encodebin, &filesink])?;
 
         let ges_pipeline = ges::Pipeline::new();
-        ges_pipeline.set_timeline(&self.timeline)?;
-
-        let src_pad = ges_pipeline.get_video_pad()?;
+        let src_pad = ges_pipeline.static_pad("video_0").unwrap();
         let sink_pad = encodebin.static_pad("video_0").unwrap();
-        src_pad.link(&sink_pad)?;
+        src_pad.link(&sink_pad).map_err(|e| EditingError::ExportError(format!("Failed to link video pads: {}", e)))?;
 
-        let src_pad = ges_pipeline.get_audio_pad()?;
+        let src_pad = ges_pipeline.static_pad("audio_0").unwrap();
         let sink_pad = encodebin.static_pad("audio_0").unwrap();
-        src_pad.link(&sink_pad)?;
+        src_pad.link(&sink_pad).map_err(|e| EditingError::ExportError(format!("Failed to link audio pads: {}", e)))?;
 
         let progress = self.progress.clone();
         let callback = self.progress_callback.clone();
@@ -168,7 +166,7 @@ impl IntermediateExporter {
                 },
                 gst::MessageView::StateChanged(state_changed) => {
 
-                    if state_changed.src().map(|s| s == pipeline.upcast_ref::<gst::Object>()).unwrap_or(false) {
+                    if state_changed.src().map(|s| s == pipeline.upcast_ref()).unwrap_or(false) {
                         if state_changed.current() == gst::State::Playing {
 
                         }
@@ -183,7 +181,7 @@ impl IntermediateExporter {
 
         let progress = self.progress.clone();
         let callback = self.progress_callback.clone();
-        let timeline_duration = self.timeline.duration();
+        let timeline_duration = self.timeline.duration().nseconds() as i64;
 
         let _timeout_id = glib::timeout_add_seconds(1, move || {
             if let Some(position) = pipeline.query_position::<gst::ClockTime>() {
