@@ -90,7 +90,6 @@ impl HdrPixel {
         0.2126 * self.r + 0.7152 * self.g + 0.0722 * self.b
     }
 
-
     pub fn clamp(&self, min_nits: f32, max_nits: f32) -> Self {
         Self {
             r: self.r.clamp(min_nits, max_nits),
@@ -99,8 +98,7 @@ impl HdrPixel {
         }
     }
 
-
-    pub fn to_sdr_rgb(&self, reference_nits: f32) -> [u8; 8] {
+    pub fn to_sdr_rgb(&self, reference_nits: f32) -> [u8; 3] {
         let scale = 255.0 / reference_nits;
         [
             (self.r * scale).clamp(0.0, 255.0) as u8,

@@ -131,17 +131,11 @@ impl ColorCorrectionNode {
     }
 
     pub fn process_image_texture(&mut self, input_id: Uuid, corrected_id: Uuid) -> Result<Uuid, String> {
-
         let texture_info = self.gpu_ops.bind_texture(input_id)?;
-
         let raw_data = self.gpu_ops.read_pixel_data(&texture_info);
-
         let rgb_data = self.gpu_ops.convert_to_rgb_float(&raw_data, &texture_info);
-
         let corrected_image = self.processor.apply_corrections(&rgb_data, corrected_id);
-
-        let corrected_raw_data = self.gpu_ops.convert_from_rgb_float(&corrected_image.data, &texture_info);
-
+        let corrected_raw_data = self.gpu_ops.convert_from_rgb_float(&rgb_data, &texture_info);
         self.gpu_ops.upload_corrected_texture(corrected_id, &corrected_raw_data, &texture_info)?;
 
         debug!("Color correction applied successfully: {:?}", corrected_id);
@@ -152,7 +146,6 @@ impl ColorCorrectionNode {
 
     pub fn create_standard(name: String) -> Node {
         let mut node = Node::new(NodeType::ColorCorrection, name);
-
 
         let input_pin = InputPin {
             id: Uuid::new_v4(),
@@ -165,7 +158,6 @@ impl ColorCorrectionNode {
         };
         node.add_input(input_pin);
 
-
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
@@ -173,7 +165,6 @@ impl ColorCorrectionNode {
             value: ParameterValue::None,
         };
         node.add_output(output_pin);
-
 
         let brightness_param = aether_types::Parameter {
             id: Uuid::new_v4(),

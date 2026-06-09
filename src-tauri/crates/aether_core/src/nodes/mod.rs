@@ -116,7 +116,7 @@ impl ExecutionContext {
 
 pub struct NodeRegistry {
     node_types: HashMap<NodeType, Box<dyn NodeExecutor + Send + Sync>>,
-    factories: HashMap<NodeType, fn() -> Box<dyn NodeExecutor + Send + Sync>>,
+    factories: HashMap<NodeType, Box<dyn Fn() -> Box<dyn NodeExecutor + Send + Sync>>>
 }
 
 impl std::fmt::Debug for NodeRegistry {
@@ -140,7 +140,7 @@ impl NodeRegistry {
     where
         F: Fn() -> Box<dyn NodeExecutor + Send + Sync> + 'static,
     {
-        self.factories.insert(node_type, factory);
+        self.factories.insert(node_type, Box::new(factory));
     }
 
     pub fn create_node(&self, node_type: &NodeType) -> NodeResult<Box<dyn NodeExecutor + Send + Sync>> {

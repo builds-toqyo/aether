@@ -69,6 +69,7 @@ impl BlendOperations {
             BlendMode::Overlay => self.blend_overlay(&data1, &data2, width, height, channels),
             BlendMode::Add => self.blend_add(&data1, &data2, width, height, channels),
             BlendMode::Subtract => self.blend_subtract(&data1, &data2, width, height, channels),
+            _ => self.blend_normal(&data1, &data2, width, height, channels),
         };
 
 

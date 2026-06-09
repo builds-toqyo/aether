@@ -17,6 +17,7 @@ use anyhow::{Context, Result};
 use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_editing_services as ges;
+use ges::prelude::*;
 
 pub struct EditingEngine {
     ges_timeline: Option<ges::Timeline>,
@@ -29,6 +30,11 @@ pub struct EditingEngine {
     preview_engine: Arc<Mutex<PreviewEngine>>,
     timeline: Arc<Mutex<Timeline>>,
 }
+
+// TODO: GES types are not Send/Sync; this is a compilation workaround.
+// All GES access should happen from a single thread.
+unsafe impl Send for EditingEngine {}
+unsafe impl Sync for EditingEngine {}
 
 impl EditingEngine {
     pub fn new() -> Result<Self, EditingError> {

@@ -120,7 +120,6 @@ pub enum AudioCodec {
     Wav,
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MediaInfo {
     pub id: String,
@@ -138,7 +137,6 @@ pub struct MediaInfo {
     pub created_at: String,
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct EditingResponse {
     pub success: bool,
@@ -152,44 +150,44 @@ pub async fn project_init(
     request: ProjectCreateRequest,
     state: State<'_, AppState>,
 ) -> Result<ProjectInfo, String> {
-    debug!(__STRING_0__, request.name);
+    debug!("{}", request.name);
 
     // Validate inputs
     if request.name.is_empty() {
-        return Err(__STRING_1__.to_string());
+        return Err("TODO".to_string());
     }
 
     let fps = request.fps.unwrap_or(30.0);
     let resolution = request.resolution.unwrap_or((1920, 1080));
 
     if fps <= 0.0 {
-        return Err(__STRING_2__.to_string());
+        return Err("TODO".to_string());
     }
 
     if resolution.0 == 0 || resolution.1 == 0 {
-        return Err(__STRING_3__.to_string());
+        return Err("TODO".to_string());
     }
 
     // Generate project ID
-    let project_id = format!(__STRING_0__, uuid::Uuid::new_v4());
+    let project_id = format!("{}", uuid::Uuid::new_v4());
     let now = chrono::Utc::now().to_rfc3339();
-    let project_path = format!(__STRING_1__, project_id);
+    let project_path = format!("{}", project_id);
 
     // Initialize the editing engine with the project
     let mut editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!(__STRING_2__, e))?;
+        .map_err(|e| format!("{}", e))?;
 
     // Create new editing engine if not exists
     if editing_engine.is_none() {
         let engine = create_editing_engine()
-            .map_err(|e| format!(__STRING_3__, e))?;
+            .map_err(|e| format!("{}", e))?;
         *editing_engine = Some(engine);
     }
 
     // Initialize project in the editing engine
     if let Some(engine) = editing_engine.as_mut() {
         engine.init_project(Some(project_path.clone()))
-            .map_err(|e| format!(__STRING_4__, e))?;
+            .map_err(|e| format!("{}", e))?;
     }
 
     let project_info = ProjectInfo {
@@ -207,7 +205,7 @@ pub async fn project_init(
         file_path: project_path,
     };
 
-    info!(__STRING_5__, request.name, project_id);
+    info!("{}", request.name, project_id);
     Ok(project_info)
 }
 
@@ -270,7 +268,21 @@ pub async fn project_save(
 
         let file_path = request.file_path.unwrap_or_else(|| format!("/projects/{}.aether", request.project_id));
 
+        // TODO: actually save project_data to file_path
+    }
 
+    Ok(EditingResponse {
+        success: true,
+        message: format!("Project saved: {}", request.project_id),
+        data: None,
+    })
+}
+
+/// Load project from file
+#[tauri::command]
+pub async fn project_load(
+    request: ProjectLoadRequest,
+    state: State<'_, AppState>,
 ) -> Result<ProjectInfo, String> {
     debug!("Loading project from: {}", request.file_path);
 
@@ -288,7 +300,6 @@ pub async fn project_save(
             .map_err(|e| format!("Failed to create editing engine: {}", e))?;
         *editing_engine = Some(engine);
     }
-
 
     let project_data = std::fs::read_to_string(&request.file_path)
         .map_err(|e| format!("Failed to read project file: {}", e))?;
@@ -387,44 +398,44 @@ pub async fn project_get_recent(
     limit: Option<usize>,
     state: State<'_, AppState>,
 ) -> Result<Vec<ProjectInfo>, String> {
-    debug!(__STRING_71__, limit);
+    debug!("{}", limit);
 
     let limit = limit.unwrap_or(10);
 
 
     let recent_projects = vec![
         ProjectInfo {
-            id: __STRING_72__.to_string(),
-            name: __STRING_73__.to_string(),
-            description: Some(__STRING_74__.to_string()),
-            created_at: __STRING_75__.to_string(),
-            modified_at: __STRING_76__.to_string(),
+            id: "TODO".to_string(),
+            name: "TODO".to_string(),
+            description: Some("TODO".to_string()),
+            created_at: "TODO".to_string(),
+            modified_at: "TODO".to_string(),
             duration: 180.0,
             fps: 30.0,
             resolution: (1920, 1080),
             timeline_count: 2,
             media_count: 8,
             file_size: 1024 * 1024 * 25,
-            file_path: __STRING_77__.to_string(),
+            file_path: "TODO".to_string(),
         },
         ProjectInfo {
-            id: __STRING_78__.to_string(),
-            name: __STRING_79__.to_string(),
-            description: Some(__STRING_80__.to_string()),
-            created_at: __STRING_81__.to_string(),
-            modified_at: __STRING_82__.to_string(),
+            id: "TODO".to_string(),
+            name: "TODO".to_string(),
+            description: Some("TODO".to_string()),
+            created_at: "TODO".to_string(),
+            modified_at: "TODO".to_string(),
             duration: 600.0,
             fps: 25.0,
             resolution: (1280, 720),
             timeline_count: 5,
             media_count: 23,
             file_size: 1024 * 1024 * 100,
-            file_path: __STRING_83__.to_string(),
+            file_path: "TODO".to_string(),
         },
     ];
 
     let limited_projects = recent_projects.into_iter().take(limit).collect();
-    info!(__STRING_84__, limited_projects.len());
+    info!("{}", limited_projects.len());
 
     Ok(limited_projects)
 }
@@ -516,21 +527,21 @@ pub async fn media_get_info(
     media_id: String,
     state: State<'_, AppState>,
 ) -> Result<MediaInfo, String> {
-    debug!(__STRING_97__, media_id);
+    debug!("{}", media_id);
 
     if media_id.is_empty() {
-        return Err(__STRING_98__.to_string());
+        return Err("TODO".to_string());
     }
 
 
     let media_info = MediaInfo {
         id: media_id.clone(),
-        file_path: __STRING_99__.to_string(),
-        file_name: __STRING_100__.to_string(),
+        file_path: "TODO".to_string(),
+        file_name: "TODO".to_string(),
         file_size: 1024 * 1024 * 50,
         duration: 30.0,
-        format: __STRING_101__.to_string(),
-        codec: __STRING_102__.to_string(),
+        format: "TODO".to_string(),
+        codec: "TODO".to_string(),
         resolution: Some((1920, 1080)),
         fps: Some(30.0),
         audio_channels: Some(2),
@@ -539,7 +550,7 @@ pub async fn media_get_info(
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    info!(__STRING_103__, media_id);
+    info!("{}", media_id);
     Ok(media_info)
 }
 
@@ -594,20 +605,19 @@ pub async fn media_remove(
     media_id: String,
     state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
-    debug!(__STRING_104__, media_id);
+    debug!("{}", media_id);
 
     if media_id.is_empty() {
-        return Err(__STRING_105__.to_string());
+        return Err("TODO".to_string());
     }
 
-
-    info!(__STRING_106__, media_id);
+    info!("{}", media_id);
 
     Ok(EditingResponse {
         success: true,
-        format!(__STRING_107__, media_id),
+        message: format!("Media deleted: {}", media_id),
         data: Some(serde_json::json!({
-            __STRING_108__: media_id
+            "media_id": media_id
         })),
     })
 }
@@ -651,21 +661,21 @@ pub async fn export_cancel(
     export_id: String,
     state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
-    debug!(__STRING_102__, export_id);
+    debug!("{}", export_id);
 
     if export_id.is_empty() {
-        return Err(__STRING_103__.to_string());
+        return Err("TODO".to_string());
     }
 
     // Cancel the export process in the editing engine
     // This would stop the export pipeline and clean up resources
-    info!(__STRING_104__, export_id);
+    info!("{}", export_id);
 
     Ok(EditingResponse {
         success: true,
-        format!(__STRING_105__, export_id),
+        message: format!("Export cancelled: {}", export_id),
         data: Some(serde_json::json!({
-            __STRING_106__: export_id
+            "export_id": export_id
         })),
     })
 }
@@ -701,28 +711,28 @@ pub async fn export_get_status(
     export_id: String,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    debug!(__STRING_117__, export_id);
+    debug!("{}", export_id);
 
     if export_id.is_empty() {
-        return Err(__STRING_118__.to_string());
+        return Err("TODO".to_string());
     }
 
 
     let status = serde_json::json!({
-        __STRING_119__: export_id,
-        __STRING_120__: __STRING_121__,
-        __STRING_122__: 100.0,
-        __STRING_123__: 3600,
-        __STRING_124__: 3600,
-        __STRING_125__: 120.5,
-        __STRING_126__: 0.0,
-        __STRING_127__: 1024 * 1024 * 250,
-        __STRING_128__: __STRING_129__,
-        __STRING_130__: __STRING_131__,
-        __STRING_132__: __STRING_133__
+        "TODO": export_id,
+        "TODO": "TODO",
+        "TODO": 100.0,
+        "TODO": 3600,
+        "TODO": 3600,
+        "TODO": 120.5,
+        "TODO": 0.0,
+        "TODO": 1024 * 1024 * 250,
+        "TODO": "TODO",
+        "TODO": "TODO",
+        "TODO": "TODO"
     });
 
-    info!(__STRING_134__, export_id, status.get(__STRING_135__));
+    info!("{}", export_id, status.get("TODO"));
     Ok(status)
 }
 

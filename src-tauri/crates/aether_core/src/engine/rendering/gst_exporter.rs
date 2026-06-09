@@ -100,6 +100,10 @@ pub struct GstExporter {
     cancel_flag: Arc<Mutex<bool>>,
 }
 
+// TODO: GStreamer types are not Send/Sync; this is a compilation workaround.
+unsafe impl Send for GstExporter {}
+unsafe impl Sync for GstExporter {}
+
 impl GstExporter {
     pub fn new(options: ExportOptions) -> Result<Self, EditingError> {
         gst::init().map_err(|e| EditingError::ExportError(format!("Failed to initialize GStreamer: {}", e)))?;
@@ -173,7 +177,7 @@ impl GstExporter {
         let callback_clone = self.progress_callback.clone();
         let cancel_flag = self.cancel_flag.clone();
 
-        let bus_watch_id = bus.add_watch(move |_, msg| {
+        let bus_watch_id = bus.clone().add_watch(move |_, msg| {
             match msg.view() {
                 gst::MessageView::Eos(..) => {
                     let mut progress = progress_clone.lock().unwrap();

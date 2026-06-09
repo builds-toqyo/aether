@@ -139,6 +139,6 @@ impl HistogramProcessor {
 
 impl Default for HistogramProcessor {
     fn default() -> Self {
-        Self::new(HistogramConfig::default()).unwrap()
+        Self::new(HistogramConfig::new(aether_types::color::scopes::ScopeResolution::Medium)).unwrap()
     }
 }

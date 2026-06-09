@@ -127,7 +127,7 @@ impl ImageDecoder {
             decoded_frame.height as u32,
         );
 
-        scaler.run(&[source_frame], &mut [&mut target_frame])
+        scaler.run(&source_frame, &mut target_frame)
             .map_err(|e| format!("Failed to convert image format: {}", e))?;
 
         let rgb_data = self.extract_frame_data(&target_frame, 3, "rgb24")?;

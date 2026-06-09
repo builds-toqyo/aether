@@ -29,7 +29,7 @@ pub use text::{
     TextRenderer, GlyphRenderer
 };
 pub use masking::{
-    MaskType, MaskBlendMode, MaskChannel, MaskInvertMode, MaskFeatherQuality,
+    MaskBlendMode, MaskChannel, MaskInvertMode, MaskFeatherQuality,
     MaskProperties, MaskEvaluation, MaskCache,
     ShapeMask, ShapeMaskType,
     GradientMask, GradientType, GradientStop, GradientInterpolation,

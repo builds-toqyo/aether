@@ -149,7 +149,7 @@ impl ConnectionValidator {
         debug!("Validating connection removal: {:?}", connection.id);
 
 
-        if !graph.connections.iter().any(|c| c.id == connection.id) {
+        if !graph.connections.values().any(|c| c.id == connection.id) {
             return Err(NodeError::ConnectionNotFound(connection.id));
         }
 

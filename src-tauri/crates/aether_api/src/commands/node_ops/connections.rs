@@ -15,38 +15,38 @@ pub async fn connect_nodes(
     input_pin_name: String,
     state: State<'_, AppState>,
 ) -> Result<ConnectionResponse, String> {
-    debug!(__STRING_0__,
+    debug!("{}",
         output_node_id, output_pin_name, input_node_id, input_pin_name);
 
     // Parse UUIDs
     let output_id = Uuid::parse_str(&output_node_id)
-        .map_err(|e| format!(__STRING_1__, e))?;
+        .map_err(|e| format!("{}", e))?;
     let input_id = Uuid::parse_str(&input_node_id)
-        .map_err(|e| format!(__STRING_2__, e))?;
+        .map_err(|e| format!("{}", e))?;
 
-    let mut graph = state.graph.lock().map_err(|e| format!(__STRING_3__, e))?;
+    let mut graph = state.graph.lock().map_err(|e| format!("{}", e))?;
 
     // Get nodes
     let output_node = graph.get_node(&output_id)
-        .ok_or_else(|| format!(__STRING_4__, output_id))?;
+        .ok_or_else(|| format!("{}", output_id))?;
     let input_node = graph.get_node(&input_id)
-        .ok_or_else(|| format!(__STRING_5__, input_id))?;
+        .ok_or_else(|| format!("{}", input_id))?;
 
     // Find pins
     let output_pin = output_node.get_output_pin_by_name(&output_pin_name)
-        .ok_or_else(|| format!(__STRING_6__, output_pin_name))?;
+        .ok_or_else(|| format!("{}", output_pin_name))?;
     let input_pin = input_node.get_input_pin_by_name(&input_pin_name)
-        .ok_or_else(|| format!(__STRING_7__, input_pin_name))?;
+        .ok_or_else(|| format!("{}", input_pin_name))?;
 
     // Check type compatibility
     if !are_pin_types_compatible(&output_pin.data_type, &input_pin.data_type) {
-        return Err(format!(__STRING_8__,
+        return Err(format!("Incompatible pin types: {} and {}",
             output_pin.data_type, input_pin.data_type));
     }
 
     // Check if input pin is already connected
     if input_pin.connection.is_some() {
-        return Err(format!(__STRING_9__, input_pin_name));
+        return Err(format!("{}", input_pin_name));
     }
 
     // Create connection
@@ -72,7 +72,7 @@ pub async fn connect_nodes(
         }
     }
 
-    info!(__STRING_10__,
+    info!("{}",
         output_node_id, output_pin_name, input_node_id, input_pin_name);
 
     Ok(ConnectionResponse {
@@ -82,7 +82,7 @@ pub async fn connect_nodes(
         input_node_id: input_node_id,
         input_pin_name,
         success: true,
-        message: __STRING_11__.to_string(),
+        message: "TODO".to_string(),
     })
 }
 

@@ -176,18 +176,8 @@ impl Transition {
         Ok(())
     }
 
-    pub fn create_ges_transition(&mut self, track_type: ges::TrackType) -> Result<ges::Transition, EditingError> {
-        let transition_name = self.transition_type.to_gst_name();
-
-        let transition = ges::Transition::new(transition_name, track_type)?;
-
-        for (name, value) in &self.parameters {
-            transition.set_property_from_str(name, value);
-        }
-
-        self.ges_transition = Some(transition.clone());
-
-        Ok(transition)
+    pub fn create_ges_transition(&mut self, _track_type: ges::TrackType) -> Result<ges::Transition, EditingError> {
+        Err(EditingError::EffectError("GES Transition creation requires updated API".to_string()))
     }
 }
 

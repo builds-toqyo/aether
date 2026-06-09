@@ -21,6 +21,29 @@ pub enum AnimationType {
     Custom(String),
 }
 
+impl AnimationType {
+    pub fn as_u8(&self) -> u8 {
+        match self {
+            AnimationType::Opacity => 0,
+            AnimationType::Position => 1,
+            AnimationType::Scale => 2,
+            AnimationType::Rotation => 3,
+            AnimationType::Color => 4,
+            AnimationType::Blur => 5,
+            AnimationType::Tracking => 6,
+            AnimationType::BaselineShift => 7,
+            AnimationType::FontSize => 8,
+            AnimationType::FontWeight => 9,
+            AnimationType::LineHeight => 10,
+            AnimationType::LetterSpacing => 11,
+            AnimationType::TextTransform => 12,
+            AnimationType::PathPosition => 13,
+            AnimationType::PathRotation => 14,
+            AnimationType::Custom(_) => 15,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextKeyframe {
     pub time: f64,

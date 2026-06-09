@@ -34,15 +34,13 @@ pub struct RenderingJob {
     pub error_message: Option<String>,
 }
 
-
 pub struct ActiveRenderingJob {
     pub job: RenderingJob,
     pub exporter: Arc<Mutex<Box<dyn ExporterTrait>>>,
     pub progress: Arc<Mutex<ExportProgress>>,
 }
 
-
-pub trait ExporterTrait {
+pub trait ExporterTrait: Send + Sync {
     fn get_progress(&self) -> ExportProgress;
     fn cancel(&mut self) -> Result<(), EditingError>;
     fn is_complete(&self) -> bool;
@@ -52,7 +50,6 @@ pub trait ExporterTrait {
     fn resume(&mut self) -> Result<(), EditingError>;
     fn is_paused(&self) -> bool;
 }
-
 
 impl ExporterTrait for aether_core::engine::rendering::Exporter {
     fn get_progress(&self) -> ExportProgress {
@@ -88,7 +85,6 @@ impl ExporterTrait for aether_core::engine::rendering::Exporter {
         false
     }
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum RenderingStatus {
@@ -432,36 +428,36 @@ pub async fn rendering_start_job(
     request: RenderingRequest,
     state: State<'_, AppState>,
 ) -> Result<RenderingJob, String> {
-    debug!(__STRING_6__, request.name);
+    debug!("{}", request.name);
 
     // Validate inputs
     if request.name.is_empty() {
-        return Err(__STRING_7__.to_string());
+        return Err("TODO".to_string());
     }
 
     if request.output_path.is_empty() {
-        return Err(__STRING_8__.to_string());
+        return Err("TODO".to_string());
     }
 
     if let Some((width, height)) = request.resolution {
         if width == 0 || height == 0 {
-            return Err(__STRING_9__.to_string());
+            return Err("TODO".to_string());
         }
     }
 
     if let Some(fps) = request.fps {
         if fps <= 0.0 {
-            return Err(__STRING_10__.to_string());
+            return Err("TODO".to_string());
         }
     }
 
     // Generate job ID
-    let job_id = format!(__STRING_11__, uuid::Uuid::new_v4());
+    let job_id = format!("{}", uuid::Uuid::new_v4());
     let now = chrono::Utc::now().to_rfc3339();
 
     // Create export options for the rendering engine
     let export_options = ExportOptions {
-        input_path: std::path::PathBuf::from(__STRING_12__), // This would come from timeline
+        input_path: std::path::PathBuf::from("TODO"), // This would come from timeline
         output_path: std::path::PathBuf::from(&request.output_path),
         container_format: convert_render_format(&request.format),
         video_format: VideoFormat::H264, // Convert from request.video_settings
@@ -479,11 +475,11 @@ pub async fn rendering_start_job(
 
     // Get rendering state
     let mut rendering_state = state.rendering_state.lock()
-        .map_err(|e| format!(__STRING_13__, e))?;
+        .map_err(|e| format!("{}", e))?;
 
     // Create exporter using the rendering engine
     let exporter = rendering_state.engine.create_export(export_options)
-        .map_err(|e| format!(__STRING_14__, e))?;
+        .map_err(|e| format!("{}", e))?;
 
     // Create progress tracking
     let progress = Arc::new(Mutex::new(ExportProgress {
@@ -524,7 +520,7 @@ pub async fn rendering_start_job(
     // Add to active jobs
     rendering_state.active_jobs.insert(job_id.clone(), active_job);
 
-    info!(__STRING_15__, request.name, job_id);
+    info!("Started job: {} ({})", request.name, job_id);
     Ok(rendering_state.active_jobs[&job_id].job.clone())
 }
 
@@ -574,18 +570,18 @@ pub async fn rendering_pause_job(
     job_id: String,
     state: State<'_, AppState>,
 ) -> Result<RenderingResponse, String> {
-    debug!(__STRING_24__, job_id);
+    debug!("{}", job_id);
 
     if job_id.is_empty() {
-        return Err(__STRING_25__.to_string());
+        return Err("TODO".to_string());
     }
 
     // Get rendering state and find the job
     let mut rendering_state = state.rendering_state.lock()
-        .map_err(|e| format!(__STRING_26__, e))?;
+        .map_err(|e| format!("{}", e))?;
 
     let active_job = rendering_state.active_jobs.get_mut(&job_id)
-        .ok_or_else(|| format!(__STRING_27__, job_id))?;
+        .ok_or_else(|| format!("{}", job_id))?;
 
     // Attempt to pause the exporter
     match active_job.exporter.lock().unwrap().pause() {
@@ -599,21 +595,21 @@ pub async fn rendering_pause_job(
 
             let response = RenderingResponse {
                 success: true,
-                message: format!(__STRING_28__, job_id),
+                message: format!("{}", job_id),
                 data: None,
             };
 
-            info!(__STRING_29__, job_id);
+            info!("Job {} cancelled", job_id);
             Ok(response)
         }
         Err(e) => {
             let response = RenderingResponse {
                 success: false,
-                message: format!(__STRING_30__, job_id, e),
+                message: format!("Job {} cancel failed: {}", job_id, e),
                 data: None,
             };
 
-            warn!(__STRING_31__, job_id, e);
+            warn!("Job {} cancel failed: {}", job_id, e);
             Ok(response)
         }
     }
@@ -676,23 +672,23 @@ pub async fn rendering_get_job_status(
     job_id: String,
     state: State<'_, AppState>,
 ) -> Result<RenderingJob, String> {
-    debug!(__STRING_40__, job_id);
+    debug!("{}", job_id);
 
     if job_id.is_empty() {
-        return Err(__STRING_41__.to_string());
+        return Err("TODO".to_string());
     }
 
     // Get rendering state and find the job
     let rendering_state = state.rendering_state.lock()
-        .map_err(|e| format!(__STRING_42__, e))?;
+        .map_err(|e| format!("{}", e))?;
 
     let active_job = rendering_state.active_jobs.get(&job_id)
-        .ok_or_else(|| format!(__STRING_43__, job_id))?;
+        .ok_or_else(|| format!("{}", job_id))?;
 
     // Get current progress from exporter
     let progress = {
         let exporter = active_job.exporter.lock()
-            .map_err(|e| format!(__STRING_44__, e))?;
+            .map_err(|e| format!("{}", e))?;
         exporter.get_progress()
     };
 
@@ -715,7 +711,7 @@ pub async fn rendering_get_job_status(
         job.status = RenderingStatus::Rendering;
     }
 
-    info!(__STRING_45__, job.name, job_id);
+    info!("Resumed job: {} ({})", job.name, job_id);
     Ok(job)
 }
 
@@ -758,11 +754,11 @@ pub async fn rendering_get_job_progress(
 pub async fn rendering_get_all_jobs(
     state: State<'_, AppState>,
 ) -> Result<Vec<RenderingJob>, String> {
-    debug!(__STRING_52__);
+    debug!("Getting all rendering jobs");
 
     // Get rendering state
     let rendering_state = state.rendering_state.lock()
-        .map_err(|e| format!(__STRING_53__, e))?;
+        .map_err(|e| format!("{}", e))?;
 
     // Collect all active jobs with updated status
     let mut jobs = Vec::new();
@@ -770,7 +766,7 @@ pub async fn rendering_get_all_jobs(
         // Get current progress from exporter
         let progress = {
             let exporter = active_job.exporter.lock()
-                .map_err(|e| format!(__STRING_54__, e))?;
+                .map_err(|e| format!("{}", e))?;
             exporter.get_progress()
         };
 
@@ -796,7 +792,7 @@ pub async fn rendering_get_all_jobs(
         jobs.push(job);
     }
 
-    info!(__STRING_55__, jobs.len());
+    info!("{}", jobs.len());
     Ok(jobs)
 }
 
@@ -897,60 +893,60 @@ pub async fn rendering_get_queue(
 pub async fn rendering_get_formats(
     state: State<'_, AppState>,
 ) -> Result<Vec<RenderFormatInfo>, String> {
-    debug!(__STRING_58__);
+    debug!("Getting render formats");
 
     let formats = vec![
         RenderFormatInfo {
             format: RenderFormat::Mp4,
-            name: __STRING_59__.to_string(),
-            description: __STRING_60__.to_string(),
-            extensions: vec![__STRING_61__.to_string()],
+            name: "TODO".to_string(),
+            description: "TODO".to_string(),
+            extensions: vec!["TODO".to_string()],
             supports_video: true,
             supports_audio: true,
-            recommended_for: vec![__STRING_62__.to_string(), __STRING_63__.to_string(), __STRING_64__.to_string()],
+            recommended_for: vec!["TODO".to_string(), "TODO".to_string(), "TODO".to_string()],
             max_resolution: Some((7680, 4320)), // 8K
             max_fps: Some(120.0),
             max_bitrate: Some(50000000), // 50Mbps
         },
         RenderFormatInfo {
             format: RenderFormat::Mov,
-            name: __STRING_65__.to_string(),
-            description: __STRING_66__.to_string(),
-            extensions: vec![__STRING_67__.to_string()],
+            name: "TODO".to_string(),
+            description: "TODO".to_string(),
+            extensions: vec!["TODO".to_string()],
             supports_video: true,
             supports_audio: true,
-            recommended_for: vec![__STRING_68__.to_string(), __STRING_69__.to_string()],
+            recommended_for: vec!["TODO".to_string(), "TODO".to_string()],
             max_resolution: Some((7680, 4320)),
             max_fps: Some(120.0),
             max_bitrate: Some(100000000), // 100Mbps
         },
         RenderFormatInfo {
             format: RenderFormat::Webm,
-            name: __STRING_70__.to_string(),
-            description: __STRING_71__.to_string(),
-            extensions: vec![__STRING_72__.to_string()],
+            name: "TODO".to_string(),
+            description: "TODO".to_string(),
+            extensions: vec!["TODO".to_string()],
             supports_video: true,
             supports_audio: true,
-            recommended_for: vec![__STRING_73__.to_string(), __STRING_74__.to_string()],
+            recommended_for: vec!["TODO".to_string(), "TODO".to_string()],
             max_resolution: Some((3840, 2160)), // 4K
             max_fps: Some(60.0),
             max_bitrate: Some(20000000), // 20Mbps
         },
         RenderFormatInfo {
             format: RenderFormat::Gif,
-            name: __STRING_75__.to_string(),
-            description: __STRING_76__.to_string(),
-            extensions: vec![__STRING_77__.to_string()],
+            name: "TODO".to_string(),
+            description: "TODO".to_string(),
+            extensions: vec!["TODO".to_string()],
             supports_video: true,
             supports_audio: false,
-            recommended_for: vec![__STRING_78__.to_string(), __STRING_79__.to_string(), __STRING_80__.to_string()],
+            recommended_for: vec!["TODO".to_string(), "TODO".to_string(), "TODO".to_string()],
             max_resolution: Some((1280, 720)),
             max_fps: Some(30.0),
             max_bitrate: None,
         },
     ];
 
-    info!(__STRING_81__, formats.len());
+    info!("{}", formats.len());
     Ok(formats)
 }
 
@@ -1026,20 +1022,20 @@ pub async fn rendering_estimate_time(
     format: RenderFormat,
     state: State<'_, AppState>,
 ) -> Result<RenderingTimeEstimate, String> {
-    debug!(__STRING_70__,
+    debug!("Resolution: {}x{}, FPS: {}, Duration: {}, Quality: {:?}, Format: {:?}",
            resolution.0, resolution.1, fps, duration, quality, format);
 
     // Validate inputs
     if resolution.0 == 0 || resolution.1 == 0 {
-        return Err(__STRING_71__.to_string());
+        return Err("TODO".to_string());
     }
 
     if fps <= 0.0 {
-        return Err(__STRING_72__.to_string());
+        return Err("TODO".to_string());
     }
 
     if duration <= 0.0 {
-        return Err(__STRING_73__.to_string());
+        return Err("TODO".to_string());
     }
 
     // Calculate frame count and pixel complexity
@@ -1118,16 +1114,16 @@ pub async fn rendering_estimate_time(
         estimated_size,
         confidence,
         factors: serde_json::json!({
-            __STRING_74__: resolution_factor,
-            __STRING_75__: format_factor,
-            __STRING_76__: base_fps,
-            __STRING_77__: effective_fps,
-            __STRING_78__: frame_count,
-            __STRING_79__: pixel_count
+            "TODO": resolution_factor,
+            "TODO": format_factor,
+            "TODO": base_fps,
+            "TODO": effective_fps,
+            "TODO": frame_count,
+            "TODO": pixel_count
         }),
     };
 
-    info!(__STRING_80__,
+    info!("Render: {:.1}s, Encode: {:.1}s, Total: {:.1}s, Confidence: {:.0}%",
           estimated_render_time, estimated_encode_time, estimated_total_time, confidence * 100.0);
     Ok(estimate)
 }

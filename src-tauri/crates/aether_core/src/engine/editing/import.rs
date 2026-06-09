@@ -247,7 +247,7 @@ impl MediaImporter {
                 codec_name: codec,
                 pixel_format: structure.map(|s| s.name().to_string()).unwrap_or_else(|| "unknown".to_string()),
                 aspect_ratio,
-                bitrate,
+                bitrate: Some(bitrate),
             }
         }).collect();
 

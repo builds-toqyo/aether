@@ -14,15 +14,15 @@ pub async fn execute_graph(
     frame: Option<u64>,
     state: State<'_, AppState>,
 ) -> Result<ExecutionResponse, String> {
-    debug!(__STRING_0__, frame);
+    debug!("{}", frame);
 
-    let graph = state.graph.lock().map_err(|e| format!(__STRING_1__, e))?;
+    let graph = state.graph.lock().map_err(|e| format!("{}", e))?;
 
     // Calculate execution order
     let execution_order = aether_core::nodes::execution_order::ExecutionOrderCalculator::calculate_order(&graph)
-        .map_err(|e| format!(__STRING_2__, e))?;
+        .map_err(|e| format!("{}", e))?;
 
-    debug!(__STRING_3__, execution_order.len());
+    debug!("{}", execution_order.len());
 
     // Create execution context
     let frame_number = frame.unwrap_or(0);
@@ -38,7 +38,7 @@ pub async fn execute_graph(
 
     for node_id in &execution_order {
         if let Some(node) = graph.get_node(node_id) {
-            debug!(__STRING_4__, node.name, node_id);
+            debug!("{} ({})", node.name, node_id);
 
             // Create node executor (this would need to be implemented based on node type)
             let executor = create_node_executor(node)?;
@@ -47,12 +47,12 @@ pub async fn execute_graph(
             match executor.execute(&mut context) {
                 Ok(_) => {
                     executed_nodes.push(node_id.to_string());
-                    debug!(__STRING_5__, node.name);
+                    debug!("{}", node.name);
                 }
                 Err(e) => {
-                    let error_msg = format!(__STRING_6__, node.name, e);
+                    let error_msg = format!("{} failed: {}", node.name, e);
                     execution_errors.push(error_msg.clone());
-                    error!(__STRING_7__, error_msg);
+                    error!("Node execution error: {}", error_msg);
                 }
             }
         }
@@ -60,12 +60,12 @@ pub async fn execute_graph(
 
     let success = execution_errors.is_empty();
     let message = if success {
-        format!(__STRING_8__, executed_nodes.len())
+        format!("Executed {} nodes", executed_nodes.len())
     } else {
-        format!(__STRING_9__, execution_errors.len())
+        format!("{} errors during execution", execution_errors.len())
     };
 
-    info!(__STRING_10__, success, execution_errors.len());
+    info!("Success: {}, Errors: {}", success, execution_errors.len());
 
     Ok(ExecutionResponse {
         success,

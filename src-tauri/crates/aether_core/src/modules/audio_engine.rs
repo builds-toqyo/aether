@@ -679,7 +679,7 @@ impl AudioTrack {
 
 
         if let Some(watch_id) = self.bus_watch_id.take() {
-            let _ = glib::source_remove(watch_id);
+            let _ = watch_id.remove();
         }
 
         self.initialized = false;

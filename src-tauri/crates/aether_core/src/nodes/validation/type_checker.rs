@@ -1,12 +1,13 @@
 use crate::nodes::NodeError;
 use aether_types::{PinDataType, ParameterValue};
 use log::debug;
+use once_cell::sync::Lazy;
 
+static ARRAY_FLOAT: Lazy<PinDataType> = Lazy::new(|| PinDataType::Array(Box::new(PinDataType::Float)));
 
 pub struct TypeChecker;
 
 impl TypeChecker {
-
     pub fn check_type_compatibility(output_type: &PinDataType, input_type: &PinDataType) -> Result<(), NodeError> {
         debug!("Checking type compatibility: {:?} -> {:?}", output_type, input_type);
 
@@ -21,14 +22,12 @@ impl TypeChecker {
             (PinDataType::Float, PinDataType::Vector3) => Ok(()),
             (PinDataType::Float, PinDataType::Vector4) => Ok(()),
 
-
             (PinDataType::Vector2, PinDataType::Vector3) => Ok(()),
             (PinDataType::Vector2, PinDataType::Vector4) => Ok(()),
             (PinDataType::Vector3, PinDataType::Vector2) => Ok(()),
             (PinDataType::Vector3, PinDataType::Vector4) => Ok(()),
             (PinDataType::Vector4, PinDataType::Vector2) => Ok(()),
             (PinDataType::Vector4, PinDataType::Vector3) => Ok(()),
-
 
             (PinDataType::Vector4, PinDataType::Color) => Ok(()),
             (PinDataType::Color, PinDataType::Vector4) => Ok(()),
@@ -44,7 +43,6 @@ impl TypeChecker {
             }),
         }
     }
-
 
     pub fn are_types_compatible(output_type: &PinDataType, input_type: &PinDataType) -> bool {
         Self::check_type_compatibility(output_type, input_type).is_ok()
@@ -178,7 +176,7 @@ impl TypeChecker {
             ParameterValue::Vector3(_, _, _) => Some(&PinDataType::Vector3),
             ParameterValue::Vector4(_, _, _, _) => Some(&PinDataType::Vector4),
             ParameterValue::Color(_, _, _, _) => Some(&PinDataType::Color),
-            ParameterValue::Array(_) => Some(&PinDataType::Array(Box::new(PinDataType::Float))),
+            ParameterValue::Array(_) => Some(&ARRAY_FLOAT),
             ParameterValue::Binary(_) => Some(&PinDataType::Binary),
             ParameterValue::Image(_) => Some(&PinDataType::Image),
             ParameterValue::None => None,

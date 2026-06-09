@@ -172,7 +172,7 @@ impl AnimationInterpolator {
         let mut result = self.linear_interpolate(prev_keyframe, next_keyframe, t).unwrap_or_else(|_| InterpolationResult::failure(time));
 
         match &mut result.value {
-            TrackValue::Float(ref mut v) => *v *= curve_t,
+            TrackValue::Float(v) => *v *= curve_t,
             TrackValue::Vector2(v) => {
                 v[0] *= curve_t;
                 v[1] *= curve_t;

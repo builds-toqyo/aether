@@ -15,11 +15,11 @@ pub async fn create_node(
     position: Option<(f64, f64)>,
     state: State<'_, AppState>,
 ) -> Result<NodeResponse, String> {
-    debug!(__STRING_0__, node_type, name);
+    debug!("{}, {}", node_type, name);
 
     // Parse node type
     let node_type_enum = parse_node_type(&node_type)
-        .map_err(|e| format!(__STRING_1__, e))?;
+        .map_err(|e| format!("{}", e))?;
 
     // Create node
     let mut node = Node::new(node_type_enum, name.clone());
@@ -27,15 +27,15 @@ pub async fn create_node(
     // Set position if provided
     if let Some((x, y)) = position {
         // Store position in node metadata (you might want to add this to Node struct)
-        debug!(__STRING_2__, x, y);
+        debug!("{}, {}", x, y);
     }
 
     // Add to graph
-    let mut graph = state.graph.lock().map_err(|e| format!(__STRING_3__, e))?;
+    let mut graph = state.graph.lock().map_err(|e| format!("{}", e))?;
     let node_id = node.id;
     graph.nodes.insert(node_id, node);
 
-    info!(__STRING_4__, name, node_id);
+    info!("{}, {}", name, node_id);
 
     Ok(NodeResponse {
         id: node_id,
@@ -43,7 +43,7 @@ pub async fn create_node(
         name,
         position,
         success: true,
-        message: __STRING_5__.to_string(),
+        message: "TODO".to_string(),
     })
 }
 

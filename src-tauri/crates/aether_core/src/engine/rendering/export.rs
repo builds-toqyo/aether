@@ -81,6 +81,10 @@ pub struct Exporter {
     cancel_flag: Arc<Mutex<bool>>,
 }
 
+// TODO: thread::JoinHandle is not Sync; this is a compilation workaround.
+unsafe impl Send for Exporter {}
+unsafe impl Sync for Exporter {}
+
 impl Exporter {
     pub fn new(options: ExportOptions) -> Result<Self, EditingError> {
         ffmpeg::init().map_err(|e| EditingError::ExportError(format!("FFmpeg initialization failed: {}", e)))?;
@@ -280,6 +284,7 @@ impl Exporter {
                 let context = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
                 context.decoder().video()?
             };
+            let video_time_base = input_context.stream(video_stream_index.unwrap()).unwrap().time_base();
 
             let mut audio_decoder = if let Some(audio_index) = audio_stream_index {
                 let stream = input_context.stream(audio_index).unwrap();
@@ -360,10 +365,8 @@ impl Exporter {
 
                             scaler.run(&decoded, &mut encoded)?;
 
-                            let time_base = input_context.stream(stream_index).unwrap().time_base();
                             let pts = packet.pts().unwrap_or(0);
-                            let pts_seconds = pts as f64 * f64::from(time_base);
-
+                            let pts_seconds = pts as f64 * f64::from(video_time_base);
 
                             encoded.set_pts(Some(frame_count as i64));
 

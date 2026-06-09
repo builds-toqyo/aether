@@ -375,7 +375,7 @@ impl GradientMask {
 
 
         let hash = ((i as u32).wrapping_mul(374761393).wrapping_add((j as u32).wrapping_mul(668265263))) as f64;
-        (hash % 1000) / 500.0 - 1.0
+        (hash % 1000.0) / 500.0 - 1.0
     }
 
     fn fractal_noise(&self, x: f64, y: f64, depth: u32, amplitude: f64) -> f64 {

@@ -92,10 +92,10 @@ impl ExportOptions {
         // Create GStreamer export options
         let mut gst_options = GstExportOptions::default();
         gst_options.output_path = intermediate_path.clone();
-        gst_options.container = ContainerFormat::Mp4;
+        gst_options.container = "mp4".to_string();
 
         // Create FFmpeg export options
-        let ffmpeg_options = FfmpegExportOptions::default();
+        let mut ffmpeg_options = FfmpegExportOptions::default();
         ffmpeg_options.output_path = output_path.clone();
 
         Self {

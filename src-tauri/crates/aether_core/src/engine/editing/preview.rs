@@ -77,7 +77,7 @@ impl PreviewEngine {
         // First remove the video sink from the pipeline if it exists
         if let (Some(pipeline), Some(video_sink)) = (&self.pipeline, &self.video_sink) {
             // Try to remove the video sink from the pipeline
-            pipeline.set_video_sink(None);
+            pipeline.set_video_sink(None::<&gst::Element>);
         }
 
         // Set pipeline to NULL state to release resources
