@@ -4,7 +4,7 @@ use aether_types::{Graph, ParameterValue};
 use uuid::Uuid;
 use log::info;
 use crate::commands::rendering::RenderingState;
-use aether_core::engine::editing::{EditingEngine, create_editing_engine};
+use aether_core::engine::editing::EditingEngine;
 
 pub struct AppState {
     pub graph: Mutex<Graph>,

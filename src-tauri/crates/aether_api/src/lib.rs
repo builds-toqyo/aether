@@ -4,9 +4,6 @@ pub mod state;
 pub use commands::*;
 pub use state::*;
 
-use tauri::Manager;
-
-
 pub fn init_app() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default()
         .manage(AppState::new())
@@ -20,7 +17,6 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             get_node_result,
             get_graph_info,
 
-
             get_timeline_info,
             timeline_playback_control,
             timeline_seek,
@@ -30,7 +26,6 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             timeline_remove_clip,
             timeline_create_track,
             timeline_delete_track,
-
 
             get_preview_info,
             preview_playback_control,
@@ -42,7 +37,6 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             preview_clear_cache,
             preview_get_performance_stats,
             preview_export_frame,
-
 
             project_init,
             project_save,
