@@ -4,7 +4,7 @@ use uuid::Uuid;
 use log::{debug, info};
 
 use crate::state::AppState;
-use aether_types::{Graph, Connection, PinDataType};
+use aether_types::{Connection, PinDataType};
 
 
 #[tauri::command]

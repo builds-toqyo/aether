@@ -2,18 +2,18 @@ pub mod commands;
 
 use commands::editing::*;
 use commands::rendering::*;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 pub struct AppState {
-    pub editing_state: Mutex<commands::editing::EditingState>,
-    pub rendering_state: Mutex<commands::rendering::RenderingState>,
+    pub editing_state: Arc<Mutex<commands::editing::EditingState>>,
+    pub rendering_state: Arc<Mutex<commands::rendering::RenderingState>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
         AppState {
-            editing_state: Mutex::new(commands::editing::EditingState::new()),
-            rendering_state: Mutex::new(commands::rendering::RenderingState::new()),
+            editing_state: Arc::new(Mutex::new(commands::editing::EditingState::new())),
+            rendering_state: Arc::new(Mutex::new(commands::rendering::RenderingState::new())),
         }
     }
 }

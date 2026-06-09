@@ -1,10 +1,10 @@
 use serde::{Serialize, Deserialize};
 use tauri::State;
 use anyhow::Result;
-use log::{debug, info, warn};
+use log::{debug, info};
 
 use crate::state::AppState;
-use aether_core::engine::editing::{Timeline, TimelineClip as CoreTimelineClip, ClipInfo as CoreClipInfo, TrackType as CoreTrackType};
+use aether_core::engine::editing::TrackType as CoreTrackType;
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -240,7 +240,7 @@ pub async fn get_timeline_info(
 #[tauri::command]
 pub async fn timeline_playback_control(
     request: PlaybackControlRequest,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
     debug!("Timeline playback control: {:?}", request.action);
 
@@ -321,7 +321,7 @@ pub async fn timeline_seek(
 #[tauri::command]
 pub async fn timeline_move_clip(
     request: TimelineClipMoveRequest,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
     debug!("Moving clip {} to time {} on track {:?}", request.clip_id, request.new_time, request.new_track_id);
 
@@ -388,7 +388,7 @@ pub async fn timeline_trim_clip(
 #[tauri::command]
 pub async fn timeline_add_clip(
     request: TimelineClipAddRequest,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
     debug!("Adding clip from {} to track {} at position {}",
            request.source_file, request.track_id, request.position);
@@ -461,7 +461,7 @@ pub async fn timeline_remove_clip(
 pub async fn timeline_create_track(
     track_type: TrackType,
     name: Option<String>,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
     debug!("Creating new track: {:?} with name {:?}", track_type, name);
 
@@ -486,7 +486,7 @@ pub async fn timeline_create_track(
 #[tauri::command]
 pub async fn timeline_delete_track(
     track_id: String,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
     debug!("Deleting track: {}", track_id);
 

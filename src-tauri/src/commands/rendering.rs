@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::State;
-use std::sync::Mutex;
-use std::sync::Arc;
-use std::process::{Command, Stdio, Child};
+use std::sync::{Arc, Mutex};
+use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 use std::thread;
 use uuid::Uuid;
@@ -166,7 +165,7 @@ fn parse_ffmpeg_progress(line: &str) -> Option<(String, String)> {
 pub fn start_rendering(
     request: ExportRequest,
     input_path: String,
-    state: State<Mutex<RenderingState>>
+    state: State<Arc<Mutex<RenderingState>>>
 ) -> Result<String, String> {
     let export_id = Uuid::new_v4().to_string();
 
@@ -272,7 +271,7 @@ fn calculate_total_frames(request: &ExportRequest) -> u32 {
 }
 
 #[tauri::command]
-pub fn get_export_progress(export_id: String, state: State<Mutex<RenderingState>>) -> Result<ExportProgress, String> {
+pub fn get_export_progress(export_id: String, state: State<Arc<Mutex<RenderingState>>>) -> Result<ExportProgress, String> {
     let state_guard = state.lock().map_err(|e| e.to_string())?;
 
     match state_guard.active_exports.get(&export_id) {
@@ -282,7 +281,7 @@ pub fn get_export_progress(export_id: String, state: State<Mutex<RenderingState>
 }
 
 #[tauri::command]
-pub fn cancel_export(export_id: String, state: State<Mutex<RenderingState>>) -> Result<(), String> {
+pub fn cancel_export(export_id: String, state: State<Arc<Mutex<RenderingState>>>) -> Result<(), String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
 
     match state_guard.active_exports.get_mut(&export_id) {
@@ -296,7 +295,7 @@ pub fn cancel_export(export_id: String, state: State<Mutex<RenderingState>>) -> 
 }
 
 #[tauri::command]
-pub fn get_active_exports(state: State<Mutex<RenderingState>>) -> Result<Vec<ExportProgress>, String> {
+pub fn get_active_exports(state: State<Arc<Mutex<RenderingState>>>) -> Result<Vec<ExportProgress>, String> {
     let state_guard = state.lock().map_err(|e| e.to_string())?;
     Ok(state_guard.active_exports.values().cloned().collect())
 }
@@ -567,7 +566,7 @@ pub fn get_audio_codecs() -> Result<Vec<serde_json::Value>, String> {
 }
 
 #[tauri::command]
-pub fn simulate_export_progress(export_id: String, state: State<Mutex<RenderingState>>) -> Result<(), String> {
+pub fn simulate_export_progress(export_id: String, state: State<Arc<Mutex<RenderingState>>>) -> Result<(), String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
 
     if let Some(progress) = state_guard.active_exports.get_mut(&export_id) {

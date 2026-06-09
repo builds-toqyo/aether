@@ -22,7 +22,7 @@ pub async fn create_node(
         .map_err(|e| format!("{}", e))?;
 
     // Create node
-    let mut node = Node::new(node_type_enum, name.clone());
+    let node = Node::new(node_type_enum, name.clone());
 
     // Set position if provided
     if let Some((x, y)) = position {

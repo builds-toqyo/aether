@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tauri::State;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -83,7 +83,7 @@ impl EditingState {
 
 
 #[tauri::command]
-pub fn create_project(name: String, path: Option<String>, state: State<Mutex<EditingState>>) -> Result<Project, String> {
+pub fn create_project(name: String, path: Option<String>, state: State<Arc<Mutex<EditingState>>>) -> Result<Project, String> {
     let project_id = Uuid::new_v4().to_string();
     let now = chrono::Utc::now().timestamp();
 
@@ -111,7 +111,7 @@ pub fn create_project(name: String, path: Option<String>, state: State<Mutex<Edi
 }
 
 #[tauri::command]
-pub fn open_project(path: String, state: State<Mutex<EditingState>>) -> Result<Project, String> {
+pub fn open_project(path: String, state: State<Arc<Mutex<EditingState>>>) -> Result<Project, String> {
     let file_path = Path::new(&path);
 
     if !file_path.exists() {
@@ -134,7 +134,7 @@ pub fn open_project(path: String, state: State<Mutex<EditingState>>) -> Result<P
 }
 
 #[tauri::command]
-pub fn save_project(state: State<Mutex<EditingState>>) -> Result<Project, String> {
+pub fn save_project(state: State<Arc<Mutex<EditingState>>>) -> Result<Project, String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
 
     if let Some(project) = state_guard.current_project.as_mut() {
@@ -155,13 +155,13 @@ pub fn save_project(state: State<Mutex<EditingState>>) -> Result<Project, String
 }
 
 #[tauri::command]
-pub fn get_current_project(state: State<Mutex<EditingState>>) -> Result<Option<Project>, String> {
+pub fn get_current_project(state: State<Arc<Mutex<EditingState>>>) -> Result<Option<Project>, String> {
     let state_guard = state.lock().map_err(|e| e.to_string())?;
     Ok(state_guard.current_project.clone())
 }
 
 #[tauri::command]
-pub fn close_project(state: State<Mutex<EditingState>>) -> Result<(), String> {
+pub fn close_project(state: State<Arc<Mutex<EditingState>>>) -> Result<(), String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.current_project = None;
     state_guard.timeline_tracks.clear();
@@ -174,7 +174,7 @@ pub fn close_project(state: State<Mutex<EditingState>>) -> Result<(), String> {
 pub fn update_project_settings(
     project_id: String,
     settings: ProjectSettings,
-    state: State<Mutex<EditingState>>
+    state: State<Arc<Mutex<EditingState>>>
 ) -> Result<Project, String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
 
@@ -190,7 +190,7 @@ pub fn update_project_settings(
 }
 
 #[tauri::command]
-pub fn create_track(name: String, track_type: String, state: State<Mutex<EditingState>>) -> Result<TimelineTrack, String> {
+pub fn create_track(name: String, track_type: String, state: State<Arc<Mutex<EditingState>>>) -> Result<TimelineTrack, String> {
     let track_id = Uuid::new_v4().to_string();
 
     let track = TimelineTrack {
@@ -209,7 +209,7 @@ pub fn create_track(name: String, track_type: String, state: State<Mutex<Editing
 }
 
 #[tauri::command]
-pub fn delete_track(track_id: String, state: State<Mutex<EditingState>>) -> Result<(), String> {
+pub fn delete_track(track_id: String, state: State<Arc<Mutex<EditingState>>>) -> Result<(), String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.timeline_tracks.retain(|t| t.id != track_id);
     state_guard.timeline_clips.retain(|c| c.track_id != track_id);
@@ -217,7 +217,7 @@ pub fn delete_track(track_id: String, state: State<Mutex<EditingState>>) -> Resu
 }
 
 #[tauri::command]
-pub fn get_timeline_tracks(state: State<Mutex<EditingState>>) -> Result<Vec<TimelineTrack>, String> {
+pub fn get_timeline_tracks(state: State<Arc<Mutex<EditingState>>>) -> Result<Vec<TimelineTrack>, String> {
     let state_guard = state.lock().map_err(|e| e.to_string())?;
     Ok(state_guard.timeline_tracks.clone())
 }
@@ -229,7 +229,7 @@ pub fn update_track(
     locked: Option<bool>,
     muted: Option<bool>,
     volume: Option<f64>,
-    state: State<Mutex<EditingState>>
+    state: State<Arc<Mutex<EditingState>>>
 ) -> Result<TimelineTrack, String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
 
@@ -259,7 +259,7 @@ pub fn add_clip(
     start_time: f64,
     duration: f64,
     offset: f64,
-    state: State<Mutex<EditingState>>
+    state: State<Arc<Mutex<EditingState>>>
 ) -> Result<TimelineClip, String> {
     let clip_id = Uuid::new_v4().to_string();
 
@@ -281,14 +281,14 @@ pub fn add_clip(
 }
 
 #[tauri::command]
-pub fn remove_clip(clip_id: String, state: State<Mutex<EditingState>>) -> Result<(), String> {
+pub fn remove_clip(clip_id: String, state: State<Arc<Mutex<EditingState>>>) -> Result<(), String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.timeline_clips.retain(|c| c.id != clip_id);
     Ok(())
 }
 
 #[tauri::command]
-pub fn get_timeline_clips(state: State<Mutex<EditingState>>) -> Result<Vec<TimelineClip>, String> {
+pub fn get_timeline_clips(state: State<Arc<Mutex<EditingState>>>) -> Result<Vec<TimelineClip>, String> {
     let state_guard = state.lock().map_err(|e| e.to_string())?;
     Ok(state_guard.timeline_clips.clone())
 }
@@ -301,7 +301,7 @@ pub fn update_clip(
     offset: Option<f64>,
     speed: Option<f64>,
     volume: Option<f64>,
-    state: State<Mutex<EditingState>>
+    state: State<Arc<Mutex<EditingState>>>
 ) -> Result<TimelineClip, String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
 
@@ -328,7 +328,7 @@ pub fn update_clip(
 }
 
 #[tauri::command]
-pub fn move_clip(clip_id: String, new_track_id: String, new_start_time: f64, state: State<Mutex<EditingState>>) -> Result<TimelineClip, String> {
+pub fn move_clip(clip_id: String, new_track_id: String, new_start_time: f64, state: State<Arc<Mutex<EditingState>>>) -> Result<TimelineClip, String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
 
     if let Some(clip) = state_guard.timeline_clips.iter_mut().find(|c| c.id == clip_id) {
@@ -342,7 +342,7 @@ pub fn move_clip(clip_id: String, new_track_id: String, new_start_time: f64, sta
 
 
 #[tauri::command]
-pub fn import_media(path: String, analyze: bool, state: State<Mutex<EditingState>>) -> Result<MediaItem, String> {
+pub fn import_media(path: String, analyze: bool, state: State<Arc<Mutex<EditingState>>>) -> Result<MediaItem, String> {
     let media_id = Uuid::new_v4().to_string();
     let file_path = Path::new(&path);
 
@@ -412,13 +412,13 @@ pub fn import_media(path: String, analyze: bool, state: State<Mutex<EditingState
 }
 
 #[tauri::command]
-pub fn get_media_items(state: State<Mutex<EditingState>>) -> Result<Vec<MediaItem>, String> {
+pub fn get_media_items(state: State<Arc<Mutex<EditingState>>>) -> Result<Vec<MediaItem>, String> {
     let state_guard = state.lock().map_err(|e| e.to_string())?;
     Ok(state_guard.media_items.clone())
 }
 
 #[tauri::command]
-pub fn remove_media(media_id: String, state: State<Mutex<EditingState>>) -> Result<(), String> {
+pub fn remove_media(media_id: String, state: State<Arc<Mutex<EditingState>>>) -> Result<(), String> {
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.media_items.retain(|m| m.id != media_id);
     state_guard.timeline_clips.retain(|c| c.media_id != media_id);
