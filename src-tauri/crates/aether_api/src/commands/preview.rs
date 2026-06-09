@@ -1,11 +1,9 @@
 use serde::{Serialize, Deserialize};
 use tauri::State;
 use anyhow::Result;
-use log::{debug, info, warn};
+use log::{debug, info};
 
 use crate::state::AppState;
-use aether_core::engine::editing::{PreviewEngine, PreviewFrame as CorePreviewFrame};
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PreviewFrame {
@@ -18,7 +16,6 @@ pub struct PreviewFrame {
     pub frame_number: u32,
     pub fps: f64,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum FrameFormat {
@@ -112,7 +109,7 @@ pub struct PreviewResponse {
 
 #[tauri::command]
 pub async fn get_preview_info(
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<PreviewInfo, String> {
     debug!("Getting preview info");
 
@@ -140,7 +137,7 @@ pub async fn get_preview_info(
 #[tauri::command]
 pub async fn preview_playback_control(
     request: PreviewPlaybackControlRequest,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<PreviewResponse, String> {
     debug!("Preview playback control: {:?}", request.action);
 
@@ -191,7 +188,7 @@ pub async fn preview_playback_control(
 #[tauri::command]
 pub async fn preview_seek(
     request: PreviewSeekRequest,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<PreviewResponse, String> {
     debug!("{}", request.time);
 
@@ -217,7 +214,7 @@ pub async fn preview_seek(
 #[tauri::command]
 pub async fn preview_get_frame(
     request: PreviewFrameRequest,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<PreviewFrame, String> {
     debug!("Getting preview frame at timestamp: {}", request.timestamp);
 
@@ -257,7 +254,7 @@ pub async fn preview_get_frame_range(
     end_time: f64,
     quality: Option<PreviewQuality>,
     format: Option<FrameFormat>,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<Vec<PreviewFrame>, String> {
     debug!("Rendering preview frames: {} to {}", start_time, end_time);
 
@@ -306,7 +303,7 @@ pub async fn preview_get_frame_range(
 #[tauri::command]
 pub async fn preview_update_settings(
     settings: PreviewSettings,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<PreviewResponse, String> {
     debug!("Updating preview settings: {:?}", settings);
 
@@ -362,7 +359,7 @@ pub async fn preview_get_settings(
 /// Clear preview cache
 #[tauri::command]
 pub async fn preview_clear_cache(
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<PreviewResponse, String> {
     debug!("Clearing preview cache");
 
@@ -434,7 +431,7 @@ pub async fn preview_export_frame(
     timestamp: f64,
     format: Option<String>,
     quality: Option<u8>,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<PreviewResponse, String> {
     debug!("Exporting preview frame at timestamp: {}", timestamp);
 
