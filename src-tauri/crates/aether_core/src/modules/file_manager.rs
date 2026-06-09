@@ -331,6 +331,7 @@ impl FileManager {
         let _pipeline_str = format!(
             "filesrc location=\"{}\" ! decodebin ! videoconvert ! videoscale ! \
              video/x-raw,width={},height={} ! jpegenc quality={} ! filesink location=\"{}\"",
+            path.to_str().unwrap(),
             options.width,
             options.height,
             options.quality,
@@ -367,7 +368,7 @@ impl FileManager {
             "filesrc location=\"{}\" ! decodebin ! audioconvert ! \
              audiowaveform wave-mode=lines style=lines fill=true background-color=0x000000ff \
              foreground-color=0x00FF00FF scale-digitized=true ! \
-             pngenc compression-level=6 ! filesink location=\"{}\",
+             pngenc compression-level=6 ! filesink location=\"{}\"",
             path.to_str().unwrap(),
             thumbnail_path.to_str().unwrap()
         );

@@ -267,6 +267,7 @@ impl ShapeLayer {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShapeLayerCollection {
+    #[serde(skip)]
     pub layers: Vec<ShapeLayer>,
     pub name: String,
     pub global_transform: Transform,
