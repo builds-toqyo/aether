@@ -15,63 +15,81 @@ Build a **DaVinci Resolve + Adobe Fusion** equivalent with:
 
 ## Current Status (Updated May 2026)
 
-**Implemented Features:**
-- Video decoding with FFmpeg and hardware acceleration
-- Audio processing with GStreamer
-- Basic color grading system
-- Multi-track timeline foundation
-- File management and import/export
-- Effects framework (blur, sharpen, crop, etc.)
+**Implemented (Frontend):**
+- Node graph UI (`src/components/NodeGraph/`)
+- Color scopes UI — waveform, vectorscope, histogram (`src/components/ColorScopes/`)
+- Timeline UI with tracks, clips, ruler, playhead (`src/components/timeline/`)
+- Preview viewer component (`src/components/Preview/`)
 
-**In Development:**
-- Node-based compositing system
-- Real-time GPU preview pipeline
-- Advanced color tools (scopes, HDR)
-- Motion graphics and keyframing
+**Implemented (Backend):**
+- Node graph execution engine (`aether_api/src/commands/node_ops/`)
+- FFmpeg video decoding (`ffmpeg-next`)
+- Multi-track timeline data model (`aether_core/src/engine/editing/timeline.rs`)
+- File manager and media import (`MediaImporter`, `FileManager`)
+- Blur node (`nodes/basic/blur/`)
+- Preview engine skeleton with frame caching (`PreviewEngine`)
+- Animation keyframe framework (`aether_core/src/animation/`)
+
+**Partially Implemented / In Development:**
+- Hardware acceleration (CUDA, VAAPI, VideoToolbox, AMF) — stubs exist, not wired
+- Audio processing with GStreamer — API drift (GStreamer 0.25), needs rewrite
+- Color grading (ACES) — placeholder logic, no real OCIO bindings
+- GStreamer-based rendering/export — API broken in 0.25, needs migration
+- Timeline GES sync — model exists, GES integration unverified
 
 **Missing Features:**
-- Node graph UI and execution engine
-- Real-time preview with frame caching
-- Color scopes (waveform, vectorscope, histogram)
-- Animation system with keyframes
 - Multi-camera editing
 - Plugin architecture
+- Real-time preview with working frame cache (backend data pipeline)
+- Animation easing functions
+- Font metrics and text rendering engine
+- Shape layer path-to-shape conversion
 
 ## Technology Stack (2026 Compatible)
 
 **Backend (Rust):**
-- **Tauri 2.7.0** - Desktop app framework
-- **FFmpeg 7.1.0** - Video decoding/encoding
-- **GStreamer 0.24.1** - Audio processing
-- **Hardware acceleration** - CUDA, VideoToolbox, VAAPI
+- **Tauri 2.8.5** — Desktop app framework
+- **FFmpeg** (via `ffmpeg-next 8.1.0`) — Video decoding/encoding
+- **GStreamer 0.25.x** — Audio/video pipeline (editing engine)
+- **wgpu 29.0.3** — GPU compute for node execution
+- **Hardware acceleration** — CUDA, VAAPI, VideoToolbox, AMF (planned)
 
 **Frontend (Next.js):**
-- **Next.js 16.2.4** - React framework
-- **React 19.2.0** - UI library
-- **TypeScript 6.0.3** - Type safety
-- **TailwindCSS 4.2.4** - Styling
+- **Next.js** — React framework (latest, see `package.json`)
+- **React 19.2.0** — UI library
+- **TypeScript** — Type safety (latest, see `package.json`)
+- **TailwindCSS 4.1.16** — Styling
 
 ## Development Roadmap
 
-### Phase 1: Node-Based Compositing (4-6 weeks)
-- Node graph architecture
-- Basic compositing nodes (Merge, Transform, Color)
-- GPU execution engine
+### Phase 1: Compilation & API Stabilization (2-3 weeks)
+- Fix GStreamer 0.25 API drift (`parse_launch`, `set_render_settings`, encoding profiles)
+- Fix ffmpeg-next 8.x API changes (`codec::find_by_name`, `codec_params`)
+- Remove `unsafe impl Send/Sync` workarounds via mpsc proxy pattern
+- Pin all dependency versions
 
-### Phase 2: Real-time Preview (3-4 weeks)
-- GPU compute shaders
-- Frame caching system
-- Adaptive quality rendering
+### Phase 2: Backend-Frontend Wiring (3-4 weeks)
+- Wire stubbed preview commands to `PreviewEngine`
+- Wire stubbed timeline commands to `Timeline`
+- Wire color scopes backend data pipeline
+- Implement project persistence (save/load)
 
-### Phase 3: Advanced Color Tools (3-4 weeks)
-- Color scopes (waveform, vectorscope)
-- HDR/ACES pipeline
-- Professional LUT support
+### Phase 3: Node-Based Compositing (4-6 weeks)
+- Connect node graph to timeline clips
+- Add compositing nodes (Merge, Transform, Color)
+- GPU shader execution via wgpu
 
-### Phase 4: Motion Graphics (4-5 weeks)
-- Keyframing system
-- Shape layers and text animation
-- Masking and tracking
+### Phase 4: Real-time Preview (3-4 weeks)
+- Working frame caching and adaptive quality
+- Hardware acceleration detection and usage
+- Performance stats from real pipeline
+
+### Phase 5: Advanced Color & Motion (4-5 weeks)
+- ACES/OCIO color pipeline
+- Animation easing functions
+- Font metrics and text rendering
+- Multi-camera editing
+- Plugin architecture
 
 ## Quick Start
 
@@ -178,13 +196,21 @@ npm run build
 npm run tauri build -- --target release
 ```
 
+## Known Issues
+
+1. **GStreamer 0.25 API drift** — Several GStreamer APIs used in the codebase were removed in 0.25 (e.g., `gst::parse_launch`, `ges::Pipeline::set_render_settings`, `ges::Transition::new`). These need migration to the new API.
+2. **`unsafe impl Send/Sync` workaround** — `EditingEngine`, `Exporter`, and `GstExporter` use `unsafe impl Send/Sync` to be stored in Tauri `State`. This is a temporary workaround until the mpsc proxy pattern is implemented.
+3. **113 stubbed API commands** — Many Tauri commands return mock data or `"TODO"` errors instead of calling real engine methods. See `plans.md` for full list.
+4. **Hardware acceleration is stubbed** — CUDA, VAAPI, VideoToolbox, and AMF detection/init code exists but does not call real APIs.
+
 ## Contributing
 
 **Areas needing contribution:**
-- **Node graph UI** - React component for visual node editing
-- **GPU shaders** - Compute shaders for real-time effects
-- **Color science** - ACES implementation and HDR support
-- **Testing** - Unit tests and integration tests
+- **GStreamer 0.25 migration** — Update broken API calls to modern GES/gst signatures
+- **Backend-frontend wiring** — Connect stubbed Tauri commands to real `EditingEngine` methods
+- **GPU shaders** — Compute shaders for real-time node effects
+- **Color science** — Real OCIO/ACES bindings or approximation
+- **Testing** — Unit tests and integration tests
 
 **Guidelines:**
 - Follow Rust and Next.js best practices

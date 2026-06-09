@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.aether.app",
   "build": {
-    "frontendDist": "../src/out",
+    "frontendDist": "../.next",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
@@ -26,6 +26,29 @@
   "bundle": {
     "active": false,
     "targets": "all",
-    "icon": []
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "Aether",
+    "category": "Video",
+    "shortDescription": "Professional Video Editing & Compositing",
+    "longDescription": "Aether is a professional video editing and compositing application featuring node-based compositing, real-time GPU acceleration, and professional color tools.",
+    "copyright": "Copyright © 2026 Aether",
+    "fileAssociations": [
+      {
+        "ext": ["aether"],
+        "name": "Aether Project",
+        "role": "Editor"
+      },
+      {
+        "ext": ["mp4", "mov", "avi", "mkv", "webm"],
+        "name": "Video File",
+        "role": "Viewer"
+      }
+    ]
   }
 }

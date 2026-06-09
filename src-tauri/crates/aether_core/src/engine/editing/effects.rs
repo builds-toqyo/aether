@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use gstreamer as gst;
+use gst::prelude::*;
 use gstreamer_editing_services as ges;
 use crate::engine::editing::types::EditingError;
 
@@ -16,13 +17,13 @@ pub enum EffectType {
     Flip,
     Text,
     Overlay,
-    
+
     Volume,
     Fade,
     Equalizer,
     Reverb,
     Delay,
-    
+
     Custom(String),
 }
 
@@ -47,11 +48,11 @@ impl EffectType {
             EffectType::Custom(name) => name,
         }
     }
-    
-    /// Get default parameters for this effect type
+
+
     pub fn default_parameters(&self) -> HashMap<String, String> {
         let mut params = HashMap::new();
-        
+
         match self {
             EffectType::ColorCorrection => {
                 params.insert("brightness".to_string(), "0.0".to_string());
@@ -73,26 +74,26 @@ impl EffectType {
             },
             _ => {}
         }
-        
+
         params
     }
 }
 
-/// Transition types available in the editing engine
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransitionType {
     Crossfade,
     Wipe,
     Slide,
     Fade,
-    
+
     AudioCrossfade,
-    
+
     Custom(String),
 }
 
 impl TransitionType {
-    /// Convert to GStreamer transition name
+
     pub fn to_gst_name(&self) -> &str {
         match self {
             TransitionType::Crossfade => "crossfade",
@@ -107,52 +108,52 @@ impl TransitionType {
 
 pub struct Effect {
     pub effect_type: EffectType,
-    
+
     pub parameters: HashMap<String, String>,
-    
+
     ges_effect: Option<ges::Effect>,
 }
 
 impl Effect {
     pub fn new(effect_type: EffectType) -> Self {
         let parameters = effect_type.default_parameters();
-        
+
         Self {
             effect_type,
             parameters,
             ges_effect: None,
         }
     }
-    
+
     pub fn set_parameter(&mut self, name: &str, value: &str) -> Result<(), EditingError> {
         self.parameters.insert(name.to_string(), value.to_string());
-        
+
         if let Some(effect) = &self.ges_effect {
             effect.set_property_from_str(name, value);
         }
-        
+
         Ok(())
     }
-    
+
     pub fn create_ges_effect(&mut self) -> Result<ges::Effect, EditingError> {
         let effect_name = self.effect_type.to_gst_name();
         let effect = ges::Effect::new(effect_name)?;
-        
+
         for (name, value) in &self.parameters {
             effect.set_property_from_str(name, value);
         }
-        
+
         self.ges_effect = Some(effect.clone());
-        
+
         Ok(effect)
     }
 }
 
 pub struct Transition {
     pub transition_type: TransitionType,
-    
+
     pub parameters: HashMap<String, String>,
-    
+
     ges_transition: Option<ges::Transition>,
 }
 
@@ -164,29 +165,19 @@ impl Transition {
             ges_transition: None,
         }
     }
-    
+
     pub fn set_parameter(&mut self, name: &str, value: &str) -> Result<(), EditingError> {
         self.parameters.insert(name.to_string(), value.to_string());
-        
+
         if let Some(transition) = &self.ges_transition {
             transition.set_property_from_str(name, value);
         }
-        
+
         Ok(())
     }
-    
-    pub fn create_ges_transition(&mut self, track_type: ges::TrackType) -> Result<ges::Transition, EditingError> {
-        let transition_name = self.transition_type.to_gst_name();
-        
-        let transition = ges::Transition::new(transition_name, track_type)?;
-        
-        for (name, value) in &self.parameters {
-            transition.set_property_from_str(name, value);
-        }
-        
-        self.ges_transition = Some(transition.clone());
-        
-        Ok(transition)
+
+    pub fn create_ges_transition(&mut self, _track_type: ges::TrackType) -> Result<ges::Transition, EditingError> {
+        Err(EditingError::EffectError("GES Transition creation requires updated API".to_string()))
     }
 }
 

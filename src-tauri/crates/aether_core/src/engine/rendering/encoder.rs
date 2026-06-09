@@ -31,7 +31,7 @@ impl EncoderPreset {
             EncoderPreset::Placebo => "placebo",
         }
     }
-    
+
     /// Get a human-readable description for this preset
     pub fn description(&self) -> &'static str {
         match self {
@@ -52,21 +52,21 @@ impl EncoderPreset {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncoderOptions {
     pub video_format: VideoFormat,
-    
+
     pub audio_format: AudioFormat,
-    
+
     pub preset: EncoderPreset,
-    
+
     pub crf: u8,
-    
+
     pub video_bitrate: u32,
-    
+
     pub audio_bitrate: u32,
-    
+
     pub two_pass: bool,
-    
+
     pub hardware_acceleration: bool,
-    
+
     pub additional_options: HashMap<String, String>,
 }
 
@@ -94,7 +94,7 @@ impl EncoderOptions {
             ..Default::default()
         }
     }
-    
+
     pub fn high_quality() -> Self {
         Self {
             video_format: VideoFormat::H265,
@@ -108,7 +108,7 @@ impl EncoderOptions {
             additional_options: HashMap::new(),
         }
     }
-    
+
     pub fn web_delivery() -> Self {
         Self {
             video_format: VideoFormat::H264,
@@ -122,7 +122,7 @@ impl EncoderOptions {
             additional_options: HashMap::new(),
         }
     }
-    
+
     pub fn fast_preview() -> Self {
         Self {
             video_format: VideoFormat::H264,
@@ -136,84 +136,84 @@ impl EncoderOptions {
             additional_options: HashMap::new(),
         }
     }
-    
+
     pub fn professional() -> Self {
         Self {
             video_format: VideoFormat::ProRes,
             audio_format: AudioFormat::Pcm,
             preset: EncoderPreset::Medium,
             crf: 0,
-            video_bitrate: 100000000, // 100 Mbps
-            audio_bitrate: 1536000,   // 1.5 Mbps
+            video_bitrate: 100000000,
+            audio_bitrate: 1536000,
             two_pass: false,
             hardware_acceleration: false,
             additional_options: {
                 let mut options = HashMap::new();
-                options.insert("profile:v".to_string(), "3".to_string()); // ProRes HQ
+                options.insert("profile:v".to_string(), "3".to_string());
                 options
             },
         }
     }
-    
+
     pub fn add_option(&mut self, key: &str, value: &str) -> &mut Self {
         self.additional_options.insert(key.to_string(), value.to_string());
         self
     }
-    
+
     pub fn with_preset(&mut self, preset: EncoderPreset) -> &mut Self {
         self.preset = preset;
         self
     }
-    
+
     pub fn with_crf(&mut self, crf: u8) -> &mut Self {
         self.crf = crf;
         self
     }
-    
+
     pub fn with_video_bitrate(&mut self, bitrate: u32) -> &mut Self {
         self.video_bitrate = bitrate;
         self
     }
-    
+
     pub fn with_audio_bitrate(&mut self, bitrate: u32) -> &mut Self {
         self.audio_bitrate = bitrate;
         self
     }
-    
+
     pub fn with_two_pass(&mut self, enabled: bool) -> &mut Self {
         self.two_pass = enabled;
         self
     }
-    
+
     pub fn with_hardware_acceleration(&mut self, enabled: bool) -> &mut Self {
         self.hardware_acceleration = enabled;
         self
     }
-    
+
     pub fn to_ffmpeg_args(&self) -> Vec<String> {
         let mut args = Vec::new();
-        
+
         let codec_name = if self.hardware_acceleration {
             match self.video_format {
-                VideoFormat::H264 => "h264_videotoolbox", // For macOS
-                VideoFormat::H265 => "hevc_videotoolbox", // For macOS
+                VideoFormat::H264 => "h264_videotoolbox",
+                VideoFormat::H265 => "hevc_videotoolbox",
                 _ => self.video_format.to_ffmpeg_name(),
             }
         } else {
             self.video_format.to_ffmpeg_name()
         };
-        
+
         args.push("-c:v".to_string());
         args.push(codec_name.to_string());
-        
+
         args.push("-c:a".to_string());
         args.push(self.audio_format.to_ffmpeg_name().to_string());
-        
+
         if matches!(self.video_format, VideoFormat::H264 | VideoFormat::H265) {
             args.push("-preset".to_string());
             args.push(self.preset.to_ffmpeg_name().to_string());
         }
-        
+
         if self.video_bitrate == 0 {
             if matches!(self.video_format, VideoFormat::H264 | VideoFormat::H265 | VideoFormat::Vp9) {
                 args.push("-crf".to_string());
@@ -223,20 +223,20 @@ impl EncoderOptions {
             args.push("-b:v".to_string());
             args.push(format!("{}k", self.video_bitrate / 1000));
         }
-        
+
         args.push("-b:a".to_string());
         args.push(format!("{}k", self.audio_bitrate / 1000));
-        
+
         if self.two_pass {
             args.push("-pass".to_string());
             args.push("1".to_string());
         }
-        
+
         for (key, value) in &self.additional_options {
             args.push(format!("-{}", key));
             args.push(value.clone());
         }
-        
+
         args
     }
 }

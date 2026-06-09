@@ -1,0 +1,227 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - beta
+          - nightly
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt, clippy
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libavcodec-dev \
+          libavformat-dev \
+          libavutil-dev \
+          libswscale-dev \
+          libswresample-dev \
+          libgstreamer1.0-dev \
+          libgstreamer-plugins-base1.0-dev \
+          libgstreamer-editing-services1.0-dev \
+          pkg-config \
+          libssl-dev
+
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features -- -D warnings
+
+    - name: Run tests
+      run: cargo test --all-features --verbose
+
+    - name: Run integration tests
+      run: cargo test --test integration_tests --all-features --verbose
+
+  frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linting
+      run: npm run lint || true
+
+    - name: Run type checking
+      run: npm run type-check || true
+
+    - name: Run frontend tests
+      run: npm test || true
+
+    - name: Build frontend
+      run: npm run build
+
+  build:
+    name: Build Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # Windows builds
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            platform: windows
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            platform: windows
+          
+          # Ubuntu builds
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            platform: ubuntu
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            platform: ubuntu
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            platform: ubuntu
+          
+          # macOS builds
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            platform: macos
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            platform: macos
+          
+          # Additional Debian-based builds
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            platform: debian
+            debian_version: bookworm
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            platform: debian
+            debian_version: bullseye
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libavcodec-dev \
+          libavformat-dev \
+          libavutil-dev \
+          libswscale-dev \
+          libswresample-dev \
+          libgstreamer1.0-dev \
+          libgstreamer-plugins-base1.0-dev \
+          libgstreamer-editing-services1.0-dev \
+          pkg-config \
+          libssl-dev
+
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install ffmpeg gstreamer gst-plugins-base gst-plugins-good
+
+    - name: Install system dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        choco install ffmpeg
+
+    - name: Install frontend dependencies
+      run: npm ci
+
+    - name: Build frontend
+      run: npm run build
+
+    - name: Build Tauri app
+      run: |
+        cargo tauri build --target ${{ matrix.target }} --no-bundle
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: aether-${{ matrix.os }}-${{ matrix.target }}
+        path: |
+          src-tauri/target/${{ matrix.target }}/release/aether*
+        retention-days: 30
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Security audit
+      uses: rustsec/audit-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Audit npm packages
+      run: npm audit --audit-level moderate

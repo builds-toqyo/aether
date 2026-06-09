@@ -1,7 +1,7 @@
 use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, OutputPin};
 use uuid::Uuid;
 
-mod types;
+pub mod types;
 mod algorithms;
 mod kernels;
 mod node;

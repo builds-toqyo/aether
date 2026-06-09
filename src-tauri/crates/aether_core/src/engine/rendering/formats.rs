@@ -14,6 +14,8 @@ pub enum ContainerFormat {
     Ts,
     Mxf,
     Gif,
+    PngSequence,
+    JpegSequence,
 }
 
 impl ContainerFormat {
@@ -25,14 +27,16 @@ impl ContainerFormat {
             ContainerFormat::Webm => "webm",
             ContainerFormat::Avi => "avi",
             ContainerFormat::Flv => "flv",
-            ContainerFormat::Wmv => "asf",
-            ContainerFormat::Mpg => "mpegts",
+            ContainerFormat::Wmv => "wmv",
+            ContainerFormat::Mpg => "mpeg",
             ContainerFormat::Ts => "mpegts",
             ContainerFormat::Mxf => "mxf",
             ContainerFormat::Gif => "gif",
+            ContainerFormat::PngSequence => "image2",
+            ContainerFormat::JpegSequence => "image2",
         }
     }
-    
+
     pub fn extension(&self) -> &'static str {
         match self {
             ContainerFormat::Mp4 => "mp4",
@@ -46,22 +50,26 @@ impl ContainerFormat {
             ContainerFormat::Ts => "ts",
             ContainerFormat::Mxf => "mxf",
             ContainerFormat::Gif => "gif",
+            ContainerFormat::PngSequence => "png",
+            ContainerFormat::JpegSequence => "jpg",
         }
     }
-    
+
     pub fn display_name(&self) -> &'static str {
         match self {
             ContainerFormat::Mp4 => "MP4",
-            ContainerFormat::Mkv => "Matroska (MKV)",
-            ContainerFormat::Mov => "QuickTime (MOV)",
+            ContainerFormat::Mkv => "MKV (Matroska)",
+            ContainerFormat::Mov => "MOV (QuickTime)",
             ContainerFormat::Webm => "WebM",
             ContainerFormat::Avi => "AVI",
-            ContainerFormat::Flv => "Flash Video (FLV)",
-            ContainerFormat::Wmv => "Windows Media (WMV)",
+            ContainerFormat::Flv => "Flash Video",
+            ContainerFormat::Wmv => "Windows Media Video",
             ContainerFormat::Mpg => "MPEG",
-            ContainerFormat::Ts => "MPEG Transport Stream (TS)",
-            ContainerFormat::Mxf => "Material Exchange Format (MXF)",
-            ContainerFormat::Gif => "GIF Animation",
+            ContainerFormat::Ts => "MPEG-TS",
+            ContainerFormat::Mxf => "MXF",
+            ContainerFormat::Gif => "GIF",
+            ContainerFormat::PngSequence => "PNG Sequence",
+            ContainerFormat::JpegSequence => "JPEG Sequence",
         }
     }
 }
@@ -99,24 +107,24 @@ impl VideoFormat {
             VideoFormat::Raw => "rawvideo",
         }
     }
-    
-=    pub fn display_name(&self) -> &'static str {
+
+    pub fn display_name(&self) -> &'static str {
         match self {
-            VideoFormat::H264 => "H.264 / AVC",
-            VideoFormat::H265 => "H.265 / HEVC",
+            VideoFormat::H264 => "H.264",
+            VideoFormat::H265 => "H.265 (HEVC)",
             VideoFormat::Vp8 => "VP8",
             VideoFormat::Vp9 => "VP9",
             VideoFormat::Av1 => "AV1",
-            VideoFormat::ProRes => "Apple ProRes",
-            VideoFormat::Dnxhd => "Avid DNxHD",
-            VideoFormat::Mjpeg => "Motion JPEG",
+            VideoFormat::ProRes => "ProRes",
+            VideoFormat::Dnxhd => "DNxHD",
+            VideoFormat::Mjpeg => "MJPEG",
             VideoFormat::Mpeg2 => "MPEG-2",
             VideoFormat::Mpeg4 => "MPEG-4",
             VideoFormat::Theora => "Theora",
-            VideoFormat::Raw => "Uncompressed",
+            VideoFormat::Raw => "Raw",
         }
     }
-    
+
     pub fn is_compatible_with(&self, container: ContainerFormat) -> bool {
         match container {
             ContainerFormat::Mp4 => matches!(
@@ -156,6 +164,10 @@ impl VideoFormat {
                 self,
                 VideoFormat::Mjpeg
             ),
+            ContainerFormat::PngSequence | ContainerFormat::JpegSequence => matches!(
+                self,
+                VideoFormat::Mjpeg | VideoFormat::Raw
+            ),
         }
     }
 }
@@ -187,7 +199,7 @@ impl AudioFormat {
             AudioFormat::Wma => "wmav2",
         }
     }
-    
+
     pub fn display_name(&self) -> &'static str {
         match self {
             AudioFormat::Aac => "AAC",
@@ -201,14 +213,14 @@ impl AudioFormat {
             AudioFormat::Wma => "Windows Media Audio",
         }
     }
-    
+
     pub fn is_compatible_with(&self, container: ContainerFormat) -> bool {
         match container {
             ContainerFormat::Mp4 => matches!(
                 self,
                 AudioFormat::Aac | AudioFormat::Ac3 | AudioFormat::Eac3
             ),
-            ContainerFormat::Mkv => true, // MKV supports all codecs
+            ContainerFormat::Mkv => true,
             ContainerFormat::Mov => matches!(
                 self,
                 AudioFormat::Aac | AudioFormat::Pcm
@@ -237,7 +249,8 @@ impl AudioFormat {
                 self,
                 AudioFormat::Pcm
             ),
-            ContainerFormat::Gif => false, // GIF has no audio
+            ContainerFormat::Gif => false,
+            ContainerFormat::PngSequence | ContainerFormat::JpegSequence => false,
         }
     }
 }
@@ -245,13 +258,13 @@ impl AudioFormat {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FormatInfo {
     pub container: ContainerFormat,
-    
+
     pub video_formats: Vec<VideoFormat>,
-    
+
     pub audio_formats: Vec<AudioFormat>,
-    
+
     pub use_case: String,
-    
+
     pub web_friendly: bool,
 }
 
@@ -269,7 +282,7 @@ pub fn get_available_formats() -> Vec<FormatInfo> {
         ContainerFormat::Mxf,
         ContainerFormat::Gif,
     ];
-    
+
     let video_formats = vec![
         VideoFormat::H264,
         VideoFormat::H265,
@@ -284,7 +297,7 @@ pub fn get_available_formats() -> Vec<FormatInfo> {
         VideoFormat::Theora,
         VideoFormat::Raw,
     ];
-    
+
     let audio_formats = vec![
         AudioFormat::Aac,
         AudioFormat::Mp3,
@@ -296,7 +309,7 @@ pub fn get_available_formats() -> Vec<FormatInfo> {
         AudioFormat::Eac3,
         AudioFormat::Wma,
     ];
-    
+
     let use_cases = HashMap::from([
         (ContainerFormat::Mp4, "Web, mobile, and general purpose"),
         (ContainerFormat::Mkv, "High quality archival and storage"),
@@ -310,24 +323,24 @@ pub fn get_available_formats() -> Vec<FormatInfo> {
         (ContainerFormat::Mxf, "Professional broadcast and archival"),
         (ContainerFormat::Gif, "Short animations without audio"),
     ]);
-    
+
     let web_friendly = vec![
         ContainerFormat::Mp4,
         ContainerFormat::Webm,
         ContainerFormat::Gif,
     ];
-    
+
     containers.into_iter().map(|container| {
         let compatible_video = video_formats.iter()
             .filter(|format| format.is_compatible_with(container))
             .copied()
             .collect();
-        
+
         let compatible_audio = audio_formats.iter()
             .filter(|format| format.is_compatible_with(container))
             .copied()
             .collect();
-        
+
         FormatInfo {
             container,
             video_formats: compatible_video,

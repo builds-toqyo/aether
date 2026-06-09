@@ -1,7 +1,16 @@
-use aether_types::{Node, NodeType, InputPin, OutputPin, Parameter, ParameterValue, ExecutionContext, MediaType};
+use aether_types::{Node, NodeType, InputPin, OutputPin, Parameter, ParameterValue};
+use crate::nodes::{ExecutionContext, NodeExecutor, NodeResult};
 use std::collections::HashMap;
 use uuid::Uuid;
 use log::debug;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MediaType {
+    Video,
+    Image,
+    Audio,
+    Sequence,
+}
 
 mod video_decoder;
 mod image_decoder;
@@ -13,32 +22,42 @@ pub use image_decoder::{ImageDecoder, DecodedImageFrame, RGBImageFrame};
 pub use audio_decoder::{AudioDecoder, AudioMetadata};
 pub use sequence_loader::SequenceLoader;
 
-/// Input node for loading media files (video, images, audio, sequences)
-#[derive(Debug, Clone)]
+
 pub struct InputNode {
-    /// The underlying node
+
     node: Node,
-    /// Media type this input handles
+
     media_type: MediaType,
-    /// Path to the media file
+
     media_path: Option<String>,
-    /// Frame cache for performance
+
     frame_cache: HashMap<u64, ParameterValue>,
-    /// Video decoder
+
     video_decoder: VideoDecoder,
-    /// Image decoder
+
     image_decoder: ImageDecoder,
-    /// Audio decoder
+
     audio_decoder: AudioDecoder,
-    /// Sequence loader
+
     sequence_loader: SequenceLoader,
 }
 
+impl std::fmt::Debug for InputNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InputNode")
+            .field("node", &self.node)
+            .field("media_type", &self.media_type)
+            .field("media_path", &self.media_path)
+            .field("frame_cache", &self.frame_cache.len())
+            .finish()
+    }
+}
+
 impl InputNode {
-    /// Create a new input node
+
     pub fn new(node: Node) -> Self {
         let media_type = node.node_type.clone().into();
-        
+
         Self {
             node,
             media_type,
@@ -51,11 +70,11 @@ impl InputNode {
         }
     }
 
-    /// Create a standard input node
+
     pub fn create_standard(name: String) -> Node {
         let mut node = Node::new(NodeType::Input, name);
-        
-        // Add output pin
+
+
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
@@ -63,8 +82,8 @@ impl InputNode {
             value: ParameterValue::None,
         };
         node.add_output(output_pin);
-        
-        // Add parameters
+
+
         let media_type_param = Parameter {
             id: Uuid::new_v4(),
             name: "media_type".to_string(),
@@ -73,9 +92,11 @@ impl InputNode {
             default_value: ParameterValue::String("image".to_string()),
             min_value: None,
             max_value: None,
+            animatable: false,
+            description: Some("Type of media (image, video, sequence)".to_string()),
         };
         node.add_parameter(media_type_param);
-        
+
         let media_path_param = Parameter {
             id: Uuid::new_v4(),
             name: "media_path".to_string(),
@@ -84,9 +105,11 @@ impl InputNode {
             default_value: ParameterValue::None,
             min_value: None,
             max_value: None,
+            animatable: false,
+            description: Some("Path to media file".to_string()),
         };
         node.add_parameter(media_path_param);
-        
+
         let sequence_pattern_param = Parameter {
             id: Uuid::new_v4(),
             name: "sequence_pattern".to_string(),
@@ -95,40 +118,42 @@ impl InputNode {
             default_value: ParameterValue::None,
             min_value: None,
             max_value: None,
+            animatable: false,
+            description: Some("Pattern for image sequence (e.g., frame_%04d.png)".to_string()),
         };
         node.add_parameter(sequence_pattern_param);
-        
+
         node
     }
 
-    /// Get the media type
+
     pub fn get_media_type(&self) -> MediaType {
         self.media_type.clone()
     }
 
-    /// Set the media path
+
     pub fn set_media_path(&mut self, path: String) {
         self.media_path = Some(path);
     }
 
-    /// Get the media path
+
     pub fn get_media_path(&self) -> Option<&String> {
         self.media_path.as_ref()
     }
 
-    /// Set the sequence pattern
+
     pub fn set_sequence_pattern(&mut self, pattern: String) {
         self.sequence_loader.set_sequence_pattern(pattern);
     }
 
-    /// Get the sequence pattern
+
     pub fn get_sequence_pattern(&self) -> Option<&String> {
         self.sequence_loader.get_sequence_pattern()
     }
 
-    /// Generate a frame for the given frame number
+
     pub fn generate_frame(&mut self, frame: u64) -> ParameterValue {
-        // Check cache first
+
         if let Some(cached_frame) = self.frame_cache.get(&frame) {
             return cached_frame.clone();
         }
@@ -140,16 +165,16 @@ impl InputNode {
             MediaType::Sequence => self.load_sequence_frame(frame),
         };
 
-        // Cache the result
+
         self.frame_cache.insert(frame, result.clone());
         result
     }
 
-    /// Load video frame
+
     fn load_video_frame(&mut self, frame: u64) -> ParameterValue {
         if let Some(media_path) = &self.media_path {
             debug!("Loading video frame {} from file: {}", frame, media_path);
-            
+
             let texture_id = self.video_decoder.decode_video_frame_with_ffmpeg(frame, media_path);
             ParameterValue::Image(texture_id)
         } else {
@@ -158,11 +183,11 @@ impl InputNode {
         }
     }
 
-    /// Load image frame
+
     fn load_image_frame(&mut self, _frame: u64) -> ParameterValue {
         if let Some(media_path) = &self.media_path {
             debug!("Loading image from file: {}", media_path);
-            
+
             self.image_decoder.decode_image_with_ffmpeg(media_path)
         } else {
             debug!("No media path set for image input");
@@ -170,20 +195,20 @@ impl InputNode {
         }
     }
 
-    /// Load audio frame
+
     fn load_audio_frame(&mut self, frame: u64) -> ParameterValue {
         if let Some(media_path) = &self.media_path {
             debug!("Loading audio frame {} from file: {}", frame, media_path);
-            
+
             let audio_data = self.audio_decoder.decode_audio_frame_with_ffmpeg(frame, media_path);
-            ParameterValue::Audio(audio_data)
+            ParameterValue::Image(audio_data)
         } else {
             debug!("No media path set for audio input");
             ParameterValue::None
         }
     }
 
-    /// Load sequence frame
+
     fn load_sequence_frame(&mut self, frame: u64) -> ParameterValue {
         if let Some(media_path) = &self.media_path {
             self.sequence_loader.load_sequence_frame(frame, media_path)
@@ -193,12 +218,12 @@ impl InputNode {
         }
     }
 
-    /// Clear the frame cache
+
     pub fn clear_cache(&mut self) {
         self.frame_cache.clear();
     }
 
-    /// Get cache size
+
     pub fn cache_size(&self) -> usize {
         self.frame_cache.len()
     }
@@ -207,9 +232,37 @@ impl InputNode {
 impl From<NodeType> for MediaType {
     fn from(node_type: NodeType) -> Self {
         match node_type {
-            NodeType::Input => MediaType::Image, // Default to image
+            NodeType::Input => MediaType::Image,
             _ => MediaType::Image,
         }
+    }
+}
+
+impl NodeExecutor for InputNode {
+    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
+        if !self.node.enabled {
+            return Ok(());
+        }
+
+        let frame_data = self.generate_frame(context.frame);
+
+        if let Some(output_pin) = self.node.outputs.first() {
+            context.set_output(output_pin.id, frame_data);
+        }
+
+        Ok(())
+    }
+
+    fn node_type(&self) -> NodeType {
+        NodeType::Input
+    }
+
+    fn get_inputs(&self) -> Vec<Uuid> {
+        self.node.inputs.iter().map(|pin| pin.id).collect()
+    }
+
+    fn get_outputs(&self) -> Vec<Uuid> {
+        self.node.outputs.iter().map(|pin| pin.id).collect()
     }
 }
 
@@ -221,7 +274,7 @@ mod tests {
     fn test_input_node_creation() {
         let node = InputNode::create_standard("Test Input".to_string());
         let input_node = InputNode::new(node);
-        
+
         assert_eq!(input_node.get_media_type(), MediaType::Image);
         assert_eq!(input_node.cache_size(), 0);
     }
@@ -230,7 +283,7 @@ mod tests {
     fn test_media_path_setting() {
         let node = InputNode::create_standard("Test".to_string());
         let mut input_node = InputNode::new(node);
-        
+
         input_node.set_media_path("/path/to/media.mp4".to_string());
         assert_eq!(input_node.get_media_path(), Some(&"/path/to/media.mp4".to_string()));
     }
@@ -239,7 +292,7 @@ mod tests {
     fn test_sequence_pattern_setting() {
         let node = InputNode::create_standard("Test".to_string());
         let mut input_node = InputNode::new(node);
-        
+
         input_node.set_sequence_pattern("output_%04d.png".to_string());
         assert_eq!(input_node.get_sequence_pattern(), Some(&"output_%04d.png".to_string()));
     }
@@ -248,9 +301,9 @@ mod tests {
     fn test_cache_operations() {
         let node = InputNode::create_standard("Test".to_string());
         let mut input_node = InputNode::new(node);
-        
+
         assert_eq!(input_node.cache_size(), 0);
-        
+
         input_node.clear_cache();
         assert_eq!(input_node.cache_size(), 0);
     }

@@ -4,62 +4,53 @@ use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, Output
 use uuid::Uuid;
 use log::debug;
 
-/// Merge node for blending multiple inputs
 pub struct MergeNode {
     node: Node,
     blend_ops: BlendOperations,
 }
 
 impl MergeNode {
-    /// Create a new merge node
     pub fn new(node: Node) -> Self {
         let blend_ops = BlendOperations::new(BlendMode::Normal, 1.0);
-        
+
         Self {
             node,
             blend_ops,
         }
     }
-    
-    /// Set the blend mode
+
     pub fn set_blend_mode(&mut self, mode: BlendMode) {
         self.blend_ops.set_blend_mode(mode);
     }
-    
-    /// Get the blend mode
+
     pub fn get_blend_mode(&self) -> BlendMode {
         self.blend_ops.get_blend_mode()
     }
-    
-    /// Set the opacity
+
     pub fn set_opacity(&mut self, opacity: f32) {
         self.blend_ops.set_opacity(opacity);
     }
-    
-    /// Get the opacity
+
     pub fn get_opacity(&self) -> f32 {
         self.blend_ops.get_opacity()
     }
-    
-    /// Create a standard merge node
+
     pub fn create_standard(name: String, input_count: usize) -> Node {
         let mut node = Node::new(NodeType::Merge, name);
-        
-        // Add input pins
+
         for i in 0..input_count {
             let input_pin = InputPin {
                 id: Uuid::new_v4(),
                 name: format!("input_{}", i),
                 data_type: PinDataType::Image,
-                required: i == 0, // First input is required
+                required: i == 0,
                 default_value: ParameterValue::None,
                 current_value: ParameterValue::None,
                 connection: None,
             };
             node.add_input(input_pin);
         }
-        
-        // Add output pin
+
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
@@ -67,8 +58,8 @@ impl MergeNode {
             value: ParameterValue::None,
         };
         node.add_output(output_pin);
-        
-        // Add parameters
+
+
         let blend_mode_param = aether_types::Parameter {
             id: Uuid::new_v4(),
             name: "blend_mode".to_string(),
@@ -77,105 +68,109 @@ impl MergeNode {
             default_value: ParameterValue::String("normal".to_string()),
             min_value: None,
             max_value: None,
+            animatable: false,
+            description: Some("Blend mode for merging".to_string()),
         };
         node.add_parameter(blend_mode_param);
-        
+
         let opacity_param = aether_types::Parameter {
             id: Uuid::new_v4(),
             name: "opacity".to_string(),
             data_type: PinDataType::Float,
             value: ParameterValue::Float(1.0),
             default_value: ParameterValue::Float(1.0),
-            min_value: Some(ParameterValue::Float(0.0)),
-            max_value: Some(ParameterValue::Float(1.0)),
+            min_value: Some(0.0),
+            max_value: Some(1.0),
+            animatable: true,
+            description: Some("Opacity for blending".to_string()),
         };
         node.add_parameter(opacity_param);
-        
+
         node
     }
-    
-    /// Process multiple inputs by blending them sequentially
+
     fn process_multiple_inputs(&self, inputs: &[ParameterValue]) -> ParameterValue {
         if inputs.is_empty() {
             return ParameterValue::None;
         }
-        
+
         if inputs.len() == 1 {
             return inputs[0].clone();
         }
-        
-        // Start with the first input
+
         let mut result = inputs[0].clone();
-        
-        // Blend with each subsequent input
+
         for i in 1..inputs.len() {
             result = self.blend_ops.apply_blend(result, inputs[i].clone());
         }
-        
         result
     }
 }
 
 impl NodeExecutor for MergeNode {
-    fn execute(&mut self, context: &ExecutionContext) -> NodeResult {
-        // Get all input values
+    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
+
         let mut inputs = Vec::new();
         let mut i = 0;
-        
-        while let Some(input_value) = self.node.get_input_value(&format!("input_{}", i), context) {
+
+        while let Some(input_value) = self.node.get_input_value(&format!("input_{}", i)) {
+            let input_value = input_value;
             inputs.push(input_value);
             i += 1;
         }
-        
+
         debug!("Processing merge with {} inputs", inputs.len());
-        
-        // Process multiple inputs
+
         let output_value = self.process_multiple_inputs(&inputs);
-        
-        // Set output value
+
         self.node.set_output_value("output", output_value);
-        
+
         Ok(())
     }
-    
-    fn get_node(&self) -> &Node {
-        &self.node
+
+    fn node_type(&self) -> NodeType {
+        NodeType::Merge
     }
-    
-    fn get_node_mut(&mut self) -> &mut Node {
-        &mut self.node
+
+    fn get_inputs(&self) -> Vec<Uuid> {
+        self.node.inputs.iter().map(|pin| pin.id).collect()
     }
+
+    fn get_outputs(&self) -> Vec<Uuid> {
+        self.node.outputs.iter().map(|pin| pin.id).collect()
+    }
+
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_merge_node_creation() {
         let node = MergeNode::create_standard("Test Merge".to_string(), 2);
         let merge_node = MergeNode::new(node);
-        
+
         assert_eq!(merge_node.get_blend_mode(), BlendMode::Normal);
         assert_eq!(merge_node.get_opacity(), 1.0);
     }
-    
+
     #[test]
     fn test_parameter_setting() {
         let node = MergeNode::create_standard("Test".to_string(), 2);
         let mut merge_node = MergeNode::new(node);
-        
+
         merge_node.set_blend_mode(BlendMode::Multiply);
         assert_eq!(merge_node.get_blend_mode(), BlendMode::Multiply);
-        
+
         merge_node.set_opacity(0.5);
         assert_eq!(merge_node.get_opacity(), 0.5);
     }
-    
+
     #[test]
     fn test_standard_node_creation() {
         let node = MergeNode::create_standard("Test".to_string(), 3);
-        
+
         assert_eq!(node.node_type, NodeType::Merge);
         assert_eq!(node.name, "Test Merge");
         assert_eq!(node.inputs.len(), 3);
@@ -183,28 +178,28 @@ mod tests {
         assert!(node.inputs[0].required);
         assert!(!node.inputs[1].required);
         assert!(!node.inputs[2].required);
-        
-        // Check parameter names
+
+
         let param_names: Vec<String> = node.parameters.iter()
             .map(|p| p.name.clone())
             .collect();
         assert!(param_names.contains(&"blend_mode".to_string()));
         assert!(param_names.contains(&"opacity".to_string()));
     }
-    
+
     #[test]
     fn test_opacity_clamping() {
         let node = MergeNode::create_standard("Test".to_string(), 2);
         let mut merge_node = MergeNode::new(node);
-        
-        // Test clamping
-        merge_node.set_opacity(1.5); // Should clamp to 1.0
+
+
+        merge_node.set_opacity(1.5);
         assert_eq!(merge_node.get_opacity(), 1.0);
-        
-        merge_node.set_opacity(-0.5); // Should clamp to 0.0
+
+        merge_node.set_opacity(-0.5);
         assert_eq!(merge_node.get_opacity(), 0.0);
-        
-        merge_node.set_opacity(0.7); // Should stay 0.7
+
+        merge_node.set_opacity(0.7);
         assert_eq!(merge_node.get_opacity(), 0.7);
     }
 }

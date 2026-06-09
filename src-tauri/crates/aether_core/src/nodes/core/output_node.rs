@@ -3,23 +3,23 @@ use aether_types::{Node, NodeType, PinDataType, ParameterValue};
 use uuid::Uuid;
 use log::debug;
 
-/// Core output node - final result output
+
 #[derive(Debug)]
 pub struct CoreOutputNode {
     node: Node,
 }
 
 impl CoreOutputNode {
-    /// Create a new core output node
+
     pub fn new(node: Node) -> Self {
         Self { node }
     }
-    
-    /// Get the final output value
+
+
     pub fn get_final_output(&self, context: &ExecutionContext) -> Option<ParameterValue> {
         if let Some(input_pin) = self.node.inputs.first() {
             if let Some(connection_id) = &input_pin.connection {
-                // In a real implementation, we'd get the value from the connected output
+
                 context.get_input(&input_pin.id).cloned()
             } else {
                 None
@@ -28,15 +28,15 @@ impl CoreOutputNode {
             None
         }
     }
-    
-    /// Check if output node has valid input connection
+
+
     pub fn has_input_connection(&self) -> bool {
         self.node.inputs.first()
             .and_then(|pin| pin.connection)
             .is_some()
     }
-    
-    /// Get input connection ID
+
+
     pub fn get_input_connection(&self) -> Option<Uuid> {
         self.node.inputs.first()
             .and_then(|pin| pin.connection)
@@ -48,18 +48,18 @@ impl NodeExecutor for CoreOutputNode {
         if !self.node.enabled {
             return Ok(());
         }
-        
-        // Get input from connected node
+
+
         if let Some(input_pin) = self.node.inputs.first() {
             if let Some(connection_id) = &input_pin.connection {
                 debug!("CoreOutputNode: Getting input from connection {}", connection_id);
-                
-                // Get the value from the connected input
+
+
                 let output_value = context.get_input(&input_pin.id)
                     .cloned()
                     .unwrap_or(ParameterValue::None);
-                
-                // Set as final output
+
+
                 if let Some(output_pin) = self.node.outputs.first() {
                     context.set_output(output_pin.id, output_value);
                     debug!("CoreOutputNode: Set final output");
@@ -68,22 +68,22 @@ impl NodeExecutor for CoreOutputNode {
                 debug!("CoreOutputNode: No input connection");
             }
         }
-        
+
         Ok(())
     }
-    
+
     fn node_type(&self) -> NodeType {
         NodeType::Output
     }
-    
-    fn get_inputs(&self) -> &[Uuid] {
-        &self.node.inputs.iter().map(|pin| pin.id).collect::<Vec<_>>()
+
+    fn get_inputs(&self) -> Vec<Uuid> {
+        self.node.inputs.iter().map(|pin| pin.id).collect()
     }
-    
-    fn get_outputs(&self) -> &[Uuid] {
-        &self.node.outputs.iter().map(|pin| pin.id).collect::<Vec<_>>()
+
+    fn get_outputs(&self) -> Vec<Uuid> {
+        self.node.outputs.iter().map(|pin| pin.id).collect()
     }
-    
+
     fn can_execute(&self, _context: &ExecutionContext) -> bool {
         self.node.enabled && self.has_input_connection()
     }
@@ -93,12 +93,12 @@ impl NodeExecutor for CoreOutputNode {
 mod tests {
     use super::*;
     use aether_types::{InputPin, OutputPin};
-    
+
     #[test]
     fn test_core_output_node_creation() {
         let mut node = Node::new(NodeType::Output, "Test Output".to_string());
-        
-        // Add input pin
+
+
         let input_pin = InputPin {
             id: Uuid::new_v4(),
             name: "input".to_string(),
@@ -109,8 +109,8 @@ mod tests {
             connection: None,
         };
         node.add_input(input_pin);
-        
-        // Add output pin
+
+
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
@@ -118,19 +118,19 @@ mod tests {
             value: ParameterValue::None,
         };
         node.add_output(output_pin);
-        
+
         let output_node = CoreOutputNode::new(node);
-        
+
         assert_eq!(output_node.node_type(), NodeType::Output);
         assert!(!output_node.has_input_connection());
         assert_eq!(output_node.get_input_connection(), None);
     }
-    
+
     #[test]
     fn test_input_connection_operations() {
         let mut node = Node::new(NodeType::Output, "Test".to_string());
-        
-        // Add input pin with connection
+
+
         let connection_id = Uuid::new_v4();
         let input_pin = InputPin {
             id: Uuid::new_v4(),
@@ -142,8 +142,8 @@ mod tests {
             connection: Some(connection_id),
         };
         node.add_input(input_pin);
-        
-        // Add output pin
+
+
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
@@ -151,18 +151,18 @@ mod tests {
             value: ParameterValue::None,
         };
         node.add_output(output_pin);
-        
+
         let output_node = CoreOutputNode::new(node);
-        
+
         assert!(output_node.has_input_connection());
         assert_eq!(output_node.get_input_connection(), Some(connection_id));
     }
-    
+
     #[test]
     fn test_get_final_output() {
         let mut node = Node::new(NodeType::Output, "Test".to_string());
-        
-        // Add input pin
+
+
         let input_pin_id = Uuid::new_v4();
         let input_pin = InputPin {
             id: input_pin_id,
@@ -174,8 +174,8 @@ mod tests {
             connection: None,
         };
         node.add_input(input_pin);
-        
-        // Add output pin
+
+
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
@@ -183,36 +183,36 @@ mod tests {
             value: ParameterValue::None,
         };
         node.add_output(output_pin);
-        
+
         let output_node = CoreOutputNode::new(node);
-        
-        // Test with no context inputs
+
+
         let context = ExecutionContext {
             frame: 1,
             inputs: std::collections::HashMap::new(),
             outputs: std::collections::HashMap::new(),
         };
-        
+
         assert_eq!(output_node.get_final_output(&context), None);
-        
-        // Test with context inputs
+
+
         let mut context = ExecutionContext {
             frame: 1,
             inputs: std::collections::HashMap::new(),
             outputs: std::collections::HashMap::new(),
         };
-        
+
         let test_value = ParameterValue::Image(Uuid::new_v4());
         context.inputs.insert(input_pin_id, test_value.clone());
-        
+
         assert_eq!(output_node.get_final_output(&context), Some(test_value));
     }
-    
+
     #[test]
     fn test_node_executor_interface() {
         let mut node = Node::new(NodeType::Output, "Test Output".to_string());
-        
-        // Add input pin
+
+
         let input_pin_id = Uuid::new_v4();
         let input_pin = InputPin {
             id: input_pin_id,
@@ -224,8 +224,8 @@ mod tests {
             connection: None,
         };
         node.add_input(input_pin);
-        
-        // Add output pin
+
+
         let output_pin_id = Uuid::new_v4();
         let output_pin = OutputPin {
             id: output_pin_id,
@@ -234,42 +234,42 @@ mod tests {
             value: ParameterValue::None,
         };
         node.add_output(output_pin);
-        
+
         let mut output_node = CoreOutputNode::new(node);
-        
-        // Test node type
+
+
         assert_eq!(output_node.node_type(), NodeType::Output);
-        
-        // Test inputs and outputs
+
+
         assert_eq!(output_node.get_inputs().len(), 1);
         assert_eq!(output_node.get_outputs().len(), 1);
-        
-        // Test can execute without connection
+
+
         let context = ExecutionContext {
             frame: 1,
             inputs: std::collections::HashMap::new(),
             outputs: std::collections::HashMap::new(),
         };
         assert!(!output_node.can_execute(&context));
-        
-        // Test execution without connection
+
+
         let mut context = ExecutionContext {
             frame: 1,
             inputs: std::collections::HashMap::new(),
             outputs: std::collections::HashMap::new(),
         };
-        
+
         let result = output_node.execute(&mut context);
         assert!(result.is_ok());
-        
-        // Test execution with input
+
+
         let test_value = ParameterValue::Image(Uuid::new_v4());
         context.inputs.insert(input_pin_id, test_value);
-        
+
         let result = output_node.execute(&mut context);
         assert!(result.is_ok());
-        
-        // Check that output was set
+
+
         assert_eq!(context.outputs.get(&output_pin_id), Some(&test_value));
     }
 }

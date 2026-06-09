@@ -3,31 +3,31 @@ use crate::nodes::core::{CoreInputNode, CoreOutputNode, CoreTransformNode, CoreM
 use aether_types::Node;
 use uuid::Uuid;
 
-/// Core node factory for creating basic node implementations
+
 pub struct CoreNodes;
 
 impl CoreNodes {
-    /// Create an input node
+
     pub fn create_input_node(node: Node) -> Box<dyn NodeExecutor + Send + Sync> {
         Box::new(CoreInputNode::new(node))
     }
-    
-    /// Create an output node
+
+
     pub fn create_output_node(node: Node) -> Box<dyn NodeExecutor + Send + Sync> {
         Box::new(CoreOutputNode::new(node))
     }
-    
-    /// Create a transform node
+
+
     pub fn create_transform_node(node: Node) -> Box<dyn NodeExecutor + Send + Sync> {
         Box::new(CoreTransformNode::new(node))
     }
-    
-    /// Create a merge node
+
+
     pub fn create_merge_node(node: Node) -> Box<dyn NodeExecutor + Send + Sync> {
         Box::new(CoreMergeNode::new(node))
     }
-    
-    /// Get all supported core node types
+
+
     pub fn get_supported_types() -> Vec<aether_types::NodeType> {
         vec![
             aether_types::NodeType::Input,
@@ -36,13 +36,13 @@ impl CoreNodes {
             aether_types::NodeType::Merge,
         ]
     }
-    
-    /// Check if a node type is supported
+
+
     pub fn is_supported(node_type: &aether_types::NodeType) -> bool {
         Self::get_supported_types().contains(node_type)
     }
-    
-    /// Create node by type
+
+
     pub fn create_node_by_type(node_type: aether_types::NodeType, node: Node) -> Option<Box<dyn NodeExecutor + Send + Sync>> {
         match node_type {
             aether_types::NodeType::Input => Some(Self::create_input_node(node)),
@@ -52,13 +52,14 @@ impl CoreNodes {
             _ => None,
         }
     }
-    
-    /// Register all core node types with a registry
+
+
     pub fn register_core_nodes(registry: &mut crate::nodes::NodeRegistry) {
         for node_type in Self::get_supported_types() {
-            registry.register_node_type(node_type, || {
-                let node = aether_types::Node::new(node_type.clone(), "Core Node".to_string());
-                Self::create_node_by_type(node_type.clone(), node).unwrap()
+            let node_type_clone = node_type.clone();
+            registry.register_node_type(node_type, move || {
+                let node = aether_types::Node::new(node_type_clone.clone(), "Core Node".to_string());
+                Self::create_node_by_type(node_type_clone.clone(), node).unwrap()
             });
         }
     }
@@ -68,34 +69,34 @@ impl CoreNodes {
 mod tests {
     use super::*;
     use aether_types::{NodeType, PinDataType, InputPin, OutputPin};
-    
+
     #[test]
     fn test_core_nodes_creation() {
-        // Test input node creation
+
         let input_node = aether_types::Node::new(NodeType::Input, "Test Input".to_string());
         let core_input = CoreNodes::create_input_node(input_node);
         assert!(core_input.node_type() == NodeType::Input);
-        
-        // Test output node creation
+
+
         let output_node = aether_types::Node::new(NodeType::Output, "Test Output".to_string());
         let core_output = CoreNodes::create_output_node(output_node);
         assert!(core_output.node_type() == NodeType::Output);
-        
-        // Test transform node creation
+
+
         let transform_node = aether_types::Node::new(NodeType::Transform, "Test Transform".to_string());
         let core_transform = CoreNodes::create_transform_node(transform_node);
         assert!(core_transform.node_type() == NodeType::Transform);
-        
-        // Test merge node creation
+
+
         let merge_node = aether_types::Node::new(NodeType::Merge, "Test Merge".to_string());
         let core_merge = CoreNodes::create_merge_node(merge_node);
         assert!(core_merge.node_type() == NodeType::Merge);
     }
-    
+
     #[test]
     fn test_supported_types() {
         let supported_types = CoreNodes::get_supported_types();
-        
+
         assert!(supported_types.contains(&NodeType::Input));
         assert!(supported_types.contains(&NodeType::Output));
         assert!(supported_types.contains(&NodeType::Transform));
@@ -103,7 +104,7 @@ mod tests {
         assert!(!supported_types.contains(&NodeType::ColorCorrection));
         assert!(!supported_types.contains(&NodeType::Blur));
     }
-    
+
     #[test]
     fn test_is_supported() {
         assert!(CoreNodes::is_supported(&NodeType::Input));
@@ -113,25 +114,25 @@ mod tests {
         assert!(!CoreNodes::is_supported(&NodeType::ColorCorrection));
         assert!(!CoreNodes::is_supported(&NodeType::Blur));
     }
-    
+
     #[test]
     fn test_create_node_by_type() {
-        // Test supported types
+
         let input_node = CoreNodes::create_node_by_type(
-            NodeType::Input, 
+            NodeType::Input,
             aether_types::Node::new(NodeType::Input, "Test".to_string())
         );
         assert!(input_node.is_some());
-        
+
         let output_node = CoreNodes::create_node_by_type(
-            NodeType::Output, 
+            NodeType::Output,
             aether_types::Node::new(NodeType::Output, "Test".to_string())
         );
         assert!(output_node.is_some());
-        
-        // Test unsupported type
+
+
         let unsupported_node = CoreNodes::create_node_by_type(
-            NodeType::ColorCorrection, 
+            NodeType::ColorCorrection,
             aether_types::Node::new(NodeType::ColorCorrection, "Test".to_string())
         );
         assert!(unsupported_node.is_none());
