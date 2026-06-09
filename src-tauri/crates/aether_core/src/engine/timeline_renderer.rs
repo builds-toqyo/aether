@@ -160,11 +160,10 @@ pub struct TimelineRenderer {
 
 impl TimelineRenderer {
     pub fn new(config: TimelineRendererConfig, timeline: Arc<Mutex<Timeline>>) -> Result<Self, TimelineRendererError> {
-        let renderer_config = crate::engine::renderer::RendererConfig {
-            width: config.width,
-            height: config.height,
-            frame_rate: config.fps as u32,
-        };
+        let mut renderer_config = crate::engine::renderer::RendererConfig::default();
+        renderer_config.width = config.width;
+        renderer_config.height = config.height;
+        renderer_config.frame_rate = config.fps as f64;
 
         let renderer = Renderer::new(renderer_config);
 

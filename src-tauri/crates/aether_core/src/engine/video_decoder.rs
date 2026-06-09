@@ -127,6 +127,15 @@ impl VideoFrame {
         }
     }
 
+    pub fn from_ffmpeg_frame(frame: ffmpeg::frame::Video) -> Self {
+        let width = frame.width() as u32;
+        let height = frame.height() as u32;
+        let format = VideoFormat::from_ffmpeg_format(frame.format());
+        let mut video_frame = Self::new(width, height, format, 0.0, 0.0);
+        // TODO: copy actual frame data
+        video_frame
+    }
+
     pub fn with_buffer(mut self, buffer: Vec<u8>) -> Self {
         self.buffer = buffer;
         self
@@ -730,7 +739,7 @@ impl VideoDecoder {
         }
 
         // Convert time to stream time base
-        if let (Some(format_ctx), video_stream_index) = (&self.format_context, self.current_video_stream) {
+        if let (Some(format_ctx), video_stream_index) = (&mut self.format_context, self.current_video_stream) {
             if video_stream_index >= 0 {
                 if let Some(stream) = format_ctx.streams().nth(video_stream_index as usize) {
                     let time_base = stream.time_base();

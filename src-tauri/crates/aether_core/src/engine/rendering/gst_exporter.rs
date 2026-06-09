@@ -231,35 +231,31 @@ impl GstExporter {
             ControlFlow::Continue
         }).context("Failed to add bus watch")?;
 
-        let pipeline_weak = pipeline.downgrade();
+        let pipeline_clone = pipeline.clone();
         let progress_clone = self.progress.clone();
         let callback_clone = self.progress_callback.clone();
 
-        let timeout_id = glib::timeout_add_seconds(1, move || {
-            if let Some(pipeline) = pipeline_weak.upgrade() {
-                if let Some(position) = pipeline.query_position::<gst::ClockTime>() {
-                    let position_seconds = position.nseconds() as f64 / gst::ClockTime::SECOND.nseconds() as f64;
-                    let duration_seconds = progress_clone.lock().unwrap().total_duration;
+        let timeout_id = glib::source::timeout_add_seconds_local(1, move || {
+            if let Some(position) = pipeline_clone.query_position::<gst::ClockTime>() {
+                let position_seconds = position.nseconds() as f64 / gst::ClockTime::SECOND.nseconds() as f64;
+                let duration_seconds = progress_clone.lock().unwrap().total_duration;
 
-                    if duration_seconds > 0.0 {
-                        let percent = (position_seconds / duration_seconds) * 100.0;
-                        let current_frame = (position_seconds * progress_clone.lock().unwrap().total_frames as f64 / duration_seconds) as u64;
+                if duration_seconds > 0.0 {
+                    let percent = (position_seconds / duration_seconds) * 100.0;
+                    let current_frame = (position_seconds * progress_clone.lock().unwrap().total_frames as f64 / duration_seconds) as u64;
 
-                        let mut progress = progress_clone.lock().unwrap();
-                        progress.current_time = position_seconds;
-                        progress.current_frame = current_frame;
-                        progress.percent = percent;
+                    let mut progress = progress_clone.lock().unwrap();
+                    progress.current_time = position_seconds;
+                    progress.current_frame = current_frame;
+                    progress.percent = percent;
 
-                        if let Some(callback) = &callback_clone {
-                            callback(progress.clone());
-                        }
+                    if let Some(callback) = &callback_clone {
+                        callback(progress.clone());
                     }
                 }
-
-                ControlFlow::Continue
-            } else {
-            ControlFlow::Break
             }
+
+            ControlFlow::Continue
         });
 
         self.pipeline = Some(pipeline);

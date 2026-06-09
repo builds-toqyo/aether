@@ -224,14 +224,13 @@ pub enum HdrIssue {
 }
 
 impl HdrIssue {
-
     pub fn severity(&self) -> IssueSeverity {
         match self {
             HdrIssue::HighlightClipping(percentage) => {
-                if percentage > 0.1 { IssueSeverity::High } else { IssueSeverity::Medium }
+                if *percentage > 0.1 { IssueSeverity::High } else { IssueSeverity::Medium }
             }
             HdrIssue::LimitedDynamicRange(ratio) => {
-                if ratio < 5.0 { IssueSeverity::High } else { IssueSeverity::Medium }
+                if *ratio < 5.0 { IssueSeverity::High } else { IssueSeverity::Medium }
             }
             HdrIssue::Banding => IssueSeverity::Medium,
             HdrIssue::ExcessiveNoise(_) => IssueSeverity::Low,

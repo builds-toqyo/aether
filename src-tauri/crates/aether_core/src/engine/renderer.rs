@@ -1115,30 +1115,15 @@ impl Drop for Renderer {
 
 #[derive(Debug, Clone)]
 pub struct RendererConfig {
-
     pub width: u32,
-
-
     pub height: u32,
-
-
     pub frame_rate: f64,
-
-
     pub background_color: [u8; 4],
-
-
     pub use_hardware_acceleration: bool,
-
-
     pub hw_device: Option<String>,
-
     pub gamma: f64,
-
     pub enable_color_correction: bool,
-
     pub enable_color_grading: bool,
-
     pub enable_vignette: bool,
 }
 

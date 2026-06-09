@@ -140,7 +140,7 @@ impl PathSegment {
             }
             PathSegmentType::QuadraticTo => {
                 // Approximate quadratic bezier length
-                self.approximate_bezier_length(start_x, start_y, self.cp1_x, self.cp1_y, self.x, self.y, 10)
+                self.approximate_quadratic_bezier_length(start_x, start_y, self.cp1_x, self.cp1_y, self.x, self.y, 10)
             }
             PathSegmentType::CubicTo => {
                 // Approximate cubic bezier length

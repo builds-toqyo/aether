@@ -62,7 +62,8 @@ impl VectorscopeRenderer {
 
                     let color = self.get_intensity_color(intensity);
 
-                    if let Some(pixel) = image.get_pixel_mut(img_x, img_y) {
+                    if img_x < image.width() && img_y < image.height() {
+                        let pixel = image.get_pixel_mut(img_x, img_y);
                         *pixel = color;
                     }
                 }

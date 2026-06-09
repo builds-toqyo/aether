@@ -52,9 +52,9 @@ impl EditingEngine {
     }
 
     pub fn init_project(&mut self, project_path: Option<String>) -> Result<(), EditingError> {
-        let timeline = ges::Timeline::new_audio_video()?;
+        let timeline = ges::Timeline::new_audio_video();
 
-        let pipeline = ges::Pipeline::new()?;
+        let pipeline = ges::Pipeline::new();
         pipeline.set_timeline(&timeline)?;
 
         self.ges_timeline = Some(timeline);
