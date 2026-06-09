@@ -57,7 +57,7 @@ impl Default for LayerVisibility {
 }
 
 /// Shape layer
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct ShapeLayer { 
     pub id: String,
     pub name: String,

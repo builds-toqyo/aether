@@ -325,10 +325,10 @@ impl TextAnimator {
             .collect()
     }
 
-    pub fn get_character_values(&self, char_index: usize) -> HashMap<AnimationType, AnimationValue> {
+    pub fn get_character_values(&mut self, char_index: usize) -> HashMap<AnimationType, AnimationValue> {
         let mut values = HashMap::new();
 
-        for animation in &self.animations {
+        for animation in &mut self.animations {
             if animation.affects_character(char_index) {
                 if let Some(value) = animation.evaluate(self.global_time, char_index) {
                     values.insert(animation.animation_type.clone(), value);

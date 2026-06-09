@@ -150,6 +150,29 @@ impl PathSegment {
         }
     }
 
+    /// Approximate quadratic bezier curve length using subdivision
+    fn approximate_quadratic_bezier_length(&self, x0: f64, y0: f64, x1: f64, y1: f64, x2: f64, y2: f64, subdivisions: usize) -> f64 {
+        let mut length = 0.0;
+        let mut prev_x = x0;
+        let mut prev_y = y0;
+
+        for i in 1..=subdivisions {
+            let t = i as f64 / subdivisions as f64;
+            let mt = 1.0 - t;
+            let mt2 = mt * mt;
+            let t2 = t * t;
+            let x = mt2 * x0 + 2.0 * mt * t * x1 + t2 * x2;
+            let y = mt2 * y0 + 2.0 * mt * t * y1 + t2 * y2;
+            let dx = x - prev_x;
+            let dy = y - prev_y;
+            length += (dx * dx + dy * dy).sqrt();
+            prev_x = x;
+            prev_y = y;
+        }
+
+        length
+    }
+
     /// Approximate bezier curve length using subdivision
     fn approximate_bezier_length(&self, x0: f64, y0: f64, x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64, subdivisions: usize) -> f64 {
         let mut length = 0.0;
