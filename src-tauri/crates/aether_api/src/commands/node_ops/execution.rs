@@ -46,7 +46,7 @@ pub async fn execute_graph(
             debug!("{} ({})", node.name, node_id);
 
             // Create node executor (this would need to be implemented based on node type)
-            let executor = create_node_executor(node)?;
+            let mut executor = create_node_executor(node)?;
 
             // Execute node
             match executor.execute(&mut context) {

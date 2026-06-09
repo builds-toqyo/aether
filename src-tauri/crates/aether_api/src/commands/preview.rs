@@ -130,7 +130,7 @@ pub async fn get_preview_info(
         format: FrameFormat::Rgba8,
     };
 
-    info!("{}",
+    info!("Preview: {}x{} @ {}fps, {} frames",
           preview_info.width, preview_info.height, preview_info.fps, preview_info.total_frames);
 
     Ok(preview_info)
@@ -259,7 +259,7 @@ pub async fn preview_get_frame_range(
     format: Option<FrameFormat>,
     state: State<'_, AppState>,
 ) -> Result<Vec<PreviewFrame>, String> {
-    debug!("{}", start_time, end_time);
+    debug!("Rendering preview frames: {} to {}", start_time, end_time);
 
     // Validate inputs
     if start_time < 0.0 || end_time < 0.0 {
@@ -279,7 +279,7 @@ pub async fn preview_get_frame_range(
     let end_frame = (end_time * fps) as u32;
     let frame_count = end_frame - start_frame + 1;
 
-    info!("{}",
+    info!("Generating {} frames ({} to {}), quality: {:?}",
           frame_count, start_frame, end_frame, quality);
 
     // Generate mock frames
@@ -330,7 +330,7 @@ pub async fn preview_update_settings(
 pub async fn preview_get_settings(
     state: State<'_, AppState>,
 ) -> Result<PreviewSettings, String> {
-    debug!("{}");
+    debug!("Getting preview settings");
 
     // Get preview settings from the real preview engine
     let editing_engine = state.editing_engine.lock()

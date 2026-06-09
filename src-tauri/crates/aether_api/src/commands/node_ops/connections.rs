@@ -15,7 +15,7 @@ pub async fn connect_nodes(
     input_pin_name: String,
     state: State<'_, AppState>,
 ) -> Result<ConnectionResponse, String> {
-    debug!("{}",
+    debug!("Connecting {}.{} -> {}.{}",
         output_node_id, output_pin_name, input_node_id, input_pin_name);
 
     // Parse UUIDs
@@ -26,36 +26,37 @@ pub async fn connect_nodes(
 
     let mut graph = state.graph.lock().map_err(|e| format!("{}", e))?;
 
-    // Get nodes
-    let output_node = graph.get_node(&output_id)
-        .ok_or_else(|| format!("{}", output_id))?;
-    let input_node = graph.get_node(&input_id)
-        .ok_or_else(|| format!("{}", input_id))?;
+    // Get pin IDs and validate
+    let (output_pin_id, input_pin_id) = {
+        let output_node = graph.get_node(&output_id)
+            .ok_or_else(|| format!("Node not found: {}", output_id))?;
+        let input_node = graph.get_node(&input_id)
+            .ok_or_else(|| format!("Node not found: {}", input_id))?;
 
-    // Find pins
-    let output_pin = output_node.get_output_pin_by_name(&output_pin_name)
-        .ok_or_else(|| format!("{}", output_pin_name))?;
-    let input_pin = input_node.get_input_pin_by_name(&input_pin_name)
-        .ok_or_else(|| format!("{}", input_pin_name))?;
+        let output_pin = output_node.get_output_pin_by_name(&output_pin_name)
+            .ok_or_else(|| format!("Output pin not found: {}", output_pin_name))?;
+        let input_pin = input_node.get_input_pin_by_name(&input_pin_name)
+            .ok_or_else(|| format!("Input pin not found: {}", input_pin_name))?;
 
-    // Check type compatibility
-    if !are_pin_types_compatible(&output_pin.data_type, &input_pin.data_type) {
-        return Err(format!("Incompatible pin types: {} and {}",
-            output_pin.data_type, input_pin.data_type));
-    }
+        if !are_pin_types_compatible(&output_pin.data_type, &input_pin.data_type) {
+            return Err(format!("Incompatible pin types: {:?} and {:?}",
+                output_pin.data_type, input_pin.data_type));
+        }
 
-    // Check if input pin is already connected
-    if input_pin.connection.is_some() {
-        return Err(format!("{}", input_pin_name));
-    }
+        if input_pin.connection.is_some() {
+            return Err(format!("Input pin already connected: {}", input_pin_name));
+        }
+
+        (output_pin.id, input_pin.id)
+    };
 
     // Create connection
     let connection = Connection {
         id: Uuid::new_v4(),
         output_node_id: output_id,
-        output_pin_id: output_pin.id,
+        output_pin_id: output_pin_id,
         input_node_id: input_id,
-        input_pin_id: input_pin.id,
+        input_pin_id: input_pin_id,
         enabled: true,
     };
 
@@ -65,7 +66,7 @@ pub async fn connect_nodes(
     // Update input pin connection
     if let Some(input_node) = graph.nodes.get_mut(&input_id) {
         for pin in &mut input_node.inputs {
-            if pin.id == input_pin.id {
+            if pin.id == input_pin_id {
                 pin.connection = Some(connection.id);
                 break;
             }
@@ -100,18 +101,23 @@ pub async fn disconnect_nodes(
     let mut graph = state.graph.lock().map_err(|e| format!("Failed to lock graph: {}", e))?;
 
 
-    let connection = graph.connections.values()
-        .find(|conn| conn.id == connection_uuid)
-        .ok_or_else(|| format!("Connection not found: {}", connection_id))?;
+    let (output_node_id, input_node_id, output_pin_name, input_pin_name, input_node_uuid) = {
+        let connection = graph.connections.values()
+            .find(|conn| conn.id == connection_uuid)
+            .ok_or_else(|| format!("Connection not found: {}", connection_id))?;
 
-    let output_node_id = connection.output_node_id.to_string();
-    let input_node_id = connection.input_node_id.to_string();
-    let output_pin_name = connection.output_pin_id.to_string();
-    let input_pin_name = connection.input_pin_id.to_string();
+        (
+            connection.output_node_id.to_string(),
+            connection.input_node_id.to_string(),
+            connection.output_pin_id.to_string(),
+            connection.input_pin_id.to_string(),
+            connection.input_node_id,
+        )
+    };
 
     graph.connections.retain(|_, conn| conn.id != connection_uuid);
 
-    if let Some(input_node) = graph.nodes.get_mut(&connection.input_node_id) {
+    if let Some(input_node) = graph.nodes.get_mut(&input_node_uuid) {
         for pin in &mut input_node.inputs {
             if pin.connection == Some(connection_uuid) {
                 pin.connection = None;
