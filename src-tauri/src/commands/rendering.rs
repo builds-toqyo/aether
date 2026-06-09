@@ -68,6 +68,7 @@ pub enum ExportStatus {
     Failed,
 }
 
+#[derive(Debug, Clone)]
 pub struct RenderingState {
     pub active_exports: HashMap<String, ExportProgress>,
 }
@@ -442,8 +443,8 @@ pub fn get_export_presets() -> Result<Vec<serde_json::Value>, String> {
                 "resolution": [1920, 1080],
                 "framerate": 30,
                 "bitrate": 0,
-                "profile": None,
-                "level": None
+                "profile": serde_json::Value::Null,
+                "level": serde_json::Value::Null
             },
             "audio_settings": {
                 "sample_rate": 48000,

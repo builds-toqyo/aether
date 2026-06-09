@@ -18,7 +18,6 @@ impl AppState {
     }
 }
 
-#[tauri::command]
 pub fn init_app() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default()
         .manage(AppState::new())
