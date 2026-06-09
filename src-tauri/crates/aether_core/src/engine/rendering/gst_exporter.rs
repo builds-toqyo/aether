@@ -400,6 +400,8 @@ impl ContainerFormatExt for ContainerFormat {
             ContainerFormat::Ts => "video/mpegts",
             ContainerFormat::Mxf => "application/mxf",
             ContainerFormat::Gif => "image/gif",
+            ContainerFormat::PngSequence => "image/png",
+            ContainerFormat::JpegSequence => "image/jpeg",
         }
     }
 }

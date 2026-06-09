@@ -161,6 +161,22 @@ impl Node {
         self.outputs.iter_mut().find(|pin| &pin.id == id)
     }
 
+    pub fn get_input_pin_by_name(&self, name: &str) -> Option<&InputPin> {
+        self.inputs.iter().find(|pin| pin.name == name)
+    }
+
+    pub fn get_input_pin_by_name_mut(&mut self, name: &str) -> Option<&mut InputPin> {
+        self.inputs.iter_mut().find(|pin| pin.name == name)
+    }
+
+    pub fn get_output_pin_by_name(&self, name: &str) -> Option<&OutputPin> {
+        self.outputs.iter().find(|pin| pin.name == name)
+    }
+
+    pub fn get_output_pin_by_name_mut(&mut self, name: &str) -> Option<&mut OutputPin> {
+        self.outputs.iter_mut().find(|pin| pin.name == name)
+    }
+
     pub fn set_position(&mut self, x: f32, y: f32) {
         self.position = (x, y);
     }
