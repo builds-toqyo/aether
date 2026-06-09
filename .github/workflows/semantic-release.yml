@@ -1,0 +1,76 @@
+name: Semantic Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_published: ${{ steps.semantic.outputs.release_published }}
+      version: ${{ steps.semantic.outputs.version }}
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install semantic-release
+      run: |
+        npm install -g semantic-release
+        npm install -g @semantic-release/changelog
+        npm install -g @semantic-release/git
+        npm install -g @semantic-release/github
+
+    - name: Run semantic-release
+      id: semantic
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        npx semantic-release
+
+    - name: Update version in Cargo.toml
+      if: steps.semantic.outputs.new_release_published == 'true'
+      run: |
+        VERSION=${{ steps.semantic.outputs.new_release_version }}
+        # Update root Cargo.toml
+        sed -i "s/^version = .*/version = \"$VERSION\"/" Cargo.toml
+        # Update aether_core Cargo.toml
+        sed -i "s/^version = .*/version = \"$VERSION\"/" src-tauri/crates/aether_core/Cargo.toml
+        # Update aether_types Cargo.toml
+        sed -i "s/^version = .*/version = \"$VERSION\"/" src-tauri/crates/aether_types/Cargo.toml
+        # Update aether_api Cargo.toml
+        sed -i "s/^version = .*/version = \"$VERSION\"/" src-tauri/crates/aether_api/Cargo.toml
+        # Update aether_cli Cargo.toml
+        sed -i "s/^version = .*/version = \"$VERSION\"/" src-tauri/crates/aether_cli/Cargo.toml
+        # Update package.json
+        npm version $VERSION --no-git-tag-version
+
+    - name: Commit version changes
+      if: steps.semantic.outputs.new_release_published == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git commit -m "chore: update version to ${{ steps.semantic.outputs.new_release_version }}"
+
+    - name: Push changes
+      if: steps.semantic.outputs.new_release_published == 'true'
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
