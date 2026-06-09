@@ -14,6 +14,8 @@ pub enum ContainerFormat {
     Ts,
     Mxf,
     Gif,
+    PngSequence,
+    JpegSequence,
 }
 
 impl ContainerFormat {
@@ -30,6 +32,8 @@ impl ContainerFormat {
             ContainerFormat::Ts => "mpegts",
             ContainerFormat::Mxf => "mxf",
             ContainerFormat::Gif => "gif",
+            ContainerFormat::PngSequence => "image2",
+            ContainerFormat::JpegSequence => "image2",
         }
     }
 
@@ -46,6 +50,8 @@ impl ContainerFormat {
             ContainerFormat::Ts => "ts",
             ContainerFormat::Mxf => "mxf",
             ContainerFormat::Gif => "gif",
+            ContainerFormat::PngSequence => "png",
+            ContainerFormat::JpegSequence => "jpg",
         }
     }
 
@@ -62,6 +68,8 @@ impl ContainerFormat {
             ContainerFormat::Ts => "MPEG-TS",
             ContainerFormat::Mxf => "MXF",
             ContainerFormat::Gif => "GIF",
+            ContainerFormat::PngSequence => "PNG Sequence",
+            ContainerFormat::JpegSequence => "JPEG Sequence",
         }
     }
 }
@@ -156,6 +164,10 @@ impl VideoFormat {
                 self,
                 VideoFormat::Mjpeg
             ),
+            ContainerFormat::PngSequence | ContainerFormat::JpegSequence => matches!(
+                self,
+                VideoFormat::Mjpeg | VideoFormat::Raw
+            ),
         }
     }
 }
@@ -238,6 +250,7 @@ impl AudioFormat {
                 AudioFormat::Pcm
             ),
             ContainerFormat::Gif => false,
+            ContainerFormat::PngSequence | ContainerFormat::JpegSequence => false,
         }
     }
 }
