@@ -2,13 +2,10 @@ use serde::{Serialize, Deserialize};
 use tauri::State;
 use anyhow::Result;
 use log::{debug, info, warn};
-use std::path::PathBuf;
 
 use crate::state::AppState;
 use aether_core::engine::editing::{
-    EditingEngine, create_editing_engine, MediaImporter, ImportOptions,
-    Timeline, PreviewEngine, IntermediateExporter, ExportOptions as CoreExportOptions,
-    MediaInfo as CoreMediaInfo, ClipInfo as CoreClipInfo,
+    create_editing_engine, ImportOptions,
     types::TrackType
 };
 
@@ -237,7 +234,7 @@ pub async fn project_save(
         let duration = timeline_guard.get_duration();
 
 
-        let project_data = serde_json::json!({
+        let _project_data = serde_json::json!({
             "project_id": request.project_id,
             "name": request.project_id.clone(),
             "created_at": chrono::Utc::now().to_rfc3339(),
@@ -267,7 +264,7 @@ pub async fn project_save(
             }
         });
 
-        let file_path = request.file_path.unwrap_or_else(|| format!("/projects/{}.aether", request.project_id));
+        let _file_path = request.file_path.unwrap_or_else(|| format!("/projects/{}.aether", request.project_id));
 
         // TODO: actually save project_data to file_path
     }
@@ -315,13 +312,13 @@ pub async fn project_load(
 
 
         let timeline = engine.timeline();
-        let mut timeline_guard = timeline.lock()
+        let _timeline_guard = timeline.lock()
             .map_err(|e| format!("Failed to lock timeline: {}", e))?;
 
 
         if let Some(clips) = project_json.get("clips").and_then(|c| c.as_array()) {
             for clip_data in clips {
-                if let (Some(id), Some(name), Some(source_path), Some(start_time), Some(duration)) = (
+                if let (Some(_id), Some(name), Some(source_path), Some(_start_time), Some(_duration)) = (
                     clip_data.get("id").and_then(|v| v.as_str()),
                     clip_data.get("name").and_then(|v| v.as_str()),
                     clip_data.get("source_path").and_then(|v| v.as_str()),
@@ -330,7 +327,7 @@ pub async fn project_load(
                 ) {
 
 
-                    let track_type = clip_data.get("track_type")
+                    let _track_type = clip_data.get("track_type")
                         .and_then(|v| v.as_str())
                         .and_then(|s| match s {
                             "Video" => Some(TrackType::Video),
@@ -339,7 +336,7 @@ pub async fn project_load(
                         })
                         .unwrap_or(TrackType::Video);
 
-                    let in_point = clip_data.get("in_point").and_then(|v| v.as_i64()).unwrap_or(0);
+                    let _in_point = clip_data.get("in_point").and_then(|v| v.as_i64()).unwrap_or(0);
 
 
                     debug!("Restoring clip {} from {}", name, source_path);
@@ -397,7 +394,7 @@ pub async fn project_load(
 #[tauri::command]
 pub async fn project_get_recent(
     limit: Option<usize>,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<Vec<ProjectInfo>, String> {
     debug!("{:?}", limit);
 
@@ -526,7 +523,7 @@ pub async fn media_import(
 #[tauri::command]
 pub async fn media_get_info(
     media_id: String,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<MediaInfo, String> {
     debug!("{}", media_id);
 
@@ -558,7 +555,7 @@ pub async fn media_get_info(
 
 #[tauri::command]
 pub async fn media_get_all(
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<Vec<MediaInfo>, String> {
     debug!("Getting all media");
 
@@ -604,7 +601,7 @@ pub async fn media_get_all(
 #[tauri::command]
 pub async fn media_remove(
     media_id: String,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
     debug!("{}", media_id);
 
@@ -627,7 +624,7 @@ pub async fn media_remove(
 #[tauri::command]
 pub async fn media_export(
     request: MediaExportRequest,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
     debug!("Exporting project to: {} format: {:?}", request.output_path, request.format);
 
@@ -660,7 +657,7 @@ pub async fn media_export(
 #[tauri::command]
 pub async fn export_get_status(
     export_id: String,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     debug!("Getting export status: {}", export_id);
 
@@ -690,7 +687,7 @@ pub async fn export_get_status(
 #[tauri::command]
 pub async fn export_cancel(
     export_id: String,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
     debug!("Cancelling export: {}", export_id);
 
@@ -713,7 +710,7 @@ pub async fn export_cancel(
 #[tauri::command]
 pub async fn project_auto_save(
     project_id: String,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
     debug!("Auto-saving project: {}", project_id);
 
