@@ -355,7 +355,7 @@ pub async fn preview_get_settings(
         background_color: "TODO".to_string(),
     };
 
-    info!("{}", settings.quality, settings.scale, width, height);
+    info!("Quality: {:?}, Scale: {}, Size: {}x{}", settings.quality, settings.scale, width, height);
     Ok(settings)
 }
 

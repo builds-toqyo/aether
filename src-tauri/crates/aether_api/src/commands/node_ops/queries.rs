@@ -25,7 +25,7 @@ pub async fn get_graph_info(
     }
 
 
-    let nodes: Vec<NodeInfo> = graph.get_nodes().iter().map(|node| NodeInfo {
+    let nodes: Vec<NodeInfo> = graph.get_nodes().map(|node| NodeInfo {
         id: node.id.to_string(),
         name: node.name.clone(),
         node_type: format!("{:?}", node.node_type),

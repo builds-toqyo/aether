@@ -172,7 +172,7 @@ pub async fn get_timeline_info(
                 start_time: c.start_time as f64 / 1_000_000_000.0,
                 end_time: (c.start_time + c.duration) as f64 / 1_000_000_000.0,
                 duration: c.duration as f64 / 1_000_000_000.0,
-                source_file: c.source_path.clone(),
+                source_file: c.source_path.as_ref().map(|p| p.to_string_lossy().to_string()),
                 in_point: c.in_point as f64 / 1_000_000_000.0,
                 out_point: c.out_point as f64 / 1_000_000_000.0,
                 position: c.start_time as f64 / 1_000_000_000.0,

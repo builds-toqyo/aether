@@ -6,7 +6,6 @@ use log::info;
 use crate::commands::rendering::RenderingState;
 use aether_core::engine::editing::{EditingEngine, create_editing_engine};
 
-
 pub struct AppState {
     pub graph: Mutex<Graph>,
     pub execution_results: Mutex<HashMap<Uuid, ParameterValue>>,
@@ -21,7 +20,7 @@ impl AppState {
         info!("Initializing application state");
 
         Self {
-            graph: Mutex::new(Graph::new()),
+            graph: Mutex::new(Graph::new("default".to_string())),
             execution_results: Mutex::new(HashMap::new()),
             node_execution_order: Mutex::new(Vec::new()),
             rendering_state: Mutex::new(RenderingState::default()),

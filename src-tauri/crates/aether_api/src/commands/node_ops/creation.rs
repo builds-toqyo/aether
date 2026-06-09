@@ -68,7 +68,7 @@ pub async fn delete_node(
     let node_type = format!("{:?}", node.node_type);
 
 
-    graph.connections.retain(|conn| {
+    graph.connections.retain(|_, conn| {
         conn.output_node_id != node_uuid && conn.input_node_id != node_uuid
     });
 

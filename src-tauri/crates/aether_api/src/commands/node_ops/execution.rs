@@ -14,7 +14,7 @@ pub async fn execute_graph(
     frame: Option<u64>,
     state: State<'_, AppState>,
 ) -> Result<ExecutionResponse, String> {
-    debug!("{}", frame);
+    debug!("Executing graph, frame: {:?}", frame);
 
     let graph = state.graph.lock().map_err(|e| format!("{}", e))?;
 
@@ -22,14 +22,19 @@ pub async fn execute_graph(
     let execution_order = aether_core::nodes::execution_order::ExecutionOrderCalculator::calculate_order(&graph)
         .map_err(|e| format!("{}", e))?;
 
-    debug!("{}", execution_order.len());
+    debug!("Execution order length: {}", execution_order.len());
 
     // Create execution context
     let frame_number = frame.unwrap_or(0);
     let mut context = ExecutionContext {
         frame: frame_number,
+        time: frame_number as f64 / 30.0,
+        frame_rate: 30.0,
+        resolution: (1920, 1080),
         inputs: HashMap::new(),
         outputs: HashMap::new(),
+        global_parameters: HashMap::new(),
+        gpu_context: None,
     };
 
     // Execute nodes in order
@@ -132,9 +137,7 @@ pub async fn get_node_result(
 }
 
 
-fn create_node_executor(node: &aether_types::Node) -> Result<Box<dyn NodeExecutor + Send + Sync>, String> {
-
-
+fn create_node_executor(_node: &aether_types::Node) -> Result<Box<dyn NodeExecutor + Send + Sync>, String> {
     Err("Node executor creation not implemented".to_string())
 }
 
@@ -152,6 +155,7 @@ pub fn serialize_parameter_value(value: &ParameterValue) -> String {
         ParameterValue::Color(r, g, b, a) => format!("[{}, {}, {}, {}]", r, g, b, a),
         ParameterValue::Array(arr) => format!("Array({} items)", arr.len()),
         ParameterValue::Image(id) => format!("Image({})", id),
+        ParameterValue::Binary(data) => format!("Binary({} bytes)", data.len()),
     }
 }
 

@@ -60,7 +60,7 @@ pub async fn connect_nodes(
     };
 
     // Add connection to graph
-    graph.connections.push(connection.clone());
+    graph.connections.insert(connection.id, connection.clone());
 
     // Update input pin connection
     if let Some(input_node) = graph.nodes.get_mut(&input_id) {
@@ -72,7 +72,7 @@ pub async fn connect_nodes(
         }
     }
 
-    info!("{}",
+    info!("Connected {}.{} -> {}.{}",
         output_node_id, output_pin_name, input_node_id, input_pin_name);
 
     Ok(ConnectionResponse {
@@ -100,7 +100,7 @@ pub async fn disconnect_nodes(
     let mut graph = state.graph.lock().map_err(|e| format!("Failed to lock graph: {}", e))?;
 
 
-    let connection = graph.connections.iter()
+    let connection = graph.connections.values()
         .find(|conn| conn.id == connection_uuid)
         .ok_or_else(|| format!("Connection not found: {}", connection_id))?;
 
@@ -109,9 +109,7 @@ pub async fn disconnect_nodes(
     let output_pin_name = connection.output_pin_id.to_string();
     let input_pin_name = connection.input_pin_id.to_string();
 
-
-    graph.connections.retain(|conn| conn.id != connection_uuid);
-
+    graph.connections.retain(|_, conn| conn.id != connection_uuid);
 
     if let Some(input_node) = graph.nodes.get_mut(&connection.input_node_id) {
         for pin in &mut input_node.inputs {
