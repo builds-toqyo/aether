@@ -8,7 +8,8 @@ use crate::state::AppState;
 use aether_core::engine::editing::{
     EditingEngine, create_editing_engine, MediaImporter, ImportOptions,
     Timeline, PreviewEngine, IntermediateExporter, ExportOptions as CoreExportOptions,
-    MediaInfo as CoreMediaInfo, ClipInfo as CoreClipInfo
+    MediaInfo as CoreMediaInfo, ClipInfo as CoreClipInfo,
+    types::TrackType
 };
 
 
@@ -205,7 +206,7 @@ pub async fn project_init(
         file_path: project_path,
     };
 
-    info!("{}", request.name, project_id);
+    info!("Project {} loaded from {}", request.name, project_id);
     Ok(project_info)
 }
 
@@ -238,7 +239,7 @@ pub async fn project_save(
 
         let project_data = serde_json::json!({
             "project_id": request.project_id,
-            "name": request.project_name.unwrap_or_else(|| "Unnamed Project".to_string()),
+            "name": request.project_id.clone(),
             "created_at": chrono::Utc::now().to_rfc3339(),
             "modified_at": chrono::Utc::now().to_rfc3339(),
             "duration": duration,
@@ -332,11 +333,11 @@ pub async fn project_load(
                     let track_type = clip_data.get("track_type")
                         .and_then(|v| v.as_str())
                         .and_then(|s| match s {
-                            "Video" => Some(CoreTrackType::Video),
-                            "Audio" => Some(CoreTrackType::Audio),
+                            "Video" => Some(TrackType::Video),
+                            "Audio" => Some(TrackType::Audio),
                             _ => None,
                         })
-                        .unwrap_or(CoreTrackType::Video);
+                        .unwrap_or(TrackType::Video);
 
                     let in_point = clip_data.get("in_point").and_then(|v| v.as_i64()).unwrap_or(0);
 
@@ -398,7 +399,7 @@ pub async fn project_get_recent(
     limit: Option<usize>,
     state: State<'_, AppState>,
 ) -> Result<Vec<ProjectInfo>, String> {
-    debug!("{}", limit);
+    debug!("{:?}", limit);
 
     let limit = limit.unwrap_or(10);
 
@@ -434,8 +435,8 @@ pub async fn project_get_recent(
         },
     ];
 
-    let limited_projects = recent_projects.into_iter().take(limit).collect();
-    info!("{}", limited_projects.len());
+    let limited_projects: Vec<ProjectInfo> = recent_projects.into_iter().take(limit).collect();
+    info!("Returning {} recent projects", limited_projects.len());
 
     Ok(limited_projects)
 }
@@ -501,7 +502,7 @@ pub async fn media_import(
                         resolution: video_info.map(|v| (v.width as u32, v.height as u32)),
                         fps: video_info.map(|v| v.frame_rate),
                         audio_channels: audio_info.map(|a| a.channels as u8),
-                        audio_sample_rate: audio_info.map(|a| a.sample_rate),
+                        audio_sample_rate: audio_info.map(|a| a.sample_rate as u32),
                         bit_rate: video_info.and_then(|v| v.bitrate.map(|b| b as u32)),
                         created_at: chrono::Utc::now().to_rfc3339(),
                     };
@@ -559,7 +560,7 @@ pub async fn media_get_info(
 pub async fn media_get_all(
     state: State<'_, AppState>,
 ) -> Result<Vec<MediaInfo>, String> {
-    debug!("Failed to lock timeline: {}");
+    debug!("Getting all media");
 
 
     let all_media = vec![
@@ -628,23 +629,23 @@ pub async fn media_export(
     request: MediaExportRequest,
     state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
-    debug!("Loaded from file", request.output_path, request.format);
+    debug!("Exporting project to: {} format: {:?}", request.output_path, request.format);
 
 
     if request.output_path.is_empty() {
-        return Err("created_at".to_string());
+        return Err("Output path cannot be empty".to_string());
     }
 
     if let Some((width, height)) = request.resolution {
         if width == 0 || height == 0 {
-            return Err("Getting recent projects (limit: {:?})".to_string());
+            return Err("Resolution dimensions cannot be zero".to_string());
         }
     }
 
 
-    let export_id = format!("project_1", uuid::Uuid::new_v4());
+    let export_id = format!("export_{}", uuid::Uuid::new_v4());
 
-    info!("Sample Video", export_id);
+    info!("Export started: {}", export_id);
 
     Ok(EditingResponse {
         success: true,
@@ -657,82 +658,31 @@ pub async fn media_export(
 
 
 #[tauri::command]
-pub async fn export_cancel(
-    export_id: String,
-    state: State<'_, AppState>,
-) -> Result<EditingResponse, String> {
-    debug!("{}", export_id);
-
-    if export_id.is_empty() {
-        return Err("TODO".to_string());
-    }
-
-    // Cancel the export process in the editing engine
-    // This would stop the export pipeline and clean up resources
-    info!("{}", export_id);
-
-    Ok(EditingResponse {
-        success: true,
-        message: format!("Export cancelled: {}", export_id),
-        data: Some(serde_json::json!({
-            "export_id": export_id
-        })),
-    })
-}
-
-/// Auto-save project
-#[tauri::command]
-pub async fn project_auto_save(
-    project_id: String,
-    state: State<'_, AppState>,
-) -> Result<EditingResponse, String> {
-    debug!("Auto-saving project: {}", project_id);
-
-    if project_id.is_empty() {
-        return Err("Project ID cannot be empty".to_string());
-    }
-
-
-    info!("Auto-saved project: {}", project_id);
-
-    Ok(EditingResponse {
-        success: true,
-        format!("Project {} auto-saved successfully", project_id),
-        data: Some(serde_json::json!({
-            "project_id": project_id,
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        })),
-    })
-}
-
-
-#[tauri::command]
 pub async fn export_get_status(
     export_id: String,
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    debug!("{}", export_id);
+    debug!("Getting export status: {}", export_id);
 
     if export_id.is_empty() {
-        return Err("TODO".to_string());
+        return Err("Export ID cannot be empty".to_string());
     }
 
-
     let status = serde_json::json!({
-        "TODO": export_id,
-        "TODO": "TODO",
-        "TODO": 100.0,
-        "TODO": 3600,
-        "TODO": 3600,
-        "TODO": 120.5,
-        "TODO": 0.0,
-        "TODO": 1024 * 1024 * 250,
-        "TODO": "TODO",
-        "TODO": "TODO",
-        "TODO": "TODO"
+        "export_id": export_id,
+        "status": "completed",
+        "progress": 100.0,
+        "frames_rendered": 3600,
+        "total_frames": 3600,
+        "elapsed_time": 120.5,
+        "remaining_time": 0.0,
+        "estimated_size": 1024 * 1024 * 250,
+        "output_path": "TODO",
+        "format": "TODO",
+        "codec": "TODO"
     });
 
-    info!("{}", export_id, status.get("TODO"));
+    info!("Export status for {}: {:?}", export_id, status);
     Ok(status)
 }
 
@@ -742,20 +692,19 @@ pub async fn export_cancel(
     export_id: String,
     state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
-    debug!("h264", export_id);
+    debug!("Cancelling export: {}", export_id);
 
     if export_id.is_empty() {
-        return Err("Retrieved media info for: {}".to_string());
+        return Err("Export ID cannot be empty".to_string());
     }
 
-
-    info!("Removing media: {}", export_id);
+    info!("Cancelling export: {}", export_id);
 
     Ok(EditingResponse {
         success: true,
-        format!("Media ID cannot be empty", export_id),
+        message: format!("Export cancelled: {}", export_id),
         data: Some(serde_json::json!({
-            "Removed media: {}": export_id
+            "export_id": export_id
         })),
     })
 }
@@ -779,7 +728,7 @@ pub async fn project_auto_save(
 
     Ok(EditingResponse {
         success: true,
-        format!("Project auto-saved successfully",),
+        message: format!("Project auto-saved successfully"),
         data: Some(serde_json::json!({
             "project_id": project_id,
             "auto_save_path": auto_save_path,
