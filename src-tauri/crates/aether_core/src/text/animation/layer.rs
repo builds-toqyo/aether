@@ -296,7 +296,7 @@ impl TextLayer {
     }
 
     pub fn create_typography_animation(&mut self, animation_type: AnimationType, target_characters: Vec<usize>) -> String {
-        let animation_id = format!("typography_{}_{}", animation_type as u8, uuid::Uuid::new_v4().to_string()[..8].to_string());
+        let animation_id = format!("typography_{}_{}", animation_type.as_u8(), uuid::Uuid::new_v4().to_string()[..8].to_string());
         let animation = CharacterAnimation::new(
             animation_id.clone(),
             format!("Typography {:?}", animation_type),
