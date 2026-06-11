@@ -86,78 +86,48 @@ impl ExporterTrait for aether_core::engine::rendering::Exporter {
     }
 }
 
-impl ExporterTrait for aether_core::engine::rendering::ActiveExporter {
+impl ExporterTrait for crate::render_proxy::GstExporterProxy {
     fn get_progress(&self) -> ExportProgress {
-        match self {
-            aether_core::engine::rendering::ActiveExporter::FFmpeg(e) => e.lock().unwrap().get_progress(),
-            aether_core::engine::rendering::ActiveExporter::GStreamer(e) => {
-                let gst_progress = e.lock().unwrap().get_progress();
-                ExportProgress {
-                    current_frame: gst_progress.current_frame,
-                    total_frames: gst_progress.total_frames,
-                    current_time: gst_progress.current_time,
-                    total_duration: gst_progress.total_duration,
-                    percent: gst_progress.percent,
-                    complete: gst_progress.complete,
-                    error: gst_progress.error,
-                }
-            }
+        let gst_progress = self.get_progress();
+        ExportProgress {
+            current_frame: gst_progress.current_frame,
+            total_frames: gst_progress.total_frames,
+            current_time: gst_progress.current_time,
+            total_duration: gst_progress.total_duration,
+            percent: gst_progress.percent,
+            complete: gst_progress.complete,
+            error: gst_progress.error,
         }
     }
 
     fn cancel(&mut self) -> Result<(), EditingError> {
-        match self {
-            aether_core::engine::rendering::ActiveExporter::FFmpeg(e) => e.lock().unwrap().cancel(),
-            aether_core::engine::rendering::ActiveExporter::GStreamer(e) => e.lock().unwrap().cancel_export(),
-        }
+        self.cancel_export()
     }
 
     fn is_complete(&self) -> bool {
-        match self {
-            aether_core::engine::rendering::ActiveExporter::FFmpeg(e) => e.lock().unwrap().is_complete(),
-            aether_core::engine::rendering::ActiveExporter::GStreamer(e) => e.lock().unwrap().is_complete(),
-        }
+        self.is_complete()
     }
 
     fn has_error(&self) -> bool {
-        match self {
-            aether_core::engine::rendering::ActiveExporter::FFmpeg(e) => e.lock().unwrap().has_error(),
-            aether_core::engine::rendering::ActiveExporter::GStreamer(e) => e.lock().unwrap().has_error(),
-        }
+        self.has_error()
     }
 
     fn get_error(&self) -> Option<String> {
-        match self {
-            aether_core::engine::rendering::ActiveExporter::FFmpeg(e) => e.lock().unwrap().get_error(),
-            aether_core::engine::rendering::ActiveExporter::GStreamer(e) => e.lock().unwrap().get_error(),
-        }
+        self.get_error()
     }
 
     fn pause(&mut self) -> Result<(), EditingError> {
-        match self {
-            aether_core::engine::rendering::ActiveExporter::FFmpeg(e) => e.lock().unwrap().pause(),
-            aether_core::engine::rendering::ActiveExporter::GStreamer(_) => {
-                warn!("GStreamer exporter pause not implemented");
-                Ok(())
-            }
-        }
+        warn!("GStreamer exporter pause requested - stub");
+        Ok(())
     }
 
     fn resume(&mut self) -> Result<(), EditingError> {
-        match self {
-            aether_core::engine::rendering::ActiveExporter::FFmpeg(e) => e.lock().unwrap().resume(),
-            aether_core::engine::rendering::ActiveExporter::GStreamer(_) => {
-                warn!("GStreamer exporter resume not implemented");
-                Ok(())
-            }
-        }
+        warn!("GStreamer exporter resume requested - stub");
+        Ok(())
     }
 
     fn is_paused(&self) -> bool {
-        match self {
-            aether_core::engine::rendering::ActiveExporter::FFmpeg(e) => e.lock().unwrap().is_paused(),
-            aether_core::engine::rendering::ActiveExporter::GStreamer(_) => false,
-        }
+        self.is_paused()
     }
 }
 
@@ -552,9 +522,12 @@ pub async fn rendering_start_job(
     let mut rendering_state = state.rendering_state.lock()
         .map_err(|e| format!("{}", e))?;
 
-    // Create exporter using the rendering engine
-    let exporter = rendering_state.engine.create_export(export_options)
-        .map_err(|e| format!("{}", e))?;
+    // Create exporter directly (bypassing aether_core::ActiveExporter which required unsafe Send/Sync)
+    let exporter: Box<dyn ExporterTrait> = {
+        let ffmpeg_exporter = aether_core::engine::rendering::Exporter::new(export_options)
+            .map_err(|e| format!("{}", e))?;
+        Box::new(ffmpeg_exporter)
+    };
 
     // Create progress tracking
     let progress = Arc::new(Mutex::new(ExportProgress {
@@ -588,7 +561,7 @@ pub async fn rendering_start_job(
             actual_size: None,
             error_message: None,
         },
-        exporter: Arc::new(Mutex::new(Box::new(exporter) as Box<dyn ExporterTrait>)),
+        exporter: Arc::new(Mutex::new(exporter)),
         progress: progress.clone(),
     };
 
