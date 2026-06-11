@@ -16,38 +16,24 @@ pub type ExportCallback = Arc<dyn Fn(ExportProgress) + Send + Sync + 'static>;
 
 #[derive(Debug, Clone)]
 pub struct ExportOptions {
-    pub timeline: ges::Timeline,
-
     pub output_path: PathBuf,
-
     pub container_format: ContainerFormat,
-
     pub video_format: VideoFormat,
     pub audio_format: AudioFormat,
-
     pub video_bitrate: u32,
-
     pub audio_bitrate: u32,
-
     pub frame_rate: f64,
-
     pub width: u32,
-
     pub height: u32,
-
     pub encoder_preset: EncoderPreset,
-
     pub crf: u8,
-
     pub hardware_acceleration: bool,
-
     pub threads: u8,
 }
 
 impl Default for ExportOptions {
     fn default() -> Self {
         Self {
-            timeline: ges::Timeline::new(),
             output_path: PathBuf::new(),
             container_format: ContainerFormat::Mp4,
             video_format: VideoFormat::H264,
@@ -100,13 +86,10 @@ pub struct GstExporter {
     cancel_flag: Arc<Mutex<bool>>,
 }
 
-// TODO: GStreamer types are not Send/Sync; this is a compilation workaround.
-unsafe impl Send for GstExporter {}
-unsafe impl Sync for GstExporter {}
-
 impl GstExporter {
     pub fn new(options: ExportOptions) -> Result<Self, EditingError> {
         gst::init().map_err(|e| EditingError::ExportError(format!("Failed to initialize GStreamer: {}", e)))?;
+        ges::init().map_err(|e| EditingError::ExportError(format!("Failed to initialize GES: {}", e)))?;
 
         let progress = Arc::new(Mutex::new(ExportProgress {
             current_frame: 0,
@@ -142,7 +125,8 @@ impl GstExporter {
 
         let pipeline = ges::Pipeline::new();
 
-        let duration = self.options.timeline.duration();
+        let timeline = ges::Timeline::new();
+        let duration = timeline.duration();
         let duration_nanos = duration.nseconds();
         let total_frames = (duration_nanos as f64 / gst::ClockTime::SECOND.nseconds() as f64 * self.options.frame_rate) as u64;
 
