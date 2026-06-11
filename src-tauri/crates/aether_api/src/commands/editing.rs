@@ -210,7 +210,7 @@ pub async fn project_save(
     let timeline_info = state.editing_engine.get_timeline_info()
         .map_err(|e| format!("Failed to get timeline info: {}", e))?;
 
-    let _project_data = serde_json::json!({
+    let project_data = serde_json::json!({
         "project_id": request.project_id,
         "name": request.project_id.clone(),
         "created_at": chrono::Utc::now().to_rfc3339(),
@@ -240,14 +240,15 @@ pub async fn project_save(
         }
     });
 
-    let _file_path = request.file_path.unwrap_or_else(|| format!("/projects/{}.aether", request.project_id));
+    let file_path = request.file_path.unwrap_or_else(|| format!("/projects/{}.aether", request.project_id));
 
-    // TODO: actually save project_data to file_path
+    std::fs::write(&file_path, project_data.to_string())
+        .map_err(|e| format!("Failed to write project file: {}", e))?;
 
     Ok(EditingResponse {
         success: true,
-        message: format!("Project saved: {}", request.project_id),
-        data: None,
+        message: format!("Project saved to: {}", file_path),
+        data: Some(serde_json::json!({"file_path": file_path})),
     })
 }
 

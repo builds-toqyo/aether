@@ -181,14 +181,19 @@ impl EditingEngineProxy {
 }
 
 fn run_engine_thread(receiver: std::sync::mpsc::Receiver<EngineCommand>) {
-    info!("Starting EditingEngine background thread");
+    let main_context = glib::MainContext::new();
+    main_context.push_thread_default();
+
+    info!("Starting EditingEngine background thread with MainContext");
     match create_editing_engine() {
         Ok(mut engine) => {
-            info!("EditingEngine initialized successfully");
+            info!("EditingEngine initialized successfully on dedicated GStreamer thread");
             for cmd in receiver {
                 if let Err(e) = handle_command(&mut engine, cmd) {
                     error!("Error handling engine command: {}", e);
                 }
+                // Process any pending GStreamer events (bus messages, state changes, etc.)
+                while main_context.iteration(false) {}
             }
             info!("EditingEngine command channel closed; shutting down");
             let _ = engine.shutdown();
@@ -219,6 +224,7 @@ fn run_engine_thread(receiver: std::sync::mpsc::Receiver<EngineCommand>) {
             }
         }
     }
+    main_context.pop_thread_default();
 }
 
 fn handle_command(engine: &mut EditingEngine, cmd: EngineCommand) -> Result<(), String> {

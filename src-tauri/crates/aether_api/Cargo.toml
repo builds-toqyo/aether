@@ -11,6 +11,7 @@ uuid = { version = "1.0", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 log = "0.4"
 anyhow = "1.0"
+glib = "0.22.7"
 
 # Internal dependencies
 aether_core = { path = "../aether_core" }
