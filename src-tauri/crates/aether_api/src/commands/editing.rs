@@ -187,8 +187,8 @@ pub async fn project_init(
     };
 
     // Register in project_registry
-    if let Ok(mut registry) = state.project_registry.lock() {
-        registry.insert(project_id.clone(), project_info.clone());
+    if let Ok(registry) = state.project_registry.lock() {
+        let _ = registry.add(&project_info);
     }
 
     info!("Project {} loaded from {}", request.name, project_id);
@@ -264,7 +264,7 @@ pub async fn project_save(
     };
 
     if let Ok(mut registry) = state.project_registry.lock() {
-        registry.insert(request.project_id.clone(), project_info);
+        let _ = registry.add(&project_info);
     }
 
     Ok(EditingResponse {
@@ -366,7 +366,7 @@ pub async fn project_load(
 
     // Register in project_registry
     if let Ok(mut registry) = state.project_registry.lock() {
-        registry.insert(project_id.clone(), project_info.clone());
+        let _ = registry.add(&project_info);
     }
 
     Ok(project_info)

@@ -3,9 +3,10 @@ use std::sync::Mutex;
 use aether_types::{Graph, ParameterValue};
 use uuid::Uuid;
 use log::info;
-use crate::commands::editing::{MediaInfo, ProjectInfo};
+use crate::commands::editing::MediaInfo;
 use crate::commands::rendering::RenderingState;
 use crate::engine_proxy::EditingEngineProxy;
+use crate::project_registry::ProjectRegistry;
 
 pub struct AppState {
     pub graph: Mutex<Graph>,
@@ -14,7 +15,7 @@ pub struct AppState {
     pub rendering_state: Mutex<RenderingState>,
     pub editing_engine: Mutex<EditingEngineProxy>,
     pub media_registry: Mutex<HashMap<String, MediaInfo>>,
-    pub project_registry: Mutex<HashMap<String, ProjectInfo>>,
+    pub project_registry: Mutex<ProjectRegistry>,
 }
 
 impl AppState {
@@ -29,7 +30,7 @@ impl AppState {
             rendering_state: Mutex::new(RenderingState::default()),
             editing_engine: Mutex::new(EditingEngineProxy::new()),
             media_registry: Mutex::new(HashMap::new()),
-            project_registry: Mutex::new(HashMap::new()),
+            project_registry: Mutex::new(ProjectRegistry::new()),
         }
     }
 
