@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::shapes::primitives::{BoundingBox, Point};
-use crate::shapes::paths::{Path, PathSegment};
+use crate::shapes::paths::Path;
 use super::types::*;
 
 
@@ -214,7 +214,7 @@ impl ShapeMask {
     fn calculate_edge_distance(&self, x: f64, y: f64) -> f64 {
         let (px, py) = self.properties.position;
         let (width, height) = self.size;
-        let feather = self.properties.feather;
+        let _feather = self.properties.feather;
 
         match self.shape_type {
             ShapeMaskType::Rectangle => {

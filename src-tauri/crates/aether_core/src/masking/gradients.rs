@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use super::types::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -370,8 +369,8 @@ impl GradientMask {
         let j = (y + s).floor();
 
         let t = (i + j) * 0.211324865405187;
-        let x0 = x - (i - t);
-        let y0 = y - (j - t);
+        let _x0 = x - (i - t);
+        let _y0 = y - (j - t);
 
 
         let hash = ((i as u32).wrapping_mul(374761393).wrapping_add((j as u32).wrapping_mul(668265263))) as f64;

@@ -509,7 +509,7 @@ impl BooleanUtils {
                 }
                 crate::shapes::paths::PathSegmentType::LineTo => {
 
-                    if let Some(last_segment) = simplified_segments.last() {
+                    if let Some(_last_segment) = simplified_segments.last() {
                         let distance = ((segment.x - current_x).powi(2) + (segment.y - current_y).powi(2)).sqrt();
 
                         if distance > tolerance {

@@ -58,7 +58,7 @@ impl BlurAlgorithms {
 
 
         let kernels = BlurKernels::new(self.params.radius);
-        let kernel = kernels.generate_gaussian_kernel(kernel_size);
+        let _kernel = kernels.generate_gaussian_kernel(kernel_size);
 
         let blur_result = BlurResult {
             original_id: input_id,
@@ -109,7 +109,7 @@ impl BlurAlgorithms {
 
 
         let kernels = BlurKernels::new(self.params.radius);
-        let kernel = kernels.generate_motion_blur_kernel(kernel_size, self.params.angle);
+        let _kernel = kernels.generate_motion_blur_kernel(kernel_size, self.params.angle);
 
         let blur_result = BlurResult {
             original_id: input_id,

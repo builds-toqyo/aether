@@ -3,14 +3,12 @@ use gstreamer as gst;
 use gstreamer_pbutils as gst_pbutils;
 use gstreamer_pbutils::prelude::DiscovererStreamInfoExt;
 use gst::prelude::*;
-use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MediaType {
@@ -344,7 +342,7 @@ impl FileManager {
 
     fn generate_image_thumbnail(&self, path: &Path, options: &ThumbnailOptions) -> Result<PathBuf> {
         let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
-        let thumbnail_path = self.temp_dir.join(format!(
+        let _thumbnail_path = self.temp_dir.join(format!(
             "{}-thumbnail-{}x{}.png",
             file_stem,
             options.width,

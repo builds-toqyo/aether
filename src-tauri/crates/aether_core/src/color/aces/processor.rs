@@ -1,6 +1,5 @@
-use std::sync::{Arc, RwLock};
-use anyhow::{Result, anyhow};
-use log::{debug, info, warn};
+use anyhow::Result;
+use log::{debug, info};
 use image::{Rgb, RgbImage};
 
 use crate::types::{ColorSpace, VideoRange};
@@ -77,7 +76,7 @@ impl AcesProcessor {
                 let pixel = image.get_pixel(x, y);
                 let [r, g, b] = pixel.0;
 
-                let linear_rgb = self.gamma_decode([r, g, b], self.color_space);
+                let _linear_rgb = self.gamma_decode([r, g, b], self.color_space);
 
                 // TODO: apply_input_transform expects [u8; 3] but linear_rgb is [f32; 3]
                 let aces_rgb = self.transform_manager.apply_input_transform([r, g, b], input_transform)?;

@@ -146,7 +146,7 @@ impl TextLayer {
         }
     }
 
-    pub fn get_character_transform(&mut self, char_index: usize, time: f64) -> CharacterTransform {
+    pub fn get_character_transform(&mut self, char_index: usize, _time: f64) -> CharacterTransform {
         let base_position = self.get_character_position(char_index).unwrap_or(self.position);
         let mut transform = CharacterTransform {
             position: base_position,

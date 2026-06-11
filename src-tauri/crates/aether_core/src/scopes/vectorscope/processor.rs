@@ -1,14 +1,14 @@
 use std::sync::{Arc, RwLock};
 use anyhow::{Result, anyhow};
 use log::{debug, info};
-use image::{Rgb, RgbImage};
+use image::RgbImage;
 
 use crate::types::{
     VectorscopeData, VectorscopeConfig, ScopeStats,
 };
 
 use super::{targets::TargetRenderer, rendering::VectorscopeRenderer};
-use crate::scopes::{BaseScopeProcessor, ColorConverter, FrameProcessor};
+use crate::scopes::{BaseScopeProcessor, FrameProcessor};
 
 pub struct VectorscopeProcessor {
     config: VectorscopeConfig,

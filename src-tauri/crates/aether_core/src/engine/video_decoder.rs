@@ -1,23 +1,17 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::error::Error;
-use std::fmt;
 use std::collections::HashMap;
-use std::ffi::{CStr, CString};
-use std::ptr;
-use std::slice;
 
 use ffmpeg_next as ffmpeg;
-use ffmpeg::format::{context::Input, input, Pixel};
+use ffmpeg::format::{context::Input, input};
 use ffmpeg::media::Type;
 use ffmpeg::software::scaling::{context::Context as SwsContext, flag::Flags};
-use ffmpeg::util::frame::video::Video;
-use ffmpeg::util::frame::{self, Frame};
+use ffmpeg::util::frame::{self};
 use ffmpeg::util::format;
 use ffmpeg::util::error::Error as FFmpegError;
 use ffmpeg::util::log as ffmpeg_log;
-use ffmpeg::{decoder, encoder};
-use log::{debug, error, info, warn};
+use ffmpeg::decoder;
+use log::debug;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -131,7 +125,7 @@ impl VideoFrame {
         let width = frame.width() as u32;
         let height = frame.height() as u32;
         let format = VideoFormat::from_ffmpeg_format(frame.format());
-        let mut video_frame = Self::new(width, height, format, 0.0, 0.0);
+        let video_frame = Self::new(width, height, format, 0.0, 0.0);
         // TODO: copy actual frame data
         video_frame
     }
@@ -383,7 +377,7 @@ impl VideoDecoder {
 
 
             let decoder_id = codec_params.id();
-            let decoder = ffmpeg::codec::decoder::find(decoder_id)
+            let _decoder = ffmpeg::codec::decoder::find(decoder_id)
                 .ok_or_else(|| VideoDecoderError::DecodingError(
                     format!("Failed to find decoder for codec id: {:?}", decoder_id)
                 ))?;
@@ -395,7 +389,7 @@ impl VideoDecoder {
 
 
             // Get decoder properties and open
-            let mut decoder = codec_ctx.decoder().video()
+            let decoder = codec_ctx.decoder().video()
                 .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
             let src_format = decoder.format();
@@ -424,7 +418,7 @@ impl VideoDecoder {
             let codec_params = stream.parameters();
 
             let decoder_id = codec_params.id();
-            let decoder = ffmpeg::codec::decoder::find(decoder_id)
+            let _decoder = ffmpeg::codec::decoder::find(decoder_id)
                 .ok_or_else(|| VideoDecoderError::DecodingError(
                     format!("Failed to find decoder for codec id: {:?}", decoder_id)
                 ))?;
@@ -545,18 +539,18 @@ impl VideoDecoder {
 
 
         // decoded_frame is already a frame::Video
-        let width = decoded_frame.width() as u32;
-        let height = decoded_frame.height() as u32;
+        let _width = decoded_frame.width() as u32;
+        let _height = decoded_frame.height() as u32;
         let src_format = decoded_frame.format();
         let dst_format = self.config.output_format.to_ffmpeg_format();
 
-        let mut output_frame = frame::Video::empty();
-        let mut buffer: Vec<u8>;
-        let stride: u32;
+        let output_frame = frame::Video::empty();
+        let _buffer: Vec<u8>;
+        let _stride: u32;
 
 
         if src_format != dst_format {
-            let sws_ctx = match &mut self.sws_context {
+            let _sws_ctx = match &mut self.sws_context {
                 Some(ctx) => ctx,
                 None => {
                     let width = decoded_frame.width();
@@ -592,7 +586,7 @@ impl VideoDecoder {
         let codec_params = stream.parameters();
 
         let decoder_id = codec_params.id();
-        let decoder = ffmpeg::codec::decoder::find(decoder_id)
+        let _decoder = ffmpeg::codec::decoder::find(decoder_id)
             .ok_or_else(|| VideoDecoderError::DecodingError(
                 format!("Failed to find decoder for codec id: {:?}", decoder_id)
             ))?;
@@ -602,7 +596,7 @@ impl VideoDecoder {
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
         // Get decoder properties before opening
-        let mut decoder = codec_ctx.decoder().video()
+        let decoder = codec_ctx.decoder().video()
             .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
 
         let src_format = decoder.format();
@@ -661,7 +655,7 @@ impl VideoDecoder {
 
 
         let decoder_id = codec_params.id();
-        let decoder = ffmpeg::codec::decoder::find(decoder_id)
+        let _decoder = ffmpeg::codec::decoder::find(decoder_id)
             .ok_or_else(|| VideoDecoderError::DecodingError(
                 format!("Failed to find decoder for codec id: {:?}", decoder_id)
             ))?;

@@ -1,4 +1,4 @@
-use crate::nodes::{NodeError, NodeResult};
+use crate::nodes::NodeResult;
 use crate::nodes::execution_order::{ExecutionOrderCalculator, ExecutionCache};
 use aether_types::Graph;
 use uuid::Uuid;

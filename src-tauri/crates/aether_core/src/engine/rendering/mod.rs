@@ -8,11 +8,8 @@ pub use formats::{VideoFormat, AudioFormat, ContainerFormat, get_available_forma
 pub use encoder::{EncoderPreset, EncoderOptions};
 pub use gst_exporter::{GstExporter, ExportProgress as GstExportProgress, ExportOptions as GstExportOptions, ExportCallback as GstExportCallback};
 
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use anyhow::{Context, Result};
-use gstreamer as gst;
-use gst::prelude::*;
+use anyhow::Result;
 use gstreamer_editing_services as ges;
 use crate::engine::editing::types::EditingError;
 

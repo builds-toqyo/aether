@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -192,7 +192,7 @@ impl Exporter {
                 }
             };
 
-            let format_name = options.container_format.to_ffmpeg_name();
+            let _format_name = options.container_format.to_ffmpeg_name();
 
             let video_codec_name = options.video_format.to_ffmpeg_name();
             let video_codec = ffmpeg::encoder::find_by_name(video_codec_name)
@@ -205,7 +205,7 @@ impl Exporter {
             let mut video_stream = output_context.add_stream(video_codec)?;
 
             {
-                let mut context = ffmpeg::codec::context::Context::new_with_codec(video_codec);
+                let context = ffmpeg::codec::context::Context::new_with_codec(video_codec);
                 let mut video = context.encoder().video()?;
 
                 let out_width = if options.width > 0 { options.width } else { width as u32 };
@@ -255,9 +255,9 @@ impl Exporter {
 
                 {
                     let input_stream = input_context.stream(audio_index).unwrap();
-                    let input_codec_par = input_stream.parameters();
+                    let _input_codec_par = input_stream.parameters();
 
-                    let mut context = ffmpeg::codec::context::Context::new_with_codec(audio_codec);
+                    let context = ffmpeg::codec::context::Context::new_with_codec(audio_codec);
                     let mut audio = context.encoder().audio()?;
 
                     audio.set_rate(48000);
@@ -340,7 +340,7 @@ impl Exporter {
 
             let mut audio_decoded = ffmpeg::frame::Audio::empty();
             let mut audio_encoded = ffmpeg::frame::Audio::empty();
-            let mut packet = ffmpeg::packet::Packet::empty();
+            let _packet = ffmpeg::packet::Packet::empty();
 
             let mut frame_count = 0;
 

@@ -6,7 +6,7 @@ use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_pbutils as gst_pbutils;
 use gstreamer_editing_services as ges;
-use gstreamer_editing_services::prelude::{TimelineExt, PipelineExt, EncodingProfileBuilder};
+use gstreamer_editing_services::prelude::{TimelineExt, EncodingProfileBuilder};
 use glib::{filename_to_uri, ControlFlow, MainLoop, SourceId};
 use crate::engine::editing::types::EditingError;
 use crate::engine::rendering::formats::{VideoFormat, AudioFormat, ContainerFormat};
@@ -156,10 +156,10 @@ impl GstExporter {
             }
         }
 
-        let profile = self.create_encoding_profile()
+        let _profile = self.create_encoding_profile()
             .context("Failed to create encoding profile")?;
 
-        let output_uri = filename_to_uri(self.options.output_path.as_path(), None)
+        let _output_uri = filename_to_uri(self.options.output_path.as_path(), None)
             .context("Failed to convert output path to URI")?;
 
         // TODO: GES Pipeline API changed - set_render_settings and set_mode no longer available
@@ -362,7 +362,7 @@ impl GstExporter {
 
 impl Drop for GstExporter {
     fn drop(&mut self) {
-        if let Some(watch_id) = self.bus_watch_id.take() {
+        if let Some(_watch_id) = self.bus_watch_id.take() {
             // BusWatchGuard removed on drop
         }
 

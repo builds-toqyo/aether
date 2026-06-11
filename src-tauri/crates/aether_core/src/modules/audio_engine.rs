@@ -1,8 +1,6 @@
 use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use anyhow::{Result, Context};
-use log::{debug, info, warn, error};
+use std::path::PathBuf;
+use anyhow::Result;
 use gstreamer as gst;
 use gst::prelude::*;
 use glib;
@@ -468,7 +466,7 @@ impl AudioTrack {
 
 
     pub fn update_peak_levels(&mut self) -> Result<(f64, f64), EditingError> {
-        if let Some(level) = &self.level {
+        if let Some(_level) = &self.level {
             // TODO: Implement peak level update
         }
 

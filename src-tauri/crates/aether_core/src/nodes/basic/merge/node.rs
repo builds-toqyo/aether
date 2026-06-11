@@ -108,7 +108,7 @@ impl MergeNode {
 }
 
 impl NodeExecutor for MergeNode {
-    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
+    fn execute(&mut self, _context: &mut ExecutionContext) -> NodeResult<()> {
 
         let mut inputs = Vec::new();
         let mut i = 0;

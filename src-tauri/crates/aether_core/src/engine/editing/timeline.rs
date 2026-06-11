@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_editing_services as ges;

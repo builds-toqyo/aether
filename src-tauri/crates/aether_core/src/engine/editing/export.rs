@@ -1,13 +1,13 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_pbutils as gst_pbutils;
 use gstreamer_editing_services as ges;
 use gstreamer_editing_services::prelude::TimelineExt;
 use gstreamer_pbutils::prelude::EncodingProfileBuilder;
-use glib::{filename_to_uri, filename_from_uri, ControlFlow};
+use glib::{filename_to_uri, ControlFlow};
 use crate::engine::editing::types::EditingError;
 
 #[derive(Debug, Clone)]
@@ -108,7 +108,7 @@ impl IntermediateExporter {
     }
 
     pub fn start_export(&mut self) -> Result<(), EditingError> {
-        let output_uri = filename_to_uri(&self.options.output_path, None)?;
+        let _output_uri = filename_to_uri(&self.options.output_path, None)?;
 
         let profile = self.create_encoding_profile()?;
 

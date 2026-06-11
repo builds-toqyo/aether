@@ -30,11 +30,11 @@ impl BlendOperations {
                 let blended_id = self.perform_real_blend(*id1, *id2);
                 ParameterValue::Image(blended_id)
             }
-            (ParameterValue::Image(id), ParameterValue::None) => {
+            (ParameterValue::Image(_id), ParameterValue::None) => {
 
                 input1
             }
-            (ParameterValue::None, ParameterValue::Image(id)) => {
+            (ParameterValue::None, ParameterValue::Image(_id)) => {
 
                 input2
             }
@@ -214,7 +214,7 @@ impl BlendOperations {
     }
 
 
-    fn upload_blended_texture(&self, data: &[u8], width: usize, height: usize, channels: usize) -> Uuid {
+    fn upload_blended_texture(&self, _data: &[u8], width: usize, height: usize, channels: usize) -> Uuid {
 
 
         debug!("Uploading blended texture to GPU: {}x{} ({} channels)",

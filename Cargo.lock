@@ -16,6 +16,7 @@ dependencies = [
  "aether_types",
  "anyhow",
  "chrono",
+ "glib 0.22.7",
  "log",
  "serde",
  "serde_json",

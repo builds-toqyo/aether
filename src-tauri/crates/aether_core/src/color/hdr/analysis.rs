@@ -1,4 +1,3 @@
-use super::types::HdrPixel;
 
 #[derive(Debug, Clone)]
 pub struct HdrAnalysis {
@@ -20,7 +19,7 @@ pub enum HdrContentType {
 pub struct HdrAnalyzer;
 
 impl HdrAnalyzer {
-    pub fn classify_content_type(max_nits: f32, avg_nits: f32) -> HdrContentType {
+    pub fn classify_content_type(max_nits: f32, _avg_nits: f32) -> HdrContentType {
         if max_nits > 1000.0 {
             HdrContentType::TrueHdr
         } else if max_nits > 400.0 {

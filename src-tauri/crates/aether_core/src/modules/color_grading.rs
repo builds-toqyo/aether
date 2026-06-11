@@ -1,16 +1,14 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_app as gst_app;
-use gstreamer_app::AppSink;
 use glib::ControlFlow;
-use log::{debug, error, info, warn};
+use log::{debug, error, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use crate::engine::editing::EditingError;
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -425,7 +423,7 @@ impl ColorGradingEngine {
             appsink.set_callbacks(
                 gst_app::AppSinkCallbacks::builder()
                     .new_sample(|appsink| {
-                        let sample = appsink.pull_sample().map_err(|_| gst::FlowError::Error)?;
+                        let _sample = appsink.pull_sample().map_err(|_| gst::FlowError::Error)?;
 
 
                         debug!("Received processed frame");
@@ -517,7 +515,7 @@ impl ColorGradingEngine {
 
 
     fn link_elements(&self) -> Result<()> {
-        if let Some(pipeline) = &self.pipeline {
+        if let Some(_pipeline) = &self.pipeline {
 
             let src = self.elements.get("src").ok_or_else(|| anyhow::anyhow!("src element not found"))?;
             let videoconvert1 = self.elements.get("videoconvert1").ok_or_else(|| anyhow::anyhow!("videoconvert1 element not found"))?;
@@ -610,7 +608,7 @@ impl ColorGradingEngine {
 
 
                         if let Some(arc_self) = weak_self.upgrade() {
-                            if let Ok(mut this) = arc_self.lock() {
+                            if let Ok(this) = arc_self.lock() {
                                 if let Some(config) = this.scopes.get(&scope_type_clone) {
                                     if !config.continuous_update {
 
@@ -645,7 +643,7 @@ impl ColorGradingEngine {
         let buffer = sample.buffer().ok_or_else(|| anyhow::anyhow!("No buffer in sample"))?;
 
 
-        let map = buffer.map_readable().map_err(|_| anyhow::anyhow!("Cannot map buffer"))?;
+        let _map = buffer.map_readable().map_err(|_| anyhow::anyhow!("Cannot map buffer"))?;
 
 
         let caps = sample.caps().ok_or_else(|| anyhow::anyhow!("No caps in sample"))?;
@@ -1022,7 +1020,7 @@ impl ColorGradingEngine {
         Ok(())
     }
 
-    fn update_scope(&self, scope_type: ScopeType, config: &ScopeConfig) -> Result<ScopeData> {
+    fn update_scope(&self, _scope_type: ScopeType, config: &ScopeConfig) -> Result<ScopeData> {
 
         let mut histogram = vec![0u8; config.width as usize * 3];
 

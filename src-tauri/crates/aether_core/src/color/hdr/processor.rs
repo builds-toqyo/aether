@@ -1,8 +1,8 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use log::{debug, info};
 use image::{Rgb, RgbImage};
 
-use crate::types::{ColorSpace, VideoRange};
+use crate::types::ColorSpace;
 use super::{display::HdrDisplayManager, tone::ToneMapper, gamut::GamutMapper, config::HdrConfig, types::HdrImage};
 
 pub struct HdrProcessor {
@@ -92,7 +92,7 @@ impl HdrProcessor {
         Ok(hdr_image)
     }
 
-    fn hdr_to_sdr(&self, hdr_image: &HdrImage, output_color_space: ColorSpace) -> Result<RgbImage> {
+    fn hdr_to_sdr(&self, hdr_image: &HdrImage, _output_color_space: ColorSpace) -> Result<RgbImage> {
         let (width, height) = (hdr_image.width, hdr_image.height);
         let mut sdr_image = RgbImage::new(width, height);
 

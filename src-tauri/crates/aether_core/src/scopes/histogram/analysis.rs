@@ -1,7 +1,6 @@
 
 
 use anyhow::{Result};
-use log::debug;
 
 use crate::types::{HistogramData, HistogramChannel};
 

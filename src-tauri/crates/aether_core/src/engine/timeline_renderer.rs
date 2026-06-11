@@ -30,7 +30,7 @@ impl From<Timestamp> for f64 {
     }
 }
 
-use crate::engine::timeline::{Timeline, Clip, ClipType, TimelineError};
+use crate::engine::timeline::{Timeline, ClipType, TimelineError};
 use crate::engine::renderer::{Renderer, Frame, RendererError};
 use crate::engine::video_decoder::{VideoDecoder, VideoDecoderConfig, VideoFrame, VideoDecoderError};
 use crate::engine::VideoFormat;
@@ -182,7 +182,7 @@ impl TimelineRenderer {
 
         let timeline = self.timeline.lock().unwrap();
 
-        for (track_id, track) in timeline.tracks() {
+        for (_track_id, track) in timeline.tracks() {
             for clip in &track.clips {
                 if clip.clip_type == ClipType::Video {
                     if let Some(source_path) = &clip.source_path {
@@ -233,7 +233,7 @@ impl TimelineRenderer {
         frame_data.resize((self.config.width * self.config.height * 4) as usize, 0);
 
         // Render each active clip
-        for (track_id, clips) in active_clips {
+        for (_track_id, clips) in active_clips {
             for clip in clips {
                 if clip.clip_type == ClipType::Video {
                     if let Some(clip_renderer) = self.clip_renderers.get_mut(&clip.id) {
@@ -241,7 +241,7 @@ impl TimelineRenderer {
                         clip_renderer.seek_to_time(time, clip.start_time)?;
 
                         // Decode a frame
-                        let video_frame = clip_renderer.decode_frame()?;
+                        let _video_frame = clip_renderer.decode_frame()?;
 
                         // TODO: Implement frame compositing
                         // self.composite_frame(&mut frame_data, video_frame)?;

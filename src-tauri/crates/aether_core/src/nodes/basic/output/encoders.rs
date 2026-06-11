@@ -255,7 +255,7 @@ impl OutputEncoders {
     }
 
 
-    fn encode_png_data(&self, data: &[u8], width: usize, height: usize, channels: usize) -> Vec<u8> {
+    fn encode_png_data(&self, _data: &[u8], width: usize, height: usize, channels: usize) -> Vec<u8> {
         debug!("Encoding PNG data: {}x{} ({} channels)", width, height, channels);
 
 
@@ -271,7 +271,7 @@ impl OutputEncoders {
     }
 
 
-    fn encode_jpeg_data(&self, data: &[u8], width: usize, height: usize, channels: usize, quality: u8) -> Vec<u8> {
+    fn encode_jpeg_data(&self, _data: &[u8], width: usize, height: usize, channels: usize, quality: u8) -> Vec<u8> {
         debug!("Encoding JPEG data: {}x{} ({} channels, quality: {})", width, height, channels, quality);
 
 
@@ -287,7 +287,7 @@ impl OutputEncoders {
     }
 
 
-    fn encode_mp4_data(&self, data: &[u8], width: usize, height: usize, channels: usize, frame: u64) -> Vec<u8> {
+    fn encode_mp4_data(&self, _data: &[u8], width: usize, height: usize, channels: usize, frame: u64) -> Vec<u8> {
         debug!("Encoding MP4 data: {}x{} ({} channels, frame: {})", width, height, channels, frame);
 
 
@@ -300,7 +300,7 @@ impl OutputEncoders {
     }
 
 
-    fn encode_prores_data(&self, data: &[u8], width: usize, height: usize, channels: usize, frame: u64) -> Vec<u8> {
+    fn encode_prores_data(&self, _data: &[u8], width: usize, height: usize, channels: usize, frame: u64) -> Vec<u8> {
         debug!("Encoding ProRes data: {}x{} ({} channels, frame: {})", width, height, channels, frame);
 
 
@@ -344,7 +344,7 @@ impl OutputEncoders {
     }
 
 
-    fn encode_exr_data(&self, data: &[f32], width: usize, height: usize, channels: usize, bit_depth: u8) -> Vec<u8> {
+    fn encode_exr_data(&self, _data: &[f32], width: usize, height: usize, channels: usize, bit_depth: u8) -> Vec<u8> {
         debug!("Encoding EXR data: {}x{} ({} channels, depth: {})", width, height, channels, bit_depth);
 
 
@@ -357,7 +357,7 @@ impl OutputEncoders {
     }
 
 
-    fn save_png_file(&self, data: &[u8], filename: &str) -> String {
+    fn save_png_file(&self, _data: &[u8], filename: &str) -> String {
         debug!("Saving PNG file: {}", filename);
 
         let file_path = format!("/tmp/output/{}", filename);
@@ -367,7 +367,7 @@ impl OutputEncoders {
     }
 
 
-    fn save_jpeg_file(&self, data: &[u8], filename: &str) -> String {
+    fn save_jpeg_file(&self, _data: &[u8], filename: &str) -> String {
         debug!("Saving JPEG file: {}", filename);
 
         let file_path = format!("/tmp/output/{}", filename);
@@ -377,7 +377,7 @@ impl OutputEncoders {
     }
 
 
-    fn save_exr_file(&self, data: &[u8], filename: &str) -> String {
+    fn save_exr_file(&self, _data: &[u8], filename: &str) -> String {
         debug!("Saving EXR file: {}", filename);
 
         let file_path = format!("/tmp/output/{}", filename);

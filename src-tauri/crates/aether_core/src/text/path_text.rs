@@ -275,7 +275,7 @@ impl PathTextRenderer {
             let rotation = match text_on_path.orientation {
                 TextOrientation::Horizontal => 0.0,
                 TextOrientation::Tangent => tangent.1.atan2(tangent.0),
-                TextOrientation::Perpendicular => (tangent.1.atan2(tangent.0) + std::f64::consts::PI / 2.0),
+                TextOrientation::Perpendicular => tangent.1.atan2(tangent.0) + std::f64::consts::PI / 2.0,
                 TextOrientation::Custom(angle) => angle,
             };
 
@@ -350,10 +350,10 @@ impl PathTextRenderer {
     }
 
 
-    pub fn get_glyphs_for_path(&self, path_id: &str) -> Vec<&PathGlyph> {
+    pub fn get_glyphs_for_path(&self, _path_id: &str) -> Vec<&PathGlyph> {
         self.rendered_glyphs
             .iter()
-            .filter(|glyph| {
+            .filter(|_glyph| {
 
 
                 true

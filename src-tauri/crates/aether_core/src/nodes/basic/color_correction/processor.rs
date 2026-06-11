@@ -27,7 +27,7 @@ impl ColorProcessor {
     pub fn apply_corrections(&self, pixels: &[(f32, f32, f32)], corrected_id: Uuid) -> CorrectedImage {
         debug!("Applying color corrections to {} pixels", pixels.len());
 
-        let corrected_pixels: Vec<(f32, f32, f32)> = pixels
+        let _corrected_pixels: Vec<(f32, f32, f32)> = pixels
             .iter()
             .map(|&(r, g, b)| self.apply_pixel_correction(r, g, b))
             .collect();
@@ -101,9 +101,9 @@ impl ColorProcessor {
 
         if self.parameters.gamma_gain > 0.0 {
             let gamma = 1.0 / self.parameters.gamma_gain;
-            let r = r.powf(gamma);
-            let g = g.powf(gamma);
-            let b = b.powf(gamma);
+            let _r = r.powf(gamma);
+            let _g = g.powf(gamma);
+            let _b = b.powf(gamma);
         }
 
 
@@ -151,7 +151,7 @@ impl ColorProcessor {
 
         let h = (h + self.parameters.hue / 360.0) % 1.0;
         if h < 0.0 {
-            let h = h + 1.0;
+            let _h = h + 1.0;
         }
 
 
@@ -207,10 +207,10 @@ impl ColorProcessor {
 
     fn hue_to_rgb(&self, p: f32, q: f32, t: f32) -> f32 {
         if t < 0.0 {
-            let t = t + 1.0;
+            let _t = t + 1.0;
         }
         if t > 1.0 {
-            let t = t - 1.0;
+            let _t = t - 1.0;
         }
         if t < 1.0 / 6.0 {
             p + (q - p) * 6.0 * t

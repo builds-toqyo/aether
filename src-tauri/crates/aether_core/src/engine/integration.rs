@@ -8,9 +8,7 @@ use crate::engine::editing::{
 };
 use crate::engine::rendering::{
     RenderingEngine,
-    ExportOptions as FfmpegExportOptions,
-    ExportProgress as FfmpegExportProgress,
-    formats::ContainerFormat
+    ExportOptions as FfmpegExportOptions
 };
 use crate::engine::editing::types::EditingError;
 
@@ -154,7 +152,7 @@ impl IntegratedExporter {
     pub fn start_export(&mut self) -> Result<(), EditingError> {
         self.update_progress(ExportStage::Preparing, 0.0, None);
 
-        let timeline = self.editing_engine.lock().unwrap()
+        let _timeline = self.editing_engine.lock().unwrap()
             .timeline().lock().unwrap()
             .get_ges_timeline()
             .ok_or(EditingError::NotInitialized)?

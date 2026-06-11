@@ -1,9 +1,7 @@
-use aether_types::{ParameterValue};
 use ffmpeg_next as ffmpeg;
-use ffmpeg::{codec, format, frame, media};
-use std::ffi::CString;
+use ffmpeg::{format, frame, media};
 use uuid::Uuid;
-use log::{debug, error, warn};
+use log::{debug, error};
 
 pub struct AudioDecoder {
 
@@ -31,7 +29,7 @@ impl AudioDecoder {
         }
 
 
-        let mut input_format_context = match format::input(media_path) {
+        let input_format_context = match format::input(media_path) {
             Ok(context) => context,
             Err(e) => {
                 error!("Failed to open audio file: {}", e);
@@ -39,7 +37,7 @@ impl AudioDecoder {
             }
         };
 
-        let input_stream = match input_format_context.streams().best(media::Type::Audio) {
+        let _input_stream = match input_format_context.streams().best(media::Type::Audio) {
             Some(stream) => stream,
             None => {
                 error!("No audio stream found in file");

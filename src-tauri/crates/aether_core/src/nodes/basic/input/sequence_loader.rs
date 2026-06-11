@@ -1,7 +1,6 @@
 use aether_types::{ParameterValue};
 use ffmpeg_next as ffmpeg;
-use ffmpeg::{codec, format, frame, media};
-use std::ffi::CString;
+use ffmpeg::{format, frame, media};
 use uuid::Uuid;
 use log::{debug, error, warn};
 
@@ -91,7 +90,7 @@ impl SequenceLoader {
             return Uuid::new_v4();
         }
 
-        let mut input_format_context = match format::input(filename) {
+        let input_format_context = match format::input(filename) {
             Ok(context) => context,
             Err(e) => {
                 warn!("Failed to open sequence frame {}: {}", filename, e);
@@ -109,9 +108,9 @@ impl SequenceLoader {
         };
 
         let _codec_params = input_stream.parameters();
-        let width = 1920_usize;
-        let height = 1080_usize;
-        let pixel_format = "rgb24";
+        let _width = 1920_usize;
+        let _height = 1080_usize;
+        let _pixel_format = "rgb24";
 
         // TODO: ffmpeg-next API has changed - codec::find_by_name may not exist
         // For now, return early with a placeholder frame
@@ -193,7 +192,7 @@ impl SequenceLoader {
             })
     }
 
-    fn extract_frame_data(&self, frame: &frame::Video, channels: usize, pixel_format: &str) -> Result<Vec<u8>, String> {
+    fn extract_frame_data(&self, frame: &frame::Video, channels: usize, _pixel_format: &str) -> Result<Vec<u8>, String> {
         let width = frame.width() as usize;
         let height = frame.height() as usize;
         let line_size = frame.stride(0) as usize;
@@ -205,7 +204,7 @@ impl SequenceLoader {
 
         for y in 0..height {
             let src_offset = y * line_size;
-            let dst_offset = y * width * channels;
+            let _dst_offset = y * width * channels;
 
             if src_offset + (width * channels) <= plane_data.len() {
                 let src_row = &plane_data[src_offset..src_offset + (width * channels)];
@@ -219,7 +218,7 @@ impl SequenceLoader {
     }
 
 
-    fn upload_sequence_frame_to_gpu(&self, data: &[u8], width: usize, height: usize, channels: usize) -> Result<Uuid, String> {
+    fn upload_sequence_frame_to_gpu(&self, _data: &[u8], width: usize, height: usize, channels: usize) -> Result<Uuid, String> {
 
         debug!("Uploading sequence frame to GPU: {}x{} ({} channels)", width, height, channels);
 

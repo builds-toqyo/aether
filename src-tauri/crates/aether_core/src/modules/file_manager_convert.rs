@@ -1,11 +1,8 @@
 use anyhow::{anyhow, Result};
-use glib::{MainLoop, ControlFlow};
 use gstreamer as gst;
 use gstreamer::prelude::*;
-use log::{debug, error, info, warn};
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use log::debug;
+use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConversionFormat {
@@ -158,7 +155,7 @@ impl MediaConverter {
         input_path: P,
         output_path: Q,
         options: VideoConversionOptions,
-        progress_callback: impl Fn(f64) + Send + 'static,
+        _progress_callback: impl Fn(f64) + Send + 'static,
     ) -> Result<()> {
         if !self.initialized {
             return Err(anyhow!("GStreamer not initialized"));
@@ -185,14 +182,14 @@ impl MediaConverter {
         &self,
         input_path: P,
         output_path: Q,
-        options: AudioConversionOptions,
-        progress_callback: impl Fn(f64) + Send + 'static,
+        _options: AudioConversionOptions,
+        _progress_callback: impl Fn(f64) + Send + 'static,
     ) -> Result<()> {
         if !self.initialized {
             return Err(anyhow!("GStreamer not initialized"));
         }
 
-        let input_path = input_path.as_ref();
+        let _input_path = input_path.as_ref();
         let output_path = output_path.as_ref();
 
 
@@ -216,8 +213,8 @@ impl MediaConverter {
         output_path: &Path,
         options: &VideoConversionOptions,
     ) -> Result<String> {
-        let input_uri = format!("file://{}", input_path.to_string_lossy());
-        let output_uri = format!("file://{}", output_path.to_string_lossy());
+        let _input_uri = format!("file://{}", input_path.to_string_lossy());
+        let _output_uri = format!("file://{}", output_path.to_string_lossy());
 
 
         let video_encoder = match options.video_codec.as_deref() {
@@ -327,8 +324,8 @@ impl MediaConverter {
         output_path: &Path,
         options: &AudioConversionOptions,
     ) -> Result<String> {
-        let input_uri = format!("file://{}", input_path.to_string_lossy());
-        let output_uri = format!("file://{}", output_path.to_string_lossy());
+        let _input_uri = format!("file://{}", input_path.to_string_lossy());
+        let _output_uri = format!("file://{}", output_path.to_string_lossy());
 
 
         let audio_encoder = match options.audio_codec.as_deref() {
@@ -364,7 +361,7 @@ impl MediaConverter {
         }
 
 
-        let container_format = match options.format {
+        let _container_format = match options.format {
             ConversionFormat::MP3 => "",
             ConversionFormat::WAV => "",
             ConversionFormat::FLAC => "",

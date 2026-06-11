@@ -127,7 +127,7 @@ impl MediaImporter {
         }
 
 
-        if let Some(project) = &self.ges_project {
+        if let Some(_project) = &self.ges_project {
             debug!("Registering media with GES project: {}", uri);
 
 
@@ -318,7 +318,7 @@ impl MediaImporter {
     }
 
 
-    fn generate_thumbnails(&self, uri: &str, path: &Path) -> Result<(), EditingError> {
+    fn generate_thumbnails(&self, _uri: &str, path: &Path) -> Result<(), EditingError> {
         use gst::prelude::*;
 
         debug!("Generating thumbnails for {}", path.display());
@@ -343,7 +343,7 @@ impl MediaImporter {
 
     pub fn get_ges_asset<P: AsRef<Path>>(&self, path: P) -> Option<ges::UriClipAsset> {
 
-        let project = self.ges_project.as_ref()?;
+        let _project = self.ges_project.as_ref()?;
 
 
         let path = path.as_ref();

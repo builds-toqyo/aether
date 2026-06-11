@@ -1,7 +1,7 @@
 
 
 use std::io::Write;
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use log::debug;
 
 use super::types::{LutData, LutFormat};

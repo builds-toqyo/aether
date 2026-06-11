@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::error::Error;
 use std::fmt;
-use std::time::Duration;
 
 #[derive(Debug)]
 pub enum TimelineError {

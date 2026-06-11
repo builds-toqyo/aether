@@ -163,7 +163,7 @@ impl AnimationInterpolator {
     ) -> InterpolationResult {
         let prev_time = prev_keyframe.time();
         let next_time = next_keyframe.time();
-        let interpolation_method = prev_keyframe.interpolation();
+        let _interpolation_method = prev_keyframe.interpolation();
         let easing_function = prev_keyframe.easing();
 
         let t = (time - prev_time) / (next_time - prev_time);

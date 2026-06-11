@@ -1,4 +1,4 @@
-use aether_types::{Node, NodeType, InputPin, OutputPin, Parameter, ParameterValue};
+use aether_types::{Node, NodeType, OutputPin, Parameter, ParameterValue};
 use crate::nodes::{ExecutionContext, NodeExecutor, NodeResult};
 use std::collections::HashMap;
 use uuid::Uuid;

@@ -134,7 +134,7 @@ impl ColorCorrectionNode {
         let texture_info = self.gpu_ops.bind_texture(input_id)?;
         let raw_data = self.gpu_ops.read_pixel_data(&texture_info);
         let rgb_data = self.gpu_ops.convert_to_rgb_float(&raw_data, &texture_info);
-        let corrected_image = self.processor.apply_corrections(&rgb_data, corrected_id);
+        let _corrected_image = self.processor.apply_corrections(&rgb_data, corrected_id);
         let corrected_raw_data = self.gpu_ops.convert_from_rgb_float(&rgb_data, &texture_info);
         self.gpu_ops.upload_corrected_texture(corrected_id, &corrected_raw_data, &texture_info)?;
 
@@ -244,7 +244,7 @@ impl ColorCorrectionNode {
 }
 
 impl NodeExecutor for ColorCorrectionNode {
-    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
+    fn execute(&mut self, _context: &mut ExecutionContext) -> NodeResult<()> {
 
         let input_value = self.node.get_input_value("input").unwrap_or(ParameterValue::None);
 

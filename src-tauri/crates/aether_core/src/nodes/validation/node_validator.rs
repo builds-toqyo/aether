@@ -1,7 +1,6 @@
 use crate::nodes::{NodeError, NodeResult};
 use crate::nodes::validation::TypeChecker;
 use aether_types::{Node, PinDataType, ParameterValue};
-use uuid::Uuid;
 use log::debug;
 
 pub struct NodeValidator;
@@ -212,7 +211,7 @@ impl NodeValidator {
             }
 
 
-            if let Some(connection_id) = &input_pin.connection {
+            if let Some(_connection_id) = &input_pin.connection {
                 if context.get_input(&input_pin.id).is_none() {
                     return Ok(false);
                 }

@@ -4,9 +4,7 @@ use log::{error, warn, debug};
 use anyhow::Result;
 use gstreamer as gst;
 use gst::prelude::*;
-use gstreamer_video as gst_video;
 use gstreamer_app as gst_app;
-use gstreamer_app::AppSink;
 use gstreamer_editing_services as ges;
 use gstreamer_editing_services::prelude::GESPipelineExt;
 use crate::engine::editing::types::EditingError;
@@ -75,7 +73,7 @@ impl PreviewEngine {
     /// Clean up all resources associated with the current pipeline
     fn cleanup_resources(&mut self) {
         // First remove the video sink from the pipeline if it exists
-        if let (Some(pipeline), Some(video_sink)) = (&self.pipeline, &self.video_sink) {
+        if let (Some(pipeline), Some(_video_sink)) = (&self.pipeline, &self.video_sink) {
             // Try to remove the video sink from the pipeline
             pipeline.set_video_sink(None::<&gst::Element>);
         }
@@ -262,7 +260,7 @@ impl PreviewEngine {
 
     fn update_video_properties(&mut self, pipeline: &ges::Pipeline) -> Result<(), EditingError> {
 
-        if let Some(timeline) = pipeline.timeline() {
+        if let Some(_timeline) = pipeline.timeline() {
             let width = 1920;
             let height = 1080;
 

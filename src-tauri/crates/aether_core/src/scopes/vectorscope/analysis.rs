@@ -1,5 +1,4 @@
 use anyhow::{Result};
-use log::debug;
 
 use crate::types::{
     VectorscopeData, VectorscopeTarget, ColorSpace,

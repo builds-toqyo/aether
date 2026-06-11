@@ -270,11 +270,11 @@ impl TextRenderer {
 
     fn render_path_text(
         &self,
-        path_text: &crate::text::path_text::TextOnPath,
-        text_layer: &crate::text::types::TextLayer,
-        time: f64,
+        _path_text: &crate::text::path_text::TextOnPath,
+        _text_layer: &crate::text::types::TextLayer,
+        _time: f64,
     ) -> Vec<GlyphRenderInfo> {
-        let mut render_infos = Vec::new();
+        let render_infos = Vec::new();
 
         render_infos
     }
@@ -485,7 +485,7 @@ impl GlyphRenderer {
         self
     }
 
-    pub fn create_glyph_key(&self, character: char) -> String {
+    pub fn create_glyph_key(&self, _character: char) -> String {
         format!(
             "{}_{:.2}_{}_{}_{:?}_{:?}",
             self.font_family,

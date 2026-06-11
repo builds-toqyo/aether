@@ -2,7 +2,6 @@ use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult};
 use crate::nodes::basic::transform::{TransformParams, TransformOperations};
 use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, OutputPin};
 use uuid::Uuid;
-use log::debug;
 
 
 pub struct TransformNode {
@@ -268,7 +267,7 @@ impl TransformNode {
 }
 
 impl NodeExecutor for TransformNode {
-    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
+    fn execute(&mut self, _context: &mut ExecutionContext) -> NodeResult<()> {
 
         let input_value = self.node.get_input_value("input").unwrap_or(ParameterValue::None);
 

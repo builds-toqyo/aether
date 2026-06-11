@@ -1,10 +1,7 @@
-use aether_types::ParameterValue;
-use crate::nodes::ExecutionContext;
 use ffmpeg_next as ffmpeg;
-use ffmpeg::{codec, format, frame, media};
-use std::ffi::CString;
+use ffmpeg::{format, frame, media};
 use uuid::Uuid;
-use log::{debug, error, warn};
+use log::{debug, error};
 
 
 pub struct VideoDecoder {
@@ -33,7 +30,7 @@ impl VideoDecoder {
         }
 
 
-        let mut input_format_context = match format::input(media_path) {
+        let input_format_context = match format::input(media_path) {
             Ok(context) => context,
             Err(e) => {
                 error!("Failed to open video file: {}", e);
@@ -43,7 +40,7 @@ impl VideoDecoder {
 
 
 
-        let input_stream = match input_format_context.streams().best(media::Type::Video) {
+        let _input_stream = match input_format_context.streams().best(media::Type::Video) {
             Some(stream) => stream,
             None => {
                 error!("No video stream found in file");
@@ -52,9 +49,9 @@ impl VideoDecoder {
         };
 
 
-        let width = 1920;
-        let height = 1080;
-        let pixel_format = "yuv420p";
+        let _width = 1920;
+        let _height = 1080;
+        let _pixel_format = "yuv420p";
 
 
         // TODO: ffmpeg-next API has changed - codec::find_by_name may not exist
@@ -129,7 +126,7 @@ impl VideoDecoder {
     }
 
 
-    fn extract_frame_data(&self, frame: &frame::Video, channels: usize, pixel_format: &str) -> Result<Vec<u8>, String> {
+    fn extract_frame_data(&self, frame: &frame::Video, channels: usize, _pixel_format: &str) -> Result<Vec<u8>, String> {
         let width = frame.width() as usize;
         let height = frame.height() as usize;
         let line_size = frame.stride(0) as usize;
@@ -141,7 +138,7 @@ impl VideoDecoder {
 
         for y in 0..height {
             let src_offset = y * line_size;
-            let dst_offset = y * width * channels;
+            let _dst_offset = y * width * channels;
 
             if src_offset + (width * channels) <= plane_data.len() {
                 let src_row = &plane_data[src_offset..src_offset + (width * channels)];
@@ -155,7 +152,7 @@ impl VideoDecoder {
     }
 
 
-    fn upload_video_frame_to_gpu(&self, data: &[u8], width: usize, height: usize, channels: usize) -> Result<Uuid, String> {
+    fn upload_video_frame_to_gpu(&self, _data: &[u8], width: usize, height: usize, channels: usize) -> Result<Uuid, String> {
 
 
         debug!("Uploading video frame to GPU: {}x{} ({} channels)", width, height, channels);

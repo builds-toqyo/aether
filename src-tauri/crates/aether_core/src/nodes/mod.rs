@@ -8,7 +8,7 @@ pub use validation::*;
 pub use execution_order::*;
 pub use basic::*;
 
-use aether_types::{Node, Graph, Connection, NodeType, PinDataType, ParameterValue};
+use aether_types::{Node, NodeType, ParameterValue};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -59,7 +59,7 @@ pub trait NodeExecutor {
 
     fn get_outputs(&self) -> Vec<Uuid>;
 
-    fn can_execute(&self, context: &ExecutionContext) -> bool {
+    fn can_execute(&self, _context: &ExecutionContext) -> bool {
         true
     }
 }
