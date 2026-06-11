@@ -182,49 +182,52 @@ impl EditingEngineProxy {
 
 fn run_engine_thread(receiver: std::sync::mpsc::Receiver<EngineCommand>) {
     let main_context = glib::MainContext::new();
-    main_context.push_thread_default();
 
     info!("Starting EditingEngine background thread with MainContext");
-    match create_editing_engine() {
-        Ok(mut engine) => {
-            info!("EditingEngine initialized successfully on dedicated GStreamer thread");
-            for cmd in receiver {
-                if let Err(e) = handle_command(&mut engine, cmd) {
-                    error!("Error handling engine command: {}", e);
+    let result = main_context.with_thread_default(|| {
+        match create_editing_engine() {
+            Ok(mut engine) => {
+                info!("EditingEngine initialized successfully on dedicated GStreamer thread");
+                for cmd in receiver {
+                    if let Err(e) = handle_command(&mut engine, cmd) {
+                        error!("Error handling engine command: {}", e);
+                    }
+                    // Process any pending GStreamer events (bus messages, state changes, etc.)
+                    while main_context.iteration(false) {}
                 }
-                // Process any pending GStreamer events (bus messages, state changes, etc.)
-                while main_context.iteration(false) {}
+                info!("EditingEngine command channel closed; shutting down");
+                let _ = engine.shutdown();
             }
-            info!("EditingEngine command channel closed; shutting down");
-            let _ = engine.shutdown();
-        }
-        Err(err) => {
-            error!("Failed to initialize EditingEngine: {}. Engine thread exiting.", err);
-            let err_str = err.to_string();
-            for cmd in receiver {
-                match cmd {
-                    EngineCommand::InitProject { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::Shutdown { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::GetTimelineInfo { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::TimelineSeek { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::TimelineTrimClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::TimelineRemoveClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::TimelineAddClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::TimelineMoveClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::TimelineCreateTrack { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::TimelineDeleteTrack { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::ImportMedia { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::GetPreviewDimensions { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::GetPreviewState { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::PreviewPlay { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::PreviewPause { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::PreviewStop { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                    EngineCommand::PreviewSeek { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
-                };
+            Err(err) => {
+                error!("Failed to initialize EditingEngine: {}. Engine thread exiting.", err);
+                let err_str = err.to_string();
+                for cmd in receiver {
+                    match cmd {
+                        EngineCommand::InitProject { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::Shutdown { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::GetTimelineInfo { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::TimelineSeek { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::TimelineTrimClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::TimelineRemoveClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::TimelineAddClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::TimelineMoveClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::TimelineCreateTrack { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::TimelineDeleteTrack { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::ImportMedia { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::GetPreviewDimensions { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::GetPreviewState { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::PreviewPlay { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::PreviewPause { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::PreviewStop { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::PreviewSeek { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    };
+                }
             }
         }
+    });
+    if let Err(e) = result {
+        error!("Failed to set MainContext as thread default: {}", e);
     }
-    main_context.pop_thread_default();
 }
 
 fn handle_command(engine: &mut EditingEngine, cmd: EngineCommand) -> Result<(), String> {
