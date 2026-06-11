@@ -382,57 +382,14 @@ pub async fn project_get_recent(
 
     let limit = limit.unwrap_or(10);
 
-    // Scan projects directory for .aether files
-    let projects_dir = std::path::PathBuf::from("/projects");
-    let mut discovered_projects = Vec::new();
-
-    if projects_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(&projects_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().and_then(|e| e.to_str()) == Some("aether") {
-                    if let Ok(content) = std::fs::read_to_string(&path) {
-                        if let Ok(project_data) = serde_json::from_str::<serde_json::Value>(&content) {
-                            let file_size = std::fs::metadata(&path)
-                                .map(|m| m.len())
-                                .unwrap_or(0);
-
-                            let project_info = ProjectInfo {
-                                id: project_data.get("project_id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                                name: project_data.get("name").and_then(|v| v.as_str()).unwrap_or("Unnamed Project").to_string(),
-                                description: project_data.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                created_at: project_data.get("created_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                                modified_at: project_data.get("modified_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                                duration: project_data.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                                fps: 30.0,
-                                resolution: (1920, 1080),
-                                timeline_count: 1,
-                                media_count: project_data.get("clips").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0),
-                                file_size,
-                                file_path: path.to_string_lossy().to_string(),
-                            };
-                            discovered_projects.push(project_info);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Merge with in-memory registry
     let registry = state.project_registry.lock()
         .map_err(|e| format!("Failed to lock project registry: {}", e))?;
-    let mut all_projects: Vec<ProjectInfo> = registry.values().cloned().collect();
-    all_projects.extend(discovered_projects);
 
-    // Sort by modified_at descending (newest first)
-    all_projects.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
-    all_projects.dedup_by(|a, b| a.id == b.id);
+    let projects = registry.get_recent(limit)
+        .map_err(|e| format!("Failed to query recent projects: {}", e))?;
 
-    let limited_projects: Vec<ProjectInfo> = all_projects.into_iter().take(limit).collect();
-    info!("Returning {} recent projects", limited_projects.len());
-
-    Ok(limited_projects)
+    info!("Returning {} recent projects", projects.len());
+    Ok(projects)
 }
 
 
