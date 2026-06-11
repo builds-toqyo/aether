@@ -31,11 +31,6 @@ pub struct EditingEngine {
     timeline: Arc<Mutex<Timeline>>,
 }
 
-// TODO: GES types are not Send/Sync; this is a compilation workaround.
-// All GES access should happen from a single thread.
-unsafe impl Send for EditingEngine {}
-unsafe impl Sync for EditingEngine {}
-
 impl EditingEngine {
     pub fn new() -> Result<Self, EditingError> {
         gst::init()?;

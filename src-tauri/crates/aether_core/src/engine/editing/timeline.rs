@@ -264,6 +264,25 @@ impl Timeline {
     pub fn get_ges_timeline(&self) -> Option<&ges::Timeline> {
         self.ges_timeline.as_ref()
     }
+
+    pub fn get_video_tracks(&self) -> &Vec<TimelineTrack> {
+        &self.video_tracks
+    }
+
+    pub fn get_audio_tracks(&self) -> &Vec<TimelineTrack> {
+        &self.audio_tracks
+    }
+
+    pub fn remove_track(&mut self, track_id: &str) -> Result<(), EditingError> {
+        let before = self.video_tracks.len() + self.audio_tracks.len();
+        self.video_tracks.retain(|t| t.id != track_id);
+        self.audio_tracks.retain(|t| t.id != track_id);
+        let after = self.video_tracks.len() + self.audio_tracks.len();
+        if after == before {
+            return Err(EditingError::InvalidParameter(format!("Track not found: {}", track_id)));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone)]
