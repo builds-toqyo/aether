@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod state;
 pub mod engine_proxy;
+pub mod render_proxy;
 
 pub use commands::*;
 pub use state::*;
