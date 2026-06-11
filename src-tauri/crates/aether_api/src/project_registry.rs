@@ -26,7 +26,7 @@ impl ProjectRegistry {
     }
 
     fn db_path() -> PathBuf {
-        dirs::home_dir()
+        home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join(DB_FILE_NAME)
     }
@@ -68,9 +68,9 @@ impl ProjectRegistry {
                 project.fps,
                 project.resolution.0,
                 project.resolution.1,
-                project.timeline_count,
-                project.media_count,
-                project.file_size,
+                project.timeline_count as i64,
+                project.media_count as i64,
+                project.file_size as i64,
                 project.file_path,
             ],
         ).map_err(|e| format!("Failed to insert project: {}", e))?;
@@ -163,4 +163,11 @@ impl Default for ProjectRegistry {
     fn default() -> Self {
         Self::new().expect("Failed to create default ProjectRegistry")
     }
+}
+
+fn home_dir() -> Option<PathBuf> {
+    std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .map(PathBuf::from)
+        .ok()
 }
