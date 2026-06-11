@@ -4,14 +4,14 @@ use aether_types::{Graph, ParameterValue};
 use uuid::Uuid;
 use log::info;
 use crate::commands::rendering::RenderingState;
-use aether_core::engine::editing::EditingEngine;
+use crate::engine_proxy::EditingEngineProxy;
 
 pub struct AppState {
     pub graph: Mutex<Graph>,
     pub execution_results: Mutex<HashMap<Uuid, ParameterValue>>,
     pub node_execution_order: Mutex<Vec<Uuid>>,
     pub rendering_state: Mutex<RenderingState>,
-    pub editing_engine: Mutex<Option<EditingEngine>>,
+    pub editing_engine: EditingEngineProxy,
 }
 
 impl AppState {
@@ -24,7 +24,7 @@ impl AppState {
             execution_results: Mutex::new(HashMap::new()),
             node_execution_order: Mutex::new(Vec::new()),
             rendering_state: Mutex::new(RenderingState::default()),
-            editing_engine: Mutex::new(None),
+            editing_engine: EditingEngineProxy::new(),
         }
     }
 
