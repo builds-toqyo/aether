@@ -5,7 +5,7 @@ use log::{debug, info, warn};
 
 use crate::state::AppState;
 use aether_core::engine::editing::{
-    create_editing_engine, ImportOptions,
+    ImportOptions,
     types::TrackType
 };
 
@@ -171,22 +171,9 @@ pub async fn project_init(
     let now = chrono::Utc::now().to_rfc3339();
     let project_path = format!("{}", project_id);
 
-    // Initialize the editing engine with the project
-    let mut editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("{}", e))?;
-
-    // Create new editing engine if not exists
-    if editing_engine.is_none() {
-        let engine = create_editing_engine()
-            .map_err(|e| format!("{}", e))?;
-        *editing_engine = Some(engine);
-    }
-
     // Initialize project in the editing engine
-    if let Some(engine) = editing_engine.as_mut() {
-        engine.init_project(Some(project_path.clone()))
-            .map_err(|e| format!("{}", e))?;
-    }
+    state.editing_engine.init_project(Some(project_path.clone()))
+        .map_err(|e| format!("{}", e))?;
 
     let project_info = ProjectInfo {
         id: project_id.clone(),
@@ -220,54 +207,42 @@ pub async fn project_save(
     }
 
 
-    let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let timeline_info = state.editing_engine.get_timeline_info()
+        .map_err(|e| format!("Failed to get timeline info: {}", e))?;
 
-    if let Some(engine) = editing_engine.as_ref() {
+    let _project_data = serde_json::json!({
+        "project_id": request.project_id,
+        "name": request.project_id.clone(),
+        "created_at": chrono::Utc::now().to_rfc3339(),
+        "modified_at": chrono::Utc::now().to_rfc3339(),
+        "duration": timeline_info.duration,
+        "clips": timeline_info.clips.iter().map(|c| {
+            serde_json::json!({
+                "id": c.id,
+                "name": c.name,
+                "source_path": c.source_path,
+                "track_type": format!("{:?}", c.track_type),
+                "start_time": c.start_time,
+                "duration": c.duration,
+                "in_point": c.in_point,
+                "effects": c.effects.iter().map(|e| {
+                    serde_json::json!({
+                        "id": e.id,
+                        "name": e.name,
+                        "parameters": e.parameters
+                    })
+                }).collect::<Vec<_>>()
+            })
+        }).collect::<Vec<_>>(),
+        "timeline_settings": {
+            "duration": timeline_info.duration,
+            "fps": 30.0
+        }
+    });
 
-        let timeline = engine.timeline();
-        let timeline_guard = timeline.lock()
-            .map_err(|e| format!("Failed to lock timeline: {}", e))?;
+    let _file_path = request.file_path.unwrap_or_else(|| format!("/projects/{}.aether", request.project_id));
 
-
-        let clips = timeline_guard.get_clips();
-        let duration = timeline_guard.get_duration();
-
-
-        let _project_data = serde_json::json!({
-            "project_id": request.project_id,
-            "name": request.project_id.clone(),
-            "created_at": chrono::Utc::now().to_rfc3339(),
-            "modified_at": chrono::Utc::now().to_rfc3339(),
-            "duration": duration,
-            "clips": clips.iter().map(|c| {
-                serde_json::json!({
-                    "id": c.id,
-                    "name": c.name,
-                    "source_path": c.source_path,
-                    "track_type": format!("{:?}", c.track_type),
-                    "start_time": c.start_time,
-                    "duration": c.duration,
-                    "in_point": c.in_point,
-                    "effects": c.effects.iter().map(|e| {
-                        serde_json::json!({
-                            "id": e.id,
-                            "name": e.name,
-                            "parameters": e.parameters
-                        })
-                    }).collect::<Vec<_>>()
-                })
-            }).collect::<Vec<_>>(),
-            "timeline_settings": {
-                "duration": duration,
-                "fps": 30.0
-            }
-        });
-
-        let _file_path = request.file_path.unwrap_or_else(|| format!("/projects/{}.aether", request.project_id));
-
-        // TODO: actually save project_data to file_path
-    }
+    // TODO: actually save project_data to file_path
 
     Ok(EditingResponse {
         success: true,
@@ -289,58 +264,36 @@ pub async fn project_load(
     }
 
 
-    let mut editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
-
-
-    if editing_engine.is_none() {
-        let engine = create_editing_engine()
-            .map_err(|e| format!("Failed to create editing engine: {}", e))?;
-        *editing_engine = Some(engine);
-    }
-
     let project_data = std::fs::read_to_string(&request.file_path)
         .map_err(|e| format!("Failed to read project file: {}", e))?;
 
     let project_json: serde_json::Value = serde_json::from_str(&project_data)
         .map_err(|e| format!("Failed to parse project file: {}", e))?;
 
+    state.editing_engine.init_project(Some(request.file_path.clone()))
+        .map_err(|e| format!("Failed to initialize project: {}", e))?;
 
-    if let Some(engine) = editing_engine.as_mut() {
-        engine.init_project(Some(request.file_path.clone()))
-            .map_err(|e| format!("Failed to initialize project: {}", e))?;
+    if let Some(clips) = project_json.get("clips").and_then(|c| c.as_array()) {
+        for clip_data in clips {
+            if let (Some(_id), Some(name), Some(source_path), Some(_start_time), Some(_duration)) = (
+                clip_data.get("id").and_then(|v| v.as_str()),
+                clip_data.get("name").and_then(|v| v.as_str()),
+                clip_data.get("source_path").and_then(|v| v.as_str()),
+                clip_data.get("start_time").and_then(|v| v.as_i64()),
+                clip_data.get("duration").and_then(|v| v.as_i64())
+            ) {
+                let _track_type = clip_data.get("track_type")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| match s {
+                        "Video" => Some(TrackType::Video),
+                        "Audio" => Some(TrackType::Audio),
+                        _ => None,
+                    })
+                    .unwrap_or(TrackType::Video);
 
+                let _in_point = clip_data.get("in_point").and_then(|v| v.as_i64()).unwrap_or(0);
 
-        let timeline = engine.timeline();
-        let _timeline_guard = timeline.lock()
-            .map_err(|e| format!("Failed to lock timeline: {}", e))?;
-
-
-        if let Some(clips) = project_json.get("clips").and_then(|c| c.as_array()) {
-            for clip_data in clips {
-                if let (Some(_id), Some(name), Some(source_path), Some(_start_time), Some(_duration)) = (
-                    clip_data.get("id").and_then(|v| v.as_str()),
-                    clip_data.get("name").and_then(|v| v.as_str()),
-                    clip_data.get("source_path").and_then(|v| v.as_str()),
-                    clip_data.get("start_time").and_then(|v| v.as_i64()),
-                    clip_data.get("duration").and_then(|v| v.as_i64())
-                ) {
-
-
-                    let _track_type = clip_data.get("track_type")
-                        .and_then(|v| v.as_str())
-                        .and_then(|s| match s {
-                            "Video" => Some(TrackType::Video),
-                            "Audio" => Some(TrackType::Audio),
-                            _ => None,
-                        })
-                        .unwrap_or(TrackType::Video);
-
-                    let _in_point = clip_data.get("in_point").and_then(|v| v.as_i64()).unwrap_or(0);
-
-
-                    debug!("Restoring clip {} from {}", name, source_path);
-                }
+                debug!("Restoring clip {} from {}", name, source_path);
             }
         }
     }
@@ -451,9 +404,6 @@ pub async fn media_import(
     }
 
 
-    let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
-
     let mut imported_media = Vec::new();
 
     for (index, file_path) in request.file_paths.iter().enumerate() {
@@ -462,57 +412,46 @@ pub async fn media_import(
             continue;
         }
 
+        let import_options = ImportOptions {
+            analyze: true,
+            extract_thumbnails: true,
+            create_proxy: false,
+            proxy_format: None,
+        };
 
-        if let Some(engine) = editing_engine.as_ref() {
-            let importer = engine.importer();
-            let mut importer_guard = importer.lock()
-                .map_err(|e| format!("Failed to lock importer: {}", e))?;
+        match state.editing_engine.import_media(file_path.clone(), import_options) {
+            Ok(core_media_info) => {
+                let media_id = format!("media_{}", uuid::Uuid::new_v4());
+                let file_name = std::path::Path::new(file_path)
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("unknown");
 
+                let video_info = core_media_info.video_streams.first();
+                let audio_info = core_media_info.audio_streams.first();
 
-            let import_options = ImportOptions {
-                analyze: true,
-                extract_thumbnails: true,
-                create_proxy: false,
-                proxy_format: None,
-            };
+                let media_info = MediaInfo {
+                    id: media_id.clone(),
+                    file_path: file_path.clone(),
+                    file_name: file_name.to_string(),
+                    file_size: core_media_info.file_size.unwrap_or(0),
+                    duration: core_media_info.duration as f64 / 1_000_000_000.0,
+                    format: core_media_info.container_format.unwrap_or_else(|| "unknown".to_string()),
+                    codec: video_info.map(|v| v.codec_name.clone()).unwrap_or_else(|| "unknown".to_string()),
+                    resolution: video_info.map(|v| (v.width as u32, v.height as u32)),
+                    fps: video_info.map(|v| v.frame_rate),
+                    audio_channels: audio_info.map(|a| a.channels as u8),
+                    audio_sample_rate: audio_info.map(|a| a.sample_rate as u32),
+                    bit_rate: video_info.and_then(|v| v.bitrate.map(|b| b as u32)),
+                    created_at: chrono::Utc::now().to_rfc3339(),
+                };
 
-            match importer_guard.import_media(file_path, Some(import_options)) {
-                Ok(core_media_info) => {
-                    let media_id = format!("media_{}", uuid::Uuid::new_v4());
-                    let file_name = std::path::Path::new(file_path)
-                        .file_name()
-                        .and_then(|name| name.to_str())
-                        .unwrap_or("unknown");
-
-
-                    let video_info = core_media_info.video_streams.first();
-                    let audio_info = core_media_info.audio_streams.first();
-
-                    let media_info = MediaInfo {
-                        id: media_id.clone(),
-                        file_path: file_path.clone(),
-                        file_name: file_name.to_string(),
-                        file_size: core_media_info.file_size.unwrap_or(0),
-                        duration: core_media_info.duration as f64 / 1_000_000_000.0,
-                        format: core_media_info.container_format.unwrap_or_else(|| "unknown".to_string()),
-                        codec: video_info.map(|v| v.codec_name.clone()).unwrap_or_else(|| "unknown".to_string()),
-                        resolution: video_info.map(|v| (v.width as u32, v.height as u32)),
-                        fps: video_info.map(|v| v.frame_rate),
-                        audio_channels: audio_info.map(|a| a.channels as u8),
-                        audio_sample_rate: audio_info.map(|a| a.sample_rate as u32),
-                        bit_rate: video_info.and_then(|v| v.bitrate.map(|b| b as u32)),
-                        created_at: chrono::Utc::now().to_rfc3339(),
-                    };
-
-                    imported_media.push(media_info);
-                    info!("Imported media: {} ({})", media_id, file_name);
-                },
-                Err(e) => {
-                    warn!("Failed to import media {}: {}", file_path, e);
-                }
+                imported_media.push(media_info);
+                info!("Imported media: {} ({})", media_id, file_name);
             }
-        } else {
-            return Err("Editing engine not initialized".to_string());
+            Err(e) => {
+                warn!("Failed to import media {}: {}", file_path, e);
+            }
         }
     }
 
