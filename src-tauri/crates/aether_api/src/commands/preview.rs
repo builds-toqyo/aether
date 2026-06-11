@@ -329,18 +329,8 @@ pub async fn preview_get_settings(
 ) -> Result<PreviewSettings, String> {
     debug!("Getting preview settings");
 
-    // Get preview settings from the real preview engine
-    let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("{}", e))?;
-
-    let (width, height) = if let Some(engine) = editing_engine.as_ref() {
-        let preview = engine.preview();
-        let preview_guard = preview.lock()
-            .map_err(|e| format!("{}", e))?;
-        preview_guard.get_video_dimensions().unwrap_or((1920, 1080))
-    } else {
-        (1920, 1080)
-    };
+    let (width, height) = state.editing_engine.get_preview_dimensions()
+        .unwrap_or((1920, 1080));
 
     let settings = PreviewSettings {
         quality: PreviewQuality::High,
@@ -380,23 +370,17 @@ pub async fn preview_get_performance_stats(
 ) -> Result<serde_json::Value, String> {
     debug!("Getting preview performance stats");
 
-    // Get real performance metrics from the preview engine
-    let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("{}", e))?;
-
-    let (is_playing, position, dimensions, duration) = if let Some(engine) = editing_engine.as_ref() {
-        let preview = engine.preview();
-        let preview_guard = preview.lock()
-            .map_err(|e| format!("{}", e))?;
-        (
-            preview_guard.is_playing(),
-            preview_guard.get_position().unwrap_or(0),
-            preview_guard.get_video_dimensions(),
-            preview_guard.get_duration()
-        )
-    } else {
-        (false, 0, None, None)
-    };
+    let preview_state = state.editing_engine.get_preview_state()
+        .unwrap_or(crate::engine_proxy::PreviewState {
+            is_playing: false,
+            position: 0,
+            dimensions: None,
+            duration: None,
+        });
+    let is_playing = preview_state.is_playing;
+    let position = preview_state.position;
+    let dimensions = preview_state.dimensions;
+    let duration = preview_state.duration;
 
     let fps = 30.0;
     let frame_time_ms = 1000.0 / fps;
