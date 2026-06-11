@@ -940,59 +940,58 @@ pub async fn rendering_get_formats(
 ) -> Result<Vec<RenderFormatInfo>, String> {
     debug!("Getting render formats");
 
-    let formats = vec![
+    let core_formats = aether_core::engine::rendering::get_available_formats();
+
+    let formats: Vec<RenderFormatInfo> = core_formats.into_iter().map(|fi| {
+        let (max_res, max_fps, max_bitrate) = match fi.container {
+            aether_core::engine::rendering::ContainerFormat::Mp4 => (Some((7680, 4320)), Some(120.0), Some(50000000)),
+            aether_core::engine::rendering::ContainerFormat::Mov => (Some((7680, 4320)), Some(120.0), Some(100000000)),
+            aether_core::engine::rendering::ContainerFormat::Webm => (Some((3840, 2160)), Some(60.0), Some(20000000)),
+            aether_core::engine::rendering::ContainerFormat::Gif => (Some((1280, 720)), Some(30.0), None),
+            _ => (Some((3840, 2160)), Some(60.0), Some(50000000)),
+        };
+
         RenderFormatInfo {
-            format: RenderFormat::Mp4,
-            name: "MP4 (H.264/AAC)".to_string(),
-            description: "MPEG-4 Part 14 with H.264 video and AAC audio".to_string(),
-            extensions: vec!["mp4".to_string()],
-            supports_video: true,
-            supports_audio: true,
-            recommended_for: vec!["web".to_string(), "mobile".to_string(), "general".to_string()],
-            max_resolution: Some((7680, 4320)), // 8K
-            max_fps: Some(120.0),
-            max_bitrate: Some(50000000), // 50Mbps
-        },
-        RenderFormatInfo {
-            format: RenderFormat::Mov,
-            name: "QuickTime (MOV)".to_string(),
-            description: "Apple QuickTime container with ProRes or H.264".to_string(),
-            extensions: vec!["mov".to_string()],
-            supports_video: true,
-            supports_audio: true,
-            recommended_for: vec!["editing".to_string(), "mastering".to_string()],
-            max_resolution: Some((7680, 4320)),
-            max_fps: Some(120.0),
-            max_bitrate: Some(100000000), // 100Mbps
-        },
-        RenderFormatInfo {
-            format: RenderFormat::Webm,
-            name: "WebM (VP9/Opus)".to_string(),
-            description: "WebM container with VP9 video and Opus audio".to_string(),
-            extensions: vec!["webm".to_string()],
-            supports_video: true,
-            supports_audio: true,
-            recommended_for: vec!["web".to_string(), "streaming".to_string()],
-            max_resolution: Some((3840, 2160)), // 4K
-            max_fps: Some(60.0),
-            max_bitrate: Some(20000000), // 20Mbps
-        },
-        RenderFormatInfo {
-            format: RenderFormat::Gif,
-            name: "GIF Animation".to_string(),
-            description: "Graphics Interchange Format for short animations".to_string(),
-            extensions: vec!["gif".to_string()],
-            supports_video: true,
-            supports_audio: false,
-            recommended_for: vec!["web".to_string(), "social".to_string(), "preview".to_string()],
-            max_resolution: Some((1280, 720)),
-            max_fps: Some(30.0),
-            max_bitrate: None,
-        },
-    ];
+            format: map_container_format(fi.container),
+            name: fi.container.display_name().to_string(),
+            description: fi.use_case.clone(),
+            extensions: vec![fi.container.extension().to_string()],
+            supports_video: !fi.video_formats.is_empty(),
+            supports_audio: !fi.audio_formats.is_empty() && fi.container != aether_core::engine::rendering::ContainerFormat::Gif,
+            recommended_for: if fi.web_friendly {
+                vec!["web".to_string(), "streaming".to_string()]
+            } else if fi.container == aether_core::engine::rendering::ContainerFormat::Mov {
+                vec!["editing".to_string(), "mastering".to_string()]
+            } else {
+                vec!["general".to_string()]
+            },
+            max_resolution: max_res,
+            max_fps,
+            max_bitrate,
+        }
+    }).collect();
 
     info!("{}", formats.len());
     Ok(formats)
+}
+
+fn map_container_format(core: aether_core::engine::rendering::ContainerFormat) -> RenderFormat {
+    use aether_core::engine::rendering::ContainerFormat as Core;
+    match core {
+        Core::Mp4 => RenderFormat::Mp4,
+        Core::Mov => RenderFormat::Mov,
+        Core::Webm => RenderFormat::Webm,
+        Core::Avi => RenderFormat::Avi,
+        Core::Mkv => RenderFormat::Mkv,
+        Core::Gif => RenderFormat::Gif,
+        Core::PngSequence => RenderFormat::PngSequence,
+        Core::JpegSequence => RenderFormat::JpegSequence,
+        Core::Flv => RenderFormat::Custom("flv".to_string()),
+        Core::Wmv => RenderFormat::Custom("wmv".to_string()),
+        Core::Mpg => RenderFormat::Custom("mpg".to_string()),
+        Core::Ts => RenderFormat::Custom("ts".to_string()),
+        Core::Mxf => RenderFormat::Custom("mxf".to_string()),
+    }
 }
 
 /// Get rendering presets
