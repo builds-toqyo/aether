@@ -11,7 +11,7 @@ pub struct AppState {
     pub execution_results: Mutex<HashMap<Uuid, ParameterValue>>,
     pub node_execution_order: Mutex<Vec<Uuid>>,
     pub rendering_state: Mutex<RenderingState>,
-    pub editing_engine: EditingEngineProxy,
+    pub editing_engine: Mutex<EditingEngineProxy>,
 }
 
 impl AppState {
@@ -24,7 +24,7 @@ impl AppState {
             execution_results: Mutex::new(HashMap::new()),
             node_execution_order: Mutex::new(Vec::new()),
             rendering_state: Mutex::new(RenderingState::default()),
-            editing_engine: EditingEngineProxy::new(),
+            editing_engine: Mutex::new(EditingEngineProxy::new()),
         }
     }
 

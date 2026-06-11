@@ -132,9 +132,11 @@ pub async fn get_timeline_info(
 ) -> Result<TimelineInfo, String> {
     debug!("Getting timeline info");
 
-    let proxy_timeline = state.editing_engine.get_timeline_info()
+    let proxy_timeline = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .get_timeline_info()
         .map_err(|e| format!("{}", e))?;
-    let preview_state = state.editing_engine.get_preview_state()
+    let preview_state = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .get_preview_state()
         .map_err(|e| format!("{}", e))?;
 
     let duration = proxy_timeline.duration as f64 / 1_000_000_000.0;
@@ -247,7 +249,8 @@ pub async fn timeline_seek(
         return Err("TODO".to_string());
     }
 
-    state.editing_engine.timeline_seek(request.time)
+    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .timeline_seek(request.time)
         .map_err(|e| format!("{}", e))?;
 
     info!("{}", request.time);
@@ -299,7 +302,8 @@ pub async fn timeline_trim_clip(
     }
 
     let new_duration_ns = (request.new_time * 1_000_000_000.0) as i64;
-    state.editing_engine.timeline_trim_clip(request.clip_id.clone(), new_duration_ns)
+    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .timeline_trim_clip(request.clip_id.clone(), new_duration_ns)
         .map_err(|e| format!("{}", e))?;
 
     info!("Trimmed clip: {}, Edge: {:?}, New time: {}", request.clip_id, request.edge, request.new_time);
@@ -361,7 +365,8 @@ pub async fn timeline_remove_clip(
         return Err("TODO".to_string());
     }
 
-    state.editing_engine.timeline_remove_clip(request.clip_id.clone())
+    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .timeline_remove_clip(request.clip_id.clone())
         .map_err(|e| format!("{}", e))?;
 
     info!("{}", request.clip_id);

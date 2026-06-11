@@ -329,7 +329,8 @@ pub async fn preview_get_settings(
 ) -> Result<PreviewSettings, String> {
     debug!("Getting preview settings");
 
-    let (width, height) = state.editing_engine.get_preview_dimensions()
+    let (width, height) = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .get_preview_dimensions()
         .unwrap_or((1920, 1080));
 
     let settings = PreviewSettings {
@@ -370,7 +371,8 @@ pub async fn preview_get_performance_stats(
 ) -> Result<serde_json::Value, String> {
     debug!("Getting preview performance stats");
 
-    let preview_state = state.editing_engine.get_preview_state()
+    let preview_state = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .get_preview_state()
         .unwrap_or(crate::engine_proxy::PreviewState {
             is_playing: false,
             position: 0,

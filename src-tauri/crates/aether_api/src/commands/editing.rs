@@ -172,7 +172,8 @@ pub async fn project_init(
     let project_path = format!("{}", project_id);
 
     // Initialize project in the editing engine
-    state.editing_engine.init_project(Some(project_path.clone()))
+    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .init_project(Some(project_path.clone()))
         .map_err(|e| format!("{}", e))?;
 
     let project_info = ProjectInfo {
@@ -207,7 +208,8 @@ pub async fn project_save(
     }
 
 
-    let timeline_info = state.editing_engine.get_timeline_info()
+    let timeline_info = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .get_timeline_info()
         .map_err(|e| format!("Failed to get timeline info: {}", e))?;
 
     let project_data = serde_json::json!({
@@ -271,7 +273,8 @@ pub async fn project_load(
     let project_json: serde_json::Value = serde_json::from_str(&project_data)
         .map_err(|e| format!("Failed to parse project file: {}", e))?;
 
-    state.editing_engine.init_project(Some(request.file_path.clone()))
+    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .init_project(Some(request.file_path.clone()))
         .map_err(|e| format!("Failed to initialize project: {}", e))?;
 
     if let Some(clips) = project_json.get("clips").and_then(|c| c.as_array()) {
@@ -420,7 +423,8 @@ pub async fn media_import(
             proxy_format: None,
         };
 
-        match state.editing_engine.import_media(file_path.clone(), import_options) {
+        match state.editing_engine.lock().map_err(|e| format!("{}", e))?
+            .import_media(file_path.clone(), import_options) {
             Ok(core_media_info) => {
                 let media_id = format!("media_{}", uuid::Uuid::new_v4());
                 let file_name = std::path::Path::new(file_path)
