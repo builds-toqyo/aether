@@ -195,27 +195,27 @@ fn run_engine_thread(receiver: std::sync::mpsc::Receiver<EngineCommand>) {
         }
         Err(err) => {
             error!("Failed to initialize EditingEngine: {}. Engine thread exiting.", err);
+            let err_str = err.to_string();
             for cmd in receiver {
-                let resp = match cmd {
-                    EngineCommand::InitProject { resp, .. } => resp,
-                    EngineCommand::Shutdown { resp } => resp,
-                    EngineCommand::GetTimelineInfo { resp } => resp,
-                    EngineCommand::TimelineSeek { resp, .. } => resp,
-                    EngineCommand::TimelineTrimClip { resp, .. } => resp,
-                    EngineCommand::TimelineRemoveClip { resp, .. } => resp,
-                    EngineCommand::TimelineAddClip { resp, .. } => resp,
-                    EngineCommand::TimelineMoveClip { resp, .. } => resp,
-                    EngineCommand::TimelineCreateTrack { resp, .. } => resp,
-                    EngineCommand::TimelineDeleteTrack { resp, .. } => resp,
-                    EngineCommand::ImportMedia { resp, .. } => resp,
-                    EngineCommand::GetPreviewDimensions { resp } => resp,
-                    EngineCommand::GetPreviewState { resp } => resp,
-                    EngineCommand::PreviewPlay { resp } => resp,
-                    EngineCommand::PreviewPause { resp } => resp,
-                    EngineCommand::PreviewStop { resp } => resp,
-                    EngineCommand::PreviewSeek { resp, .. } => resp,
+                match cmd {
+                    EngineCommand::InitProject { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::Shutdown { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::GetTimelineInfo { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::TimelineSeek { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::TimelineTrimClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::TimelineRemoveClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::TimelineAddClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::TimelineMoveClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::TimelineCreateTrack { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::TimelineDeleteTrack { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::ImportMedia { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::GetPreviewDimensions { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::GetPreviewState { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::PreviewPlay { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::PreviewPause { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::PreviewStop { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                    EngineCommand::PreviewSeek { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
                 };
-                let _ = resp.send(Err(EditingError::GstreamerInitError(err.to_string())));
             }
         }
     }
