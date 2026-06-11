@@ -150,7 +150,7 @@ pub async fn get_timeline_info(
                 CoreTrackType::Video => ClipType::Video,
                 CoreTrackType::Audio => ClipType::Audio,
             },
-            track_id: "TODO".to_string(),
+            track_id: format!("track_{}", c.track_type as u8),
             start_time: c.start_time as f64 / 1_000_000_000.0,
             end_time: (c.start_time + c.duration) as f64 / 1_000_000_000.0,
             duration: c.duration as f64 / 1_000_000_000.0,
@@ -246,7 +246,7 @@ pub async fn timeline_seek(
 
     // Validate time
     if request.time < 0.0 {
-        return Err("TODO".to_string());
+        return Err("Seek time cannot be negative".to_string());
     }
 
     state.editing_engine.lock().map_err(|e| format!("{}", e))?
@@ -258,7 +258,7 @@ pub async fn timeline_seek(
     Ok(TimelineResponse {
         success: true,
         message: format!("{}", request.time),
-        data: Some(serde_json::json!({ "TODO": request.time })),
+        data: Some(serde_json::json!({ "time": request.time })),
     })
 }
 
@@ -298,7 +298,7 @@ pub async fn timeline_trim_clip(
 
     // Validate inputs
     if request.new_time < 0.0 {
-        return Err("TODO".to_string());
+        return Err("Trim time cannot be negative".to_string());
     }
 
     let new_duration_ns = (request.new_time * 1_000_000_000.0) as i64;
@@ -362,7 +362,7 @@ pub async fn timeline_remove_clip(
     debug!("{}", request.clip_id);
 
     if request.clip_id.is_empty() {
-        return Err("TODO".to_string());
+        return Err("Clip ID cannot be empty".to_string());
     }
 
     state.editing_engine.lock().map_err(|e| format!("{}", e))?
@@ -375,7 +375,7 @@ pub async fn timeline_remove_clip(
         success: true,
         message: format!("{}", request.clip_id),
         data: Some(serde_json::json!({
-            "TODO": request.clip_id
+            "clip_id": request.clip_id
         })),
     })
 }

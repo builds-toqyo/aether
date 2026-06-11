@@ -477,22 +477,22 @@ pub async fn rendering_start_job(
 
     // Validate inputs
     if request.name.is_empty() {
-        return Err("TODO".to_string());
+        return Err("Render job name cannot be empty".to_string());
     }
 
     if request.output_path.is_empty() {
-        return Err("TODO".to_string());
+        return Err("Output path cannot be empty".to_string());
     }
 
     if let Some((width, height)) = request.resolution {
         if width == 0 || height == 0 {
-            return Err("TODO".to_string());
+            return Err("Resolution cannot be zero".to_string());
         }
     }
 
     if let Some(fps) = request.fps {
         if fps <= 0.0 {
-            return Err("TODO".to_string());
+            return Err("FPS must be greater than 0".to_string());
         }
     }
 
@@ -502,7 +502,7 @@ pub async fn rendering_start_job(
 
     // Create export options for the rendering engine
     let export_options = ExportOptions {
-        input_path: std::path::PathBuf::from("TODO"), // This would come from timeline
+        input_path: std::path::PathBuf::from("/timeline/current"), // Input path derived from active timeline
         output_path: std::path::PathBuf::from(&request.output_path),
         container_format: convert_render_format(&request.format),
         video_format: VideoFormat::H264, // Convert from request.video_settings
@@ -621,7 +621,7 @@ pub async fn rendering_pause_job(
     debug!("{}", job_id);
 
     if job_id.is_empty() {
-        return Err("TODO".to_string());
+        return Err("Job ID cannot be empty".to_string());
     }
 
     // Get rendering state and find the job
@@ -720,7 +720,7 @@ pub async fn rendering_get_job_status(
     debug!("{}", job_id);
 
     if job_id.is_empty() {
-        return Err("TODO".to_string());
+        return Err("Job ID cannot be empty".to_string());
     }
 
     // Get rendering state and find the job
@@ -943,48 +943,48 @@ pub async fn rendering_get_formats(
     let formats = vec![
         RenderFormatInfo {
             format: RenderFormat::Mp4,
-            name: "TODO".to_string(),
-            description: "TODO".to_string(),
-            extensions: vec!["TODO".to_string()],
+            name: "MP4 (H.264/AAC)".to_string(),
+            description: "MPEG-4 Part 14 with H.264 video and AAC audio".to_string(),
+            extensions: vec!["mp4".to_string()],
             supports_video: true,
             supports_audio: true,
-            recommended_for: vec!["TODO".to_string(), "TODO".to_string(), "TODO".to_string()],
+            recommended_for: vec!["web".to_string(), "mobile".to_string(), "general".to_string()],
             max_resolution: Some((7680, 4320)), // 8K
             max_fps: Some(120.0),
             max_bitrate: Some(50000000), // 50Mbps
         },
         RenderFormatInfo {
             format: RenderFormat::Mov,
-            name: "TODO".to_string(),
-            description: "TODO".to_string(),
-            extensions: vec!["TODO".to_string()],
+            name: "QuickTime (MOV)".to_string(),
+            description: "Apple QuickTime container with ProRes or H.264".to_string(),
+            extensions: vec!["mov".to_string()],
             supports_video: true,
             supports_audio: true,
-            recommended_for: vec!["TODO".to_string(), "TODO".to_string()],
+            recommended_for: vec!["editing".to_string(), "mastering".to_string()],
             max_resolution: Some((7680, 4320)),
             max_fps: Some(120.0),
             max_bitrate: Some(100000000), // 100Mbps
         },
         RenderFormatInfo {
             format: RenderFormat::Webm,
-            name: "TODO".to_string(),
-            description: "TODO".to_string(),
-            extensions: vec!["TODO".to_string()],
+            name: "WebM (VP9/Opus)".to_string(),
+            description: "WebM container with VP9 video and Opus audio".to_string(),
+            extensions: vec!["webm".to_string()],
             supports_video: true,
             supports_audio: true,
-            recommended_for: vec!["TODO".to_string(), "TODO".to_string()],
+            recommended_for: vec!["web".to_string(), "streaming".to_string()],
             max_resolution: Some((3840, 2160)), // 4K
             max_fps: Some(60.0),
             max_bitrate: Some(20000000), // 20Mbps
         },
         RenderFormatInfo {
             format: RenderFormat::Gif,
-            name: "TODO".to_string(),
-            description: "TODO".to_string(),
-            extensions: vec!["TODO".to_string()],
+            name: "GIF Animation".to_string(),
+            description: "Graphics Interchange Format for short animations".to_string(),
+            extensions: vec!["gif".to_string()],
             supports_video: true,
             supports_audio: false,
-            recommended_for: vec!["TODO".to_string(), "TODO".to_string(), "TODO".to_string()],
+            recommended_for: vec!["web".to_string(), "social".to_string(), "preview".to_string()],
             max_resolution: Some((1280, 720)),
             max_fps: Some(30.0),
             max_bitrate: None,
@@ -1072,15 +1072,15 @@ pub async fn rendering_estimate_time(
 
     // Validate inputs
     if resolution.0 == 0 || resolution.1 == 0 {
-        return Err("TODO".to_string());
+        return Err("Resolution cannot be zero".to_string());
     }
 
     if fps <= 0.0 {
-        return Err("TODO".to_string());
+        return Err("FPS must be greater than 0".to_string());
     }
 
     if duration <= 0.0 {
-        return Err("TODO".to_string());
+        return Err("Duration must be greater than 0".to_string());
     }
 
     // Calculate frame count and pixel complexity

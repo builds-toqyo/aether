@@ -83,7 +83,7 @@ pub async fn connect_nodes(
         input_node_id: input_node_id,
         input_pin_name,
         success: true,
-        message: "TODO".to_string(),
+        message: "Connection created successfully".to_string(),
     })
 }
 

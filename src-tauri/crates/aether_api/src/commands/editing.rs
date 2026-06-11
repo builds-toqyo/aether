@@ -152,18 +152,18 @@ pub async fn project_init(
 
     // Validate inputs
     if request.name.is_empty() {
-        return Err("TODO".to_string());
+        return Err("Project name cannot be empty".to_string());
     }
 
     let fps = request.fps.unwrap_or(30.0);
     let resolution = request.resolution.unwrap_or((1920, 1080));
 
     if fps <= 0.0 {
-        return Err("TODO".to_string());
+        return Err("FPS must be greater than 0".to_string());
     }
 
     if resolution.0 == 0 || resolution.1 == 0 {
-        return Err("TODO".to_string());
+        return Err("Resolution cannot be zero".to_string());
     }
 
     // Generate project ID
@@ -356,36 +356,36 @@ pub async fn project_get_recent(
     debug!("{:?}", limit);
 
     let limit = limit.unwrap_or(10);
-
+    let now = chrono::Utc::now().to_rfc3339();
 
     let recent_projects = vec![
         ProjectInfo {
-            id: "TODO".to_string(),
-            name: "TODO".to_string(),
-            description: Some("TODO".to_string()),
-            created_at: "TODO".to_string(),
-            modified_at: "TODO".to_string(),
+            id: "demo-1".to_string(),
+            name: "Demo Project".to_string(),
+            description: Some("A sample demo project".to_string()),
+            created_at: now.clone(),
+            modified_at: now.clone(),
             duration: 180.0,
             fps: 30.0,
             resolution: (1920, 1080),
             timeline_count: 2,
             media_count: 8,
             file_size: 1024 * 1024 * 25,
-            file_path: "TODO".to_string(),
+            file_path: "/projects/demo-1.aether".to_string(),
         },
         ProjectInfo {
-            id: "TODO".to_string(),
-            name: "TODO".to_string(),
-            description: Some("TODO".to_string()),
-            created_at: "TODO".to_string(),
-            modified_at: "TODO".to_string(),
+            id: "demo-2".to_string(),
+            name: "Tutorial".to_string(),
+            description: Some("Tutorial project".to_string()),
+            created_at: now.clone(),
+            modified_at: now,
             duration: 600.0,
             fps: 25.0,
             resolution: (1280, 720),
             timeline_count: 5,
             media_count: 23,
             file_size: 1024 * 1024 * 100,
-            file_path: "TODO".to_string(),
+            file_path: "/projects/demo-2.aether".to_string(),
         },
     ];
 
@@ -472,18 +472,18 @@ pub async fn media_get_info(
     debug!("{}", media_id);
 
     if media_id.is_empty() {
-        return Err("TODO".to_string());
+        return Err("Media ID cannot be empty".to_string());
     }
 
 
     let media_info = MediaInfo {
         id: media_id.clone(),
-        file_path: "TODO".to_string(),
-        file_name: "TODO".to_string(),
+        file_path: format!("/media/{}.mp4", media_id),
+        file_name: format!("media_{}.mp4", media_id),
         file_size: 1024 * 1024 * 50,
         duration: 30.0,
-        format: "TODO".to_string(),
-        codec: "TODO".to_string(),
+        format: "MP4".to_string(),
+        codec: "H.264".to_string(),
         resolution: Some((1920, 1080)),
         fps: Some(30.0),
         audio_channels: Some(2),
@@ -550,7 +550,7 @@ pub async fn media_remove(
     debug!("{}", media_id);
 
     if media_id.is_empty() {
-        return Err("TODO".to_string());
+        return Err("Media ID cannot be empty".to_string());
     }
 
     info!("{}", media_id);
@@ -618,9 +618,9 @@ pub async fn export_get_status(
         "elapsed_time": 120.5,
         "remaining_time": 0.0,
         "estimated_size": 1024 * 1024 * 250,
-        "output_path": "TODO",
-        "format": "TODO",
-        "codec": "TODO"
+        "output_path": export_id,
+        "format": "mp4",
+        "codec": "h264"
     });
 
     info!("Export status for {}: {:?}", export_id, status);

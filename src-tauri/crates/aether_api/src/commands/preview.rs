@@ -194,7 +194,7 @@ pub async fn preview_seek(
 
     // Validate time
     if request.time < 0.0 {
-        return Err("TODO".to_string());
+        return Err("Preview seek time cannot be negative".to_string());
     }
 
     // In a real implementation, this would seek the preview engine
@@ -260,11 +260,11 @@ pub async fn preview_get_frame_range(
 
     // Validate inputs
     if start_time < 0.0 || end_time < 0.0 {
-        return Err("TODO".to_string());
+        return Err("Frame range times cannot be negative".to_string());
     }
 
     if start_time >= end_time {
-        return Err("TODO".to_string());
+        return Err("Start time must be less than end time".to_string());
     }
 
     let quality = quality.unwrap_or(PreviewQuality::Medium);
@@ -340,7 +340,7 @@ pub async fn preview_get_settings(
         show_safe_areas: false,
         show_grid: false,
         show_overlays: true,
-        background_color: "TODO".to_string(),
+        background_color: "#000000".to_string(),
     };
 
     info!("Quality: {:?}, Scale: {}, Size: {}x{}", settings.quality, settings.scale, width, height);
@@ -390,23 +390,23 @@ pub async fn preview_get_performance_stats(
     let total_duration = duration.map(|d| d as f64 / 1_000_000_000.0).unwrap_or(0.0);
 
     let stats = serde_json::json!({
-        "TODO": if is_playing { fps } else { 0.0 },
-        "TODO": fps,
-        "TODO": frame_time_ms,
-        "TODO": is_playing,
-        "TODO": current_time,
-        "TODO": total_duration,
-        "TODO": dimensions,
-        "TODO": 0.85,
-        "TODO": 256,
-        "TODO": 1250,
-        "TODO": 0,
-        "TODO": 512,
-        "TODO": if is_playing { 45.2 } else { 5.0 },
-        "TODO": if is_playing { 23.8 } else { 2.0 }
+        "current_fps": if is_playing { fps } else { 0.0 },
+        "target_fps": fps,
+        "frame_time_ms": frame_time_ms,
+        "is_playing": is_playing,
+        "current_time": current_time,
+        "total_duration": total_duration,
+        "dimensions": dimensions,
+        "gpu_utilization": 0.85,
+        "gpu_memory_mb": 256,
+        "decode_time_ms": 12.5,
+        "dropped_frames": 0,
+        "frame_buffer_size": 512,
+        "cpu_usage": if is_playing { 45.2 } else { 5.0 },
+        "memory_usage_mb": if is_playing { 23.8 } else { 2.0 }
     });
 
-    info!("Stats: {:?}, Playing: {}", stats["TODO"], is_playing);
+    info!("Stats: {:?}, Playing: {}", stats, is_playing);
 
     Ok(stats)
 }
