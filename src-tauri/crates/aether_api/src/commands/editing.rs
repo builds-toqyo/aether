@@ -263,7 +263,7 @@ pub async fn project_save(
         file_path: file_path.clone(),
     };
 
-    if let Ok(mut registry) = state.project_registry.lock() {
+    if let Ok(registry) = state.project_registry.lock() {
         let _ = registry.add(&project_info);
     }
 
@@ -365,7 +365,7 @@ pub async fn project_load(
     };
 
     // Register in project_registry
-    if let Ok(mut registry) = state.project_registry.lock() {
+    if let Ok(registry) = state.project_registry.lock() {
         let _ = registry.add(&project_info);
     }
 

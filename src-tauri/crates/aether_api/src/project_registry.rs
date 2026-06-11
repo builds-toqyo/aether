@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use log::{info, warn, error};
+use log::{info, warn};
 use rusqlite::{Connection, params};
 use crate::commands::editing::ProjectInfo;
 
@@ -66,8 +66,8 @@ impl ProjectRegistry {
                 project.modified_at,
                 project.duration,
                 project.fps,
-                project.resolution.0,
-                project.resolution.1,
+                project.resolution.0 as i64,
+                project.resolution.1 as i64,
                 project.timeline_count as i64,
                 project.media_count as i64,
                 project.file_size as i64,
@@ -97,7 +97,7 @@ impl ProjectRegistry {
 
         if let Some(row) = rows.next()
             .map_err(|e| format!("Failed to read row: {}", e))? {
-            Ok(Some(Self::row_to_project(row)?))
+            Ok(Some(Self::row_to_project(row).map_err(|e| format!("Row parse error: {}", e))?))
         } else {
             Ok(None)
         }

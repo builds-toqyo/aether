@@ -30,7 +30,7 @@ impl AppState {
             rendering_state: Mutex::new(RenderingState::default()),
             editing_engine: Mutex::new(EditingEngineProxy::new()),
             media_registry: Mutex::new(HashMap::new()),
-            project_registry: Mutex::new(ProjectRegistry::new()),
+            project_registry: Mutex::new(ProjectRegistry::new().expect("Failed to initialize project registry")),
         }
     }
 
