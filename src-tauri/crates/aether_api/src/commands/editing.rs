@@ -9,8 +9,7 @@ use aether_core::engine::editing::{
     types::TrackType
 };
 
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ProjectInfo {
     pub id: String,
     pub name: String,
@@ -26,7 +25,6 @@ pub struct ProjectInfo {
     pub file_path: String,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct ProjectCreateRequest {
     pub name: String,
@@ -36,7 +34,6 @@ pub struct ProjectCreateRequest {
     pub template: Option<String>,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct ProjectSaveRequest {
     pub project_id: String,
@@ -44,12 +41,10 @@ pub struct ProjectSaveRequest {
     pub auto_save: Option<bool>,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct ProjectLoadRequest {
     pub file_path: String,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct MediaImportRequest {
@@ -118,7 +113,7 @@ pub enum AudioCodec {
     Wav,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MediaInfo {
     pub id: String,
     pub file_path: String,
@@ -179,7 +174,7 @@ pub async fn project_init(
     let project_info = ProjectInfo {
         id: project_id.clone(),
         name: request.name.clone(),
-        description: request.description,
+        description: request.description.clone(),
         created_at: now.clone(),
         modified_at: now,
         duration: 0.0,
@@ -188,8 +183,13 @@ pub async fn project_init(
         timeline_count: 1,
         media_count: 0,
         file_size: 0,
-        file_path: project_path,
+        file_path: project_path.clone(),
     };
+
+    // Register in project_registry
+    if let Ok(mut registry) = state.project_registry.lock() {
+        registry.insert(project_id.clone(), project_info.clone());
+    }
 
     info!("Project {} loaded from {}", request.name, project_id);
     Ok(project_info)
@@ -246,6 +246,26 @@ pub async fn project_save(
 
     std::fs::write(&file_path, project_data.to_string())
         .map_err(|e| format!("Failed to write project file: {}", e))?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let project_info = ProjectInfo {
+        id: request.project_id.clone(),
+        name: request.project_id.clone(),
+        description: Some("Saved project".to_string()),
+        created_at: now.clone(),
+        modified_at: now,
+        duration: timeline_info.duration as f64 / 1_000_000_000.0,
+        fps: 30.0,
+        resolution: (1920, 1080),
+        timeline_count: 1,
+        media_count: timeline_info.clips.len(),
+        file_size: std::fs::metadata(&file_path).map(|m| m.len()).unwrap_or(0),
+        file_path: file_path.clone(),
+    };
+
+    if let Ok(mut registry) = state.project_registry.lock() {
+        registry.insert(request.project_id.clone(), project_info);
+    }
 
     Ok(EditingResponse {
         success: true,
@@ -334,7 +354,7 @@ pub async fn project_load(
             .and_then(|v| v.as_str())
             .unwrap_or(&now)
             .to_string(),
-        modified_at: now,
+        modified_at: now.clone(),
         duration,
         fps: 30.0,
         resolution: (1920, 1080),
@@ -344,6 +364,11 @@ pub async fn project_load(
         file_path: request.file_path.clone(),
     };
 
+    // Register in project_registry
+    if let Ok(mut registry) = state.project_registry.lock() {
+        registry.insert(project_id.clone(), project_info.clone());
+    }
+
     Ok(project_info)
 }
 
@@ -351,45 +376,60 @@ pub async fn project_load(
 #[tauri::command]
 pub async fn project_get_recent(
     limit: Option<usize>,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<Vec<ProjectInfo>, String> {
     debug!("{:?}", limit);
 
     let limit = limit.unwrap_or(10);
-    let now = chrono::Utc::now().to_rfc3339();
 
-    let recent_projects = vec![
-        ProjectInfo {
-            id: "demo-1".to_string(),
-            name: "Demo Project".to_string(),
-            description: Some("A sample demo project".to_string()),
-            created_at: now.clone(),
-            modified_at: now.clone(),
-            duration: 180.0,
-            fps: 30.0,
-            resolution: (1920, 1080),
-            timeline_count: 2,
-            media_count: 8,
-            file_size: 1024 * 1024 * 25,
-            file_path: "/projects/demo-1.aether".to_string(),
-        },
-        ProjectInfo {
-            id: "demo-2".to_string(),
-            name: "Tutorial".to_string(),
-            description: Some("Tutorial project".to_string()),
-            created_at: now.clone(),
-            modified_at: now,
-            duration: 600.0,
-            fps: 25.0,
-            resolution: (1280, 720),
-            timeline_count: 5,
-            media_count: 23,
-            file_size: 1024 * 1024 * 100,
-            file_path: "/projects/demo-2.aether".to_string(),
-        },
-    ];
+    // Scan projects directory for .aether files
+    let projects_dir = std::path::PathBuf::from("/projects");
+    let mut discovered_projects = Vec::new();
 
-    let limited_projects: Vec<ProjectInfo> = recent_projects.into_iter().take(limit).collect();
+    if projects_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&projects_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) == Some("aether") {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Ok(project_data) = serde_json::from_str::<serde_json::Value>(&content) {
+                            let file_size = std::fs::metadata(&path)
+                                .map(|m| m.len())
+                                .unwrap_or(0);
+
+                            let project_info = ProjectInfo {
+                                id: project_data.get("project_id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+                                name: project_data.get("name").and_then(|v| v.as_str()).unwrap_or("Unnamed Project").to_string(),
+                                description: project_data.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                created_at: project_data.get("created_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                                modified_at: project_data.get("modified_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                                duration: project_data.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                                fps: 30.0,
+                                resolution: (1920, 1080),
+                                timeline_count: 1,
+                                media_count: project_data.get("clips").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0),
+                                file_size,
+                                file_path: path.to_string_lossy().to_string(),
+                            };
+                            discovered_projects.push(project_info);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Merge with in-memory registry
+    let registry = state.project_registry.lock()
+        .map_err(|e| format!("Failed to lock project registry: {}", e))?;
+    let mut all_projects: Vec<ProjectInfo> = registry.values().cloned().collect();
+    all_projects.extend(discovered_projects);
+
+    // Sort by modified_at descending (newest first)
+    all_projects.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+    all_projects.dedup_by(|a, b| a.id == b.id);
+
+    let limited_projects: Vec<ProjectInfo> = all_projects.into_iter().take(limit).collect();
     info!("Returning {} recent projects", limited_projects.len());
 
     Ok(limited_projects)
@@ -451,7 +491,13 @@ pub async fn media_import(
                     created_at: chrono::Utc::now().to_rfc3339(),
                 };
 
-                imported_media.push(media_info);
+                imported_media.push(media_info.clone());
+
+                // Register in media_registry for later lookup
+                if let Ok(mut registry) = state.media_registry.lock() {
+                    registry.insert(media_id.clone(), media_info);
+                }
+
                 info!("Imported media: {} ({})", media_id, file_name);
             }
             Err(e) => {
@@ -467,7 +513,7 @@ pub async fn media_import(
 #[tauri::command]
 pub async fn media_get_info(
     media_id: String,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<MediaInfo, String> {
     debug!("{}", media_id);
 
@@ -475,77 +521,36 @@ pub async fn media_get_info(
         return Err("Media ID cannot be empty".to_string());
     }
 
+    let registry = state.media_registry.lock()
+        .map_err(|e| format!("Failed to lock media registry: {}", e))?;
 
-    let media_info = MediaInfo {
-        id: media_id.clone(),
-        file_path: format!("/media/{}.mp4", media_id),
-        file_name: format!("media_{}.mp4", media_id),
-        file_size: 1024 * 1024 * 50,
-        duration: 30.0,
-        format: "MP4".to_string(),
-        codec: "H.264".to_string(),
-        resolution: Some((1920, 1080)),
-        fps: Some(30.0),
-        audio_channels: Some(2),
-        audio_sample_rate: Some(48000),
-        bit_rate: Some(5000000),
-        created_at: chrono::Utc::now().to_rfc3339(),
-    };
+    let media_info = registry.get(&media_id)
+        .cloned()
+        .ok_or_else(|| format!("Media not found: {}", media_id))?;
 
-    info!("{}", media_id);
+    info!("Retrieved media info for {}", media_id);
     Ok(media_info)
 }
 
-
 #[tauri::command]
 pub async fn media_get_all(
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<Vec<MediaInfo>, String> {
     debug!("Getting all media");
 
+    let registry = state.media_registry.lock()
+        .map_err(|e| format!("Failed to lock media registry: {}", e))?;
 
-    let all_media = vec![
-        MediaInfo {
-            id: "clips".to_string(),
-            file_path: "id".to_string(),
-            file_name: "name".to_string(),
-            file_size: 1024 * 1024 * 100,
-            duration: 120.0,
-            format: "source_path".to_string(),
-            codec: "start_time".to_string(),
-            resolution: Some((1920, 1080)),
-            fps: Some(30.0),
-            audio_channels: Some(2),
-            audio_sample_rate: Some(48000),
-            bit_rate: Some(8000000),
-            created_at: "duration".to_string(),
-        },
-        MediaInfo {
-            id: "track_type".to_string(),
-            file_path: "Video".to_string(),
-            file_name: "Audio".to_string(),
-            file_size: 1024 * 1024 * 5,
-            duration: 180.0,
-            format: "in_point".to_string(),
-            codec: "Restoring clip {} from {}".to_string(),
-            resolution: None,
-            fps: None,
-            audio_channels: Some(2),
-            audio_sample_rate: Some(44100),
-            bit_rate: Some(320000),
-            created_at: "project_id".to_string(),
-        },
-    ];
+    let all_media: Vec<MediaInfo> = registry.values().cloned().collect();
 
     info!("project_{}", all_media.len());
     Ok(all_media)
 }
 
-
 #[tauri::command]
 pub async fn media_remove(
     media_id: String,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
     debug!("{}", media_id);
 
@@ -553,7 +558,14 @@ pub async fn media_remove(
         return Err("Media ID cannot be empty".to_string());
     }
 
-    info!("{}", media_id);
+    let mut registry = state.media_registry.lock()
+        .map_err(|e| format!("Failed to lock media registry: {}", e))?;
+
+    if registry.remove(&media_id).is_none() {
+        return Err(format!("Media not found: {}", media_id));
+    }
+
+    info!("Removed media {}", media_id);
 
     Ok(EditingResponse {
         success: true,
