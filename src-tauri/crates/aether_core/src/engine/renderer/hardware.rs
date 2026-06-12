@@ -1,0 +1,354 @@
+use super::types::*;
+use super::gpu::{has_nvidia_gpu, has_amd_gpu, has_vaapi_support, WgpuComputeState};
+use super::cuda;
+
+pub(super) fn initialize_hardware_acceleration(
+    config: &mut RendererConfig,
+    hw_context: &mut Option<HardwareContext>,
+) -> Result<(), RendererError> {
+    let device = config.hw_device.as_deref().unwrap_or("auto");
+    log::info!("Initializing hardware acceleration with device: {}", device);
+
+    match device {
+        "cuda" => {
+            log::debug!("Initializing CUDA acceleration");
+            initialize_cuda_acceleration(hw_context)
+        },
+        "vaapi" => {
+            log::debug!("Initializing VAAPI acceleration");
+            initialize_vaapi_acceleration()
+        },
+        "videotoolbox" => {
+            log::debug!("Initializing VideoToolbox acceleration");
+            initialize_videotoolbox_acceleration()
+        },
+        "amf" => {
+            log::debug!("Initializing AMF acceleration");
+            initialize_amf_acceleration()
+        },
+        _ => {
+            log::debug!("Auto-detecting hardware acceleration");
+            auto_detect_acceleration(config, hw_context)
+        }
+    }
+}
+
+/// Initialize CUDA acceleration for NVIDIA GPUs
+fn initialize_cuda_acceleration(hw_context: &mut Option<HardwareContext>) -> Result<(), RendererError> {
+    #[cfg(feature = "cuda")]
+    {
+        if !has_nvidia_gpu() {
+            return Err(RendererError::HardwareAccelerationError(
+                "No NVIDIA GPU found".to_string()
+            ));
+        }
+        cuda::initialize_cuda()?;
+        *hw_context = Some(HardwareContext::Cuda);
+        log::info!("CUDA acceleration initialized");
+        Ok(())
+    }
+    #[cfg(not(feature = "cuda"))]
+    {
+        Err(RendererError::HardwareAccelerationError(
+            "CUDA feature not enabled".to_string()
+        ))
+    }
+}
+
+/// Initialize VAAPI acceleration for Intel GPUs on Linux
+fn initialize_vaapi_acceleration() -> Result<(), RendererError> {
+    #[cfg(all(feature = "vaapi", target_os = "linux"))]
+    {
+        if !has_vaapi_support() {
+            return Err(RendererError::HardwareAccelerationError(
+                "No VAAPI support found".to_string()
+            ));
+        }
+        Err(RendererError::HardwareAccelerationError(
+            "VAAPI acceleration not yet implemented — use wgpu compute instead".to_string()
+        ))
+    }
+    #[cfg(not(all(feature = "vaapi", target_os = "linux")))]
+    {
+        Err(RendererError::HardwareAccelerationError(
+            "VAAPI feature not enabled or not on Linux".to_string()
+        ))
+    }
+}
+
+/// Initialize VideoToolbox acceleration for macOS
+fn initialize_videotoolbox_acceleration() -> Result<(), RendererError> {
+    #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+    {
+        Err(RendererError::HardwareAccelerationError(
+            "VideoToolbox acceleration not yet implemented — use wgpu compute instead".to_string()
+        ))
+    }
+    #[cfg(not(all(feature = "videotoolbox", target_os = "macos")))]
+    {
+        Err(RendererError::HardwareAccelerationError(
+            "VideoToolbox feature not enabled or not on macOS".to_string()
+        ))
+    }
+}
+
+/// Initialize AMD AMF acceleration
+fn initialize_amf_acceleration() -> Result<(), RendererError> {
+    #[cfg(feature = "amf")]
+    {
+        if !has_amd_gpu() {
+            return Err(RendererError::HardwareAccelerationError(
+                "No AMD GPU found".to_string()
+            ));
+        }
+        Err(RendererError::HardwareAccelerationError(
+            "AMF acceleration not yet implemented — use wgpu compute instead".to_string()
+        ))
+    }
+    #[cfg(not(feature = "amf"))]
+    {
+        Err(RendererError::HardwareAccelerationError(
+            "AMF feature not enabled".to_string()
+        ))
+    }
+}
+
+/// Auto-detect the best hardware acceleration method
+fn auto_detect_acceleration(
+    config: &mut RendererConfig,
+    hw_context: &mut Option<HardwareContext>,
+) -> Result<(), RendererError> {
+    // Try CUDA first if feature is enabled and NVIDIA GPU present
+    #[cfg(feature = "cuda")]
+    {
+        if has_nvidia_gpu() {
+            log::debug!("NVIDIA GPU detected, trying CUDA acceleration");
+            match initialize_cuda_acceleration(hw_context) {
+                Ok(_) => return Ok(()),
+                Err(e) => log::warn!("CUDA initialization failed: {}", e),
+            }
+        }
+    }
+
+    // Fallback to software rendering (wgpu compute will be initialized separately)
+    log::info!("Falling back to software rendering");
+    config.use_hardware_acceleration = false;
+    Ok(())
+}
+
+pub(super) fn allocate_frame_buffers(_width: usize, _height: usize) -> Result<(), RendererError> {
+    // Frame buffer allocation is handled by the Renderer struct
+    Ok(())
+}
+
+pub(super) fn initialize_resources(
+    config: &RendererConfig,
+    hw_context: &Option<HardwareContext>,
+    shaders: &mut Option<Shaders>,
+    lookup_tables: &mut Option<LookupTables>,
+    post_process_pipeline: &mut Option<PostProcessPipeline>,
+    cpu_buffers: &mut Option<CpuBuffers>,
+) -> Result<(), RendererError> {
+    log::debug!("Initializing rendering resources");
+
+    if config.use_hardware_acceleration {
+        initialize_shader_programs(hw_context, shaders)?;
+    }
+
+    initialize_lookup_tables(config, lookup_tables)?;
+    allocate_gpu_resources(config, hw_context, cpu_buffers)?;
+    initialize_post_processing(config, post_process_pipeline)?;
+
+    log::info!("Rendering resources initialized successfully");
+    Ok(())
+}
+
+fn initialize_shader_programs(
+    hw_context: &Option<HardwareContext>,
+    shaders: &mut Option<Shaders>,
+) -> Result<(), RendererError> {
+    log::debug!("Initializing shader programs");
+
+    if let Some(hw_context) = hw_context {
+        match hw_context {
+            #[cfg(feature = "cuda")]
+            HardwareContext::Cuda { .. } => {
+                // CUDA kernels will be loaded here when implemented
+            },
+
+            #[cfg(all(feature = "vaapi", target_os = "linux"))]
+            HardwareContext::Vaapi { .. } => {},
+
+            #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+            HardwareContext::VideoToolbox { .. } => {},
+
+            #[cfg(feature = "amf")]
+            HardwareContext::Amf { .. } => {},
+
+            _ => {}
+        }
+    } else {
+        log::info!("No hardware context available, using software shaders");
+    }
+
+    *shaders = Some(Shaders::Software { functions: Vec::new() });
+    log::debug!("Shader programs initialized");
+    Ok(())
+}
+
+fn initialize_lookup_tables(
+    config: &RendererConfig,
+    lookup_tables: &mut Option<LookupTables>,
+) -> Result<(), RendererError> {
+    log::debug!("Initializing lookup tables");
+
+    let gamma = config.gamma as f32;
+    let gamma_lut = (0..256).map(|i| {
+        let normalized = i as f32 / 255.0;
+        let corrected = normalized.powf(1.0 / gamma);
+        (corrected * 255.0).round() as u8
+    }).collect::<Vec<u8>>();
+
+    let width = config.width as usize;
+    let height = config.height as usize;
+    let mut vignette_lut = vec![0u8; width * height];
+
+    let center_x = width as f32 / 2.0;
+    let center_y = height as f32 / 2.0;
+    let max_dist = (center_x.powi(2) + center_y.powi(2)).sqrt();
+
+    for y in 0..height {
+        for x in 0..width {
+            let dx = x as f32 - center_x;
+            let dy = y as f32 - center_y;
+            let distance = (dx.powi(2) + dy.powi(2)).sqrt();
+            let factor = 1.0 - (distance / max_dist).powi(2);
+            vignette_lut[y * width + x] = (factor * 255.0).round() as u8;
+        }
+    }
+
+    *lookup_tables = Some(LookupTables {
+        gamma: gamma_lut,
+        vignette: vignette_lut,
+    });
+
+    log::debug!("Lookup tables initialized");
+    Ok(())
+}
+
+fn allocate_gpu_resources(
+    config: &RendererConfig,
+    hw_context: &Option<HardwareContext>,
+    cpu_buffers: &mut Option<CpuBuffers>,
+) -> Result<(), RendererError> {
+    log::debug!("Allocating GPU resources");
+
+    let width = config.width as usize;
+    let height = config.height as usize;
+
+    if config.use_hardware_acceleration {
+        if let Some(hw_context) = hw_context {
+            match hw_context {
+                #[cfg(feature = "cuda")]
+                HardwareContext::Cuda { .. } => {
+                    // CUDA device memory allocation would go here
+                },
+
+                #[cfg(all(feature = "vaapi", target_os = "linux"))]
+                HardwareContext::Vaapi { .. } => {},
+
+                #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+                HardwareContext::VideoToolbox { .. } => {},
+
+                #[cfg(feature = "amf")]
+                HardwareContext::Amf { .. } => {},
+
+                _ => {
+                    log::warn!("Unknown hardware context type, falling back to CPU buffers");
+                    allocate_cpu_buffers(width, height, cpu_buffers)?;
+                }
+            }
+        } else {
+            log::warn!("No hardware context available, falling back to CPU buffers");
+            allocate_cpu_buffers(width, height, cpu_buffers)?;
+        }
+    } else {
+        allocate_cpu_buffers(width, height, cpu_buffers)?;
+    }
+
+    log::debug!("GPU resources allocated");
+    Ok(())
+}
+
+fn allocate_cpu_buffers(width: usize, height: usize, cpu_buffers: &mut Option<CpuBuffers>) -> Result<(), RendererError> {
+    let buffer_size = width * height * 4;
+    let input_buffer = vec![0u8; buffer_size];
+    let output_buffer = vec![0u8; buffer_size];
+
+    *cpu_buffers = Some(CpuBuffers {
+        input: input_buffer,
+        output: output_buffer,
+    });
+
+    log::debug!("CPU buffers allocated: {} bytes each", buffer_size);
+    Ok(())
+}
+
+fn initialize_post_processing(
+    config: &RendererConfig,
+    post_process_pipeline: &mut Option<PostProcessPipeline>,
+) -> Result<(), RendererError> {
+    log::debug!("Initializing post-processing pipeline");
+
+    let mut stages = Vec::new();
+
+    if config.enable_color_correction {
+        stages.push(PostProcessStage::ColorCorrection);
+    }
+
+    if config.enable_color_grading {
+        stages.push(PostProcessStage::ColorGrading);
+    }
+
+    if config.enable_vignette {
+        stages.push(PostProcessStage::Vignette);
+    }
+
+    let stage_count = stages.len();
+    *post_process_pipeline = Some(PostProcessPipeline { stages });
+
+    log::debug!("Post-processing pipeline initialized with {} stages", stage_count);
+    Ok(())
+}
+
+pub(super) fn cleanup_hardware_acceleration(hw_device: &Option<String>) {
+    if let Some(device) = hw_device {
+        log::debug!("Cleaning up hardware acceleration resources for device: {}", device);
+
+        match device.as_str() {
+            "cuda" => {
+                log::debug!("Releasing CUDA resources");
+            },
+            "vaapi" => {
+                log::debug!("Releasing VAAPI resources");
+            },
+            "videotoolbox" => {
+                log::debug!("Releasing VideoToolbox resources");
+            },
+            "amf" => {
+                log::debug!("Releasing AMD AMF resources");
+            },
+            _ => {
+                log::debug!("Releasing auto-detected hardware acceleration resources");
+            }
+        }
+    }
+}
+
+pub(super) fn cleanup_frame_buffers() {
+    log::debug!("Cleaning up frame buffer resources");
+}
+
+pub(super) fn cleanup_resources() {
+    log::debug!("Cleaning up additional rendering resources");
+}
