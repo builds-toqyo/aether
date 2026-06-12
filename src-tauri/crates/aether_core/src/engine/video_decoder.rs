@@ -125,8 +125,22 @@ impl VideoFrame {
         let width = frame.width() as u32;
         let height = frame.height() as u32;
         let format = VideoFormat::from_ffmpeg_format(frame.format());
-        let video_frame = Self::new(width, height, format, 0.0, 0.0);
-        // TODO: copy actual frame data
+        let mut video_frame = Self::new(width, height, format, 0.0, 0.0);
+
+        let src_stride = frame.stride(0) as usize;
+        let dst_stride = video_frame.stride as usize;
+        let plane_data = frame.data(0);
+        let bytes_to_copy = dst_stride.min(src_stride);
+
+        for y in 0..height as usize {
+            let src_offset = y * src_stride;
+            let dst_offset = y * dst_stride;
+            if src_offset + bytes_to_copy <= plane_data.len() {
+                video_frame.buffer[dst_offset..dst_offset + bytes_to_copy]
+                    .copy_from_slice(&plane_data[src_offset..src_offset + bytes_to_copy]);
+            }
+        }
+
         video_frame
     }
 
@@ -435,12 +449,17 @@ impl VideoDecoder {
             self.current_audio_stream = audio_stream_index;
         }
 
-        // TODO: Get metadata when API is available
-        let metadata = HashMap::new();
+        let metadata: HashMap<String, String> = format_ctx.metadata()
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
 
-
-        let format_name = "unknown".to_string(); // TODO: Get format name when API is available
-        let duration = 0.0; // TODO: Get duration from format context when API is available
+        let format_name = format_ctx.format().name().to_string();
+        let duration = if format_ctx.duration() > 0 {
+            format_ctx.duration() as f64 / 1_000_000.0
+        } else {
+            0.0
+        };
 
         let media_info = MediaInfo {
             path: path_str,
