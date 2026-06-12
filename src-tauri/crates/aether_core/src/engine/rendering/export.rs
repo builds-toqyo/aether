@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
 use anyhow::Result;
 use ffmpeg_next as ffmpeg;
 use crate::engine::editing::types::EditingError;

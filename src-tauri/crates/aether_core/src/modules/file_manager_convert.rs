@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use gstreamer as gst;
 use gstreamer::prelude::*;
-use log::debug;
 use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -216,7 +215,7 @@ impl MediaConverter {
         gst::Element::link_many([&v_queue, &v_convert, &video_enc]).ok();
         gst::Element::link_many([&a_queue, &a_convert, &audio_enc]).ok();
 
-        decodebin.connect_pad_added(move |db, src_pad| {
+        decodebin.connect_pad_added(move |_db, src_pad| {
             let caps = src_pad.current_caps();
             let name = caps.and_then(|c| c.structure(0).map(|s| s.name().to_string()));
             if let Some(name) = name {

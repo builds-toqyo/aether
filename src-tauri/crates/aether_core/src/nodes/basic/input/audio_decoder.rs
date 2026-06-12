@@ -75,7 +75,7 @@ impl AudioDecoder {
         let mut audio_frame = frame::Audio::empty();
 
         let mut packet_iter = input_format_context.packets();
-        let mut audio_id = Uuid::new_v4();
+        let audio_id = Uuid::new_v4();
 
         if let Some((_, packet)) = packet_iter.next() {
             if let Err(e) = decoder.send_packet(&packet) {
@@ -88,7 +88,7 @@ impl AudioDecoder {
                 return audio_id;
             }
 
-            let audio_data = self.extract_audio_samples(&audio_frame, channels);
+            let _audio_data = self.extract_audio_samples(&audio_frame, channels);
 
             let audio_metadata = AudioMetadata {
                 frame_number: frame,

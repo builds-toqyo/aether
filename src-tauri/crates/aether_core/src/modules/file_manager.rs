@@ -490,7 +490,7 @@ impl FileManager {
         let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;
         pipeline.set_state(gst::State::Playing).map_err(|e| anyhow!("play: {}", e))?;
 
-        if let Some(clock) = pipeline.clock() {
+        if let Some(_clock) = pipeline.clock() {
             let _ = pipeline.seek(1.0, gst::SeekFlags::FLUSH, gst::SeekType::Set,
                 gst::ClockTime::from_nseconds(position_ns as u64), gst::SeekType::None, gst::ClockTime::NONE);
         }
