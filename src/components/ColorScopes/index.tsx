@@ -146,19 +146,19 @@ export const ColorScopes: React.FC = () => {
   }, [fetchScopeData]);
 
   return (
-    <div className="flex flex-col bg-gray-900 border border-gray-700 rounded-lg overflow-hidden font-sans text-white">
-      <div className="flex justify-between items-center p-3 bg-gray-800 border-b border-gray-700">
-        <h3 className="text-base font-semibold text-white">Color Scopes</h3>
+    <div className="flex flex-col bg-[#141414] border border-[#222] rounded-lg overflow-hidden font-sans text-[#e0e0e0]">
+      <div className="flex justify-between items-center p-3 bg-[#1a1a1a] border-b border-[#222]">
+        <h3 className="text-[13px] font-semibold text-[#ccc]">Color Scopes</h3>
         <div className="flex gap-2">
           <button
-            className={`flex items-center justify-center min-w-8 h-8 bg-gray-600 border border-gray-500 rounded text-white cursor-pointer transition-all duration-200 hover:bg-gray-500 hover:border-gray-400 ${isPaused ? 'bg-green-600 border-green-500' : ''}`}
+            className={`flex items-center justify-center min-w-8 h-8 bg-[#252525] border border-[#333] rounded-md text-[#ccc] cursor-pointer transition-all hover:bg-[#333] hover:border-[#444] ${isPaused ? 'bg-green-600/20 border-green-500/50 text-green-400' : ''}`}
             onClick={handlePauseToggle}
             title={isPaused ? 'Resume Updates' : 'Pause Updates'}
           >
             {isPaused ? <Play size={16} /> : <Pause size={16} />}
           </button>
           <button
-            className="flex items-center justify-center min-w-8 h-8 bg-gray-600 border border-gray-500 rounded text-white cursor-pointer transition-all duration-200 hover:bg-gray-500 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center min-w-8 h-8 bg-[#252525] border border-[#333] rounded-md text-[#ccc] cursor-pointer transition-all hover:bg-[#333] hover:border-[#444] disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={handleRefresh}
             title="Refresh Scopes"
             disabled={isLoading}
@@ -174,7 +174,7 @@ export const ColorScopes: React.FC = () => {
       />
 
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-600 text-white text-sm">
+        <div className="flex items-center gap-2 p-3 bg-red-900/30 text-red-300 text-[12px] border-b border-red-900/20">
           <AlertTriangle size={16} className="flex-shrink-0" />
           {error}
         </div>
@@ -182,7 +182,7 @@ export const ColorScopes: React.FC = () => {
 
       <div className="flex flex-wrap gap-4 p-4 min-h-[200px]">
         {settings.enabled.waveform && (
-          <div className="flex-1 min-w-[300px] bg-gray-800 border border-gray-700 rounded-md overflow-hidden">
+          <div className="flex-1 min-w-[300px] bg-[#1a1a1a] border border-[#222] rounded-md overflow-hidden">
             <WaveformScope
               data={scopeData.waveform}
               settings={settings.waveform}
@@ -191,7 +191,7 @@ export const ColorScopes: React.FC = () => {
           </div>
         )}
         {settings.enabled.vectorscope && (
-          <div className="flex-1 min-w-[300px] bg-gray-800 border border-gray-700 rounded-md overflow-hidden">
+          <div className="flex-1 min-w-[300px] bg-[#1a1a1a] border border-[#222] rounded-md overflow-hidden">
             <Vectorscope
               data={scopeData.vectorscope}
               settings={settings.vectorscope}
@@ -200,7 +200,7 @@ export const ColorScopes: React.FC = () => {
           </div>
         )}
         {settings.enabled.histogram && (
-          <div className="flex-1 min-w-[300px] bg-gray-800 border border-gray-700 rounded-md overflow-hidden">
+          <div className="flex-1 min-w-[300px] bg-[#1a1a1a] border border-[#222] rounded-md overflow-hidden">
             <Histogram
               data={scopeData.histogram}
               settings={settings.histogram}
@@ -209,7 +209,7 @@ export const ColorScopes: React.FC = () => {
           </div>
         )}
         {!settings.enabled.waveform && !settings.enabled.vectorscope && !settings.enabled.histogram && (
-          <div className="flex items-center justify-center p-10 text-gray-500 italic">
+          <div className="flex items-center justify-center p-10 text-[#444] italic text-[13px]">
             No scopes enabled. Enable scopes using the controls below.
           </div>
         )}
