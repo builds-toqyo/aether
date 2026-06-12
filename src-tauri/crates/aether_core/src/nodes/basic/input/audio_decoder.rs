@@ -1,7 +1,7 @@
 use ffmpeg_next as ffmpeg;
 use ffmpeg::{format, frame, media};
 use uuid::Uuid;
-use log::{debug, error};
+use log::{debug, error, warn};
 
 pub struct AudioDecoder {
 
@@ -29,7 +29,7 @@ impl AudioDecoder {
         }
 
 
-        let input_format_context = match format::input(media_path) {
+        let mut input_format_context = match format::input(media_path) {
             Ok(context) => context,
             Err(e) => {
                 error!("Failed to open audio file: {}", e);
@@ -37,7 +37,7 @@ impl AudioDecoder {
             }
         };
 
-        let _input_stream = match input_format_context.streams().best(media::Type::Audio) {
+        let input_stream = match input_format_context.streams().best(media::Type::Audio) {
             Some(stream) => stream,
             None => {
                 error!("No audio stream found in file");
@@ -45,48 +45,57 @@ impl AudioDecoder {
             }
         };
 
+        let mut decoder = match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
+            Ok(context) => match context.decoder().audio() {
+                Ok(decoder) => decoder,
+                Err(e) => {
+                    error!("Failed to create audio decoder: {}", e);
+                    return Uuid::new_v4();
+                }
+            },
+            Err(e) => {
+                error!("Failed to create decoder context: {}", e);
+                return Uuid::new_v4();
+            }
+        };
 
-        // TODO: ffmpeg-next API has changed - codec_params no longer exposes sample_rate/channels directly
-        // For now, return early with a placeholder node ID
-        error!("Audio decoder API needs updating for ffmpeg-next 8.x");
-        return Uuid::new_v4();
-
-        // Unreachable code below - kept for reference when updating API
-        /*
+        let sample_rate = decoder.rate() as u32;
+        let channels = decoder.channels() as u8;
+        let format = decoder.format();
         let samples_per_frame = sample_rate / 30;
+        let bit_depth: u8 = match format.name() {
+            "s16" | "s16p" | "s16be" | "s16le" => 16,
+            "s32" | "s32p" | "s32be" | "s32le" => 32,
+            "flt" | "fltp" => 32,
+            "dbl" | "dblp" => 64,
+            "u8" | "u8p" => 8,
+            _ => 16,
+        };
 
-
-        let mut audio_frame = frame::Audio::new(codec::AVSampleFormat::F32(sample_rate), samples_per_frame, channels);
-
-
-        let timestamp = frame as f64 / 30.0;
-        let seek_timestamp = (timestamp * sample_rate as f64) as i64;
-
+        let mut audio_frame = frame::Audio::empty();
 
         let mut packet_iter = input_format_context.packets();
         let mut audio_id = Uuid::new_v4();
 
         if let Some((_, packet)) = packet_iter.next() {
-            if let Err(e) = decoder_context.send_packet(&packet) {
+            if let Err(e) = decoder.send_packet(&packet) {
                 error!("Failed to send audio packet: {}", e);
                 return audio_id;
             }
 
-            if let Err(e) = decoder_context.receive_frame(&mut audio_frame) {
+            if let Err(e) = decoder.receive_frame(&mut audio_frame) {
                 error!("Failed to receive audio frame: {}", e);
                 return audio_id;
             }
 
-
             let audio_data = self.extract_audio_samples(&audio_frame, channels);
-
 
             let audio_metadata = AudioMetadata {
                 frame_number: frame,
-                sample_rate: sample_rate as u32,
+                sample_rate,
                 channels,
                 bit_depth,
-                samples_per_frame: samples_per_frame as u32,
+                samples_per_frame,
                 audio_id,
             };
 
@@ -100,7 +109,6 @@ impl AudioDecoder {
         }
 
         audio_id
-        */
     }
 
 
