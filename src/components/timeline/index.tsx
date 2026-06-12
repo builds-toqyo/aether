@@ -8,6 +8,7 @@ import { TimelineProvider, useTimeline } from './TimelineContext';
 import { Play, Pause, SkipBack, SkipForward, Scissors } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import useAppStore from '@/store';
+import { formatTime } from '@/lib/utils';
 
 // Types
 interface TimelineClip {
@@ -425,17 +426,5 @@ export const TimelineEditor: React.FC = () => {
   );
 };
 
-// Helper function to format time
-function formatTime(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  const frames = Math.floor((seconds % 1) * 30); // Assuming 30 fps
-  
-  if (hours > 0) {
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
-  }
-  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
-}
 
 export default TimelineEditor;
