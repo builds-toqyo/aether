@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.aether.app",
   "build": {
-    "frontendDist": "../.next",
+    "frontendDist": "../dist",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build"
