@@ -1,7 +1,7 @@
 use ffmpeg_next as ffmpeg;
 use ffmpeg::{format, frame, media};
 use uuid::Uuid;
-use log::{debug, error};
+use log::{debug, error, warn};
 
 pub struct VideoDecoder {
 
@@ -25,14 +25,13 @@ impl VideoDecoder {
             return Uuid::new_v4();
         }
 
-        let input_format_context = match format::input(media_path) {
+        let mut input_format_context = match format::input(media_path) {
             Ok(context) => context,
             Err(e) => {
                 error!("Failed to open video file: {}", e);
                 return Uuid::new_v4();
             }
         };
-
 
 
         let input_stream = match input_format_context.streams().best(media::Type::Video) {
@@ -85,7 +84,7 @@ impl VideoDecoder {
                 _ => (3, false),
             };
 
-            let image_data = self.extract_frame_data(&video_frame, channels, &pixel_format.to_string())
+            let image_data = self.extract_frame_data(&video_frame, channels, &format!("{:?}", pixel_format))
                 .unwrap_or_else(|_| {
                     warn!("Failed to extract data for video frame: {}", frame);
                     vec![0u8; width * height * channels]
@@ -101,12 +100,12 @@ impl VideoDecoder {
                 frame_number: frame,
                 width,
                 height,
-                pixel_format: pixel_format.to_string(),
+                pixel_format: format!("{:?}", pixel_format),
                 timestamp,
                 frame_id,
             };
 
-            debug!("Video frame decoded via FFmpeg: {}x{} {} ({} channels)",
+            debug!("Video frame decoded via FFmpeg: {}x{} {:?} ({} channels)",
                 width, height, pixel_format, channels);
 
             debug!("Video metadata: {:?}", frame_metadata);
@@ -117,7 +116,6 @@ impl VideoDecoder {
 
         frame_id
     }
-
 
     fn extract_frame_data(&self, frame: &frame::Video, channels: usize, _pixel_format: &str) -> Result<Vec<u8>, String> {
         let width = frame.width() as usize;
@@ -155,7 +153,6 @@ impl VideoDecoder {
         Ok(texture_id)
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct VideoFrameMetadata {

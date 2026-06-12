@@ -86,7 +86,7 @@ impl SequenceLoader {
             return Uuid::new_v4();
         }
 
-        let input_format_context = match format::input(filename) {
+        let mut input_format_context = match format::input(filename) {
             Ok(context) => context,
             Err(e) => {
                 warn!("Failed to open sequence frame {}: {}", filename, e);
@@ -143,7 +143,7 @@ impl SequenceLoader {
                 _ => (3, false),
             };
 
-            let image_data = self.extract_frame_data(&image_frame, channels, &pixel_format.to_string())
+            let image_data = self.extract_frame_data(&image_frame, channels, &format!("{:?}", pixel_format))
                 .unwrap_or_else(|_| {
                     warn!("Failed to extract data for sequence frame: {}", filename);
                     vec![0u8; width * height * channels]
@@ -155,7 +155,7 @@ impl SequenceLoader {
                     Uuid::new_v4()
                 });
 
-            debug!("Sequence frame decoded via FFmpeg: {}x{} {} ({} channels)",
+            debug!("Sequence frame decoded via FFmpeg: {}x{} {:?} ({} channels)",
                 width, height, pixel_format, channels);
 
         } else {

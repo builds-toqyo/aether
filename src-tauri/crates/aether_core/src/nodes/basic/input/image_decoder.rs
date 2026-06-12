@@ -1,6 +1,6 @@
 use aether_types::{ParameterValue};
 use ffmpeg_next as ffmpeg;
-use ffmpeg::{codec, format, frame, media, software::scaling};
+use ffmpeg::{format, frame, media, software::scaling};
 use uuid::Uuid;
 use log::{debug, error};
 
@@ -25,7 +25,7 @@ impl ImageDecoder {
             return ParameterValue::None;
         }
 
-        let input_format_context = match format::input(media_path) {
+        let mut input_format_context = match format::input(media_path) {
             Ok(context) => context,
             Err(e) => {
                 error!("Failed to open image file: {}", e);
@@ -79,7 +79,7 @@ impl ImageDecoder {
                 _ => (3, false),
             };
 
-            let image_data = self.extract_frame_data(&image_frame, channels, &pixel_format.to_string())
+            let image_data = self.extract_frame_data(&image_frame, channels, &format!("{:?}", pixel_format))
                 .unwrap_or_else(|_| {
                     error!("Failed to extract data for image: {}", media_path);
                     vec![0u8; width * height * channels]
@@ -88,12 +88,14 @@ impl ImageDecoder {
             let decoded_frame = DecodedImageFrame {
                 width,
                 height,
-                format: pixel_format.to_string(),
+                format: format!("{:?}", pixel_format),
                 channels,
+                bit_depth: 8,
                 data: image_data,
+                has_alpha: channels == 4,
             };
 
-            match self.convert_image_to_rgb(&decoded_frame, &decoder) {
+            match self.convert_image_to_rgb(&decoded_frame) {
                 Ok(rgb_frame) => {
                     match self.upload_image_to_gpu(&rgb_frame) {
                         Ok(id) => id,
@@ -140,7 +142,7 @@ impl ImageDecoder {
         Ok(data)
     }
 
-    fn convert_image_to_rgb(&self, decoded_frame: &DecodedImageFrame, _codec_context: &codec::Context) -> Result<RGBImageFrame, String> {
+    fn convert_image_to_rgb(&self, decoded_frame: &DecodedImageFrame) -> Result<RGBImageFrame, String> {
 
         debug!("Converting image from {} to RGB24", decoded_frame.format);
 
