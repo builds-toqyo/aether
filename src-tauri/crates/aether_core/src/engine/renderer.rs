@@ -170,6 +170,23 @@ impl Default for VideoToolboxConfig {
     }
 }
 
+/// Uniform buffer for compute post-processing
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct PostProcessUniforms {
+    width: u32,
+    height: u32,
+    gamma: f32,
+    saturation: f32,
+    contrast: f32,
+    brightness: f32,
+    temp_r: f32,
+    temp_g: f32,
+    temp_b: f32,
+    vignette: f32,
+    _pad: [u32; 2],
+}
+
 pub struct Renderer {
     config: RendererConfig,
     is_initialized: bool,
@@ -182,6 +199,15 @@ pub struct Renderer {
     current_frame: Option<Frame>,
     frame_count: u64,
     state: Arc<Mutex<RendererState>>,
+    // wgpu cross-platform GPU compute
+    wgpu_device: Option<wgpu::Device>,
+    wgpu_queue: Option<wgpu::Queue>,
+    wgpu_compute_pipeline: Option<wgpu::ComputePipeline>,
+    wgpu_bind_group_layout: Option<wgpu::BindGroupLayout>,
+    wgpu_input_buffer: Option<wgpu::Buffer>,
+    wgpu_output_buffer: Option<wgpu::Buffer>,
+    wgpu_uniform_buffer: Option<wgpu::Buffer>,
+    wgpu_staging_buffer: Option<wgpu::Buffer>,
 }
 
 struct RendererState {
@@ -208,6 +234,14 @@ impl Renderer {
             current_frame: None,
             frame_count: 0,
             state: Arc::new(Mutex::new(state)),
+            wgpu_device: None,
+            wgpu_queue: None,
+            wgpu_compute_pipeline: None,
+            wgpu_bind_group_layout: None,
+            wgpu_input_buffer: None,
+            wgpu_output_buffer: None,
+            wgpu_uniform_buffer: None,
+            wgpu_staging_buffer: None,
         }
     }
 
@@ -267,52 +301,155 @@ impl Renderer {
         }
     }
 
-    /// Initialize CUDA acceleration for NVIDIA GPUs
+    /// Initialize wgpu compute for cross-platform GPU post-processing
+    fn initialize_wgpu_compute(&mut self) -> Result<(), RendererError> {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            ..Default::default()
+        });
+
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: None,
+                force_fallback_adapter: false,
+            })
+            .block_on()
+            .ok_or_else(|| RendererError::HardwareAccelerationError(
+                "No suitable GPU adapter found".to_string()
+            ))?;
+
+        let info = adapter.get_info();
+        log::info!("Selected GPU: {} ({:?})", info.name, info.backend);
+
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    label: Some("Aether Renderer"),
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
+                    ..Default::default()
+                },
+                None,
+            )
+            .block_on()
+            .map_err(|e| RendererError::HardwareAccelerationError(
+                format!("Failed to create wgpu device: {}", e)
+            ))?;
+
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("post_process"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(COMPUTE_SHADER)),
+        });
+
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("post_process_layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("post_process_pipeline_layout"),
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
+
+        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("post_process_pipeline"),
+            layout: Some(&pipeline_layout),
+            module: &shader,
+            entry_point: Some("main"),
+            ..Default::default()
+        });
+
+        let width = self.config.width as u64;
+        let height = self.config.height as u64;
+        let buffer_size = width * height * 4;
+
+        let input_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("input_buffer"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("output_buffer"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+
+        let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("uniform_buffer"),
+            size: std::mem::size_of::<PostProcessUniforms>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let staging_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("staging_buffer"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        self.wgpu_device = Some(device);
+        self.wgpu_queue = Some(queue);
+        self.wgpu_compute_pipeline = Some(compute_pipeline);
+        self.wgpu_bind_group_layout = Some(bind_group_layout);
+        self.wgpu_input_buffer = Some(input_buffer);
+        self.wgpu_output_buffer = Some(output_buffer);
+        self.wgpu_uniform_buffer = Some(uniform_buffer);
+        self.wgpu_staging_buffer = Some(staging_buffer);
+
+        log::info!("wgpu compute pipeline initialized ({}x{})", width, height);
+        Ok(())
+    }
+
+    /// Initialize CUDA acceleration for NVIDIA GPUs (stub — requires cuda feature)
     fn initialize_cuda_acceleration(&mut self) -> Result<(), RendererError> {
         #[cfg(feature = "cuda")]
         {
-            // Check for NVIDIA GPU
             if !self.has_nvidia_gpu() {
                 return Err(RendererError::HardwareAccelerationError(
                     "No NVIDIA GPU found".to_string()
                 ));
             }
-
-            // Initialize CUDA context
-            unsafe {
-                // In a real implementation, we would use the CUDA API here
-                // For example:
-                // let result = cuda::cuInit(0);
-                // if result != cuda::CUDA_SUCCESS {
-                //     return Err(RendererError::HardwareAccelerationError(
-                //         format!(__STRING_45__, result)
-                //     ));
-                // }
-
-                // Create CUDA context
-                // let mut device = 0;
-                // let result = cuda::cuDeviceGet(&mut device, 0);
-                // if result != cuda::CUDA_SUCCESS {
-                //     return Err(RendererError::HardwareAccelerationError(
-                //         format!(__STRING_46__, result)
-                //     ));
-                // }
-
-                // let mut context = std::ptr::null_mut();
-                // let result = cuda::cuCtxCreate(&mut context, 0, device);
-                // if result != cuda::CUDA_SUCCESS {
-                //     return Err(RendererError::HardwareAccelerationError(
-                //         format!(__STRING_47__, result)
-                //     ));
-                // }
-
-                // self.hw_context = Some(HardwareContext::Cuda { context });
-            }
-
-            log::info!("CUDA acceleration initialized");
-            Ok(())
+            Err(RendererError::HardwareAccelerationError(
+                "CUDA acceleration not yet implemented — use wgpu compute instead".to_string()
+            ))
         }
-
         #[cfg(not(feature = "cuda"))]
         {
             Err(RendererError::HardwareAccelerationError(
@@ -321,44 +458,19 @@ impl Renderer {
         }
     }
 
-    /// Initialize VAAPI acceleration for Intel GPUs on Linux
+    /// Initialize VAAPI acceleration for Intel GPUs on Linux (stub — requires vaapi feature)
     fn initialize_vaapi_acceleration(&mut self) -> Result<(), RendererError> {
         #[cfg(all(feature = "vaapi", target_os = "linux"))]
         {
-            // Check for Intel GPU or other VAAPI-compatible hardware
             if !self.has_vaapi_support() {
                 return Err(RendererError::HardwareAccelerationError(
                     "No VAAPI support found".to_string()
                 ));
             }
-
-            // Initialize VAAPI context
-            unsafe {
-                // In a real implementation, we would use the VAAPI API here
-                // For example:
-                // let display = vaapi::vaGetDisplay(std::ptr::null_mut());
-                // if display.is_null() {
-                //     return Err(RendererError::HardwareAccelerationError(
-                //         __STRING_54__.to_string()
-                //     ));
-                // }
-
-                // let mut major = 0;
-                // let mut minor = 0;
-                // let status = vaapi::vaInitialize(display, &mut major, &mut minor);
-                // if status != vaapi::VA_STATUS_SUCCESS {
-                //     return Err(RendererError::HardwareAccelerationError(
-                //         format!(__STRING_55__, status)
-                //     ));
-                // }
-
-                // self.hw_context = Some(HardwareContext::Vaapi { display });
-            }
-
-            log::info!("VAAPI acceleration initialized");
-            Ok(())
+            Err(RendererError::HardwareAccelerationError(
+                "VAAPI acceleration not yet implemented — use wgpu compute instead".to_string()
+            ))
         }
-
         #[cfg(not(all(feature = "vaapi", target_os = "linux")))]
         {
             Err(RendererError::HardwareAccelerationError(
@@ -367,52 +479,14 @@ impl Renderer {
         }
     }
 
-    /// Initialize VideoToolbox acceleration for macOS
+    /// Initialize VideoToolbox acceleration for macOS (stub — requires videotoolbox feature)
     fn initialize_videotoolbox_acceleration(&mut self) -> Result<(), RendererError> {
         #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
         {
-            // VideoToolbox is available on all macOS systems, so no need to check for hardware
-
-            // Initialize VideoToolbox session
-            unsafe {
-                // In a real implementation, we would use the VideoToolbox API here
-                // For example:
-                // let mut session: videotoolbox::VTDecompressionSessionRef = std::ptr::null_mut();
-                // let format_id = videotoolbox::kCMVideoCodecType_H264;
-                //
-                // let format_dict = videotoolbox::CFDictionaryCreateMutable(
-                //     std::ptr::null_mut(),
-                //     1,
-                //     &videotoolbox::kCFTypeDictionaryKeyCallBacks,
-                //     &videotoolbox::kCFTypeDictionaryValueCallBacks
-                // );
-                //
-                // let key = videotoolbox::kCVPixelBufferPixelFormatTypeKey;
-                // let value = videotoolbox::kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
-                // videotoolbox::CFDictionaryAddValue(format_dict, key, value);
-                //
-                // let status = videotoolbox::VTDecompressionSessionCreate(
-                //     std::ptr::null_mut(),
-                //     format_description,
-                //     std::ptr::null(),
-                //     format_dict,
-                //     std::ptr::null(),
-                //     &mut session
-                // );
-                //
-                // if status != 0 {
-                //     return Err(RendererError::HardwareAccelerationError(
-                //         format!(__STRING_62__, status)
-                //     ));
-                // }
-                //
-                // self.hw_context = Some(HardwareContext::VideoToolbox { session });
-            }
-
-            log::info!("VideoToolbox acceleration initialized");
-            Ok(())
+            Err(RendererError::HardwareAccelerationError(
+                "VideoToolbox acceleration not yet implemented — use wgpu compute instead".to_string()
+            ))
         }
-
         #[cfg(not(all(feature = "videotoolbox", target_os = "macos")))]
         {
             Err(RendererError::HardwareAccelerationError(
@@ -421,44 +495,19 @@ impl Renderer {
         }
     }
 
-    /// Initialize AMD AMF acceleration
+    /// Initialize AMD AMF acceleration (stub — requires amf feature)
     fn initialize_amf_acceleration(&mut self) -> Result<(), RendererError> {
         #[cfg(feature = "amf")]
         {
-            // Check for AMD GPU
             if !self.has_amd_gpu() {
                 return Err(RendererError::HardwareAccelerationError(
                     "No AMD GPU found".to_string()
                 ));
             }
-
-            // Initialize AMF context
-            unsafe {
-                // In a real implementation, we would use the AMF API here
-                // For example:
-                // let mut factory: *mut amf::AMFFactory = std::ptr::null_mut();
-                // let result = amf::AMFInit(0, &mut factory);
-                // if result != amf::AMF_OK {
-                //     return Err(RendererError::HardwareAccelerationError(
-                //         format!(__STRING_69__, result)
-                //     ));
-                // }
-                //
-                // let mut context: *mut amf::AMFContext = std::ptr::null_mut();
-                // let result = factory.CreateContext(&mut context);
-                // if result != amf::AMF_OK {
-                //     return Err(RendererError::HardwareAccelerationError(
-                //         format!(__STRING_70__, result)
-                //     ));
-                // }
-                //
-                // self.hw_context = Some(HardwareContext::Amf { factory, context });
-            }
-
-            log::info!("AMF acceleration initialized");
-            Ok(())
+            Err(RendererError::HardwareAccelerationError(
+                "AMF acceleration not yet implemented — use wgpu compute instead".to_string()
+            ))
         }
-
         #[cfg(not(feature = "amf"))]
         {
             Err(RendererError::HardwareAccelerationError(
@@ -469,45 +518,14 @@ impl Renderer {
 
     /// Auto-detect the best hardware acceleration method
     fn auto_detect_acceleration(&mut self) -> Result<(), RendererError> {
-        #[cfg(target_os = "macos")]
-        {
-            // On macOS, VideoToolbox is the best option
-            return self.initialize_videotoolbox_acceleration();
-        }
-
-        #[cfg(target_os = "windows")]
-        {
-            // On Windows, try CUDA first, then AMF, then fallback to software
-            if self.has_nvidia_gpu() {
-                match self.initialize_cuda_acceleration() {
-                    Ok(_) => return Ok(()),
-                    Err(e) => log::warn!("CUDA initialization failed: {}", e),
-                }
+        // Try wgpu compute first (cross-platform GPU post-processing)
+        match self.initialize_wgpu_compute() {
+            Ok(_) => {
+                self.hw_context = Some(HardwareContext::Software);
+                return Ok(());
             }
-
-            if self.has_amd_gpu() {
-                match self.initialize_amf_acceleration() {
-                    Ok(_) => return Ok(()),
-                    Err(e) => log::warn!("AMF initialization failed: {}", e),
-                }
-            }
-        }
-
-        #[cfg(target_os = "linux")]
-        {
-            // On Linux, try VAAPI first, then CUDA, then fallback to software
-            if self.has_vaapi_support() {
-                match self.initialize_vaapi_acceleration() {
-                    Ok(_) => return Ok(()),
-                    Err(e) => log::warn!("VAAPI initialization failed: {}", e),
-                }
-            }
-
-            if self.has_nvidia_gpu() {
-                match self.initialize_cuda_acceleration() {
-                    Ok(_) => return Ok(()),
-                    Err(e) => log::warn!("CUDA initialization failed: {}", e),
-                }
+            Err(e) => {
+                log::warn!("wgpu compute initialization failed: {}", e);
             }
         }
 
@@ -517,38 +535,47 @@ impl Renderer {
         Ok(())
     }
 
-    /// Check if NVIDIA GPU is available
-    fn has_nvidia_gpu(&self) -> bool {
-        // In a real implementation, we would check for NVIDIA GPU
-        // For example, on Linux we might parse the output of `lspci`
-        // On Windows, we might use DXGI or the NVIDIA API
-        // For this example, we'll just return true
-        true
+    /// Detect GPU vendor using wgpu adapter enumeration
+    fn detect_gpu_vendor(&self) -> Option<&'static str> {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            ..Default::default()
+        });
+        let adapters = instance.enumerate_adapters(wgpu::Backends::all());
+        for adapter in adapters {
+            let info = adapter.get_info();
+            let vendor = match info.vendor {
+                0x10DE => "nvidia",
+                0x1002 => "amd",
+                0x1022 => "amd",
+                0x8086 => "intel",
+                0x106B => "apple", // Apple Silicon
+                _ => continue,
+            };
+            log::debug!("Detected GPU: {} ({:?})", info.name, info.backend);
+            return Some(vendor);
+        }
+        None
     }
 
+    fn has_nvidia_gpu(&self) -> bool {
+        self.detect_gpu_vendor() == Some("nvidia")
+    }
 
     fn has_amd_gpu(&self) -> bool {
-
-        true
+        self.detect_gpu_vendor() == Some("amd")
     }
 
-
     fn has_vaapi_support(&self) -> bool {
-
-
         #[cfg(target_os = "linux")]
         {
-
-
             std::path::Path::new("/dev/dri/renderD128").exists()
         }
-
         #[cfg(not(target_os = "linux"))]
         {
             false
         }
     }
-
 
     fn allocate_frame_buffers(&mut self) -> Result<(), RendererError> {
         let width = self.config.width as usize;
@@ -562,21 +589,16 @@ impl Renderer {
         Ok(())
     }
 
-
     fn initialize_resources(&mut self) -> Result<(), RendererError> {
         log::debug!("Initializing rendering resources");
-
 
         if self.config.use_hardware_acceleration {
             self.initialize_shader_programs()?;
         }
 
-
         self.initialize_lookup_tables()?;
 
-
         self.allocate_gpu_resources()?;
-
 
         self.initialize_post_processing()?;
 
@@ -584,10 +606,8 @@ impl Renderer {
         Ok(())
     }
 
-
     fn initialize_shader_programs(&mut self) -> Result<(), RendererError> {
         log::debug!("Initializing shader programs");
-
 
         if let Some(hw_context) = &self.hw_context {
             match hw_context {
@@ -597,29 +617,24 @@ impl Renderer {
                     let vertex_shader = include_str!("../shaders/cuda/vertex.cu");
                     let fragment_shader = include_str!("../shaders/cuda/fragment.cu");
 
-
                 },
 
                 #[cfg(all(feature = "vaapi", target_os = "linux"))]
                 HardwareContext::Vaapi { .. } => {
-
 
                 },
 
                 #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
                 HardwareContext::VideoToolbox { .. } => {
 
-
                 },
 
                 #[cfg(feature = "amf")]
                 HardwareContext::Amf { .. } => {
 
-
                 },
 
                 _ => {
-
 
                 }
             }
@@ -632,7 +647,6 @@ impl Renderer {
         log::debug!("Shader programs initialized");
         Ok(())
     }
-
 
     fn initialize_lookup_tables(&mut self) -> Result<(), RendererError> {
         log::debug!("Initializing lookup tables");
