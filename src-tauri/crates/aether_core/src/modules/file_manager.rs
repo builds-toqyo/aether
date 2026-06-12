@@ -406,8 +406,9 @@ impl FileManager {
             .map_err(|e| anyhow!("add: {}", e))?;
         filesrc.link(&decodebin).map_err(|e| anyhow!("link: {}", e))?;
 
+        let imagefreeze_ref = imagefreeze.clone();
         decodebin.connect_pad_added(move |_, src_pad| {
-            if let Some(sink) = imagefreeze.static_pad("sink") {
+            if let Some(sink) = imagefreeze_ref.static_pad("sink") {
                 if !sink.is_linked() {
                     if let Some(caps) = src_pad.current_caps() {
                         if let Some(s) = caps.structure(0) {
@@ -469,8 +470,9 @@ impl FileManager {
             .map_err(|e| anyhow!("add: {}", e))?;
         filesrc.link(&decodebin).map_err(|e| anyhow!("link: {}", e))?;
 
+        let videoconvert_ref = videoconvert.clone();
         decodebin.connect_pad_added(move |_, src_pad| {
-            if let Some(sink) = videoconvert.static_pad("sink") {
+            if let Some(sink) = videoconvert_ref.static_pad("sink") {
                 if !sink.is_linked() {
                     if let Some(caps) = src_pad.current_caps() {
                         if let Some(s) = caps.structure(0) {
@@ -509,14 +511,66 @@ impl FileManager {
 
     fn generate_image_thumbnail(&self, path: &Path, options: &ThumbnailOptions) -> Result<PathBuf> {
         let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
-        let _thumbnail_path = self.temp_dir.join(format!(
-            "{}-thumbnail-{}x{}.png",
-            file_stem,
-            options.width,
-            options.height
+        let thumbnail_path = self.temp_dir.join(format!(
+            "{}-thumbnail-{}x{}.png", file_stem, options.width, options.height
         ));
-        // TODO: implement image thumbnail generation
-        return Err(anyhow!("Image thumbnail generation not yet implemented"));
+
+        let pipeline = gst::Pipeline::new();
+        let filesrc = gst::ElementFactory::make("filesrc")
+            .property("location", path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesrc: {}", e))?;
+        let decodebin = gst::ElementFactory::make("decodebin")
+            .build().map_err(|e| anyhow!("decodebin: {}", e))?;
+        let videoconvert = gst::ElementFactory::make("videoconvert")
+            .build().map_err(|e| anyhow!("videoconvert: {}", e))?;
+        let videoscale = gst::ElementFactory::make("videoscale")
+            .build().map_err(|e| anyhow!("videoscale: {}", e))?;
+        let capsfilter = gst::ElementFactory::make("capsfilter")
+            .property("caps", gst::Caps::builder("video/x-raw")
+                .field("width", options.width as i32).field("height", options.height as i32).build())
+            .build().map_err(|e| anyhow!("capsfilter: {}", e))?;
+        let pngenc = gst::ElementFactory::make("pngenc")
+            .build().map_err(|e| anyhow!("pngenc: {}", e))?;
+        let filesink = gst::ElementFactory::make("filesink")
+            .property("location", thumbnail_path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesink: {}", e))?;
+
+        pipeline.add_many([&filesrc, &decodebin, &videoconvert, &videoscale, &capsfilter, &pngenc, &filesink])
+            .map_err(|e| anyhow!("add: {}", e))?;
+        filesrc.link(&decodebin).map_err(|e| anyhow!("link: {}", e))?;
+
+        let videoconvert_ref = videoconvert.clone();
+        decodebin.connect_pad_added(move |_, src_pad| {
+            if let Some(sink) = videoconvert_ref.static_pad("sink") {
+                if !sink.is_linked() {
+                    if let Some(caps) = src_pad.current_caps() {
+                        if let Some(s) = caps.structure(0) {
+                            if s.name().starts_with("image/") || s.name().starts_with("video/") {
+                                let _ = src_pad.link(&sink);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        gst::Element::link_many([&videoconvert, &videoscale, &capsfilter, &pngenc, &filesink])
+            .map_err(|e| anyhow!("downstream: {}", e))?;
+
+        let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;
+        pipeline.set_state(gst::State::Playing).map_err(|e| anyhow!("play: {}", e))?;
+
+        let msg = bus.timed_pop_filtered(gst::ClockTime::from_seconds(30),
+            &[gst::MessageType::Error, gst::MessageType::Eos]);
+        pipeline.set_state(gst::State::Null).map_err(|e| anyhow!("stop: {}", e))?;
+
+        match msg {
+            Some(msg) => match msg.view() {
+                gst::MessageView::Error(err) => Err(anyhow!("err: {}", err.error())),
+                gst::MessageView::Eos(_) => Ok(thumbnail_path),
+                _ => Err(anyhow!("unexpected")),
+            },
+            None => Err(anyhow!("timeout")),
+        }
     }
 
     fn generate_audio_thumbnail(&self, path: &Path, options: &ThumbnailOptions) -> Result<PathBuf> {
@@ -552,8 +606,9 @@ impl FileManager {
             .map_err(|e| anyhow!("add: {}", e))?;
         filesrc.link(&decodebin).map_err(|e| anyhow!("link: {}", e))?;
 
+        let audioconvert_ref = audioconvert.clone();
         decodebin.connect_pad_added(move |_, src_pad| {
-            if let Some(sink) = audioconvert.static_pad("sink") {
+            if let Some(sink) = audioconvert_ref.static_pad("sink") {
                 if !sink.is_linked() {
                     if let Some(caps) = src_pad.current_caps() {
                         if let Some(s) = caps.structure(0) {
