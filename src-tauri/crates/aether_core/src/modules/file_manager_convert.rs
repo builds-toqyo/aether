@@ -168,13 +168,99 @@ impl MediaConverter {
             std::fs::create_dir_all(parent)?;
         }
 
-        let pipeline_str = self.build_video_pipeline_string(input_path, output_path, &options)?;
-        debug!("Pipeline string: {}", pipeline_str);
+        let muxer_name = match options.format {
+            ConversionFormat::MP4 | ConversionFormat::MOV => "mp4mux",
+            ConversionFormat::WebM => "webmmux",
+            _ => "mp4mux",
+        };
+        let video_enc_name = match options.format {
+            ConversionFormat::MP4 | ConversionFormat::MOV => "x264enc",
+            ConversionFormat::WebM => "vp9enc",
+            _ => "x264enc",
+        };
+        let audio_enc_name = match options.format {
+            ConversionFormat::MP4 | ConversionFormat::MOV => "avenc_aac",
+            ConversionFormat::WebM => "opusenc",
+            _ => "avenc_aac",
+        };
 
-        // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
+        let pipeline = gst::Pipeline::new();
+        let filesrc = gst::ElementFactory::make("filesrc")
+            .property("location", input_path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesrc: {}", e))?;
+        let decodebin = gst::ElementFactory::make("decodebin")
+            .build().map_err(|e| anyhow!("decodebin: {}", e))?;
+        let muxer = gst::ElementFactory::make(muxer_name)
+            .build().map_err(|e| anyhow!("muxer {}: {}", muxer_name, e))?;
+        let filesink = gst::ElementFactory::make("filesink")
+            .property("location", output_path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesink: {}", e))?;
 
-        Ok(())
+        pipeline.add_many([&filesrc, &decodebin, &muxer, &filesink])
+            .map_err(|e| anyhow!("add: {}", e))?;
+        filesrc.link(&decodebin).map_err(|e| anyhow!("link filesrc-decodebin: {}", e))?;
+        muxer.link(&filesink).map_err(|e| anyhow!("link muxer-filesink: {}", e))?;
+
+        let video_enc = gst::ElementFactory::make(video_enc_name)
+            .build().map_err(|e| anyhow!("video_enc: {}", e))?;
+        let audio_enc = gst::ElementFactory::make(audio_enc_name)
+            .build().map_err(|e| anyhow!("audio_enc: {}", e))?;
+        let v_queue = gst::ElementFactory::make("queue").build().map_err(|e| anyhow!("v_queue: {}", e))?;
+        let a_queue = gst::ElementFactory::make("queue").build().map_err(|e| anyhow!("a_queue: {}", e))?;
+        let v_convert = gst::ElementFactory::make("videoconvert").build().map_err(|e| anyhow!("v_convert: {}", e))?;
+        let a_convert = gst::ElementFactory::make("audioconvert").build().map_err(|e| anyhow!("a_convert: {}", e))?;
+
+        pipeline.add_many([&v_queue, &v_convert, &video_enc, &a_queue, &a_convert, &audio_enc])
+            .map_err(|e| anyhow!("add enc: {}", e))?;
+
+        gst::Element::link_many([&v_queue, &v_convert, &video_enc]).ok();
+        gst::Element::link_many([&a_queue, &a_convert, &audio_enc]).ok();
+
+        decodebin.connect_pad_added(move |db, src_pad| {
+            let caps = src_pad.current_caps();
+            let name = caps.and_then(|c| c.structure(0).map(|s| s.name().to_string()));
+            if let Some(name) = name {
+                if name.starts_with("video/") {
+                    if let Some(sink) = v_queue.static_pad("sink") {
+                        if !sink.is_linked() {
+                            let _ = src_pad.link(&sink);
+                            let src = video_enc.static_pad("src");
+                            let mux_sink = muxer.request_pad_simple("video_%u");
+                            if let (Some(src), Some(mux_sink)) = (src, mux_sink) {
+                                let _ = src.link(&mux_sink);
+                            }
+                        }
+                    }
+                } else if name.starts_with("audio/") {
+                    if let Some(sink) = a_queue.static_pad("sink") {
+                        if !sink.is_linked() {
+                            let _ = src_pad.link(&sink);
+                            let src = audio_enc.static_pad("src");
+                            let mux_sink = muxer.request_pad_simple("audio_%u");
+                            if let (Some(src), Some(mux_sink)) = (src, mux_sink) {
+                                let _ = src.link(&mux_sink);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;
+        pipeline.set_state(gst::State::Playing).map_err(|e| anyhow!("play: {}", e))?;
+
+        let msg = bus.timed_pop_filtered(gst::ClockTime::from_seconds(300),
+            &[gst::MessageType::Error, gst::MessageType::Eos]);
+        pipeline.set_state(gst::State::Null).map_err(|e| anyhow!("stop: {}", e))?;
+
+        match msg {
+            Some(msg) => match msg.view() {
+                gst::MessageView::Error(err) => Err(anyhow!("err: {}", err.error())),
+                gst::MessageView::Eos(_) => Ok(()),
+                _ => Err(anyhow!("unexpected")),
+            },
+            None => Err(anyhow!("timeout")),
+        }
     }
 
     /// Convert an audio file
@@ -182,14 +268,14 @@ impl MediaConverter {
         &self,
         input_path: P,
         output_path: Q,
-        _options: AudioConversionOptions,
+        options: AudioConversionOptions,
         _progress_callback: impl Fn(f64) + Send + 'static,
     ) -> Result<()> {
         if !self.initialized {
             return Err(anyhow!("GStreamer not initialized"));
         }
 
-        let _input_path = input_path.as_ref();
+        let input_path = input_path.as_ref();
         let output_path = output_path.as_ref();
 
 
@@ -197,14 +283,64 @@ impl MediaConverter {
             std::fs::create_dir_all(parent)?;
         }
 
-        // TODO: Need to implement audio pipeline string builder
-        // let pipeline_str = self.build_audio_pipeline_string(input_path, output_path, &options)?;
-        // debug!("Audio conversion pipeline: {}", pipeline_str);
+        let enc_name = match options.format {
+            ConversionFormat::MP3 => "lamemp3enc",
+            ConversionFormat::WAV => "wavenc",
+            ConversionFormat::FLAC => "flacenc",
+            _ => "lamemp3enc",
+        };
 
-        // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow::anyhow!("parse_launch not available in current GStreamer version").into());
+        let pipeline = gst::Pipeline::new();
+        let filesrc = gst::ElementFactory::make("filesrc")
+            .property("location", _input_path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesrc: {}", e))?;
+        let decodebin = gst::ElementFactory::make("decodebin")
+            .build().map_err(|e| anyhow!("decodebin: {}", e))?;
+        let queue = gst::ElementFactory::make("queue")
+            .build().map_err(|e| anyhow!("queue: {}", e))?;
+        let audioconvert = gst::ElementFactory::make("audioconvert")
+            .build().map_err(|e| anyhow!("audioconvert: {}", e))?;
+        let encoder = gst::ElementFactory::make(enc_name)
+            .build().map_err(|e| anyhow!("encoder {}: {}", enc_name, e))?;
+        let filesink = gst::ElementFactory::make("filesink")
+            .property("location", output_path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesink: {}", e))?;
 
-        Ok(())
+        pipeline.add_many([&filesrc, &decodebin, &queue, &audioconvert, &encoder, &filesink])
+            .map_err(|e| anyhow!("add: {}", e))?;
+        filesrc.link(&decodebin).map_err(|e| anyhow!("link: {}", e))?;
+        gst::Element::link_many([&queue, &audioconvert, &encoder, &filesink])
+            .map_err(|e| anyhow!("downstream: {}", e))?;
+
+        decodebin.connect_pad_added(move |_, src_pad| {
+            if let Some(sink) = queue.static_pad("sink") {
+                if !sink.is_linked() {
+                    if let Some(caps) = src_pad.current_caps() {
+                        if let Some(s) = caps.structure(0) {
+                            if s.name().starts_with("audio/") {
+                                let _ = src_pad.link(&sink);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;
+        pipeline.set_state(gst::State::Playing).map_err(|e| anyhow!("play: {}", e))?;
+
+        let msg = bus.timed_pop_filtered(gst::ClockTime::from_seconds(300),
+            &[gst::MessageType::Error, gst::MessageType::Eos]);
+        pipeline.set_state(gst::State::Null).map_err(|e| anyhow!("stop: {}", e))?;
+
+        match msg {
+            Some(msg) => match msg.view() {
+                gst::MessageView::Error(err) => Err(anyhow!("err: {}", err.error())),
+                gst::MessageView::Eos(_) => Ok(()),
+                _ => Err(anyhow!("unexpected")),
+            },
+            None => Err(anyhow!("timeout")),
+        }
     }
 
     fn build_video_pipeline_string(
