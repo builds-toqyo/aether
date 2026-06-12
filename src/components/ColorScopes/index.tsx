@@ -101,7 +101,7 @@ export const ColorScopes: React.FC = () => {
       setIsLoading(true);
       setError(null);
       
-      const response = await preview.get_scope_data();
+      const response = await preview.get_performance_stats();
       setScopeData(response.data);
     } catch (err) {
       console.error('Failed to fetch scope data:', err);

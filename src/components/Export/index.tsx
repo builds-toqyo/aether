@@ -277,7 +277,7 @@ const Export: React.FC = () => {
         },
       };
 
-      const result = await rendering.start_rendering(exportRequest);
+      const result = await rendering.start_job(exportRequest);
       
       // Simulate export progress
       updateProgress({ status: 'processing', currentFrame: 0, totalFrames: 1000 });
