@@ -109,20 +109,33 @@ pub struct PreviewResponse {
 
 #[tauri::command]
 pub async fn get_preview_info(
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<PreviewInfo, String> {
     debug!("Getting preview info");
 
-    // In a real implementation, this would query the preview engine
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    let (width, height) = engine.get_preview_dimensions()
+        .map_err(|e| format!("Preview dimensions unavailable: {}", e))?;
+
+    let preview_state = engine.get_preview_state()
+        .map_err(|e| format!("Preview state unavailable: {}", e))?;
+
+    let fps = 30.0;
+    let duration_secs = preview_state.duration.map(|d| d as f64 / 1_000_000_000.0).unwrap_or(0.0);
+    let current_time = preview_state.position as f64 / 1_000_000_000.0;
+    let total_frames = (duration_secs * fps) as u32;
+    let current_frame = (current_time * fps) as u32;
+
     let preview_info = PreviewInfo {
-        width: 1920,
-        height: 1080,
-        fps: 30.0,
-        duration: 120.0,
-        current_time: 0.0,
-        current_frame: 0,
-        total_frames: 3600, // 120 seconds * 30 fps
-        is_playing: false,
+        width,
+        height,
+        fps,
+        duration: duration_secs,
+        current_time,
+        current_frame,
+        total_frames,
+        is_playing: preview_state.is_playing,
         quality: PreviewQuality::High,
         format: FrameFormat::Rgba8,
     };
@@ -188,24 +201,27 @@ pub async fn preview_playback_control(
 #[tauri::command]
 pub async fn preview_seek(
     request: PreviewSeekRequest,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<PreviewResponse, String> {
-    debug!("{}", request.time);
+    debug!("Preview seek to time: {}", request.time);
 
-    // Validate time
     if request.time < 0.0 {
         return Err("Preview seek time cannot be negative".to_string());
     }
 
-    // In a real implementation, this would seek the preview engine
-    info!("{}", request.time);
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let position_ns = (request.time * 1_000_000_000.0) as i64;
+    engine.preview_seek(position_ns)
+        .map_err(|e| format!("Preview seek failed: {}", e))?;
+
+    info!("Preview seek to time: {}", request.time);
 
     Ok(PreviewResponse {
         success: true,
         message: format!("Seeked to {}", request.time),
         data: Some(serde_json::json!({
             "time": request.time,
-            "frame": (request.time * 30.0) as u32 // Assuming 30 fps
+            "frame": (request.time * 30.0) as u32
         })),
     })
 }
