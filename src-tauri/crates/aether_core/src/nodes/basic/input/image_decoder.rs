@@ -4,32 +4,26 @@ use ffmpeg::{codec, format, frame, media, software::scaling};
 use uuid::Uuid;
 use log::{debug, error};
 
-
 pub struct ImageDecoder {
 
     frame_cache: std::collections::HashMap<u64, Uuid>,
 }
 
 impl ImageDecoder {
-
     pub fn new() -> Self {
         Self {
             frame_cache: std::collections::HashMap::new(),
         }
     }
 
-
     pub fn decode_image_with_ffmpeg(&mut self, media_path: &str) -> ParameterValue {
 
-
         debug!("Decoding image from {}", media_path);
-
 
         if let Err(e) = ffmpeg::init() {
             error!("Failed to initialize FFmpeg for image: {}", e);
             return ParameterValue::None;
         }
-
 
         let input_format_context = match format::input(media_path) {
             Ok(context) => context,
@@ -39,7 +33,7 @@ impl ImageDecoder {
             }
         };
 
-        let _input_stream = match input_format_context.streams().best(media::Type::Video) {
+        let input_stream = match input_format_context.streams().best(media::Type::Video) {
             Some(stream) => stream,
             None => {
                 error!("No image stream found in file");
@@ -47,15 +41,79 @@ impl ImageDecoder {
             }
         };
 
-        let _width = 1920;
-        let _height = 1080;
-        let _pixel_format = "rgb24";
+        let mut decoder = match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
+            Ok(context) => match context.decoder().video() {
+                Ok(decoder) => decoder,
+                Err(e) => {
+                    error!("Failed to create image decoder: {}", e);
+                    return ParameterValue::None;
+                }
+            },
+            Err(e) => {
+                error!("Failed to create decoder context: {}", e);
+                return ParameterValue::None;
+            }
+        };
 
-        // TODO: ffmpeg-next API has changed - codec::find_by_name may not exist
-        // For now, return early with a placeholder value
-        error!("Image decoder API needs updating for ffmpeg-next 8.x");
-        return ParameterValue::None;
+        let width = decoder.width() as usize;
+        let height = decoder.height() as usize;
+        let pixel_format = decoder.format();
 
+        let mut image_frame = frame::Video::new(pixel_format, width as u32, height as u32);
+
+        let mut packet_iter = input_format_context.packets();
+        let frame_id = if let Some((_, packet)) = packet_iter.next() {
+            if let Err(e) = decoder.send_packet(&packet) {
+                error!("Failed to send packet for image: {}", e);
+                return ParameterValue::None;
+            }
+
+            if let Err(e) = decoder.receive_frame(&mut image_frame) {
+                error!("Failed to receive image frame: {}", e);
+                return ParameterValue::None;
+            }
+
+            let (channels, _has_alpha) = match pixel_format {
+                format::Pixel::RGB24 | format::Pixel::BGR24 => (3, false),
+                format::Pixel::RGBA | format::Pixel::BGRA => (4, true),
+                _ => (3, false),
+            };
+
+            let image_data = self.extract_frame_data(&image_frame, channels, &pixel_format.to_string())
+                .unwrap_or_else(|_| {
+                    error!("Failed to extract data for image: {}", media_path);
+                    vec![0u8; width * height * channels]
+                });
+
+            let decoded_frame = DecodedImageFrame {
+                width,
+                height,
+                format: pixel_format.to_string(),
+                channels,
+                data: image_data,
+            };
+
+            match self.convert_image_to_rgb(&decoded_frame, &decoder) {
+                Ok(rgb_frame) => {
+                    match self.upload_image_to_gpu(&rgb_frame) {
+                        Ok(id) => id,
+                        Err(e) => {
+                            error!("Failed to upload image to GPU: {}", e);
+                            return ParameterValue::None;
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to convert image to RGB: {}", e);
+                    return ParameterValue::None;
+                }
+            }
+        } else {
+            error!("No packet found in image: {}", media_path);
+            return ParameterValue::None;
+        };
+
+        ParameterValue::Image(frame_id)
     }
 
     fn extract_frame_data(&self, frame: &frame::Video, channels: usize, _pixel_format: &str) -> Result<Vec<u8>, String> {
