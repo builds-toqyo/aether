@@ -4,7 +4,6 @@ use ffmpeg::{format, frame, media};
 use uuid::Uuid;
 use log::{debug, error, warn};
 
-
 pub struct SequenceLoader {
 
     sequence_pattern: Option<String>,
@@ -44,9 +43,7 @@ impl SequenceLoader {
         ParameterValue::Image(frame_data)
     }
 
-
     fn generate_sequence_filename(&self, frame: u64, media_path: &str) -> String {
-
 
         if let Some(pattern) = &self.sequence_pattern {
 
@@ -54,7 +51,6 @@ impl SequenceLoader {
                 .parent()
                 .and_then(|p| p.to_str())
                 .unwrap_or(".");
-
 
             let filename = pattern
                 .replace("%d", &format!("{}", frame))
@@ -107,48 +103,51 @@ impl SequenceLoader {
             }
         };
 
-        let _codec_params = input_stream.parameters();
-        let _width = 1920_usize;
-        let _height = 1080_usize;
-        let _pixel_format = "rgb24";
+        let mut decoder = match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
+            Ok(context) => match context.decoder().video() {
+                Ok(decoder) => decoder,
+                Err(e) => {
+                    warn!("Failed to create video decoder for sequence: {}", e);
+                    return self.create_default_sequence_frame(frame);
+                }
+            },
+            Err(e) => {
+                warn!("Failed to create decoder context for sequence: {}", e);
+                return self.create_default_sequence_frame(frame);
+            }
+        };
 
-        // TODO: ffmpeg-next API has changed - codec::find_by_name may not exist
-        // For now, return early with a placeholder frame
-        warn!("Sequence loader decoder API needs updating for ffmpeg-next 8.x");
-        return self.create_default_sequence_frame(frame);
+        let width = decoder.width() as usize;
+        let height = decoder.height() as usize;
+        let pixel_format = decoder.format();
 
-        // Unreachable code below - kept for reference when updating API
-        /*
-        let mut image_frame = frame::Video::new(width, height, decoder_context.format());
-
+        let mut image_frame = frame::Video::new(pixel_format, width as u32, height as u32);
 
         let mut packet_iter = input_format_context.packets();
         let mut frame_id = Uuid::new_v4();
 
         if let Some((_, packet)) = packet_iter.next() {
-            if let Err(e) = decoder_context.send_packet(&packet) {
+            if let Err(e) = decoder.send_packet(&packet) {
                 warn!("Failed to send packet for sequence frame {}: {}", filename, e);
                 return self.create_default_sequence_frame(frame);
             }
 
-            if let Err(e) = decoder_context.receive_frame(&mut image_frame) {
+            if let Err(e) = decoder.receive_frame(&mut image_frame) {
                 warn!("Failed to receive frame for sequence frame {}: {}", filename, e);
                 return self.create_default_sequence_frame(frame);
             }
 
-
-            let (channels, has_alpha) = match pixel_format {
-                "rgb24" | "bgr24" => (3, false),
-                "rgba" | "bgra" => (4, true),
+            let (channels, _has_alpha) = match pixel_format {
+                format::Pixel::RGB24 | format::Pixel::BGR24 => (3, false),
+                format::Pixel::RGBA | format::Pixel::BGRA => (4, true),
                 _ => (3, false),
             };
 
-            let image_data = self.extract_frame_data(&image_frame, channels, pixel_format)
+            let image_data = self.extract_frame_data(&image_frame, channels, &pixel_format.to_string())
                 .unwrap_or_else(|_| {
                     warn!("Failed to extract data for sequence frame: {}", filename);
                     vec![0u8; width * height * channels]
                 });
-
 
             frame_id = self.upload_sequence_frame_to_gpu(&image_data, width, height, channels)
                 .unwrap_or_else(|_| {
@@ -165,7 +164,6 @@ impl SequenceLoader {
         }
 
         frame_id
-        */
     }
 
 
