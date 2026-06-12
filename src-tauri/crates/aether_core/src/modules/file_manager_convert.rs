@@ -292,7 +292,7 @@ impl MediaConverter {
 
         let pipeline = gst::Pipeline::new();
         let filesrc = gst::ElementFactory::make("filesrc")
-            .property("location", _input_path.to_str().unwrap())
+            .property("location", input_path.to_str().unwrap())
             .build().map_err(|e| anyhow!("filesrc: {}", e))?;
         let decodebin = gst::ElementFactory::make("decodebin")
             .build().map_err(|e| anyhow!("decodebin: {}", e))?;
