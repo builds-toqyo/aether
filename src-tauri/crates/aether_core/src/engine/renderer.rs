@@ -415,39 +415,38 @@ impl Renderer {
 
     /// Initialize wgpu compute for cross-platform GPU post-processing
     fn initialize_wgpu_compute(&mut self) -> Result<(), RendererError> {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
-            ..Default::default()
+            ..wgpu::InstanceDescriptor::new_without_display_handle()
         });
 
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
+        let adapter = pollster::block_on(
+            instance.request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: None,
                 force_fallback_adapter: false,
             })
-            .block_on()
-            .ok_or_else(|| RendererError::HardwareAccelerationError(
-                "No suitable GPU adapter found".to_string()
-            ))?;
+        )
+        .map_err(|e| RendererError::HardwareAccelerationError(
+            format!("No suitable GPU adapter found: {}", e)
+        ))?;
 
         let info = adapter.get_info();
         log::info!("Selected GPU: {} ({:?})", info.name, info.backend);
 
-        let (device, queue) = adapter
-            .request_device(
+        let (device, queue) = pollster::block_on(
+            adapter.request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some("Aether Renderer"),
                     required_features: wgpu::Features::empty(),
                     required_limits: wgpu::Limits::default(),
                     ..Default::default()
-                },
-                None,
+                }
             )
-            .block_on()
-            .map_err(|e| RendererError::HardwareAccelerationError(
-                format!("Failed to create wgpu device: {}", e)
-            ))?;
+        )
+        .map_err(|e| RendererError::HardwareAccelerationError(
+            format!("Failed to create wgpu device: {}", e)
+        ))?;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("post_process"),
@@ -492,8 +491,9 @@ impl Renderer {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("post_process_pipeline_layout"),
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&bind_group_layout)],
+            immediate_size: 0,
+            ..Default::default()
         });
 
         let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
@@ -501,7 +501,8 @@ impl Renderer {
             layout: Some(&pipeline_layout),
             module: &shader,
             entry_point: Some("main"),
-            ..Default::default()
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
         });
 
         let width = self.config.width as u64;
@@ -649,11 +650,11 @@ impl Renderer {
 
     /// Detect GPU vendor using wgpu adapter enumeration
     fn detect_gpu_vendor(&self) -> Option<&'static str> {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
-            ..Default::default()
+            ..wgpu::InstanceDescriptor::new_without_display_handle()
         });
-        let adapters = instance.enumerate_adapters(wgpu::Backends::all());
+        let adapters = pollster::block_on(instance.enumerate_adapters(wgpu::Backends::all()));
         for adapter in adapters {
             let info = adapter.get_info();
             let vendor = match info.vendor {
@@ -763,14 +764,12 @@ impl Renderer {
     fn initialize_lookup_tables(&mut self) -> Result<(), RendererError> {
         log::debug!("Initializing lookup tables");
 
-
         let gamma = self.config.gamma as f32;
         let gamma_lut = (0..256).map(|i| {
             let normalized = i as f32 / 255.0;
             let corrected = normalized.powf(1.0 / gamma);
             (corrected * 255.0).round() as u8
         }).collect::<Vec<u8>>();
-
 
         let width = self.config.width as usize;
         let height = self.config.height as usize;
@@ -790,7 +789,6 @@ impl Renderer {
             }
         }
 
-
         self.lookup_tables = Some(LookupTables {
             gamma: gamma_lut,
             vignette: vignette_lut,
@@ -800,7 +798,6 @@ impl Renderer {
         log::debug!("Lookup tables initialized");
         Ok(())
     }
-
 
     fn allocate_gpu_resources(&mut self) -> Result<(), RendererError> {
         log::debug!("Allocating GPU resources");
@@ -824,12 +821,10 @@ impl Renderer {
                     #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
                     HardwareContext::VideoToolbox { .. } => {
 
-
                     },
 
                     #[cfg(feature = "amf")]
                     HardwareContext::Amf { .. } => {
-
 
                     },
 
@@ -853,15 +848,12 @@ impl Renderer {
         Ok(())
     }
 
-
     fn allocate_cpu_buffers(&mut self, width: usize, height: usize) -> Result<(), RendererError> {
 
         let buffer_size = width * height * 4;
 
-
         let input_buffer = vec![0u8; buffer_size];
         let output_buffer = vec![0u8; buffer_size];
-
 
         self.cpu_buffers = Some(CpuBuffers {
             input: input_buffer,
@@ -872,10 +864,8 @@ impl Renderer {
         Ok(())
     }
 
-
     fn initialize_post_processing(&mut self) -> Result<(), RendererError> {
         log::debug!("Initializing post-processing pipeline");
-
 
         let mut stages = Vec::new();
 
@@ -891,7 +881,6 @@ impl Renderer {
             stages.push(PostProcessStage::Vignette);
         }
 
-
         let stage_count = stages.len();
         self.post_process_pipeline = Some(PostProcessPipeline { stages });
 
@@ -899,11 +888,9 @@ impl Renderer {
         Ok(())
     }
 
-
     fn cleanup_hardware_acceleration(&mut self) {
         if let Some(device) = &self.config.hw_device {
             log::debug!("Cleaning up hardware acceleration resources for device: {}", device);
-
 
             match device.as_str() {
                 "cuda" => {
@@ -929,20 +916,16 @@ impl Renderer {
         }
     }
 
-
     fn cleanup_frame_buffers(&mut self) {
         log::debug!("Cleaning up frame buffer resources");
 
-
     }
-
 
     fn cleanup_resources(&mut self) {
         log::debug!("Cleaning up additional rendering resources");
 
 
     }
-
 
     pub fn render(&mut self, input_data: &[u8], timestamp: f64) -> Result<&Frame, RendererError> {
         if !self.is_initialized {
@@ -1071,7 +1054,7 @@ impl Renderer {
         slice.map_async(wgpu::MapMode::Read, move |result| {
             let _ = tx.send(result);
         });
-        device.poll(wgpu::Maintain::Wait);
+        device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| RendererError::RenderError(format!("GPU poll failed: {:?}", e)))?;
         rx.recv().map_err(|_| RendererError::RenderError("GPU map channel closed".to_string()))?
             .map_err(|e| RendererError::RenderError(format!("GPU map failed: {}", e)))?;
 
@@ -1227,6 +1210,15 @@ impl Renderer {
             self.cleanup_hardware_acceleration();
         }
 
+        self.wgpu_compute_pipeline = None;
+        self.wgpu_bind_group_layout = None;
+        self.wgpu_input_buffer = None;
+        self.wgpu_output_buffer = None;
+        self.wgpu_uniform_buffer = None;
+        self.wgpu_staging_buffer = None;
+        self.wgpu_queue = None;
+        self.wgpu_device = None;
+
         self.cleanup_frame_buffers();
 
         self.cleanup_resources();
@@ -1244,7 +1236,6 @@ impl Drop for Renderer {
         let _ = self.cleanup();
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct RendererConfig {
