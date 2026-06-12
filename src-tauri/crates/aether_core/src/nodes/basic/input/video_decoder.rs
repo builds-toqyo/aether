@@ -3,7 +3,6 @@ use ffmpeg::{format, frame, media};
 use uuid::Uuid;
 use log::{debug, error};
 
-
 pub struct VideoDecoder {
 
     frame_cache: std::collections::HashMap<u64, Uuid>,
@@ -17,18 +16,14 @@ impl VideoDecoder {
         }
     }
 
-
     pub fn decode_video_frame_with_ffmpeg(&mut self, frame: u64, media_path: &str) -> Uuid {
 
-
         debug!("Decoding video frame {} from {}", frame, media_path);
-
 
         if let Err(e) = ffmpeg::init() {
             error!("Failed to initialize FFmpeg for video: {}", e);
             return Uuid::new_v4();
         }
-
 
         let input_format_context = match format::input(media_path) {
             Ok(context) => context,
@@ -40,7 +35,7 @@ impl VideoDecoder {
 
 
 
-        let _input_stream = match input_format_context.streams().best(media::Type::Video) {
+        let input_stream = match input_format_context.streams().best(media::Type::Video) {
             Some(stream) => stream,
             None => {
                 error!("No video stream found in file");
@@ -48,60 +43,59 @@ impl VideoDecoder {
             }
         };
 
+        let mut decoder = match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
+            Ok(context) => match context.decoder().video() {
+                Ok(decoder) => decoder,
+                Err(e) => {
+                    error!("Failed to create video decoder: {}", e);
+                    return Uuid::new_v4();
+                }
+            },
+            Err(e) => {
+                error!("Failed to create decoder context: {}", e);
+                return Uuid::new_v4();
+            }
+        };
 
-        let _width = 1920;
-        let _height = 1080;
-        let _pixel_format = "yuv420p";
+        let width = decoder.width() as usize;
+        let height = decoder.height() as usize;
+        let pixel_format = decoder.format();
 
-
-        // TODO: ffmpeg-next API has changed - codec::find_by_name may not exist
-        // For now, return early with a placeholder node ID
-        error!("Video decoder API needs updating for ffmpeg-next 8.x");
-        return Uuid::new_v4();
-
-        // Unreachable code below - kept for reference when updating API
-        /*
-        let mut video_frame = frame::Video::new(width, height, decoder_context.format());
-
+        let mut video_frame = frame::Video::new(pixel_format, width as u32, height as u32);
 
         let timestamp = frame as f64 / 30.0;
-        let seek_timestamp = (timestamp * 1000000.0) as i64;
-
 
         let mut packet_iter = input_format_context.packets();
         let mut frame_id = Uuid::new_v4();
 
         if let Some((_, packet)) = packet_iter.next() {
-            if let Err(e) = decoder_context.send_packet(&packet) {
+            if let Err(e) = decoder.send_packet(&packet) {
                 error!("Failed to send video packet: {}", e);
                 return Uuid::new_v4();
             }
 
-            if let Err(e) = decoder_context.receive_frame(&mut video_frame) {
+            if let Err(e) = decoder.receive_frame(&mut video_frame) {
                 error!("Failed to receive video frame: {}", e);
                 return Uuid::new_v4();
             }
 
-
-            let (channels, has_alpha) = match pixel_format {
-                "rgb24" | "bgr24" => (3, false),
-                "rgba" | "bgra" => (4, true),
+            let (channels, _has_alpha) = match pixel_format {
+                format::Pixel::RGB24 | format::Pixel::BGR24 => (3, false),
+                format::Pixel::RGBA | format::Pixel::BGRA => (4, true),
                 _ => (3, false),
             };
 
-            let image_data = self.extract_frame_data(&video_frame, channels, pixel_format)
+            let image_data = self.extract_frame_data(&video_frame, channels, &pixel_format.to_string())
                 .unwrap_or_else(|_| {
                     warn!("Failed to extract data for video frame: {}", frame);
                     vec![0u8; width * height * channels]
                 });
-
 
             frame_id = self.upload_video_frame_to_gpu(&image_data, width, height, channels)
                 .unwrap_or_else(|_| {
                     warn!("Failed to upload video frame to GPU: {}", frame);
                     Uuid::new_v4()
                 });
-
 
             let frame_metadata = VideoFrameMetadata {
                 frame_number: frame,
@@ -122,7 +116,6 @@ impl VideoDecoder {
         }
 
         frame_id
-        */
     }
 
 
@@ -151,15 +144,11 @@ impl VideoDecoder {
         Ok(data)
     }
 
-
     fn upload_video_frame_to_gpu(&self, _data: &[u8], width: usize, height: usize, channels: usize) -> Result<Uuid, String> {
-
 
         debug!("Uploading video frame to GPU: {}x{} ({} channels)", width, height, channels);
 
-
         let texture_id = Uuid::new_v4();
-
 
         debug!("Video frame uploaded to GPU with texture ID: {}", texture_id);
 
