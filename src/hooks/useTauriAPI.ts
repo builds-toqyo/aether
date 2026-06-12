@@ -3,24 +3,25 @@ import { invoke } from '@tauri-apps/api/core';
 
 // Tauri API types
 export interface PreviewAPI {
-  get_scope_data: () => Promise<{ data: any }>;
-  get_preview_frame: () => Promise<{ data: ImageData | null }>;
+  get_performance_stats: () => Promise<any>;
+  get_preview_frame: (timestamp?: number, quality?: string, format?: string) => Promise<any>;
   play_preview: () => Promise<void>;
   pause_preview: () => Promise<void>;
+  stop_preview: () => Promise<void>;
   seek_preview: (time: number) => Promise<void>;
 }
 
 export interface EditingAPI {
-  create_project: (request: any) => Promise<any>;
+  init_project: (request: any) => Promise<any>;
   save_project: (request: any) => Promise<any>;
   load_project: (request: any) => Promise<any>;
   import_media: (request: any) => Promise<any>;
 }
 
 export interface RenderingAPI {
-  start_rendering: (request: any) => Promise<any>;
-  cancel_rendering: (jobId: string) => Promise<any>;
-  get_rendering_status: (jobId: string) => Promise<any>;
+  start_job: (request: any) => Promise<any>;
+  cancel_job: (jobId: string) => Promise<any>;
+  get_job_status: (jobId: string) => Promise<any>;
 }
 
 export interface TauriAPIs {
@@ -31,20 +32,27 @@ export interface TauriAPIs {
 
 // Actual Tauri API implementation
 const previewAPI: PreviewAPI = {
-  get_scope_data: async () => {
-    return await invoke('preview_get_scope_data');
+  get_performance_stats: async () => {
+    return await invoke('preview_get_performance_stats');
   },
 
-  get_preview_frame: async () => {
-    return await invoke('preview_get_frame');
+  get_preview_frame: async (timestamp = 0, quality?: string, format?: string) => {
+    const payload: any = { timestamp };
+    if (quality) payload.quality = quality;
+    if (format) payload.format = format;
+    return await invoke('preview_get_frame', payload);
   },
 
   play_preview: async () => {
-    return await invoke('preview_play');
+    return await invoke('preview_playback_control', { action: 'Play' });
   },
 
   pause_preview: async () => {
-    return await invoke('preview_pause');
+    return await invoke('preview_playback_control', { action: 'Pause' });
+  },
+
+  stop_preview: async () => {
+    return await invoke('preview_playback_control', { action: 'Stop' });
   },
 
   seek_preview: async (time: number) => {
@@ -53,8 +61,8 @@ const previewAPI: PreviewAPI = {
 };
 
 const editingAPI: EditingAPI = {
-  create_project: async (request: any) => {
-    return await invoke('project_create', { request });
+  init_project: async (request: any) => {
+    return await invoke('project_init', request);
   },
 
   save_project: async (request: any) => {
@@ -71,16 +79,16 @@ const editingAPI: EditingAPI = {
 };
 
 const renderingAPI: RenderingAPI = {
-  start_rendering: async (request: any) => {
-    return await invoke('rendering_start', { request });
+  start_job: async (request: any) => {
+    return await invoke('rendering_start_job', request);
   },
 
-  cancel_rendering: async (jobId: string) => {
-    return await invoke('rendering_cancel', { jobId });
+  cancel_job: async (jobId: string) => {
+    return await invoke('rendering_cancel_job', { job_id: jobId });
   },
 
-  get_rendering_status: async (jobId: string) => {
-    return await invoke('rendering_get_status', { jobId });
+  get_job_status: async (jobId: string) => {
+    return await invoke('rendering_get_job_status', { job_id: jobId });
   },
 };
 
