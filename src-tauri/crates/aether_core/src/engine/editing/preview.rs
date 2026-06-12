@@ -44,10 +44,8 @@ impl PreviewEngine {
     }
 
     pub fn set_pipeline(&mut self, pipeline: Option<ges::Pipeline>) -> Result<(), EditingError> {
-        // Clean up existing resources first
         self.cleanup_resources();
 
-        // Set up new pipeline if provided
         if let Some(pipeline) = pipeline {
             self.setup_preview_pipeline(&pipeline)?;
             self.pipeline = Some(pipeline);
@@ -56,34 +54,27 @@ impl PreviewEngine {
         Ok(())
     }
 
-    /// Clean up all resources associated with the current pipeline
     fn cleanup_resources(&mut self) {
-        // First remove the video sink from the pipeline if it exists
         if let (Some(pipeline), Some(_video_sink)) = (&self.pipeline, &self.video_sink) {
-            // Try to remove the video sink from the pipeline
             pipeline.set_video_sink(None::<&gst::Element>);
         }
 
-        // Set pipeline to NULL state to release resources
         if let Some(pipeline) = &self.pipeline {
             if let Err(err) = pipeline.set_state(gst::State::Null) {
                 error!("Failed to set pipeline to NULL state: {}", err);
             }
 
-            // Verify pipeline reached NULL state
             if pipeline.current_state() != gst::State::Null {
                 warn!("Pipeline did not reach NULL state (current: {:?})", pipeline.current_state());
             }
         }
 
-        // Clear our references
         self.pipeline = None;
         self.video_sink = None;
         self.is_playing = false;
     }
 
     fn setup_preview_pipeline(&mut self, pipeline: &ges::Pipeline) -> Result<(), EditingError> {
-        // Extract video properties from the pipeline
         self.update_video_properties(pipeline);
         let video_sink = gst::ElementFactory::make("appsink")
             .name("video_sink")
@@ -93,7 +84,6 @@ impl PreviewEngine {
         let appsink = video_sink.downcast_ref::<gst_app::AppSink>()
             .ok_or(EditingError::PreviewError("Failed to downcast to AppSink".to_string()))?;
 
-        // Support multiple pixel formats to reduce unnecessary conversions
         let caps = gst::Caps::builder("video/x-raw")
             .field("format", &gst::List::new(["RGB", "BGR", "RGBx", "BGRx"]))
             .build();
@@ -110,8 +100,6 @@ impl PreviewEngine {
                     if let Some(callback) = &callback {
                         if let Ok(sample) = appsink.pull_sample() {
                             if let Some(frame) = extract_frame_from_sample(&sample) {
-                                // Use catch_unwind to prevent callback panics from crashing the pipeline
-                                // Store the frame in latest_frame for asynchronous access
                                 if let Ok(mut latest_frame) = latest_frame.lock() {
                                     *latest_frame = Some(frame.clone());
                                 }

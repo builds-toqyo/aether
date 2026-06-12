@@ -154,7 +154,7 @@ pub struct Transition {
 
     pub parameters: HashMap<String, String>,
 
-    ges_transition: Option<ges::Transition>,
+    ges_transition: Option<ges::TransitionClip>,
 }
 
 impl Transition {
@@ -176,8 +176,34 @@ impl Transition {
         Ok(())
     }
 
-    pub fn create_ges_transition(&mut self, _track_type: ges::TrackType) -> Result<ges::Transition, EditingError> {
-        Err(EditingError::EffectError("GES Transition creation requires updated API".to_string()))
+    fn transition_type_to_enum(&self) -> ges::VideoStandardTransitionType {
+        match self.transition_type {
+            TransitionType::Crossfade => ges::VideoStandardTransitionType::Crossfade,
+            TransitionType::Wipe => ges::VideoStandardTransitionType::BarWipeLr,
+            TransitionType::Slide => ges::VideoStandardTransitionType::BoxWipeTl,
+            TransitionType::Fade => ges::VideoStandardTransitionType::Crossfade,
+            TransitionType::AudioCrossfade => ges::VideoStandardTransitionType::Crossfade,
+            TransitionType::Custom(ref name) => match name.as_str() {
+                "crossfade" => ges::VideoStandardTransitionType::Crossfade,
+                "fade" => ges::VideoStandardTransitionType::Crossfade,
+                "wipe" => ges::VideoStandardTransitionType::BarWipeLr,
+                "slide" => ges::VideoStandardTransitionType::BoxWipeTl,
+                _ => ges::VideoStandardTransitionType::Crossfade,
+            },
+        }
+    }
+
+    pub fn create_ges_transition(&mut self, _track_type: ges::TrackType) -> Result<ges::TransitionClip, EditingError> {
+        let vtype = self.transition_type_to_enum();
+        let transition = ges::TransitionClip::new(vtype)
+            .ok_or_else(|| EditingError::EffectError(format!("Failed to create {:?} transition clip", vtype)))?;
+
+        for (name, value) in &self.parameters {
+            transition.set_property_from_str(name, value);
+        }
+
+        self.ges_transition = Some(transition.clone());
+        Ok(transition)
     }
 }
 
