@@ -26,16 +26,12 @@ pub async fn execute_graph(
 
     // Create execution context
     let frame_number = frame.unwrap_or(0);
-    let mut context = ExecutionContext {
-        frame: frame_number,
-        time: frame_number as f64 / 30.0,
-        frame_rate: 30.0,
-        resolution: (1920, 1080),
-        inputs: HashMap::new(),
-        outputs: HashMap::new(),
-        global_parameters: HashMap::new(),
-        gpu_context: None,
-    };
+    let mut context = ExecutionContext::new(
+        frame_number,
+        frame_number as f64 / 30.0,
+        30.0,
+        (1920, 1080),
+    );
 
     // Execute nodes in order
     let mut executed_nodes = Vec::new();
@@ -100,9 +96,7 @@ pub async fn get_node_result(
     let node = graph.get_node(&node_uuid)
         .ok_or_else(|| format!("Node not found: {}", node_id))?;
 
-
     let execution_results = state.execution_results.lock().map_err(|e| format!("Failed to lock execution results: {}", e))?;
-
 
     let mut outputs = HashMap::new();
 
