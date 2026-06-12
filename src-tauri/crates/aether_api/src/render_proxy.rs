@@ -24,6 +24,7 @@ pub struct GstExportConfig {
     pub crf: u8,
     pub hardware_acceleration: bool,
     pub threads: u8,
+    pub project_path: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -133,6 +134,7 @@ fn run_gst_exporter_thread(receiver: std::sync::mpsc::Receiver<RenderCommand>, c
         crf: config.crf,
         hardware_acceleration: config.hardware_acceleration,
         threads: config.threads,
+        project_path: config.project_path.clone(),
     };
     match GstExporter::new(options) {
         Ok(mut exporter) => {

@@ -6,7 +6,7 @@ use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_pbutils as gst_pbutils;
 use gstreamer_editing_services as ges;
-use gstreamer_editing_services::prelude::{TimelineExt, EncodingProfileBuilder};
+use gstreamer_editing_services::prelude::*;
 use glib::{filename_to_uri, ControlFlow, MainLoop, SourceId};
 use crate::engine::editing::types::EditingError;
 use crate::engine::rendering::formats::{VideoFormat, AudioFormat, ContainerFormat};
@@ -29,6 +29,7 @@ pub struct ExportOptions {
     pub crf: u8,
     pub hardware_acceleration: bool,
     pub threads: u8,
+    pub project_path: Option<PathBuf>,
 }
 
 impl Default for ExportOptions {
@@ -47,6 +48,7 @@ impl Default for ExportOptions {
             crf: 23,
             hardware_acceleration: false,
             threads: 0,
+            project_path: None,
         }
     }
 }
@@ -71,7 +73,7 @@ pub struct ExportProgress {
 pub struct GstExporter {
     options: ExportOptions,
 
-    pipeline: Option<gst::Pipeline>,
+    pipeline: Option<ges::Pipeline>,
 
     main_loop: Option<MainLoop>,
 
@@ -123,7 +125,34 @@ impl GstExporter {
     pub fn start_export(&mut self) -> Result<(), EditingError> {
         *self.cancel_flag.lock().unwrap() = false;
 
-        let pipeline = gst::Pipeline::new();
+        let pipeline = ges::Pipeline::new();
+
+        let timeline = ges::Timeline::new();
+
+        if let Some(project_path) = &self.options.project_path {
+            let uri = filename_to_uri(project_path, None)
+                .map_err(|e| EditingError::ExportError(format!("Failed to convert project path to URI: {}", e)))?;
+            timeline.load_from_uri(&uri)
+                .map_err(|e| EditingError::ExportError(format!("Failed to load timeline from {}: {}", project_path.display(), e)))?;
+        }
+
+        pipeline.set_timeline(&timeline)
+            .map_err(|e| EditingError::ExportError(format!("Failed to set timeline on pipeline: {}", e)))?;
+
+        let duration = timeline.duration();
+        let duration_nanos = duration.nseconds();
+        let duration_seconds = duration_nanos as f64 / gst::ClockTime::SECOND.nseconds() as f64;
+        let total_frames = (duration_seconds * self.options.frame_rate) as u64;
+
+        {
+            let mut progress = self.progress.lock().unwrap();
+            progress.total_frames = total_frames;
+            progress.total_duration = duration_seconds;
+
+            if let Some(callback) = &self.progress_callback {
+                callback(progress.clone());
+            }
+        }
 
         let profile = self.create_encoding_profile()
             .context("Failed to create encoding profile")?;
@@ -131,21 +160,6 @@ impl GstExporter {
         let output_uri = filename_to_uri(self.options.output_path.as_path(), None)
             .context("Failed to convert output path to URI")?;
 
-        // Build manual pipeline: videotestsrc + audiotestsrc → encodebin → filesink
-        let videotestsrc = gst::ElementFactory::make("videotestsrc")
-            .name("video_src")
-            .build()
-            .map_err(|_| EditingError::ExportError("Failed to create videotestsrc".to_string()))?;
-        let audiotestsrc = gst::ElementFactory::make("audiotestsrc")
-            .name("audio_src")
-            .build()
-            .map_err(|_| EditingError::ExportError("Failed to create audiotestsrc".to_string()))?;
-        let v_queue = gst::ElementFactory::make("queue")
-            .build()
-            .map_err(|_| EditingError::ExportError("Failed to create video queue".to_string()))?;
-        let a_queue = gst::ElementFactory::make("queue")
-            .build()
-            .map_err(|_| EditingError::ExportError("Failed to create audio queue".to_string()))?;
         let encodebin = gst::ElementFactory::make("encodebin")
             .name("encoder")
             .property("profile", &profile)
@@ -157,37 +171,24 @@ impl GstExporter {
             .build()
             .map_err(|_| EditingError::ExportError("Failed to create filesink".to_string()))?;
 
-        pipeline.add_many(&[&videotestsrc, &audiotestsrc, &v_queue, &a_queue, &encodebin, &filesink])
+        pipeline.add_many(&[&encodebin, &filesink])
             .map_err(|e| EditingError::ExportError(format!("Failed to add elements: {}", e)))?;
-
-        gst::Element::link_many(&[&videotestsrc, &v_queue])
-            .map_err(|e| EditingError::ExportError(format!("Failed to link video src: {}", e)))?;
-        gst::Element::link_many(&[&audiotestsrc, &a_queue])
-            .map_err(|e| EditingError::ExportError(format!("Failed to link audio src: {}", e)))?;
         gst::Element::link_many(&[&encodebin, &filesink])
             .map_err(|e| EditingError::ExportError(format!("Failed to link encodebin to filesink: {}", e)))?;
 
+        let v_src_pad = pipeline.static_pad("video_0")
+            .ok_or_else(|| EditingError::ExportError("Pipeline has no video src pad".to_string()))?;
+        let a_src_pad = pipeline.static_pad("audio_0")
+            .ok_or_else(|| EditingError::ExportError("Pipeline has no audio src pad".to_string()))?;
         let v_sink_pad = encodebin.request_pad_simple("video_%u")
             .ok_or_else(|| EditingError::ExportError("Failed to request video sink pad".to_string()))?;
         let a_sink_pad = encodebin.request_pad_simple("audio_%u")
             .ok_or_else(|| EditingError::ExportError("Failed to request audio sink pad".to_string()))?;
 
-        v_queue.static_pad("src").unwrap().link(&v_sink_pad)
+        v_src_pad.link(&v_sink_pad)
             .map_err(|e| EditingError::ExportError(format!("Failed to link video to encodebin: {}", e)))?;
-        a_queue.static_pad("src").unwrap().link(&a_sink_pad)
+        a_src_pad.link(&a_sink_pad)
             .map_err(|e| EditingError::ExportError(format!("Failed to link audio to encodebin: {}", e)))?;
-
-        // Default 10s duration for test sources; real timeline content will replace this
-        let total_frames = (10.0 * self.options.frame_rate) as u64;
-        {
-            let mut progress = self.progress.lock().unwrap();
-            progress.total_frames = total_frames;
-            progress.total_duration = 10.0;
-
-            if let Some(callback) = &self.progress_callback {
-                callback(progress.clone());
-            }
-        }
 
         let bus = pipeline.bus().expect("Pipeline without bus");
 
