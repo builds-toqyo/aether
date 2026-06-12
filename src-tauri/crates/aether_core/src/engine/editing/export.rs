@@ -13,27 +13,16 @@ use crate::engine::editing::types::EditingError;
 #[derive(Debug, Clone)]
 pub struct ExportOptions {
     pub output_path: PathBuf,
-
     pub container: String,
-
     pub video_codec: String,
-
     pub audio_codec: String,
-
     pub video_bitrate: u32,
-
     pub audio_bitrate: u32,
-
     pub frame_rate: f64,
-
     pub width: u32,
-
     pub height: u32,
-
     pub hardware_acceleration: bool,
-
     pub start_time: i64,
-
     pub end_time: i64,
 }
 
@@ -59,25 +48,17 @@ impl Default for ExportOptions {
 #[derive(Debug, Clone)]
 pub struct ExportProgress {
     pub position: i64,
-
     pub duration: i64,
-
     pub percent: f64,
-
     pub complete: bool,
-
     pub error: Option<String>,
 }
 
 pub struct IntermediateExporter {
     timeline: ges::Timeline,
-
     options: ExportOptions,
-
     pipeline: Option<gst::Pipeline>,
-
     progress: Arc<Mutex<ExportProgress>>,
-
     progress_callback: Option<Arc<Mutex<dyn Fn(ExportProgress) + Send + 'static>>>,
 }
 
@@ -211,9 +192,67 @@ impl IntermediateExporter {
     }
 
     fn create_encoding_profile(&self) -> Result<gst_pbutils::EncodingContainerProfile, EditingError> {
-        // TODO: GStreamer 0.25 API changed - EncodingVideoProfile/EncodingAudioProfile no longer implement IsA<EncodingProfile>
-        // For now, stub this out
-        return Err(EditingError::ExportError("Encoding profile creation not yet implemented for GStreamer 0.25".to_string()));
+        let container_caps = gst::Caps::new_empty_simple(
+            Self::container_to_caps(&self.options.container)
+        );
+        let video_caps = gst::Caps::new_empty_simple(
+            Self::codec_to_video_caps(&self.options.video_codec)
+        );
+        let audio_caps = gst::Caps::new_empty_simple(
+            Self::codec_to_audio_caps(&self.options.audio_codec)
+        );
+
+        let video_profile = gst_pbutils::EncodingVideoProfile::builder(&video_caps)
+            .presence(1)
+            .build();
+
+        let audio_profile = gst_pbutils::EncodingAudioProfile::builder(&audio_caps)
+            .presence(1)
+            .build();
+
+        let container_profile = gst_pbutils::EncodingContainerProfile::builder(&container_caps)
+            .name("export")
+            .description("Aether export profile")
+            .add_profile(video_profile)
+            .add_profile(audio_profile)
+            .build();
+
+        Ok(container_profile)
+    }
+
+    fn container_to_caps(container: &str) -> &str {
+        match container {
+            "mkv" | "matroska" => "video/x-matroska",
+            "mp4" | "mov" | "quicktime" => "video/quicktime",
+            "webm" => "video/webm",
+            "avi" => "video/x-avi",
+            "ogg" => "application/ogg",
+            _ => "video/x-matroska",
+        }
+    }
+
+    fn codec_to_video_caps(codec: &str) -> &str {
+        match codec {
+            "libx264" | "x264" | "h264" | "avc" => "video/x-h264",
+            "libx265" | "x265" | "h265" | "hevc" => "video/x-h265",
+            "vp8" => "video/x-vp8",
+            "vp9" => "video/x-vp9",
+            "av1" => "video/x-av1",
+            "prores" => "video/x-prores",
+            _ => "video/x-h264",
+        }
+    }
+
+    fn codec_to_audio_caps(codec: &str) -> &str {
+        match codec {
+            "flac" => "audio/x-flac",
+            "aac" | "libfdk_aac" => "audio/mpeg",
+            "mp3" | "libmp3lame" => "audio/mpeg",
+            "opus" | "libopus" => "audio/x-opus",
+            "vorbis" => "audio/x-vorbis",
+            "wav" | "pcm" => "audio/x-raw",
+            _ => "audio/x-flac",
+        }
     }
 
     pub fn cancel_export(&mut self) -> Result<(), EditingError> {
