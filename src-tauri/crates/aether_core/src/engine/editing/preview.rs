@@ -12,34 +12,20 @@ use crate::engine::editing::types::EditingError;
 #[derive(Clone)]
 pub struct PreviewFrame {
     pub width: u32,
-
     pub height: u32,
-
     pub data: Vec<u8>,
-
     pub pts: i64,
-
     pub duration: i64,
 }
 
 pub struct PreviewEngine {
     pipeline: Option<ges::Pipeline>,
-
     video_sink: Option<gst::Element>,
-
     is_playing: bool,
-
     position: i64,
-
     frame_callback: Option<Arc<dyn Fn(PreviewFrame) + Send + Sync + 'static>>,
-
-    /// Stores the latest frame for asynchronous access
     latest_frame: Arc<std::sync::Mutex<Option<PreviewFrame>>>,
-
-    /// Video dimensions from the pipeline
     video_dimensions: Option<(u32, u32)>,
-
-    /// Video duration from the pipeline
     video_duration: Option<i64>,
 }
 
@@ -84,12 +70,10 @@ impl PreviewEngine {
                 error!("Failed to set pipeline to NULL state: {}", err);
             }
 
-            // Wait for the state change to complete
-            // TODO: GStreamer get_state API has changed
-            // Wait for state change with proper error handling
-            // if let Err(err) = pipeline.get_state(gst::ClockTime::from_seconds(1)) {
-            //     warn!("Error waiting for state change: {}", err);
-            // }
+            // Verify pipeline reached NULL state
+            if pipeline.current_state() != gst::State::Null {
+                warn!("Pipeline did not reach NULL state (current: {:?})", pipeline.current_state());
+            }
         }
 
         // Clear our references
