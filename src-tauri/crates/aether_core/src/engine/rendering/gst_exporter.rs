@@ -71,7 +71,7 @@ pub struct ExportProgress {
 pub struct GstExporter {
     options: ExportOptions,
 
-    pipeline: Option<ges::Pipeline>,
+    pipeline: Option<gst::Pipeline>,
 
     main_loop: Option<MainLoop>,
 
@@ -123,34 +123,71 @@ impl GstExporter {
     pub fn start_export(&mut self) -> Result<(), EditingError> {
         *self.cancel_flag.lock().unwrap() = false;
 
-        let pipeline = ges::Pipeline::new();
+        let pipeline = gst::Pipeline::new();
 
-        let timeline = ges::Timeline::new();
-        let duration = timeline.duration();
-        let duration_nanos = duration.nseconds();
-        let total_frames = (duration_nanos as f64 / gst::ClockTime::SECOND.nseconds() as f64 * self.options.frame_rate) as u64;
+        let profile = self.create_encoding_profile()
+            .context("Failed to create encoding profile")?;
 
+        let output_uri = filename_to_uri(self.options.output_path.as_path(), None)
+            .context("Failed to convert output path to URI")?;
+
+        // Build manual pipeline: videotestsrc + audiotestsrc → encodebin → filesink
+        let videotestsrc = gst::ElementFactory::make("videotestsrc")
+            .name("video_src")
+            .build()
+            .map_err(|_| EditingError::ExportError("Failed to create videotestsrc".to_string()))?;
+        let audiotestsrc = gst::ElementFactory::make("audiotestsrc")
+            .name("audio_src")
+            .build()
+            .map_err(|_| EditingError::ExportError("Failed to create audiotestsrc".to_string()))?;
+        let v_queue = gst::ElementFactory::make("queue")
+            .build()
+            .map_err(|_| EditingError::ExportError("Failed to create video queue".to_string()))?;
+        let a_queue = gst::ElementFactory::make("queue")
+            .build()
+            .map_err(|_| EditingError::ExportError("Failed to create audio queue".to_string()))?;
+        let encodebin = gst::ElementFactory::make("encodebin")
+            .name("encoder")
+            .property("profile", &profile)
+            .build()
+            .map_err(|_| EditingError::ExportError("Failed to create encodebin".to_string()))?;
+        let filesink = gst::ElementFactory::make("filesink")
+            .name("export_sink")
+            .property("location", &output_uri)
+            .build()
+            .map_err(|_| EditingError::ExportError("Failed to create filesink".to_string()))?;
+
+        pipeline.add_many(&[&videotestsrc, &audiotestsrc, &v_queue, &a_queue, &encodebin, &filesink])
+            .map_err(|e| EditingError::ExportError(format!("Failed to add elements: {}", e)))?;
+
+        gst::Element::link_many(&[&videotestsrc, &v_queue])
+            .map_err(|e| EditingError::ExportError(format!("Failed to link video src: {}", e)))?;
+        gst::Element::link_many(&[&audiotestsrc, &a_queue])
+            .map_err(|e| EditingError::ExportError(format!("Failed to link audio src: {}", e)))?;
+        gst::Element::link_many(&[&encodebin, &filesink])
+            .map_err(|e| EditingError::ExportError(format!("Failed to link encodebin to filesink: {}", e)))?;
+
+        let v_sink_pad = encodebin.request_pad_simple("video_%u")
+            .ok_or_else(|| EditingError::ExportError("Failed to request video sink pad".to_string()))?;
+        let a_sink_pad = encodebin.request_pad_simple("audio_%u")
+            .ok_or_else(|| EditingError::ExportError("Failed to request audio sink pad".to_string()))?;
+
+        v_queue.static_pad("src").unwrap().link(&v_sink_pad)
+            .map_err(|e| EditingError::ExportError(format!("Failed to link video to encodebin: {}", e)))?;
+        a_queue.static_pad("src").unwrap().link(&a_sink_pad)
+            .map_err(|e| EditingError::ExportError(format!("Failed to link audio to encodebin: {}", e)))?;
+
+        // Default 10s duration for test sources; real timeline content will replace this
+        let total_frames = (10.0 * self.options.frame_rate) as u64;
         {
             let mut progress = self.progress.lock().unwrap();
             progress.total_frames = total_frames;
-            progress.total_duration = duration_nanos as f64 / gst::ClockTime::SECOND.nseconds() as f64;
+            progress.total_duration = 10.0;
 
             if let Some(callback) = &self.progress_callback {
                 callback(progress.clone());
             }
         }
-
-        let _profile = self.create_encoding_profile()
-            .context("Failed to create encoding profile")?;
-
-        let _output_uri = filename_to_uri(self.options.output_path.as_path(), None)
-            .context("Failed to convert output path to URI")?;
-
-        // TODO: GES Pipeline API changed - set_render_settings and set_mode no longer available
-        // pipeline.set_render_settings(&output_uri, &profile)
-        //     .context("Failed to set render settings")?;
-        // pipeline.set_mode(ges::PipelineFlags::RENDER)
-        //     .context("Failed to set pipeline mode to render")?;
 
         let bus = pipeline.bus().expect("Pipeline without bus");
 
