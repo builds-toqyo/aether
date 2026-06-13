@@ -119,10 +119,9 @@ impl MediaImporter {
         if options.create_proxy && media_info.media_type == MediaType::Video {
             if let Some(format) = &options.proxy_format {
                 debug!("Creating proxy with format {} for {}", format, path_canon.display());
-                // TODO: implement create_proxy_media
-                // if let Err(e) = self.create_proxy_media(&uri, format, &path_canon) {
-                //     warn!("Failed to create proxy: {}", e);
-                // }
+                if let Err(e) = self.create_proxy_media(&path_canon, format) {
+                    warn!("Failed to create proxy: {}", e);
+                }
             }
         }
 
@@ -187,11 +186,6 @@ impl MediaImporter {
         let comment = tags.as_ref().and_then(|t| t.get::<gst::tags::Comment>().map(|t| t.get().to_string()));
         let copyright = tags.as_ref().and_then(|t| t.get::<gst::tags::Copyright>().map(|t| t.get().to_string()));
         let creation_date = tags.as_ref().and_then(|t| t.get::<gst::tags::DateTime>().map(|t| t.get().to_string()));
-
-        let container_format = Some("mp4".to_string()); // TODO: Get actual container format from GStreamer API
-        if let Some(ref fmt) = container_format {
-            debug!("Container format: {}", fmt);
-        }
 
         let has_video = !info.video_streams().is_empty();
         let has_audio = !info.audio_streams().is_empty();
@@ -277,6 +271,13 @@ impl MediaImporter {
         let file_size = std::fs::metadata(&path).ok().map(|m| m.len());
         if let Some(size) = file_size {
             debug!("File size: {} bytes ({:.2} MB)", size, size as f64 / (1024.0 * 1024.0));
+        }
+
+        let container_format = path.extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase());
+        if let Some(ref fmt) = container_format {
+            debug!("Container format (from extension): {}", fmt);
         }
 
         info!("Media analysis complete for {}", path.display());
@@ -380,6 +381,66 @@ impl MediaImporter {
         }
     }
 
+
+    fn create_proxy_media(&self, source_path: &Path, format: &str) -> Result<PathBuf, EditingError> {
+        use std::process::{Command, Stdio};
+
+        let proxy_dir = source_path.parent()
+            .map(|p| p.join(".aether_proxies"))
+            .unwrap_or_else(|| PathBuf::from(".aether_proxies"));
+
+        std::fs::create_dir_all(&proxy_dir)
+            .map_err(|e| EditingError::IoError(e))?;
+
+        let stem = source_path.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("proxy");
+        let proxy_path = proxy_dir.join(format!("{}_proxy.{}", stem, format));
+
+        let ffmpeg_exists = Command::new("ffmpeg")
+            .arg("-version")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+
+        if !ffmpeg_exists {
+            return Err(EditingError::ImportError("ffmpeg not found in PATH".to_string()));
+        }
+
+        let source_str = source_path.to_str()
+            .ok_or_else(|| EditingError::ImportError("Invalid source path".to_string()))?;
+        let proxy_str = proxy_path.to_str()
+            .ok_or_else(|| EditingError::ImportError("Invalid proxy path".to_string()))?;
+
+        let status = Command::new("ffmpeg")
+            .args(&[
+                "-y",
+                "-i", source_str,
+                "-vf", "scale=480:-2",
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "23",
+                "-c:a", "aac",
+                "-b:a", "128k",
+                "-movflags", "+faststart",
+                proxy_str,
+            ])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map_err(|e| EditingError::ImportError(format!("Failed to spawn ffmpeg: {}", e)))?;
+
+        if !status.success() {
+            return Err(EditingError::ImportError(format!(
+                "ffmpeg proxy creation failed with status: {:?}", status
+            )));
+        }
+
+        info!("Created proxy at {}", proxy_path.display());
+        Ok(proxy_path)
+    }
 
     pub fn create_ges_clip<P: AsRef<Path>>(&self, path: P) -> Option<ges::Clip> {
         let path = path.as_ref();

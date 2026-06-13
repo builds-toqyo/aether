@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use aether_types::{Graph, ParameterValue};
 use uuid::Uuid;
 use log::info;
-use crate::commands::editing::MediaInfo;
+use crate::commands::editing::{MediaInfo, ExportJob};
 use crate::commands::rendering::RenderingState;
 use crate::commands::multicam::MulticamRegistry;
 use crate::commands::plugin::PluginRegistry;
@@ -20,6 +20,7 @@ pub struct AppState {
     pub project_registry: Mutex<ProjectRegistry>,
     pub multicam_registry: Mutex<MulticamRegistry>,
     pub plugin_registry: Mutex<PluginRegistry>,
+    pub active_exports: Mutex<HashMap<String, ExportJob>>,
 }
 
 impl AppState {
@@ -37,6 +38,7 @@ impl AppState {
             project_registry: Mutex::new(ProjectRegistry::new().expect("Failed to initialize project registry")),
             multicam_registry: Mutex::new(MulticamRegistry::new()),
             plugin_registry: Mutex::new(PluginRegistry::new()),
+            active_exports: Mutex::new(HashMap::new()),
         }
     }
 
