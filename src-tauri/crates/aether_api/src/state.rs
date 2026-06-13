@@ -9,6 +9,7 @@ use crate::commands::multicam::MulticamRegistry;
 use crate::commands::plugin::PluginRegistry;
 use crate::engine_proxy::EditingEngineProxy;
 use crate::project_registry::ProjectRegistry;
+use aether_core::modules::color_grading::ColorGradingEngine;
 
 pub struct AppState {
     pub graph: Mutex<Graph>,
@@ -21,6 +22,7 @@ pub struct AppState {
     pub multicam_registry: Mutex<MulticamRegistry>,
     pub plugin_registry: Mutex<PluginRegistry>,
     pub active_exports: Mutex<HashMap<String, ExportJob>>,
+    pub color_grading_engine: Mutex<ColorGradingEngine>,
 }
 
 impl AppState {
