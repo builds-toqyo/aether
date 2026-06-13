@@ -18,6 +18,14 @@ pub struct PreviewFrame {
     pub duration: i64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PreviewQuality {
+    Low,
+    Medium,
+    High,
+    Ultra,
+}
+
 pub struct PreviewEngine {
     pipeline: Option<ges::Pipeline>,
     video_sink: Option<gst::Element>,
@@ -27,6 +35,7 @@ pub struct PreviewEngine {
     latest_frame: Arc<std::sync::Mutex<Option<PreviewFrame>>>,
     video_dimensions: Option<(u32, u32)>,
     video_duration: Option<i64>,
+    quality: PreviewQuality,
 }
 
 impl PreviewEngine {
@@ -40,6 +49,7 @@ impl PreviewEngine {
             latest_frame: Arc::new(std::sync::Mutex::new(None)),
             video_dimensions: None,
             video_duration: None,
+            quality: PreviewQuality::High,
         })
     }
 
@@ -84,8 +94,18 @@ impl PreviewEngine {
         let appsink = video_sink.downcast_ref::<gst_app::AppSink>()
             .ok_or(EditingError::PreviewError("Failed to downcast to AppSink".to_string()))?;
 
+        let (width, height) = self.video_dimensions.unwrap_or((1920, 1080));
+        let (scaled_width, scaled_height) = match self.quality {
+            PreviewQuality::Low => (width / 4, height / 4),
+            PreviewQuality::Medium => (width / 2, height / 2),
+            PreviewQuality::High => (width, height),
+            PreviewQuality::Ultra => (width * 2, height * 2),
+        };
+
         let caps = gst::Caps::builder("video/x-raw")
             .field("format", &gst::List::new(["RGB", "BGR", "RGBx", "BGRx"]))
+            .field("width", &(scaled_width as i32))
+            .field("height", &(scaled_height as i32))
             .build();
 
         appsink.set_caps(Some(&caps));
@@ -131,6 +151,18 @@ impl PreviewEngine {
         F: Fn(PreviewFrame) + Send + Sync + 'static,
     {
         self.frame_callback = Some(Arc::new(callback));
+    }
+
+    pub fn set_quality(&mut self, quality: PreviewQuality) -> Result<(), EditingError> {
+        self.quality = quality;
+        debug!("Preview quality set to: {:?}", quality);
+
+        // Reconfigure the pipeline if it's running
+        if let Some(pipeline) = &self.pipeline {
+            self.setup_preview_pipeline(pipeline)?;
+        }
+
+        Ok(())
     }
 
     pub fn play(&mut self) -> Result<(), EditingError> {
