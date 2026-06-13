@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::collections::HashMap;
 
-use crate::shapes::primitives::{ShapePrimitive, Transform, BoundingBox};
+use crate::shapes::primitives::{ShapePrimitive, Transform, BoundingBox, PathShape};
 use crate::shapes::paths::Path;
 use crate::shapes::boolean::{BooleanResult, BooleanOperation, AdvancedBoolean};
 
@@ -511,9 +511,8 @@ impl ShapeLayerCollection {
             let boolean_result = AdvancedBoolean::union(result_layer.shape.as_ref(), layer.shape.as_ref());
 
             if boolean_result.success {
-                // Create new shape from result path
-                // Note: This is a simplified implementation
-                // In a real implementation, you'd need to convert the path back to a shape
+                let path_shape = PathShape::from_path(boolean_result.path);
+                result_layer.shape = Box::new(path_shape);
                 result_layer.name = format!("Combined_{}", layer.name);
             } else {
                 return Err(format!("Failed to combine layer '{}': {:?}",

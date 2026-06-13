@@ -19,8 +19,7 @@ pub struct PluginInfo {
     pub hooks: Vec<PluginHook>,
 }
 
-/// Hooks that a plugin can register for
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PluginHook {
     OnProjectLoad,
     OnProjectSave,
