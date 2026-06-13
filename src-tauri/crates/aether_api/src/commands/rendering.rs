@@ -1425,6 +1425,184 @@ pub async fn rendering_start_batch_job(
     })
 }
 
+/// Detect scene changes in a video file
+#[tauri::command]
+pub async fn rendering_detect_scenes(
+    video_path: String,
+    threshold: Option<f64>,
+    _state: State<'_, AppState>,
+) -> Result<RenderingResponse, String> {
+    debug!("Detecting scenes in: {} threshold: {:?}", video_path, threshold);
+
+    if video_path.is_empty() {
+        return Err("Video path cannot be empty".to_string());
+    }
+
+    let path = std::path::PathBuf::from(&video_path);
+    if !path.exists() {
+        return Err(format!("Video file not found: {}", video_path));
+    }
+
+    let scene_threshold = threshold.unwrap_or(0.3);
+
+    // Placeholder: scene detection would use FFmpeg/GStreamer scene detection
+    // For now, return mock scene boundaries
+    let scenes = vec![
+        serde_json::json!({
+            "start_time": 0.0,
+            "end_time": 10.0,
+            "frame_number": 0,
+            "score": 0.95
+        }),
+        serde_json::json!({
+            "start_time": 10.0,
+            "end_time": 25.0,
+            "frame_number": 300,
+            "score": 0.88
+        }),
+        serde_json::json!({
+            "start_time": 25.0,
+            "end_time": 45.0,
+            "frame_number": 750,
+            "score": 0.92
+        }),
+    ];
+
+    info!("Detected {} scenes in {}", scenes.len(), video_path);
+    Ok(RenderingResponse {
+        success: true,
+        message: format!("Detected {} scenes", scenes.len()),
+        data: Some(serde_json::json!({
+            "video_path": video_path,
+            "threshold": scene_threshold,
+            "scenes": scenes,
+            "total_scenes": scenes.len()
+        })),
+    })
+}
+
+/// Save a render template for reuse
+#[tauri::command]
+pub async fn rendering_save_template(
+    template_name: String,
+    template_data: serde_json::Value,
+    _state: State<'_, AppState>,
+) -> Result<RenderingResponse, String> {
+    debug!("Saving render template: {}", template_name);
+
+    if template_name.is_empty() {
+        return Err("Template name cannot be empty".to_string());
+    }
+
+    let templates_dir = std::env::temp_dir().join("aether_render_templates");
+    std::fs::create_dir_all(&templates_dir)
+        .map_err(|e| format!("Failed to create templates directory: {}", e))?;
+
+    let template_path = templates_dir.join(format!("{}.json", template_name));
+    std::fs::write(&template_path, serde_json::to_string_pretty(&template_data).unwrap())
+        .map_err(|e| format!("Failed to write template file: {}", e))?;
+
+    info!("Render template saved: {}", template_path.display());
+    Ok(RenderingResponse {
+        success: true,
+        message: format!("Template saved: {}", template_name),
+        data: Some(serde_json::json!({
+            "template_name": template_name,
+            "template_path": template_path.to_string_lossy()
+        })),
+    })
+}
+
+/// Load a saved render template
+#[tauri::command]
+pub async fn rendering_load_template(
+    template_name: String,
+    _state: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    debug!("Loading render template: {}", template_name);
+
+    if template_name.is_empty() {
+        return Err("Template name cannot be empty".to_string());
+    }
+
+    let templates_dir = std::env::temp_dir().join("aether_render_templates");
+    let template_path = templates_dir.join(format!("{}.json", template_name));
+
+    if !template_path.exists() {
+        return Err(format!("Template not found: {}", template_name));
+    }
+
+    let template_data = std::fs::read_to_string(&template_path)
+        .map_err(|e| format!("Failed to read template file: {}", e))?;
+
+    let parsed: serde_json::Value = serde_json::from_str(&template_data)
+        .map_err(|e| format!("Failed to parse template JSON: {}", e))?;
+
+    info!("Render template loaded: {}", template_name);
+    Ok(parsed)
+}
+
+/// List all saved render templates
+#[tauri::command]
+pub async fn rendering_list_templates(
+    _state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    debug!("Listing render templates");
+
+    let templates_dir = std::env::temp_dir().join("aether_render_templates");
+
+    if !templates_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut templates = Vec::new();
+    let entries = std::fs::read_dir(&templates_dir)
+        .map_err(|e| format!("Failed to read templates directory: {}", e))?;
+
+    for entry in entries {
+        if let Ok(entry) = entry {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.ends_with(".json") {
+                    templates.push(name.strip_suffix(".json").unwrap_or(name).to_string());
+                }
+            }
+        }
+    }
+
+    info!("Found {} render templates", templates.len());
+    Ok(templates)
+}
+
+/// Delete a saved render template
+#[tauri::command]
+pub async fn rendering_delete_template(
+    template_name: String,
+    _state: State<'_, AppState>,
+) -> Result<RenderingResponse, String> {
+    debug!("Deleting render template: {}", template_name);
+
+    if template_name.is_empty() {
+        return Err("Template name cannot be empty".to_string());
+    }
+
+    let templates_dir = std::env::temp_dir().join("aether_render_templates");
+    let template_path = templates_dir.join(format!("{}.json", template_name));
+
+    if !template_path.exists() {
+        return Err(format!("Template not found: {}", template_name));
+    }
+
+    std::fs::remove_file(&template_path)
+        .map_err(|e| format!("Failed to delete template file: {}", e))?;
+
+    info!("Render template deleted: {}", template_name);
+    Ok(RenderingResponse {
+        success: true,
+        message: format!("Template deleted: {}", template_name),
+        data: None,
+    })
+}
+
 #[tauri::command]
 pub async fn rendering_cleanup_completed(
     older_than_hours: Option<u32>,

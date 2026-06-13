@@ -71,6 +71,11 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             rendering_apply_lut,
             rendering_remove_lut,
             rendering_start_batch_job,
+            rendering_detect_scenes,
+            rendering_save_template,
+            rendering_load_template,
+            rendering_list_templates,
+            rendering_delete_template,
 
             multicam_create,
             multicam_add_angle,
