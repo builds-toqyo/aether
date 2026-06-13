@@ -10,6 +10,8 @@ import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { StatusBar } from "@/components/StatusBar";
 import { InspectorPanel } from "@/components/InspectorPanel";
 import { useToast } from "@/components/Toast";
+import { PluginManager } from "@/components/PluginManager";
+import { MulticamPanel } from "@/components/MulticamPanel";
 import useAppStore from "@/store";
 import {
   Film,
@@ -25,7 +27,7 @@ import {
 } from "lucide-react";
 
 type Workspace = "edit" | "preview" | "nodes" | "color";
-type LeftTab = "media" | "effects" | "nodes" | "transitions";
+type LeftTab = "media" | "effects" | "nodes" | "transitions" | "multicam" | "plugins";
 
 export default function Home() {
   const currentProject = useAppStore((s) => s.currentProject);
@@ -325,9 +327,11 @@ export default function Home() {
             <div className="flex border-b border-[#222]">
               {[
                 { id: "media" as LeftTab, label: "Media" },
+                { id: "multicam" as LeftTab, label: "Multicam" },
                 { id: "effects" as LeftTab, label: "Effects" },
                 { id: "nodes" as LeftTab, label: "Nodes" },
                 { id: "transitions" as LeftTab, label: "Transitions" },
+                { id: "plugins" as LeftTab, label: "Plugins" },
               ].map((t) => (
                 <button
                   key={t.id}
@@ -344,9 +348,11 @@ export default function Home() {
             </div>
             <div className="flex-1 overflow-y-auto p-3">
               {leftTab === "media" && <MediaPool />}
+              {leftTab === "multicam" && <MulticamPanel />}
               {leftTab === "effects" && <EffectsList />}
               {leftTab === "nodes" && <NodesList />}
               {leftTab === "transitions" && <TransitionsList />}
+              {leftTab === "plugins" && <PluginManager />}
             </div>
           </aside>
         )}
