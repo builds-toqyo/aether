@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::{debug, info};
+use log::{debug, info, warn};
 use image::{Rgb, RgbImage};
 
 use crate::types::{ColorSpace, VideoRange};
@@ -9,10 +9,7 @@ pub struct AcesProcessor {
     config: AcesConfig,
     color_space: ColorSpace,
     video_range: VideoRange,
-
-    // TODO: Implement OpenColorIO FFI bindings
-    // ocio_config: Option<Arc<ocio::Config>>,
-
+    ocio_pipeline: Option<super::ocio::OcioPipeline>,
     transform_manager: TransformManager,
     look_manager: LookManager,
 }
@@ -25,10 +22,10 @@ impl AcesProcessor {
             config: config.clone(),
             color_space: ColorSpace::Rec709,
             video_range: VideoRange::Limited,
+            ocio_pipeline: None,
             transform_manager: TransformManager::new()?,
             look_manager: LookManager::new(),
         };
-
 
         if config.use_opencolorio {
             processor.initialize_opencolorio()?;
@@ -42,26 +39,22 @@ impl AcesProcessor {
         Ok(processor)
     }
 
-    // TODO: Implement OpenColorIO FFI bindings
-    // fn initialize_opencolorio(&mut self) -> Result<()> {
-    //     debug!("Initializing OpenColorIO configuration");
-    //
-    //     match ocio::Config::create_from_file(&self.config.ocio_config_path) {
-    //         Ok(config) => {
-    //             self.ocio_config = Some(Arc::new(config));
-    //             info!("OpenColorIO configuration loaded successfully");
-    //         }
-    //         Err(e) => {
-    //             warn!("Failed to load OpenColorIO config: {}. Using fallback matrices.", e);
-    //             self.ocio_config = None;
-    //         }
-    //     }
-    //
-    //     Ok(())
-    // }
-
     fn initialize_opencolorio(&mut self) -> Result<()> {
-        debug!("OpenColorIO not yet implemented - using fallback matrices");
+        debug!("Initializing OpenColorIO via runtime FFI");
+
+        match super::ocio::OcioPipeline::new(&self.config.ocio_config_path) {
+            Some(pipeline) => {
+                self.ocio_pipeline = Some(pipeline);
+                info!("OpenColorIO pipeline initialized from: {}", self.config.ocio_config_path);
+            }
+            None => {
+                warn!(
+                    "OpenColorIO library or config not available ({}). Using fallback matrices.",
+                    self.config.ocio_config_path
+                );
+            }
+        }
+
         Ok(())
     }
 
@@ -71,6 +64,34 @@ impl AcesProcessor {
         let (width, height) = image.dimensions();
         let mut aces_image = RgbImage::new(width, height);
 
+        // Try OpenColorIO real-time FFI pipeline first
+        if let Some(pipeline) = &self.ocio_pipeline {
+            let src_space = self.ocio_input_space_name(input_transform);
+            for y in 0..height {
+                for x in 0..width {
+                    let pixel = image.get_pixel(x, y);
+                    let mut rgb = [
+                        pixel.0[0] as f32 / 255.0,
+                        pixel.0[1] as f32 / 255.0,
+                        pixel.0[2] as f32 / 255.0,
+                    ];
+                    if pipeline.transform_pixel(&src_space, "ACES2065-1", &mut rgb).is_ok() {
+                        aces_image.put_pixel(x, y, Rgb([
+                            (rgb[0] * 255.0).clamp(0.0, 255.0) as u8,
+                            (rgb[1] * 255.0).clamp(0.0, 255.0) as u8,
+                            (rgb[2] * 255.0).clamp(0.0, 255.0) as u8,
+                        ]));
+                    } else {
+                        // Fallback for this pixel if OCIO color space not found
+                        let aces_rgb = self.transform_manager.apply_input_transform(pixel.0, input_transform)?;
+                        aces_image.put_pixel(x, y, Rgb(aces_rgb));
+                    }
+                }
+            }
+            debug!("Image converted to ACES via OpenColorIO");
+            return Ok(aces_image);
+        }
+
         for y in 0..height {
             for x in 0..width {
                 let pixel = image.get_pixel(x, y);
@@ -78,7 +99,6 @@ impl AcesProcessor {
 
                 let _linear_rgb = self.gamma_decode([r, g, b], self.color_space);
 
-                // TODO: apply_input_transform expects [u8; 3] but linear_rgb is [f32; 3]
                 let aces_rgb = self.transform_manager.apply_input_transform([r, g, b], input_transform)?;
 
                 aces_image.put_pixel(x, y, Rgb(aces_rgb));
@@ -95,6 +115,38 @@ impl AcesProcessor {
 
         let (width, height) = aces_image.dimensions();
         let mut output_image = RgbImage::new(width, height);
+
+        // Try OpenColorIO real-time FFI pipeline first
+        if let Some(pipeline) = &self.ocio_pipeline {
+            let dst_space = self.ocio_output_space_name(output_transform);
+            for y in 0..height {
+                for x in 0..width {
+                    let pixel = aces_image.get_pixel(x, y);
+                    let mut rgb = [
+                        pixel.0[0] as f32 / 255.0,
+                        pixel.0[1] as f32 / 255.0,
+                        pixel.0[2] as f32 / 255.0,
+                    ];
+                    if pipeline.transform_pixel("ACES2065-1", &dst_space, &mut rgb).is_ok() {
+                        output_image.put_pixel(x, y, Rgb([
+                            (rgb[0] * 255.0).clamp(0.0, 255.0) as u8,
+                            (rgb[1] * 255.0).clamp(0.0, 255.0) as u8,
+                            (rgb[2] * 255.0).clamp(0.0, 255.0) as u8,
+                        ]));
+                    } else {
+                        let output_rgb = self.transform_manager.apply_output_transform(pixel.0, output_transform)?;
+                        let gamma_rgb = self.gamma_encode(output_rgb, self.color_space);
+                        output_image.put_pixel(x, y, Rgb([
+                            gamma_rgb[0].clamp(0.0, 255.0) as u8,
+                            gamma_rgb[1].clamp(0.0, 255.0) as u8,
+                            gamma_rgb[2].clamp(0.0, 255.0) as u8,
+                        ]));
+                    }
+                }
+            }
+            debug!("ACES image converted via OpenColorIO");
+            return Ok(output_image);
+        }
 
         for y in 0..height {
             for x in 0..width {
@@ -242,6 +294,24 @@ impl AcesProcessor {
 
     pub fn get_available_looks(&self) -> Vec<String> {
         self.look_manager.get_available_looks()
+    }
+
+    fn ocio_input_space_name(&self, transform: super::InputTransform) -> String {
+        match transform {
+            super::InputTransform::Rec709ToAces => "Input - Generic - sRGB - Texture".to_string(),
+            super::InputTransform::Rec2020ToAces => "Input - Generic - Rec.2020".to_string(),
+            super::InputTransform::SrgbToAces => "Input - Generic - sRGB - Texture".to_string(),
+            super::InputTransform::RawToAces => "Input - Camera - Raw".to_string(),
+        }
+    }
+
+    fn ocio_output_space_name(&self, transform: super::OutputTransform) -> String {
+        match transform {
+            super::OutputTransform::AcesToRec709 => "Output - Rec.709".to_string(),
+            super::OutputTransform::AcesToRec2020 => "Output - Rec.2020".to_string(),
+            super::OutputTransform::AcesToSrgb => "Output - sRGB".to_string(),
+            super::OutputTransform::AcesToHdr10 => "Output - Rec.2020 - PQ".to_string(),
+        }
     }
 }
 
