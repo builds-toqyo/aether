@@ -43,6 +43,8 @@ pub enum EngineCommand {
     ImportMedia { path: String, options: ImportOptions, resp: Sender<Result<MediaInfo, EditingError>> },
     GetPreviewDimensions { resp: Sender<Result<(u32, u32), EditingError>> },
     GetPreviewState { resp: Sender<Result<PreviewState, EditingError>> },
+    GetPreviewFrame { resp: Sender<Result<Option<Vec<u8>>, EditingError>> },
+    SetPreviewQuality { quality: String, resp: Sender<Result<(), EditingError>> },
     PreviewPlay { resp: Sender<Result<(), EditingError>> },
     PreviewPause { resp: Sender<Result<(), EditingError>> },
     PreviewStop { resp: Sender<Result<(), EditingError>> },
@@ -178,6 +180,20 @@ impl EditingEngineProxy {
             .map_err(|_| EditingError::TimelineError("Engine thread disconnected".to_string()))?;
         rx.recv().map_err(|_| EditingError::TimelineError("Engine thread response lost".to_string()))?
     }
+
+    pub fn get_preview_frame(&self) -> Result<Option<Vec<u8>>, EditingError> {
+        let (tx, rx) = channel();
+        self.sender.send(EngineCommand::GetPreviewFrame { resp: tx })
+            .map_err(|_| EditingError::TimelineError("Engine thread disconnected".to_string()))?;
+        rx.recv().map_err(|_| EditingError::TimelineError("Engine thread response lost".to_string()))?
+    }
+
+    pub fn set_preview_quality(&self, quality: String) -> Result<(), EditingError> {
+        let (tx, rx) = channel();
+        self.sender.send(EngineCommand::SetPreviewQuality { quality, resp: tx })
+            .map_err(|_| EditingError::TimelineError("Engine thread disconnected".to_string()))?;
+        rx.recv().map_err(|_| EditingError::TimelineError("Engine thread response lost".to_string()))?
+    }
 }
 
 fn run_engine_thread(receiver: std::sync::mpsc::Receiver<EngineCommand>) {
@@ -216,6 +232,8 @@ fn run_engine_thread(receiver: std::sync::mpsc::Receiver<EngineCommand>) {
                         EngineCommand::ImportMedia { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
                         EngineCommand::GetPreviewDimensions { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
                         EngineCommand::GetPreviewState { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::GetPreviewFrame { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::SetPreviewQuality { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
                         EngineCommand::PreviewPlay { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
                         EngineCommand::PreviewPause { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
                         EngineCommand::PreviewStop { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
@@ -355,6 +373,34 @@ fn handle_command(engine: &mut EditingEngine, cmd: EngineCommand) -> Result<(), 
                     dimensions: preview_guard.get_video_dimensions(),
                     duration: preview_guard.get_duration(),
                 })
+            })();
+            let _ = resp.send(result);
+        }
+        EngineCommand::GetPreviewFrame { resp } => {
+            let preview = engine.preview();
+            let result = (|| -> Result<Option<Vec<u8>>, EditingError> {
+                let preview_guard = preview.lock()
+                    .map_err(|_| EditingError::PreviewError("Preview lock poisoned".to_string()))?;
+                Ok(preview_guard.get_frame()?.map(|f| f.data))
+            })();
+            let _ = resp.send(result);
+        }
+        EngineCommand::SetPreviewQuality { quality, resp } => {
+            let preview = engine.preview();
+            let result = (|| -> Result<(), EditingError> {
+                let mut preview_guard = preview.lock()
+                    .map_err(|_| EditingError::PreviewError("Preview lock poisoned".to_string()))?;
+
+                use aether_core::engine::editing::preview::PreviewQuality;
+                let quality_enum = match quality.as_str() {
+                    "Low" => PreviewQuality::Low,
+                    "Medium" => PreviewQuality::Medium,
+                    "High" => PreviewQuality::High,
+                    "Ultra" => PreviewQuality::Ultra,
+                    _ => return Err(EditingError::PreviewError(format!("Invalid quality: {}", quality))),
+                };
+
+                preview_guard.set_quality(quality_enum)
             })();
             let _ = resp.send(result);
         }
