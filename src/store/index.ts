@@ -77,6 +77,33 @@ export interface ImportState {
   error?: string;
 }
 
+export interface CameraAngle {
+  id: string;
+  name: string;
+  media_id: string;
+  offset_ms: number;
+  enabled: boolean;
+}
+
+export interface MulticamClip {
+  id: string;
+  name: string;
+  angles: CameraAngle[];
+  active_angle_id?: string;
+  duration_ms: number;
+}
+
+export interface PluginInfo {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  path: string;
+  loaded: boolean;
+  hooks: string[];
+}
+
 // Store State
 interface AppState {
   // Project State
@@ -97,7 +124,13 @@ interface AppState {
   
   // Import State
   importState: ImportState;
-  
+
+  // Multicam State
+  multicamClips: MulticamClip[];
+
+  // Plugin State
+  plugins: PluginInfo[];
+
   // UI State
   sidebarOpen: boolean;
   sidebarWidth: number;
@@ -162,7 +195,18 @@ interface AppState {
   completeImport: () => void;
   failImport: (error: string) => void;
   resetImport: () => void;
-  
+
+  // Multicam Actions
+  setMulticamClips: (clips: MulticamClip[]) => void;
+  addMulticamClip: (clip: MulticamClip) => void;
+  removeMulticamClip: (clipId: string) => void;
+  updateMulticamClip: (clipId: string, updates: Partial<MulticamClip>) => void;
+
+  // Plugin Actions
+  setPlugins: (plugins: PluginInfo[]) => void;
+  addPlugin: (plugin: PluginInfo) => void;
+  removePlugin: (pluginId: string) => void;
+
   // UI Actions
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
@@ -175,7 +219,7 @@ const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       // Initial State
-      currentProject: null,
+      currentProject: null as Project | null,
       recentProjects: [],
       mediaItems: [],
       selectedMediaIds: new Set<string>(),
@@ -196,6 +240,8 @@ const useAppStore = create<AppState>()(
         totalFiles: 0,
         processedFiles: 0,
       },
+      multicamClips: [],
+      plugins: [],
       sidebarOpen: true,
       sidebarWidth: 300,
       previewPanelOpen: true,
@@ -474,7 +520,35 @@ const useAppStore = create<AppState>()(
           processedFiles: 0,
         },
       }),
-      
+
+      // Multicam Actions
+      setMulticamClips: (clips) => set({ multicamClips: clips }),
+
+      addMulticamClip: (clip) => set((state) => ({
+        multicamClips: [...state.multicamClips, clip],
+      })),
+
+      removeMulticamClip: (clipId) => set((state) => ({
+        multicamClips: state.multicamClips.filter((c) => c.id !== clipId),
+      })),
+
+      updateMulticamClip: (clipId, updates) => set((state) => ({
+        multicamClips: state.multicamClips.map((c) =>
+          c.id === clipId ? { ...c, ...updates } : c
+        ),
+      })),
+
+      // Plugin Actions
+      setPlugins: (plugins) => set({ plugins }),
+
+      addPlugin: (plugin) => set((state) => ({
+        plugins: [...state.plugins, plugin],
+      })),
+
+      removePlugin: (pluginId) => set((state) => ({
+        plugins: state.plugins.filter((p) => p.id !== pluginId),
+      })),
+
       // UI Actions
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
       
@@ -508,6 +582,8 @@ export const useTimelineTracks = () => useAppStore((state) => state.timelineTrac
 export const useTimelineClips = () => useAppStore((state) => state.timelineClips);
 export const useExportState = () => useAppStore((state) => state.exportState);
 export const useImportState = () => useAppStore((state) => state.importState);
+export const useMulticamClips = () => useAppStore((state) => state.multicamClips);
+export const usePlugins = () => useAppStore((state) => state.plugins);
 export const useUISettings = () => useAppStore((state) => ({
   sidebarOpen: state.sidebarOpen,
   sidebarWidth: state.sidebarWidth,
