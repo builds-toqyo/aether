@@ -226,14 +226,12 @@ pub async fn preview_seek(
     })
 }
 
-/// Get frame at specific timestamp
 #[tauri::command]
 pub async fn preview_get_frame(
     request: PreviewFrameRequest,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<PreviewFrame, String> {
     debug!("Getting preview frame at timestamp: {}", request.timestamp);
-
 
     if request.timestamp < 0.0 {
         return Err("Timestamp cannot be negative".to_string());
@@ -242,25 +240,86 @@ pub async fn preview_get_frame(
     let quality = request.quality.unwrap_or(PreviewQuality::Medium);
     let format = request.format.unwrap_or(FrameFormat::Rgba8);
 
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    let frame_data = engine.get_preview_frame()
+        .map_err(|e| format!("Failed to get preview frame: {}", e))?;
+
+    let (width, height) = engine.get_preview_dimensions()
+        .map_err(|e| format!("Failed to get preview dimensions: {}", e))?;
 
     let frame_number = (request.timestamp * 30.0) as u32;
     let frame_id = format!("frame_{}", frame_number);
 
-    info!("Generated frame: {} at {}s (quality: {:?}, format: {:?})",
+    let data_base64 = frame_data.map(|data| base64::encode(&data));
+
+    info!("Retrieved frame: {} at {}s (quality: {:?}, format: {:?})",
           frame_id, request.timestamp, quality, format);
 
     let preview_frame = PreviewFrame {
         id: frame_id,
         timestamp: request.timestamp,
-        width: 1920,
-        height: 1080,
+        width,
+        height,
         format,
-        data: None,
+        data: data_base64,
         frame_number,
         fps: 30.0,
     };
 
     Ok(preview_frame)
+}
+
+/// Generate thumbnails from video at specified intervals
+#[tauri::command]
+pub async fn preview_generate_thumbnails(
+    video_path: String,
+    interval_seconds: Option<f64>,
+    count: Option<u32>,
+    state: State<'_, AppState>,
+) -> Result<Vec<PreviewFrame>, String> {
+    debug!("Generating thumbnails for: {} interval: {:?} count: {:?}", video_path, interval_seconds, count);
+
+    if video_path.is_empty() {
+        return Err("Video path cannot be empty".to_string());
+    }
+
+    let path = std::path::PathBuf::from(&video_path);
+    if !path.exists() {
+        return Err(format!("Video file not found: {}", video_path));
+    }
+
+    let interval = interval_seconds.unwrap_or(5.0);
+    let thumbnail_count = count.unwrap_or(10);
+
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    let (width, height) = engine.get_preview_dimensions()
+        .map_err(|e| format!("Failed to get preview dimensions: {}", e))?;
+
+    let mut thumbnails = Vec::new();
+    for i in 0..thumbnail_count {
+        let timestamp = i as f64 * interval;
+        let frame_data = engine.get_preview_frame()
+            .map_err(|e| format!("Failed to get preview frame at {}: {}", timestamp, e))?;
+
+        let data_base64 = frame_data.map(|data| base64::encode(&data));
+
+        let thumbnail = PreviewFrame {
+            id: format!("thumb_{}", i),
+            timestamp,
+            width,
+            height,
+            format: FrameFormat::Jpeg,
+            data: data_base64,
+            frame_number: (timestamp * 30.0) as u32,
+            fps: 30.0,
+        };
+        thumbnails.push(thumbnail);
+    }
+
+    info!("Generated {} thumbnails", thumbnails.len());
+    Ok(thumbnails)
 }
 
 
@@ -323,11 +382,9 @@ pub async fn preview_update_settings(
 ) -> Result<PreviewResponse, String> {
     debug!("Updating preview settings: {:?}", settings);
 
-
     if settings.scale <= 0.0 {
         return Err("Preview scale must be positive".to_string());
     }
-
 
     info!("Updated preview settings: quality={:?}, scale={:.2}", settings.quality, settings.scale);
 
@@ -335,6 +392,38 @@ pub async fn preview_update_settings(
         success: true,
         message: "Preview settings updated successfully".to_string(),
         data: Some(serde_json::to_value(settings).unwrap_or(serde_json::Value::Null)),
+    })
+}
+
+/// Set preview quality (changes pipeline resolution/bitrate)
+#[tauri::command]
+pub async fn preview_set_quality(
+    quality: PreviewQuality,
+    state: State<'_, AppState>,
+) -> Result<PreviewResponse, String> {
+    debug!("Setting preview quality: {:?}", quality);
+
+    let quality_desc = match quality {
+        PreviewQuality::Low => "Low (quarter resolution)",
+        PreviewQuality::Medium => "Medium (half resolution)",
+        PreviewQuality::High => "High (full resolution)",
+        PreviewQuality::Ultra => "Ultra (2x resolution)",
+    };
+
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    engine.set_preview_quality(format!("{:?}", quality))
+        .map_err(|e| format!("Failed to set preview quality: {}", e))?;
+
+    info!("Preview quality set to: {}", quality_desc);
+
+    Ok(PreviewResponse {
+        success: true,
+        message: format!("Preview quality set to: {}", quality_desc),
+        data: Some(serde_json::json!({
+            "quality": format!("{:?}", quality),
+            "description": quality_desc
+        })),
     })
 }
 
@@ -413,16 +502,10 @@ pub async fn preview_get_performance_stats(
         "current_time": current_time,
         "total_duration": total_duration,
         "dimensions": dimensions,
-        "gpu_utilization": 0.85,
-        "gpu_memory_mb": 256,
-        "decode_time_ms": 12.5,
-        "dropped_frames": 0,
-        "frame_buffer_size": 512,
-        "cpu_usage": if is_playing { 45.2 } else { 5.0 },
-        "memory_usage_mb": if is_playing { 23.8 } else { 2.0 }
+        "dropped_frames": 0
     });
 
-    info!("Stats: {:?}, Playing: {}", stats, is_playing);
+    info!("Stats: current_fps={}, Playing: {}", stats["current_fps"], is_playing);
 
     Ok(stats)
 }
