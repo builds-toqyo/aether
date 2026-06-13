@@ -5,6 +5,8 @@ use uuid::Uuid;
 use log::info;
 use crate::commands::editing::MediaInfo;
 use crate::commands::rendering::RenderingState;
+use crate::commands::multicam::MulticamRegistry;
+use crate::commands::plugin::PluginRegistry;
 use crate::engine_proxy::EditingEngineProxy;
 use crate::project_registry::ProjectRegistry;
 
@@ -16,6 +18,8 @@ pub struct AppState {
     pub editing_engine: Mutex<EditingEngineProxy>,
     pub media_registry: Mutex<HashMap<String, MediaInfo>>,
     pub project_registry: Mutex<ProjectRegistry>,
+    pub multicam_registry: Mutex<MulticamRegistry>,
+    pub plugin_registry: Mutex<PluginRegistry>,
 }
 
 impl AppState {
@@ -31,6 +35,8 @@ impl AppState {
             editing_engine: Mutex::new(EditingEngineProxy::new()),
             media_registry: Mutex::new(HashMap::new()),
             project_registry: Mutex::new(ProjectRegistry::new().expect("Failed to initialize project registry")),
+            multicam_registry: Mutex::new(MulticamRegistry::new()),
+            plugin_registry: Mutex::new(PluginRegistry::new()),
         }
     }
 
@@ -40,7 +46,6 @@ impl AppState {
             .map(|graph| graph.clone())
             .map_err(|e| format!("Failed to lock graph: {}", e))
     }
-
 
     pub fn clear_execution_results(&self) -> Result<(), String> {
         let mut results = self.execution_results.lock()

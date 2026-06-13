@@ -68,5 +68,20 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             rendering_estimate_time,
             rendering_get_performance_stats,
             rendering_cleanup_completed,
+
+            multicam_create,
+            multicam_add_angle,
+            multicam_remove_angle,
+            multicam_set_active_angle,
+            multicam_get_clip,
+            multicam_list_clips,
+            multicam_delete_clip,
+            multicam_sync_by_timecode,
+
+            plugin_load,
+            plugin_unload,
+            plugin_list,
+            plugin_get_info,
+            plugin_scan_directory,
         ])
 }
