@@ -41,6 +41,7 @@ impl AppState {
             multicam_registry: Mutex::new(MulticamRegistry::new()),
             plugin_registry: Mutex::new(PluginRegistry::new()),
             active_exports: Mutex::new(HashMap::new()),
+            color_grading_engine: Mutex::new(ColorGradingEngine::new().expect("Failed to initialize color grading engine")),
         }
     }
 

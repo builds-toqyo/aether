@@ -1270,6 +1270,160 @@ pub async fn rendering_get_performance_stats(
     Ok(stats)
 }
 
+#[tauri::command]
+pub async fn rendering_apply_lut(
+    lut_path: String,
+    format: String,
+    state: State<'_, AppState>,
+) -> Result<RenderingResponse, String> {
+    debug!("Applying LUT: {} format: {}", lut_path, format);
+
+    if lut_path.is_empty() {
+        return Err("LUT path cannot be empty".to_string());
+    }
+
+    let path = std::path::PathBuf::from(&lut_path);
+    if !path.exists() {
+        return Err(format!("LUT file not found: {}", lut_path));
+    }
+
+    let lut_format = match format.to_lowercase().as_str() {
+        "cube" => aether_core::modules::color_grading::LutFormat::Cube,
+        "3dl" => aether_core::modules::color_grading::LutFormat::ThreeDL,
+        "look" => aether_core::modules::color_grading::LutFormat::Look,
+        _ => return Err(format!("Unsupported LUT format: {}", format)),
+    };
+
+    let mut color_engine = state.color_grading_engine.lock()
+        .map_err(|e| format!("Failed to lock color grading engine: {}", e))?;
+
+    color_engine.load_lut(&path, lut_format)
+        .map_err(|e| format!("Failed to load LUT: {}", e))?;
+
+    info!("LUT applied successfully: {}", lut_path);
+    Ok(RenderingResponse {
+        success: true,
+        message: format!("LUT applied: {}", lut_path),
+        data: Some(serde_json::json!({
+            "lut_path": lut_path,
+            "format": format
+        })),
+    })
+}
+
+#[tauri::command]
+pub async fn rendering_remove_lut(
+    state: State<'_, AppState>,
+) -> Result<RenderingResponse, String> {
+    debug!("Removing LUT from color grading pipeline");
+
+    let mut color_engine = state.color_grading_engine.lock()
+        .map_err(|e| format!("Failed to lock color grading engine: {}", e))?;
+
+    color_engine.clear_lut()
+        .map_err(|e| format!("Failed to clear LUT: {}", e))?;
+
+    info!("LUT removed successfully");
+    Ok(RenderingResponse {
+        success: true,
+        message: "LUT removed successfully".to_string(),
+        data: None,
+    })
+}
+
+#[tauri::command]
+pub async fn rendering_start_batch_job(
+    requests: Vec<RenderingRequest>,
+    state: State<'_, AppState>,
+) -> Result<RenderingResponse, String> {
+    debug!("Starting batch rendering with {} jobs", requests.len());
+
+    if requests.is_empty() {
+        return Err("Batch request cannot be empty".to_string());
+    }
+
+    let mut rendering_state = state.rendering_state.lock()
+        .map_err(|e| format!("Failed to lock rendering state: {}", e))?;
+
+    let mut job_ids = Vec::new();
+    let mut failed = 0;
+
+    for request in requests {
+        let job_id = format!("render_{}", uuid::Uuid::new_v4());
+        let now = chrono::Utc::now().to_rfc3339();
+
+        let export_options = ExportOptions {
+            input_path: std::path::PathBuf::from("/timeline/current"),
+            output_path: std::path::PathBuf::from(&request.output_path),
+            container_format: convert_render_format(&request.format),
+            video_format: VideoFormat::H264,
+            audio_format: AudioFormat::Aac,
+            video_bitrate: request.video_settings.as_ref().map(|v| v.bitrate).unwrap_or(5000000),
+            audio_bitrate: 128000,
+            frame_rate: request.fps.unwrap_or(30.0),
+            width: request.resolution.unwrap_or((1920, 1080)).0,
+            height: request.resolution.unwrap_or((1920, 1080)).1,
+            encoder_preset: convert_render_quality(&request.quality),
+            crf: 23,
+            hardware_acceleration: false,
+            threads: 0,
+        };
+
+        let exporter: Box<dyn ExporterTrait> = {
+            let ffmpeg_exporter = aether_core::engine::rendering::Exporter::new(export_options)
+                .map_err(|e| format!("Failed to create exporter: {}", e))?;
+            Box::new(ffmpeg_exporter)
+        };
+
+        let progress = Arc::new(Mutex::new(ExportProgress {
+            current_frame: 0,
+            total_frames: 0,
+            current_time: 0.0,
+            total_duration: 0.0,
+            percent: 0.0,
+            complete: false,
+            error: None,
+        }));
+
+        let active_job = ActiveRenderingJob {
+            job: RenderingJob {
+                id: job_id.clone(),
+                name: request.name.clone(),
+                status: RenderingStatus::Pending,
+                progress: 0.0,
+                current_frame: 0,
+                total_frames: 0,
+                start_time: now.clone(),
+                end_time: None,
+                output_path: request.output_path.clone(),
+                format: request.format.clone(),
+                quality: request.quality.clone(),
+                resolution: request.resolution.unwrap_or((1920, 1080)),
+                fps: request.fps.unwrap_or(30.0),
+                bitrate: request.video_settings.as_ref().map(|v| v.bitrate).unwrap_or(5000000),
+                estimated_size: 1024 * 1024 * 250,
+                actual_size: None,
+                error_message: None,
+            },
+            exporter: Arc::new(Mutex::new(exporter)),
+            progress: progress.clone(),
+        };
+
+        rendering_state.queued_jobs.insert(job_id.clone(), active_job);
+        job_ids.push(job_id.clone());
+    }
+
+    info!("Batch rendering queued {} jobs", job_ids.len());
+    Ok(RenderingResponse {
+        success: true,
+        message: format!("Batch rendering queued {} jobs", job_ids.len()),
+        data: Some(serde_json::json!({
+            "job_ids": job_ids,
+            "total": job_ids.len(),
+            "failed": failed
+        })),
+    })
+}
 
 #[tauri::command]
 pub async fn rendering_cleanup_completed(

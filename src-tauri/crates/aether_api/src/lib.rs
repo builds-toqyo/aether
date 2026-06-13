@@ -68,6 +68,9 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             rendering_estimate_time,
             rendering_get_performance_stats,
             rendering_cleanup_completed,
+            rendering_apply_lut,
+            rendering_remove_lut,
+            rendering_start_batch_job,
 
             multicam_create,
             multicam_add_angle,
