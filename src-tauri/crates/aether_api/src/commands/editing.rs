@@ -137,6 +137,17 @@ pub struct EditingResponse {
     pub data: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ExportJob {
+    pub id: String,
+    pub output_path: String,
+    pub format: String,
+    pub status: String,
+    pub progress: f64,
+    pub started_at: String,
+    pub completed_at: Option<String>,
+    pub error: Option<String>,
+}
 
 #[tauri::command]
 pub async fn project_init(
@@ -537,10 +548,9 @@ pub async fn media_remove(
 #[tauri::command]
 pub async fn media_export(
     request: MediaExportRequest,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
     debug!("Exporting project to: {} format: {:?}", request.output_path, request.format);
-
 
     if request.output_path.is_empty() {
         return Err("Output path cannot be empty".to_string());
@@ -552,16 +562,31 @@ pub async fn media_export(
         }
     }
 
-
     let export_id = format!("export_{}", uuid::Uuid::new_v4());
+    let started_at = chrono::Utc::now().to_rfc3339();
 
-    info!("Export started: {}", export_id);
+    let job = ExportJob {
+        id: export_id.clone(),
+        output_path: request.output_path.clone(),
+        format: format!("{:?}", request.format),
+        status: "pending".to_string(),
+        progress: 0.0,
+        started_at,
+        completed_at: None,
+        error: None,
+    };
 
+    if let Ok(mut exports) = state.active_exports.lock() {
+        exports.insert(export_id.clone(), job);
+    }
+
+    info!("Export {} created (pending): {}", export_id, request.output_path);
     Ok(EditingResponse {
         success: true,
-        message: format!("Export {} started successfully", export_id),
+        message: format!("Export {} created successfully", export_id),
         data: Some(serde_json::json!({
-            "export_id": export_id
+            "export_id": export_id,
+            "status": "pending"
         })),
     })
 }
@@ -570,7 +595,7 @@ pub async fn media_export(
 #[tauri::command]
 pub async fn export_get_status(
     export_id: String,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     debug!("Getting export status: {}", export_id);
 
@@ -578,29 +603,32 @@ pub async fn export_get_status(
         return Err("Export ID cannot be empty".to_string());
     }
 
-    let status = serde_json::json!({
-        "export_id": export_id,
-        "status": "completed",
-        "progress": 100.0,
-        "frames_rendered": 3600,
-        "total_frames": 3600,
-        "elapsed_time": 120.5,
-        "remaining_time": 0.0,
-        "estimated_size": 1024 * 1024 * 250,
-        "output_path": export_id,
-        "format": "mp4",
-        "codec": "h264"
-    });
+    let exports = state.active_exports.lock()
+        .map_err(|e| format!("Failed to lock export registry: {}", e))?;
 
-    info!("Export status for {}: {:?}", export_id, status);
-    Ok(status)
+    if let Some(job) = exports.get(&export_id) {
+        let status = serde_json::json!({
+            "export_id": job.id,
+            "status": job.status,
+            "progress": job.progress,
+            "output_path": job.output_path,
+            "format": job.format,
+            "started_at": job.started_at,
+            "completed_at": job.completed_at,
+            "error": job.error,
+        });
+        info!("Export status for {}: {}", export_id, job.status);
+        Ok(status)
+    } else {
+        Err(format!("Export not found: {}", export_id))
+    }
 }
 
 
 #[tauri::command]
 pub async fn export_cancel(
     export_id: String,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
     debug!("Cancelling export: {}", export_id);
 
@@ -608,22 +636,31 @@ pub async fn export_cancel(
         return Err("Export ID cannot be empty".to_string());
     }
 
-    info!("Cancelling export: {}", export_id);
+    let mut exports = state.active_exports.lock()
+        .map_err(|e| format!("Failed to lock export registry: {}", e))?;
 
-    Ok(EditingResponse {
-        success: true,
-        message: format!("Export cancelled: {}", export_id),
-        data: Some(serde_json::json!({
-            "export_id": export_id
-        })),
-    })
+    if let Some(job) = exports.get_mut(&export_id) {
+        job.status = "cancelled".to_string();
+        job.completed_at = Some(chrono::Utc::now().to_rfc3339());
+        info!("Export {} marked as cancelled", export_id);
+        Ok(EditingResponse {
+            success: true,
+            message: format!("Export cancelled: {}", export_id),
+            data: Some(serde_json::json!({
+                "export_id": export_id,
+                "status": "cancelled"
+            })),
+        })
+    } else {
+        Err(format!("Export not found: {}", export_id))
+    }
 }
 
 
 #[tauri::command]
 pub async fn project_auto_save(
     project_id: String,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
     debug!("Auto-saving project: {}", project_id);
 
@@ -631,17 +668,39 @@ pub async fn project_auto_save(
         return Err("Project ID cannot be empty".to_string());
     }
 
+    let timeline_info = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .get_timeline_info()
+        .map_err(|e| format!("Failed to get timeline info: {}", e))?;
 
-    let auto_save_path = format!("/autosave/{}_autosave.aether", project_id);
+    let auto_save_dir = std::env::temp_dir().join("aether_autosave");
+    if let Err(e) = std::fs::create_dir_all(&auto_save_dir) {
+        return Err(format!("Failed to create auto-save directory: {}", e));
+    }
 
-    info!("Auto-saved project: {} to {}", project_id, auto_save_path);
+    let auto_save_path = auto_save_dir.join(format!("{}_autosave.aether", project_id));
+
+    let project_data = serde_json::json!({
+        "project_id": project_id,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "timeline": {
+            "duration": timeline_info.duration,
+            "tracks": timeline_info.tracks.len(),
+            "clips": timeline_info.clips.len(),
+        }
+    });
+
+    if let Err(e) = std::fs::write(&auto_save_path, project_data.to_string()) {
+        return Err(format!("Failed to write auto-save file: {}", e));
+    }
+
+    info!("Auto-saved project: {} to {}", project_id, auto_save_path.display());
 
     Ok(EditingResponse {
         success: true,
-        message: format!("Project auto-saved successfully"),
+        message: format!("Project auto-saved to {}", auto_save_path.display()),
         data: Some(serde_json::json!({
             "project_id": project_id,
-            "auto_save_path": auto_save_path,
+            "auto_save_path": auto_save_path.to_string_lossy(),
             "timestamp": chrono::Utc::now().to_rfc3339()
         })),
     })

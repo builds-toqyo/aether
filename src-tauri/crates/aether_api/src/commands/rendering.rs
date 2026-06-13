@@ -72,17 +72,15 @@ impl ExporterTrait for aether_core::engine::rendering::Exporter {
     }
 
     fn pause(&mut self) -> Result<(), EditingError> {
-        warn!("FFmpeg exporter pause requested - stub");
-        Ok(())
+        self.pause()
     }
 
     fn resume(&mut self) -> Result<(), EditingError> {
-        warn!("FFmpeg exporter resume requested - stub");
-        Ok(())
+        self.resume()
     }
 
     fn is_paused(&self) -> bool {
-        false
+        self.is_paused()
     }
 }
 
@@ -518,6 +516,26 @@ pub async fn rendering_start_job(
         threads: 0, // Auto-detect
     };
 
+    // Query timeline duration from engine for realistic frame/size estimates
+    let timeline_duration_ns = state.editing_engine.lock()
+        .map_err(|e| format!("{}", e))?
+        .get_timeline_info()
+        .map(|t| t.duration)
+        .unwrap_or(0);
+    let duration_seconds = timeline_duration_ns as f64 / 1_000_000_000.0;
+    let fps = request.fps.unwrap_or(30.0);
+    let total_frames = if duration_seconds > 0.0 {
+        (duration_seconds * fps) as u32
+    } else {
+        0
+    };
+    let bitrate = request.video_settings.as_ref().map(|v| v.bitrate).unwrap_or(5_000_000u32);
+    let estimated_size = if duration_seconds > 0.0 {
+        (bitrate as u64 * duration_seconds as u64) / 8
+    } else {
+        1024 * 1024 * 250 // fallback estimate
+    };
+
     // Get rendering state
     let mut rendering_state = state.rendering_state.lock()
         .map_err(|e| format!("{}", e))?;
@@ -548,16 +566,16 @@ pub async fn rendering_start_job(
             status: RenderingStatus::Preparing,
             progress: 0.0,
             current_frame: 0,
-            total_frames: 0, // Will be updated when export starts
+            total_frames,
             start_time: now.clone(),
             end_time: None,
             output_path: request.output_path.clone(),
             format: request.format.clone(),
             quality: request.quality.clone(),
             resolution: request.resolution.unwrap_or((1920, 1080)),
-            fps: request.fps.unwrap_or(30.0),
-            bitrate: request.video_settings.as_ref().map(|v| v.bitrate).unwrap_or(5000000),
-            estimated_size: 1024 * 1024 * 250, // Estimate
+            fps,
+            bitrate,
+            estimated_size,
             actual_size: None,
             error_message: None,
         },
@@ -727,37 +745,42 @@ pub async fn rendering_get_job_status(
     let rendering_state = state.rendering_state.lock()
         .map_err(|e| format!("{}", e))?;
 
-    let active_job = rendering_state.active_jobs.get(&job_id)
-        .ok_or_else(|| format!("{}", job_id))?;
+    if let Some(active_job) = rendering_state.active_jobs.get(&job_id) {
+        // Get current progress from exporter
+        let progress = {
+            let exporter = active_job.exporter.lock()
+                .map_err(|e| format!("{}", e))?;
+            exporter.get_progress()
+        };
 
-    // Get current progress from exporter
-    let progress = {
-        let exporter = active_job.exporter.lock()
-            .map_err(|e| format!("{}", e))?;
-        exporter.get_progress()
-    };
+        let mut job = active_job.job.clone();
+        job.progress = progress.percent;
+        job.current_frame = progress.current_frame as u32;
+        job.total_frames = progress.total_frames as u32;
 
-    // Update job status based on progress
-    let mut job = active_job.job.clone();
-    job.progress = progress.percent;
-    job.current_frame = progress.current_frame as u32;
-    job.total_frames = progress.total_frames as u32;
-
-    if progress.complete {
-        if progress.error.is_some() {
-            job.status = RenderingStatus::Failed;
-            job.error_message = progress.error.clone();
-            job.end_time = Some(chrono::Utc::now().to_rfc3339());
+        if progress.complete {
+            if progress.error.is_some() {
+                job.status = RenderingStatus::Failed;
+                job.error_message = progress.error.clone();
+                job.end_time = Some(chrono::Utc::now().to_rfc3339());
+            } else {
+                job.status = RenderingStatus::Completed;
+                job.end_time = Some(chrono::Utc::now().to_rfc3339());
+            }
         } else {
-            job.status = RenderingStatus::Completed;
-            job.end_time = Some(chrono::Utc::now().to_rfc3339());
+            job.status = RenderingStatus::Rendering;
         }
-    } else {
-        job.status = RenderingStatus::Rendering;
-    }
 
-    info!("Resumed job: {} ({})", job.name, job_id);
-    Ok(job)
+        info!("Retrieved job status: {} ({})", job.name, job_id);
+        Ok(job)
+    } else if let Some(paused_job) = rendering_state.paused_jobs.get(&job_id) {
+        let mut job = paused_job.job.clone();
+        job.status = RenderingStatus::Paused;
+        info!("Retrieved paused job status: {} ({})", job.name, job_id);
+        Ok(job)
+    } else {
+        Err(format!("Job not found: {}", job_id))
+    }
 }
 
 /// Get rendering job progress
@@ -834,6 +857,13 @@ pub async fn rendering_get_all_jobs(
             job.status = RenderingStatus::Rendering;
         }
 
+        jobs.push(job);
+    }
+
+    // Include paused jobs
+    for (_job_id, paused_job) in &rendering_state.paused_jobs {
+        let mut job = paused_job.job.clone();
+        job.status = RenderingStatus::Paused;
         jobs.push(job);
     }
 
@@ -1218,25 +1248,10 @@ pub async fn rendering_get_performance_stats(
         0.0
     };
 
-
-    let memory_usage_mb = 1024 + (active_jobs_count as u64 * 512);
-    let cpu_usage_percent = if active_jobs_count > 0 { 45.0 + (active_jobs_count as f64 * 15.0) } else { 0.0 };
-    let gpu_usage_percent = if active_jobs_count > 0 { 60.0 + (active_jobs_count as f64 * 10.0) } else { 0.0 };
-
     let stats = serde_json::json!({
         "current_fps": current_fps,
-        "target_fps": 30.0,
         "average_fps": average_fps,
-        "render_time_per_frame": render_time_per_frame,
-        "encoding_time_per_frame": render_time_per_frame * 0.4,
-        "total_time_per_frame": render_time_per_frame * 1.4,
-        "memory_usage_mb": memory_usage_mb,
-        "gpu_usage_percent": gpu_usage_percent,
-        "cpu_usage_percent": cpu_usage_percent,
-        "disk_write_speed_mbps": if active_jobs_count > 0 { 125.3 } else { 0.0 },
-        "disk_read_speed_mbps": if active_jobs_count > 0 { 89.7 } else { 0.0 },
-        "cache_hit_rate": 0.92,
-        "frames_dropped": 0,
+        "render_time_per_frame_ms": render_time_per_frame * 1000.0,
         "frames_rendered": total_frames_rendered,
         "total_frames": total_frames,
         "active_jobs": active_jobs_count,
@@ -1247,12 +1262,11 @@ pub async fn rendering_get_performance_stats(
             Some(completion_time.to_rfc3339())
         } else {
             None
-        },
-        "bottleneck": if gpu_usage_percent > 80.0 { "GPU" } else if cpu_usage_percent > 80.0 { "CPU" } else { "None" }
+        }
     });
 
     info!("Rendering performance stats: {:.1} fps, {:.2}ms per frame, {} active jobs",
-          stats["current_fps"], stats["render_time_per_frame"], active_jobs_count);
+          stats["current_fps"], render_time_per_frame * 1000.0, active_jobs_count);
     Ok(stats)
 }
 
@@ -1261,21 +1275,54 @@ pub async fn rendering_get_performance_stats(
 pub async fn rendering_cleanup_completed(
     older_than_hours: Option<u32>,
     keep_count: Option<u32>,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<RenderingResponse, String> {
     debug!("Cleaning up completed rendering jobs");
 
     let older_than = older_than_hours.unwrap_or(24);
     let keep = keep_count.unwrap_or(10);
+    let cutoff = chrono::Utc::now() - chrono::Duration::hours(older_than as i64);
 
+    let mut rendering_state = state.rendering_state.lock()
+        .map_err(|e| format!("Failed to lock rendering state: {}", e))?;
 
-    info!("Cleaned up completed rendering jobs older than {} hours, keeping {} most recent",
-          older_than, keep);
+    let mut removed = 0;
+    let mut kept = 0;
+    let job_ids: Vec<String> = rendering_state.active_jobs.keys().cloned().collect();
+
+    for job_id in job_ids {
+        if let Some(job) = rendering_state.active_jobs.get(&job_id) {
+            let is_complete = {
+                let exporter = job.exporter.lock()
+                    .map_err(|e| format!("Failed to lock exporter: {}", e))?;
+                exporter.is_complete()
+            };
+
+            if is_complete {
+                let end_time = job.job.end_time.as_ref()
+                    .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
+                    .map(|dt| dt.with_timezone(&chrono::Utc));
+
+                let should_remove = end_time.map(|t| t < cutoff).unwrap_or(true);
+                if should_remove && kept >= keep {
+                    rendering_state.active_jobs.remove(&job_id);
+                    removed += 1;
+                } else {
+                    kept += 1;
+                }
+            }
+        }
+    }
+
+    info!("Cleaned up {} completed rendering jobs older than {} hours, kept {}",
+          removed, older_than, kept);
 
     Ok(RenderingResponse {
         success: true,
-        message: format!("Cleaned up completed rendering jobs successfully"),
+        message: format!("Cleaned up {} completed jobs, kept {}", removed, kept),
         data: Some(serde_json::json!({
+            "removed": removed,
+            "kept": kept,
             "older_than_hours": older_than,
             "keep_count": keep
         })),
