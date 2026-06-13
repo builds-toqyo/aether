@@ -1031,7 +1031,26 @@ pub async fn rendering_get_presets(
 ) -> Result<Vec<RenderPresetInfo>, String> {
     debug!("Getting rendering presets");
 
-    let presets = vec![
+    let presets_dir = std::env::temp_dir().join("aether_render_presets");
+    let presets_file = presets_dir.join("presets.json");
+
+    let presets = if presets_file.exists() {
+        debug!("Loading presets from config file: {}", presets_file.display());
+        let content = std::fs::read_to_string(&presets_file)
+            .map_err(|e| format!("Failed to read presets file: {}", e))?;
+        serde_json::from_str::<Vec<RenderPresetInfo>>(&content)
+            .map_err(|e| format!("Failed to parse presets JSON: {}", e))?
+    } else {
+        debug!("Presets file not found, using defaults");
+        get_default_presets()
+    };
+
+    info!("Retrieved {} rendering presets", presets.len());
+    Ok(presets)
+}
+
+fn get_default_presets() -> Vec<RenderPresetInfo> {
+    vec![
         RenderPresetInfo {
             name: "YouTube 1080p".to_string(),
             description: "Optimized for YouTube uploads at 1080p".to_string(),
@@ -1080,10 +1099,126 @@ pub async fn rendering_get_presets(
             video_codec: VideoCodec::H265,
             audio_codec: AudioCodec::Flac,
         },
-    ];
+    ]
+}
 
-    info!("Retrieved {} rendering presets", presets.len());
-    Ok(presets)
+/// Save a custom render preset
+#[tauri::command]
+pub async fn rendering_save_preset(
+    preset: RenderPresetInfo,
+    _state: State<'_, AppState>,
+) -> Result<RenderingResponse, String> {
+    debug!("Saving custom preset: {}", preset.name);
+
+    if preset.name.is_empty() {
+        return Err("Preset name cannot be empty".to_string());
+    }
+
+    let presets_dir = std::env::temp_dir().join("aether_render_presets");
+    std::fs::create_dir_all(&presets_dir)
+        .map_err(|e| format!("Failed to create presets directory: {}", e))?;
+
+    let presets_file = presets_dir.join("presets.json");
+
+    let mut presets = if presets_file.exists() {
+        let content = std::fs::read_to_string(&presets_file)
+            .map_err(|e| format!("Failed to read presets file: {}", e))?;
+        serde_json::from_str::<Vec<RenderPresetInfo>>(&content)
+            .unwrap_or_else(|_| get_default_presets())
+    } else {
+        get_default_presets()
+    };
+
+    // Remove existing preset with same name if it exists
+    presets.retain(|p| p.name != preset.name);
+    presets.push(preset.clone());
+
+    std::fs::write(&presets_file, serde_json::to_string_pretty(&presets).unwrap())
+        .map_err(|e| format!("Failed to write presets file: {}", e))?;
+
+    info!("Custom preset saved: {}", preset.name);
+    Ok(RenderingResponse {
+        success: true,
+        message: format!("Preset saved: {}", preset.name),
+        data: Some(serde_json::json!({
+            "preset_name": preset.name,
+            "total_presets": presets.len()
+        })),
+    })
+}
+
+/// Delete a custom render preset
+#[tauri::command]
+pub async fn rendering_delete_preset(
+    preset_name: String,
+    _state: State<'_, AppState>,
+) -> Result<RenderingResponse, String> {
+    debug!("Deleting preset: {}", preset_name);
+
+    if preset_name.is_empty() {
+        return Err("Preset name cannot be empty".to_string());
+    }
+
+    let presets_dir = std::env::temp_dir().join("aether_render_presets");
+    let presets_file = presets_dir.join("presets.json");
+
+    if !presets_file.exists() {
+        return Err("Presets file not found".to_string());
+    }
+
+    let content = std::fs::read_to_string(&presets_file)
+        .map_err(|e| format!("Failed to read presets file: {}", e))?;
+
+    let mut presets: Vec<RenderPresetInfo> = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse presets JSON: {}", e))?;
+
+    let original_len = presets.len();
+    presets.retain(|p| p.name != preset_name);
+
+    if presets.len() == original_len {
+        return Err(format!("Preset not found: {}", preset_name));
+    }
+
+    std::fs::write(&presets_file, serde_json::to_string_pretty(&presets).unwrap())
+        .map_err(|e| format!("Failed to write presets file: {}", e))?;
+
+    info!("Preset deleted: {}", preset_name);
+    Ok(RenderingResponse {
+        success: true,
+        message: format!("Preset deleted: {}", preset_name),
+        data: Some(serde_json::json!({
+            "preset_name": preset_name,
+            "remaining_presets": presets.len()
+        })),
+    })
+}
+
+/// Reset render presets to defaults
+#[tauri::command]
+pub async fn rendering_reset_presets(
+    _state: State<'_, AppState>,
+) -> Result<RenderingResponse, String> {
+    debug!("Resetting presets to defaults");
+
+    let presets_dir = std::env::temp_dir().join("aether_render_presets");
+    let presets_file = presets_dir.join("presets.json");
+
+    let defaults = get_default_presets();
+
+    std::fs::create_dir_all(&presets_dir)
+        .map_err(|e| format!("Failed to create presets directory: {}", e))?;
+
+    std::fs::write(&presets_file, serde_json::to_string_pretty(&defaults).unwrap())
+        .map_err(|e| format!("Failed to write presets file: {}", e))?;
+
+    info!("Presets reset to defaults");
+    Ok(RenderingResponse {
+        success: true,
+        message: "Presets reset to defaults".to_string(),
+        data: Some(serde_json::json!({
+            "total_presets": defaults.len()
+        })),
+    })
 }
 
 
