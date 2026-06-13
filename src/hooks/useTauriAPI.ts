@@ -24,10 +24,31 @@ export interface RenderingAPI {
   get_job_status: (jobId: string) => Promise<any>;
 }
 
+export interface MulticamAPI {
+  create: (name: string, angleMediaIds: string[]) => Promise<any>;
+  addAngle: (clipId: string, name: string, mediaId: string) => Promise<any>;
+  removeAngle: (clipId: string, angleId: string) => Promise<any>;
+  setActiveAngle: (clipId: string, angleId: string) => Promise<any>;
+  getClip: (clipId: string) => Promise<any>;
+  listClips: () => Promise<any[]>;
+  deleteClip: (clipId: string) => Promise<any>;
+  syncByTimecode: (clipId: string) => Promise<any>;
+}
+
+export interface PluginAPI {
+  load: (path: string) => Promise<any>;
+  unload: (pluginId: string) => Promise<any>;
+  list: () => Promise<any[]>;
+  getInfo: (pluginId: string) => Promise<any>;
+  scanDirectory: (directory: string) => Promise<any[]>;
+}
+
 export interface TauriAPIs {
   preview: PreviewAPI;
   editing: EditingAPI;
   rendering: RenderingAPI;
+  multicam: MulticamAPI;
+  plugin: PluginAPI;
 }
 
 // Actual Tauri API implementation
@@ -92,6 +113,62 @@ const renderingAPI: RenderingAPI = {
   },
 };
 
+const multicamAPI: MulticamAPI = {
+  create: async (name: string, angleMediaIds: string[]) => {
+    return await invoke('multicam_create', { name, angle_media_ids: angleMediaIds });
+  },
+
+  addAngle: async (clipId: string, name: string, mediaId: string) => {
+    return await invoke('multicam_add_angle', { clip_id: clipId, name, media_id: mediaId });
+  },
+
+  removeAngle: async (clipId: string, angleId: string) => {
+    return await invoke('multicam_remove_angle', { clip_id: clipId, angle_id: angleId });
+  },
+
+  setActiveAngle: async (clipId: string, angleId: string) => {
+    return await invoke('multicam_set_active_angle', { clip_id: clipId, angle_id: angleId });
+  },
+
+  getClip: async (clipId: string) => {
+    return await invoke('multicam_get_clip', { clip_id: clipId });
+  },
+
+  listClips: async () => {
+    return await invoke('multicam_list_clips');
+  },
+
+  deleteClip: async (clipId: string) => {
+    return await invoke('multicam_delete_clip', { clip_id: clipId });
+  },
+
+  syncByTimecode: async (clipId: string) => {
+    return await invoke('multicam_sync_by_timecode', { clip_id: clipId });
+  },
+};
+
+const pluginAPI: PluginAPI = {
+  load: async (path: string) => {
+    return await invoke('plugin_load', { path });
+  },
+
+  unload: async (pluginId: string) => {
+    return await invoke('plugin_unload', { plugin_id: pluginId });
+  },
+
+  list: async () => {
+    return await invoke('plugin_list');
+  },
+
+  getInfo: async (pluginId: string) => {
+    return await invoke('plugin_get_info', { plugin_id: pluginId });
+  },
+
+  scanDirectory: async (directory: string) => {
+    return await invoke('plugin_scan_directory', { directory });
+  },
+};
+
 export const useTauriAPI = (): TauriAPIs => {
   const [isConnected, setIsConnected] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +189,8 @@ export const useTauriAPI = (): TauriAPIs => {
     preview: previewAPI,
     editing: editingAPI,
     rendering: renderingAPI,
+    multicam: multicamAPI,
+    plugin: pluginAPI,
   };
 
   // Check connection on mount
