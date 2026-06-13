@@ -44,7 +44,7 @@ impl OcioLib {
 
         let lib = lib_names.iter().find_map(|name| {
             debug!("Trying to load OpenColorIO library: {}", name);
-            unsafe { libloading::Library::new(name) }.ok()
+            unsafe { libloading::Library::new(*name) }.ok()
         })?;
 
         debug!("OpenColorIO library loaded successfully");
