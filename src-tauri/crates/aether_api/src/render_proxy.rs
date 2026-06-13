@@ -163,15 +163,15 @@ fn run_gst_exporter_thread(receiver: std::sync::mpsc::Receiver<RenderCommand>, c
                         let _ = resp.send(exporter.get_error());
                     }
                     RenderCommand::Pause { resp } => {
-                        paused = true;
-                        let _ = resp.send(Ok(()));
+                        let result = exporter.pause();
+                        let _ = resp.send(result);
                     }
                     RenderCommand::Resume { resp } => {
-                        paused = false;
-                        let _ = resp.send(Ok(()));
+                        let result = exporter.resume();
+                        let _ = resp.send(result);
                     }
                     RenderCommand::IsPaused { resp } => {
-                        let _ = resp.send(paused);
+                        let _ = resp.send(exporter.is_paused());
                     }
                 }
             }

@@ -64,6 +64,7 @@ pub struct Exporter {
     progress: Arc<Mutex<ExportProgress>>,
     progress_callback: Option<ExportCallback>,
     cancel_flag: Arc<Mutex<bool>>,
+    pause_flag: Arc<Mutex<bool>>,
 }
 
 impl Exporter {
@@ -85,6 +86,7 @@ impl Exporter {
             progress,
             progress_callback: None,
             cancel_flag: Arc::new(Mutex::new(false)),
+            pause_flag: Arc::new(Mutex::new(false)),
         })
     }
 
@@ -102,6 +104,7 @@ impl Exporter {
         let progress = self.progress.clone();
         let callback = self.progress_callback.clone();
         let cancel_flag = self.cancel_flag.clone();
+        let pause_flag = self.pause_flag.clone();
 
         thread::spawn(move || {
             let input_path = options.input_path.to_string_lossy().to_string();
@@ -331,6 +334,10 @@ impl Exporter {
                     return Err(EditingError::ExportError(error_msg));
                 }
 
+                while *pause_flag.lock().unwrap() && !*cancel_flag.lock().unwrap() {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+
                 if let Some(stream_index) = video_stream_index {
                     if stream.index() == stream_index {
                         video_decoder.send_packet(&packet)?;
@@ -392,6 +399,10 @@ impl Exporter {
                                     let error_msg = "Export cancelled during audio processing".to_string();
                                     Self::update_progress_with_error(&progress, &callback, &error_msg);
                                     return Err(EditingError::ExportError(error_msg));
+                                }
+
+                                while *pause_flag.lock().unwrap() && !*cancel_flag.lock().unwrap() {
+                                    std::thread::sleep(std::time::Duration::from_millis(100));
                                 }
 
 
@@ -543,6 +554,20 @@ impl Exporter {
     pub fn cancel(&mut self) -> Result<(), EditingError> {
         *self.cancel_flag.lock().unwrap() = true;
         Ok(())
+    }
+
+    pub fn pause(&mut self) -> Result<(), EditingError> {
+        *self.pause_flag.lock().unwrap() = true;
+        Ok(())
+    }
+
+    pub fn resume(&mut self) -> Result<(), EditingError> {
+        *self.pause_flag.lock().unwrap() = false;
+        Ok(())
+    }
+
+    pub fn is_paused(&self) -> bool {
+        *self.pause_flag.lock().unwrap()
     }
 
    pub fn get_progress(&self) -> ExportProgress {

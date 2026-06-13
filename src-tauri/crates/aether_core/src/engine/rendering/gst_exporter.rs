@@ -86,6 +86,7 @@ pub struct GstExporter {
     timeout_id: Option<SourceId>,
 
     cancel_flag: Arc<Mutex<bool>>,
+    pause_flag: Arc<Mutex<bool>>,
 }
 
 impl GstExporter {
@@ -112,6 +113,7 @@ impl GstExporter {
             bus_watch_id: None,
             timeout_id: None,
             cancel_flag: Arc::new(Mutex::new(false)),
+            pause_flag: Arc::new(Mutex::new(false)),
         })
     }
 
@@ -363,6 +365,28 @@ impl GstExporter {
         }
 
         Ok(())
+    }
+
+    pub fn pause(&mut self) -> Result<(), EditingError> {
+        *self.pause_flag.lock().unwrap() = true;
+        if let Some(pipeline) = &self.pipeline {
+            pipeline.set_state(gst::State::Paused)
+                .map_err(|e| EditingError::ExportError(format!("Failed to pause pipeline: {:?}", e)))?;
+        }
+        Ok(())
+    }
+
+    pub fn resume(&mut self) -> Result<(), EditingError> {
+        *self.pause_flag.lock().unwrap() = false;
+        if let Some(pipeline) = &self.pipeline {
+            pipeline.set_state(gst::State::Playing)
+                .map_err(|e| EditingError::ExportError(format!("Failed to resume pipeline: {:?}", e)))?;
+        }
+        Ok(())
+    }
+
+    pub fn is_paused(&self) -> bool {
+        *self.pause_flag.lock().unwrap()
     }
 
     pub fn get_progress(&self) -> ExportProgress {
