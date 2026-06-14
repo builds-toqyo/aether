@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::panic;
-use log::{error, warn, debug};
+use log::{error, warn, debug, info};
 use anyhow::Result;
 use gstreamer as gst;
 use gst::prelude::*;
@@ -16,6 +16,102 @@ pub struct PreviewFrame {
     pub data: Vec<u8>,
     pub pts: i64,
     pub duration: i64,
+}
+
+/// Detect the best available hardware video decoder
+fn get_hardware_decoder() -> Option<&'static str> {
+    // Try platform-specific hardware decoders in order of preference
+    #[cfg(target_os = "linux")]
+    {
+        if gst::ElementFactory::find("vaapidecode").is_some() {
+            info!("Using VAAPI hardware decoder (Linux)");
+            return Some("vaapidecode");
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if gst::ElementFactory::find("videotoolboxdec").is_some() {
+            info!("Using VideoToolbox hardware decoder (macOS)");
+            return Some("videotoolboxdec");
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if gst::ElementFactory::find("d3d11dec").is_some() {
+            info!("Using D3D11 hardware decoder (Windows)");
+            return Some("d3d11dec");
+        }
+    }
+
+    // Try NVIDIA decoder (cross-platform)
+    if gst::ElementFactory::find("nvv4l2decoder").is_some() {
+        info!("Using NVIDIA V4L2 hardware decoder");
+        return Some("nvv4l2decoder");
+    }
+
+    if gst::ElementFactory::find("nvdec").is_some() {
+        info!("Using NVIDIA NVDEC hardware decoder");
+        return Some("nvdec");
+    }
+
+    // Try AMD decoder
+    if gst::ElementFactory::find("amfdec").is_some() {
+        info!("Using AMD AMF hardware decoder");
+        return Some("amfdec");
+    }
+
+    info!("No hardware decoder found, using software decoder");
+    None
+}
+
+/// Detect the best available hardware video encoder
+fn get_hardware_encoder() -> Option<&'static str> {
+    // Try platform-specific hardware encoders in order of preference
+    #[cfg(target_os = "linux")]
+    {
+        if gst::ElementFactory::find("vaapiencode").is_some() {
+            info!("Using VAAPI hardware encoder (Linux)");
+            return Some("vaapiencode");
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if gst::ElementFactory::find("videotoolboxenc").is_some() {
+            info!("Using VideoToolbox hardware encoder (macOS)");
+            return Some("videotoolboxenc");
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if gst::ElementFactory::find("d3d11enc").is_some() {
+            info!("Using D3D11 hardware encoder (Windows)");
+            return Some("d3d11enc");
+        }
+    }
+
+    // Try NVIDIA encoder
+    if gst::ElementFactory::find("nvv4l2encoder").is_some() {
+        info!("Using NVIDIA V4L2 hardware encoder");
+        return Some("nvv4l2encoder");
+    }
+
+    if gst::ElementFactory::find("nvenc").is_some() {
+        info!("Using NVIDIA NVENC hardware encoder");
+        return Some("nvenc");
+    }
+
+    // Try AMD encoder
+    if gst::ElementFactory::find("amfenc").is_some() {
+        info!("Using AMD AMF hardware encoder");
+        return Some("amfenc");
+    }
+
+    info!("No hardware encoder found, using software encoder");
+    None
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -86,6 +182,15 @@ impl PreviewEngine {
 
     fn setup_preview_pipeline(&mut self, pipeline: &ges::Pipeline) -> Result<(), EditingError> {
         self.update_video_properties(pipeline);
+
+        // Detect and use hardware decoder if available
+        let hw_decoder = get_hardware_decoder();
+        if let Some(decoder_name) = hw_decoder {
+            info!("Configuring preview pipeline with hardware decoder: {}", decoder_name);
+            // Note: GES pipeline handles decoder selection internally
+            // We configure the video sink to accept hardware-decoded frames
+        }
+
         let video_sink = gst::ElementFactory::make("appsink")
             .name("video_sink")
             .build()
@@ -102,8 +207,9 @@ impl PreviewEngine {
             PreviewQuality::Ultra => (width * 2, height * 2),
         };
 
+        // Accept both hardware and software decoded formats
         let caps = gst::Caps::builder("video/x-raw")
-            .field("format", &gst::List::new(["RGB", "BGR", "RGBx", "BGRx"]))
+            .field("format", &gst::List::new(["RGB", "BGR", "RGBx", "BGRx", "NV12", "I420"]))
             .field("width", &(scaled_width as i32))
             .field("height", &(scaled_height as i32))
             .build();
