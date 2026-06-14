@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { TimelineEditor } from "@/components/timeline";
 import { PreviewWindow } from "@/components/Preview";
 import { NodeGraphEditor } from "@/components/NodeGraph";
@@ -12,6 +13,7 @@ import { InspectorPanel } from "@/components/InspectorPanel";
 import { useToast } from "@/components/Toast";
 import { PluginManager } from "@/components/PluginManager";
 import { MulticamPanel } from "@/components/MulticamPanel";
+import { ExportDialog } from "@/components/ExportDialog";
 import useAppStore from "@/store";
 import {
   Film,
@@ -49,6 +51,7 @@ export default function Home() {
   const [nameValue, setNameValue] = useState(currentProject?.name ?? "");
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showAbout, setShowAbout] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -128,8 +131,23 @@ export default function Home() {
           {[
             { label: "File", items: [
               { label: "New Project", shortcut: "Ctrl+N", action: () => setCurrentProject(null) },
-              { label: "Open Project", shortcut: "Ctrl+O", action: () =>
-                toast("Open Project: file picker integration coming soon", "warning") },
+              { label: "Open Project", shortcut: "Ctrl+O", action: async () => {
+                try {
+                  const selected = await open({
+                    multiple: false,
+                    filters: [{
+                      name: "Aether Project",
+                      extensions: ["aether"]
+                    }]
+                  });
+                  if (selected && typeof selected === "string") {
+                    await invoke("project_load", { request: { path: selected } });
+                    toast("Project loaded successfully", "success");
+                  }
+                } catch (e) {
+                  toast(`Open failed: ${e}`, "error");
+                }
+              }},
               { label: "Save", shortcut: "Ctrl+S", action: async () => {
                 if (!currentProject) return;
                 try {
@@ -139,8 +157,24 @@ export default function Home() {
                   toast(`Save failed: ${e}`, "error");
                 }
               }},
-              { label: "Save As...", shortcut: "", action: () =>
-                toast("Save As: dialog coming soon", "warning") },
+              { label: "Save As...", shortcut: "", action: async () => {
+                if (!currentProject) return;
+                try {
+                  const selected = await save({
+                    filters: [{
+                      name: "Aether Project",
+                      extensions: ["aether"]
+                    }],
+                    defaultPath: `${currentProject.name}.aether`
+                  });
+                  if (selected) {
+                    await invoke("project_save", { request: { project_id: currentProject.id, path: selected } });
+                    toast("Project saved successfully", "success");
+                  }
+                } catch (e) {
+                  toast(`Save As failed: ${e}`, "error");
+                }
+              }},
               { divider: true },
               { label: "Close Project", shortcut: "", action: () => setCurrentProject(null) },
             ]},
@@ -201,12 +235,21 @@ export default function Home() {
                   toast(`Add track failed: ${e}`, "error");
                 }
               }},
-              { label: "Split Clip", shortcut: "Ctrl+K", action: () =>
-                toast("Split Clip: needs playhead position — coming soon", "warning") },
+              { label: "Split Clip", shortcut: "Ctrl+K", action: async () => {
+                if (selectedTimelineClipIds.length === 0) {
+                  toast("No clips selected", "warning");
+                  return;
+                }
+                try {
+                  await invoke("timeline_split_clip", { request: { clip_id: selectedTimelineClipIds[0] } });
+                  toast("Clip split successfully", "success");
+                } catch (e) {
+                  toast(`Split failed: ${e}`, "error");
+                }
+              }},
             ]},
             { label: "Render", items: [
-              { label: "Quick Export", shortcut: "Ctrl+M", action: () =>
-                toast("Quick Export: dialog coming soon", "warning") },
+              { label: "Quick Export", shortcut: "Ctrl+M", action: () => setShowExportDialog(true) },
               { label: "Render Queue", shortcut: "", action: async () => {
                 try {
                   const jobs = await invoke("rendering_get_all_jobs") as any[];
@@ -447,17 +490,46 @@ export default function Home() {
         </div>
       )}
 
+      {/* Export Dialog */}
+      {showExportDialog && <ExportDialog onClose={() => setShowExportDialog(false)} />}
+
       <StatusBar />
     </div>
   );
 }
 
 function MediaPool() {
+  const { toast } = useToast();
+
+  const handleImport = async () => {
+    try {
+      const selected = await open({
+        multiple: true,
+        filters: [{
+          name: "Video Files",
+          extensions: ["mp4", "mov", "avi", "mkv", "webm"]
+        }]
+      });
+      if (selected) {
+        const files = Array.isArray(selected) ? selected : [selected];
+        for (const file of files) {
+          await invoke("media_import", { request: { path: file } });
+        }
+        toast(`Imported ${files.length} file(s)`, "success");
+      }
+    } catch (e) {
+      toast(`Import failed: ${e}`, "error");
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold text-[#777] uppercase tracking-wider">Media Pool</span>
-        <button className="text-[10px] px-2 py-1 bg-blue-600/15 text-blue-400 rounded hover:bg-blue-600/25 transition-colors">
+        <button
+          onClick={handleImport}
+          className="text-[10px] px-2 py-1 bg-blue-600/15 text-blue-400 rounded hover:bg-blue-600/25 transition-colors"
+        >
           + Import
         </button>
       </div>
