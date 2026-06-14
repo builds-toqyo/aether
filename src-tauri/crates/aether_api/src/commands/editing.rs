@@ -44,6 +44,7 @@ pub struct ProjectSaveRequest {
 #[derive(Debug, Deserialize)]
 pub struct ProjectLoadRequest {
     pub file_path: String,
+    pub project_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -199,7 +200,7 @@ pub async fn project_init(
 
     // Register in project_registry
     if let Ok(registry) = state.project_registry.lock() {
-        let _ = registry.add(&project_info);
+        let _ = registry.add(&project_info, None);
     }
 
     info!("Project {} loaded from {}", request.name, project_id);
@@ -275,7 +276,17 @@ pub async fn project_save(
     };
 
     if let Ok(registry) = state.project_registry.lock() {
-        let _ = registry.add(&project_info);
+        let timeline_json = serde_json::to_string(&timeline_info)
+            .unwrap_or_else(|_| "{}".to_string());
+        let _ = registry.add(&project_info, Some(&timeline_json));
+    }
+
+    if let Ok(plugin_registry) = state.plugin_registry.lock() {
+        use crate::commands::plugin::PluginHook;
+        plugin_registry.invoke_hook(
+            PluginHook::OnProjectSave,
+            &serde_json::json!({"project_id": project_info.id, "file_path": file_path})
+        );
     }
 
     Ok(EditingResponse {
@@ -285,7 +296,7 @@ pub async fn project_save(
     })
 }
 
-/// Load project from file
+/// Load project from SQLite registry
 #[tauri::command]
 pub async fn project_load(
     request: ProjectLoadRequest,
@@ -297,92 +308,63 @@ pub async fn project_load(
         return Err("File path cannot be empty".to_string());
     }
 
+    let project_id = request.project_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
-    let project_data = std::fs::read_to_string(&request.file_path)
-        .map_err(|e| format!("Failed to read project file: {}", e))?;
-
-    let project_json: serde_json::Value = serde_json::from_str(&project_data)
-        .map_err(|e| format!("Failed to parse project file: {}", e))?;
+    let (project_info, timeline_data) = state.project_registry.lock()
+        .map_err(|e| format!("Failed to lock project registry: {}", e))?
+        .get(&project_id)
+        .map_err(|e| format!("Failed to query project from registry: {}", e))?
+        .ok_or_else(|| format!("Project {} not found in registry", project_id))?;
 
     state.editing_engine.lock().map_err(|e| format!("{}", e))?
         .init_project(Some(request.file_path.clone()))
         .map_err(|e| format!("Failed to initialize project: {}", e))?;
 
-    if let Some(clips) = project_json.get("clips").and_then(|c| c.as_array()) {
-        for clip_data in clips {
-            if let (Some(_id), Some(name), Some(source_path), Some(_start_time), Some(_duration)) = (
-                clip_data.get("id").and_then(|v| v.as_str()),
-                clip_data.get("name").and_then(|v| v.as_str()),
-                clip_data.get("source_path").and_then(|v| v.as_str()),
-                clip_data.get("start_time").and_then(|v| v.as_i64()),
-                clip_data.get("duration").and_then(|v| v.as_i64())
-            ) {
-                let _track_type = clip_data.get("track_type")
-                    .and_then(|v| v.as_str())
-                    .and_then(|s| match s {
-                        "Video" => Some(TrackType::Video),
-                        "Audio" => Some(TrackType::Audio),
-                        _ => None,
-                    })
-                    .unwrap_or(TrackType::Video);
+    if let Some(timeline_json) = timeline_data {
+        if let Ok(timeline_info) = serde_json::from_str::<crate::commands::timeline::TimelineInfo>(&timeline_json) {
+            let mut editing_engine = state.editing_engine.lock().map_err(|e| format!("{}", e))?;
+            
+            for clip_data in &timeline_info.clips {
+                let track_type = match clip_data.clip_type {
+                    crate::commands::timeline::ClipType::Video => TrackType::Video,
+                    crate::commands::timeline::ClipType::Audio => TrackType::Audio,
+                    _ => TrackType::Video,
+                };
 
-                let _in_point = clip_data.get("in_point").and_then(|v| v.as_i64()).unwrap_or(0);
+                if let Some(source_path) = &clip_data.source_file {
+                    let uri = if source_path.starts_with("file://") {
+                        source_path.clone()
+                    } else {
+                        format!("file://{}", source_path)
+                    };
 
-                debug!("Restoring clip {} from {}", name, source_path);
+                    let start_time = (clip_data.start_time * 1_000_000_000.0) as i64;
+                    let duration = (clip_data.duration * 1_000_000_000.0) as i64;
+                    let in_point = (clip_data.in_point * 1_000_000_000.0) as i64;
+
+                    debug!("Restoring clip {} from {} (start: {}, duration: {}, in_point: {})", 
+                        clip_data.name, uri, start_time, duration, in_point);
+
+                    if let Err(e) = editing_engine.add_clip_to_timeline(&uri, track_type, start_time, duration, in_point) {
+                        warn!("Failed to restore clip {}: {}", clip_data.name, e);
+                    }
+                }
             }
         }
     }
 
-    let project_id = project_json.get("project_id")
-        .and_then(|v| v.as_str())
-        .unwrap_or(&format!("project_{}", uuid::Uuid::new_v4()))
-        .to_string();
+    info!("Loaded project from SQLite: {} ({} clips, {:.2}s duration)", project_info.name, project_info.media_count, project_info.duration);
 
-    let now = chrono::Utc::now().to_rfc3339();
-
-
-    let project_name = project_json.get("name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("Loaded Project")
-        .to_string();
-
-    let duration = project_json.get("duration")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0) as f64 / 1_000_000_000.0;
-
-    let clips_count = project_json.get("clips")
-        .and_then(|v| v.as_array())
-        .map(|arr| arr.len())
-        .unwrap_or(0);
-
-    info!("Loaded project from: {} ({} clips, {:.2}s duration)", request.file_path, clips_count, duration);
-
-    let project_info = ProjectInfo {
-        id: project_id.clone(),
-        name: project_name,
-        description: Some("Loaded from file".to_string()),
-        created_at: project_json.get("created_at")
-            .and_then(|v| v.as_str())
-            .unwrap_or(&now)
-            .to_string(),
-        modified_at: now.clone(),
-        duration,
-        fps: 30.0,
-        resolution: (1920, 1080),
-        timeline_count: 1,
-        media_count: clips_count,
-        file_size: std::fs::metadata(&request.file_path).map(|m| m.len()).unwrap_or(0),
-        file_path: request.file_path.clone(),
-    };
-
-    // Register in project_registry
-    if let Ok(registry) = state.project_registry.lock() {
-        let _ = registry.add(&project_info);
+    if let Ok(plugin_registry) = state.plugin_registry.lock() {
+        use crate::commands::plugin::PluginHook;
+        plugin_registry.invoke_hook(
+            PluginHook::OnProjectLoad,
+            &serde_json::json!({"project_id": project_info.id, "file_path": project_info.file_path})
+        );
     }
 
     Ok(project_info)
 }
-
 
 #[tauri::command]
 pub async fn project_get_recent(
@@ -403,7 +385,6 @@ pub async fn project_get_recent(
     Ok(projects)
 }
 
-
 #[tauri::command]
 pub async fn media_import(
     request: MediaImportRequest,
@@ -414,7 +395,6 @@ pub async fn media_import(
     if request.file_paths.is_empty() {
         return Err("No files to import".to_string());
     }
-
 
     let mut imported_media = Vec::new();
 

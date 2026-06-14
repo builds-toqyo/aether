@@ -8,6 +8,7 @@ use aether_core::engine::editing::{
 };
 
 #[derive(Debug, Clone)]
+#[derive(serde::Serialize)]
 pub struct TrackInfo {
     pub id: String,
     pub track_type: TrackType,
@@ -22,7 +23,7 @@ pub struct PreviewState {
     pub duration: Option<i64>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct TimelineInfo {
     pub tracks: Vec<TrackInfo>,
     pub clips: Vec<ClipInfo>,
@@ -391,7 +392,7 @@ fn handle_command(engine: &mut EditingEngine, cmd: EngineCommand) -> Result<(), 
                 let mut preview_guard = preview.lock()
                     .map_err(|_| EditingError::PreviewError("Preview lock poisoned".to_string()))?;
 
-                use aether_core::engine::editing::preview::PreviewQuality;
+                use aether_core::engine::editing::PreviewQuality;
                 let quality_enum = match quality.as_str() {
                     "Low" => PreviewQuality::Low,
                     "Medium" => PreviewQuality::Medium,
