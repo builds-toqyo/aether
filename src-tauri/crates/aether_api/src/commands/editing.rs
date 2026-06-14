@@ -55,7 +55,6 @@ pub struct MediaImportRequest {
     pub auto_create_clips: Option<bool>,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct MediaExportRequest {
     pub output_path: String,
@@ -322,7 +321,7 @@ pub async fn project_load(
 
     if let Some(timeline_json) = timeline_data {
         if let Ok(timeline_info) = serde_json::from_str::<crate::commands::timeline::TimelineInfo>(&timeline_json) {
-            let mut editing_engine = state.editing_engine.lock().map_err(|e| format!("{}", e))?;
+            let editing_engine = state.editing_engine.lock().map_err(|e| format!("{}", e))?;
             
             for clip_data in &timeline_info.clips {
                 let track_type = match clip_data.clip_type {
@@ -345,7 +344,7 @@ pub async fn project_load(
                     debug!("Restoring clip {} from {} (start: {}, duration: {}, in_point: {})", 
                         clip_data.name, uri, start_time, duration, in_point);
 
-                    if let Err(e) = editing_engine.add_clip_to_timeline(&uri, track_type, start_time, duration, in_point) {
+                    if let Err(e) = editing_engine.timeline_add_clip(uri, track_type, start_time, duration, in_point) {
                         warn!("Failed to restore clip {}: {}", clip_data.name, e);
                     }
                 }
