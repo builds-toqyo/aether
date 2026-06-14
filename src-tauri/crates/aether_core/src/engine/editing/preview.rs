@@ -184,7 +184,7 @@ impl PreviewEngine {
     }
 
     fn setup_preview_pipeline(&mut self, pipeline: &ges::Pipeline) -> Result<(), EditingError> {
-        self.update_video_properties(pipeline);
+        let _ = self.update_video_properties(pipeline);
 
         // Detect and use hardware decoder if available
         let hw_decoder = get_hardware_decoder();
@@ -296,8 +296,8 @@ impl PreviewEngine {
         debug!("Preview quality set to: {:?}", quality);
 
         // Reconfigure the pipeline if it's running
-        if let Some(pipeline) = &self.pipeline {
-            self.setup_preview_pipeline(pipeline)?;
+        if let Some(pipeline) = self.pipeline.clone() {
+            self.setup_preview_pipeline(&pipeline)?;
         }
 
         Ok(())

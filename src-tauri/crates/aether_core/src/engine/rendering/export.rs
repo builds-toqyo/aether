@@ -315,14 +315,7 @@ impl Exporter {
                 video_decoder.height(),
             );
 
-            let mut encoded = ffmpeg::frame::Video::new(
-                ffmpeg::format::pixel::Pixel::YUV420P,
-                if options.width > 0 { options.width } else { width as u32 },
-                if options.height > 0 { options.height } else { height as u32 },
-            );
-
             let mut audio_decoded = ffmpeg::frame::Audio::empty();
-            let mut audio_encoded = ffmpeg::frame::Audio::empty();
             let _packet = ffmpeg::packet::Packet::empty();
 
             let mut frame_count = 0;
@@ -344,7 +337,7 @@ impl Exporter {
 
                         while video_decoder.receive_frame(&mut decoded).is_ok() {
 
-                            encoded = ffmpeg::frame::Video::new(
+                            let mut encoded = ffmpeg::frame::Video::new(
                                 ffmpeg::format::pixel::Pixel::YUV420P,
                                 if options.width > 0 { options.width } else { width as u32 },
                                 if options.height > 0 { options.height } else { height as u32 },
@@ -417,9 +410,7 @@ impl Exporter {
 
                                 while audio_frame_result.is_ok() {
 
-                                    audio_encoded = ffmpeg::frame::Audio::empty();
-
-
+                                    let mut audio_encoded = ffmpeg::frame::Audio::empty();
                                     if let Some(ref mut resampler) = resampler {
                                         if let Err(e) = resampler.run(&audio_decoded, &mut audio_encoded) {
                                             let error_msg = format!("Audio resampling error: {}", e);

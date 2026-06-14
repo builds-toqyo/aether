@@ -210,11 +210,25 @@ impl Timeline {
             name: effect_type.to_string(),
             ges_effect: effect,
             parameters: HashMap::new(),
+            node_connection: None,
         };
 
         clip.effects.push(timeline_effect.clone());
 
         Ok(timeline_effect)
+    }
+
+    pub fn bind_node_to_effect(&mut self, clip_id: &str, effect_id: &str, node_id: &str, output_pin_name: &str) -> Result<(), EditingError> {
+        let clip = self.clips.get_mut(clip_id)
+            .ok_or(EditingError::InvalidParameter(format!("Clip not found: {}", clip_id)))?;
+
+        let effect = clip.effects.iter_mut()
+            .find(|e| e.id == effect_id)
+            .ok_or(EditingError::InvalidParameter(format!("Effect not found: {}", effect_id)))?;
+
+        effect.node_connection = Some((node_id.to_string(), output_pin_name.to_string()));
+
+        Ok(())
     }
 
     pub fn remove_clip(&mut self, clip_id: &str) -> Result<(), EditingError> {
@@ -339,6 +353,9 @@ pub struct TimelineEffect {
     pub ges_effect: ges::Effect,
 
     pub parameters: HashMap<String, String>,
+
+    /// Node graph connection: (node_id, output_pin_name)
+    pub node_connection: Option<(String, String)>,
 }
 
 impl TimelineEffect {

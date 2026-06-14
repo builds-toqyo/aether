@@ -7,7 +7,7 @@ pub mod types;
 
 pub use timeline::{Timeline, TimelineTrack, TimelineClip, TimelineEffect};
 pub use import::{MediaImporter, ImportOptions};
-pub use preview::{PreviewEngine, PreviewFrame};
+pub use preview::{PreviewEngine, PreviewFrame, PreviewQuality};
 pub use effects::{Effect, EffectType, Transition, TransitionType};
 pub use export::{IntermediateExporter, ExportOptions, ExportProgress};
 pub use types::{EditingError, MediaInfo, ClipInfo, TrackType};
@@ -80,6 +80,11 @@ impl EditingEngine {
 
     pub fn preview(&self) -> Arc<Mutex<PreviewEngine>> {
         self.preview_engine.clone()
+    }
+
+    pub fn add_clip_to_timeline(&mut self, uri: &str, track_type: TrackType, start_time: i64, duration: i64, in_point: i64) -> Result<(), EditingError> {
+        self.timeline.lock().unwrap().add_clip(uri, track_type, start_time, duration, in_point)?;
+        Ok(())
     }
 
     pub fn create_intermediate_export(&self, options: ExportOptions) -> Result<IntermediateExporter, EditingError> {

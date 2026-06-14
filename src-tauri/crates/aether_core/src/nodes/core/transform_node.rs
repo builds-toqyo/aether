@@ -23,7 +23,7 @@ impl CoreTransformNode {
         let mut scale = 1.0;
         let mut rotation = 0.0;
         let mut anchor_x = 0.0;
-        let mut anchor_y = 0.0;
+        let mut _anchor_y = 0.0;
 
         if let Some(param) = self.node.parameters.get("position_x") {
             if let ParameterValue::Float(val) = param.value {
@@ -57,7 +57,7 @@ impl CoreTransformNode {
 
         if let Some(param) = self.node.parameters.get("anchor_y") {
             if let ParameterValue::Float(val) = param.value {
-                anchor_y = val;
+                _anchor_y = val;
             }
         }
 

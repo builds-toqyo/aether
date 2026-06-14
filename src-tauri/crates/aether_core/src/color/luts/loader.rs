@@ -101,7 +101,6 @@ impl LutLoader {
         file.read_to_string(&mut content)?;
 
         let mut lut_data = LutData::default();
-        let mut size = 33;
 
         for line in content.lines() {
             let line = line.trim();
@@ -123,9 +122,8 @@ impl LutLoader {
             }
         }
 
-
         let data_len = lut_data.data.len();
-        size = (data_len as f32).cbrt() as u32;
+        let size = (data_len as f32).cbrt() as u32;
 
         lut_data.name = file_path.file_stem()
             .and_then(|name| name.to_str())
@@ -243,7 +241,6 @@ impl LutLoader {
 
     fn load_3dl_from_string(&self, content: &str, name: &str) -> Result<LutData> {
         let mut lut_data = LutData::default();
-        let mut size = 33;
 
         for line in content.lines() {
             let line = line.trim();
@@ -266,7 +263,7 @@ impl LutLoader {
 
 
         let data_len = lut_data.data.len();
-        size = (data_len as f32).cbrt() as u32;
+        let size = (data_len as f32).cbrt() as u32;
 
         lut_data.name = name.to_string();
         lut_data.size = size;

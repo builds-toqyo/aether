@@ -1,6 +1,4 @@
 use super::types::*;
-use super::gpu::{has_nvidia_gpu, has_amd_gpu, has_vaapi_support, WgpuComputeState};
-use super::cuda;
 
 pub(super) fn initialize_hardware_acceleration(
     config: &mut RendererConfig,
@@ -34,7 +32,7 @@ pub(super) fn initialize_hardware_acceleration(
 }
 
 /// Initialize CUDA acceleration for NVIDIA GPUs
-fn initialize_cuda_acceleration(hw_context: &mut Option<HardwareContext>) -> Result<(), RendererError> {
+fn initialize_cuda_acceleration(_hw_context: &mut Option<HardwareContext>) -> Result<(), RendererError> {
     #[cfg(feature = "cuda")]
     {
         if !has_nvidia_gpu() {
@@ -125,7 +123,7 @@ fn initialize_amf_acceleration() -> Result<(), RendererError> {
 /// Auto-detect the best hardware acceleration method
 fn auto_detect_acceleration(
     config: &mut RendererConfig,
-    hw_context: &mut Option<HardwareContext>,
+    _hw_context: &mut Option<HardwareContext>,
 ) -> Result<(), RendererError> {
     // Try CUDA first if feature is enabled and NVIDIA GPU present
     #[cfg(feature = "cuda")]

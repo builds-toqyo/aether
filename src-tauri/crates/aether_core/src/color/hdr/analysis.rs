@@ -55,16 +55,16 @@ impl HdrAnalyzer {
     }
 
     pub fn calculate_quality_metrics(hdr_image: &super::types::HdrImage) -> HdrQualityMetrics {
-        let mut contrast_ratio = 0.0;
         let mut saturation_avg = 0.0;
-        let mut highlight_preservation = 0.0;
-        let mut shadow_preservation = 0.0;
         let pixel_count = hdr_image.data.len() as f32;
 
         let mut min_luma = f32::MAX;
         let mut max_luma: f32 = 0.0;
         let mut highlight_pixels = 0u64;
         let mut shadow_pixels = 0u64;
+        let mut contrast_ratio = 0.0;
+        let mut highlight_preservation = 0.0;
+        let mut shadow_preservation = 0.0;
 
         for pixel in &hdr_image.data {
             let luma = pixel.luminance();
