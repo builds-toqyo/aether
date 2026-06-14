@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RefreshCw, AlertTriangle } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { WaveformScope } from './WaveformScope';
 import { Vectorscope } from './Vectorscope';
 import { Histogram } from './Histogram';
 import { ScopeControls } from './ScopeControls';
-import { useTauriAPI } from '../../hooks/useTauriAPI';
 
 export interface ScopeData {
   waveform?: {
@@ -89,27 +89,87 @@ export const ColorScopes: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
-  
-  const { preview } = useTauriAPI();
+  const [imageData, setImageData] = useState<Uint8Array | null>(null);
+
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch current frame from preview for color analysis
+  const fetchPreviewFrame = useCallback(async () => {
+    try {
+      const frame = await invoke<any>('preview_get_frame');
+      if (frame && frame.data) {
+        // Convert base64 or binary data to Uint8Array
+        if (typeof frame.data === 'string') {
+          const binaryString = atob(frame.data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          setImageData(bytes);
+        } else if (frame.data instanceof Uint8Array) {
+          setImageData(frame.data);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch preview frame:', err);
+    }
+  }, []);
 
   // Fetch scope data from the backend
   const fetchScopeData = useCallback(async () => {
-    if (isPaused) return;
-    
+    if (isPaused || !imageData) return;
+
     try {
       setIsLoading(true);
       setError(null);
-      
-      const response = await preview.get_performance_stats();
-      setScopeData(response.data);
+
+      const width = 1920; // Default, should come from preview
+      const height = 1080;
+
+      // Fetch all scope data in parallel
+      const [histogramData, vectorscopeData, waveformData] = await Promise.all([
+        invoke('color_analyze_histogram', {
+          request: { image_data: Array.from(imageData), width, height }
+        }).catch(() => null),
+        invoke('color_analyze_vectorscope', {
+          request: { image_data: Array.from(imageData), width, height }
+        }).catch(() => null),
+        invoke('color_analyze_waveform', {
+          request: { image_data: Array.from(imageData), width, height }
+        }).catch(() => null),
+      ]);
+
+      setScopeData({
+        histogram: histogramData && typeof histogramData === 'object' && 'red' in histogramData ? {
+          red: (histogramData as any).red,
+          green: (histogramData as any).green,
+          blue: (histogramData as any).blue,
+          luma: (histogramData as any).luminance,
+        } : undefined,
+        vectorscope: vectorscopeData && typeof vectorscopeData === 'object' && 'uv_points' in vectorscopeData ? {
+          points: (vectorscopeData as any).uv_points.map(([x, y]: [number, number]) => ({ x, y, intensity: 1 })),
+          targets: [
+            { name: 'Skin', x: 0.1, y: 0.1, color: '#ff9999', radius: 0.1 },
+            { name: 'Grass', x: -0.1, y: 0.1, color: '#99ff99', radius: 0.1 },
+            { name: 'Sky', x: 0.0, y: -0.2, color: '#9999ff', radius: 0.1 },
+          ],
+        } : undefined,
+        waveform: waveformData && typeof waveformData === 'object' && 'luminance_per_scanline' in waveformData ? {
+          luma: (waveformData as any).luminance_per_scanline,
+          rgb: {
+            red: (waveformData as any).luminance_per_scanline,
+            green: (waveformData as any).luminance_per_scanline,
+            blue: (waveformData as any).luminance_per_scanline,
+          },
+        } : undefined,
+      });
     } catch (err) {
       console.error('Failed to fetch scope data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch scope data');
     } finally {
       setIsLoading(false);
     }
-  }, [preview, isPaused]);
+  }, [imageData, isPaused]);
 
   // Set up automatic updates
   useEffect(() => {
@@ -130,8 +190,15 @@ export const ColorScopes: React.FC = () => {
 
   // Initial data fetch
   useEffect(() => {
+    fetchPreviewFrame();
     fetchScopeData();
-  }, [fetchScopeData]);
+  }, [fetchPreviewFrame, fetchScopeData]);
+
+  // Fetch preview frame periodically
+  useEffect(() => {
+    const frameInterval = setInterval(fetchPreviewFrame, 1000 / settings.updateRate);
+    return () => clearInterval(frameInterval);
+  }, [fetchPreviewFrame, settings.updateRate]);
 
   const handleSettingsChange = useCallback((newSettings: Partial<ScopeSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
