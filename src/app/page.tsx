@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { TimelineEditor } from "@/components/timeline";
@@ -52,6 +52,7 @@ export default function Home() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showAbout, setShowAbout] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +74,89 @@ export default function Home() {
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [activeMenu]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Ignore shortcuts when typing in inputs
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const key = e.key.toLowerCase();
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      // Space: Play/Pause
+      if (key === ' ' && !ctrl) {
+        e.preventDefault();
+        try {
+          const action = isPlaying ? 'pause' : 'play';
+          await invoke('timeline_playback_control', { action });
+          setIsPlaying(prev => !prev);
+        } catch (err) {
+          console.error('Playback control failed:', err);
+        }
+        return;
+      }
+
+      // Ctrl+Z: Undo
+      if (ctrl && key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        toast('Undo', 'success');
+        return;
+      }
+
+      // Ctrl+Shift+Z: Redo
+      if (ctrl && key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        redo();
+        toast('Redo', 'success');
+        return;
+      }
+
+      // Ctrl+S: Save
+      if (ctrl && key === 's') {
+        e.preventDefault();
+        if (!currentProject) return;
+        try {
+          await invoke('project_save', { request: { project_id: currentProject.id } });
+          toast('Project saved', 'success');
+        } catch (err) {
+          toast(`Save failed: ${err}`, 'error');
+        }
+        return;
+      }
+
+      // Ctrl+K: Split Clip
+      if (ctrl && key === 'k') {
+        e.preventDefault();
+        if (selectedTimelineClipIds.length === 0) {
+          toast('No clips selected', 'warning');
+          return;
+        }
+        try {
+          await invoke('timeline_split_clip', { request: { clip_id: selectedTimelineClipIds[0] } });
+          toast('Clip split', 'success');
+        } catch (err) {
+          toast(`Split failed: ${err}`, 'error');
+        }
+        return;
+      }
+
+      // F11: Fullscreen
+      if (key === 'f11') {
+        e.preventDefault();
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          document.documentElement.requestFullscreen();
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPlaying, currentProject, selectedTimelineClipIds, undo, redo, toast]);
 
   const handleNameSave = () => {
     const trimmed = nameValue.trim();
