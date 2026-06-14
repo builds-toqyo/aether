@@ -52,5 +52,9 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             get_video_codecs,
             get_audio_codecs,
             simulate_export_progress,
+
+            color_analyze_histogram,
+            color_analyze_vectorscope,
+            color_analyze_waveform,
         ])
 }

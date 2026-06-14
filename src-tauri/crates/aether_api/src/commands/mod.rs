@@ -5,6 +5,7 @@ pub mod editing;
 pub mod rendering;
 pub mod multicam;
 pub mod plugin;
+pub mod color_scopes;
 
 pub use node_ops::*;
 pub use timeline::*;
@@ -13,3 +14,4 @@ pub use editing::*;
 pub use rendering::*;
 pub use multicam::*;
 pub use plugin::*;
+pub use color_scopes::*;
