@@ -69,6 +69,24 @@ impl PluginRegistry {
                 .collect())
             .unwrap_or_default()
     }
+
+    /// Invoke all plugins registered for a given hook
+    pub fn invoke_hook(&self, hook: PluginHook, context: &serde_json::Value) {
+        let plugins = self.plugins_for_hook(hook);
+        if plugins.is_empty() {
+            return;
+        }
+
+        info!("Invoking hook '{:?}' for {} plugin(s)", hook, plugins.len());
+        for plugin in plugins {
+            debug!(
+                "Would call plugin '{}' for hook '{:?}' with context: {}",
+                plugin.id, hook, context
+            );
+            // TODO: Actual plugin invocation via dynamic library call
+            // For MVP, plugins are tracked but not dynamically executed
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]

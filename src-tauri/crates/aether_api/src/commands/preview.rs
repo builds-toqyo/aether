@@ -1,3 +1,4 @@
+use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::{Serialize, Deserialize};
 use tauri::State;
 use anyhow::Result;
@@ -251,13 +252,13 @@ pub async fn preview_get_frame(
     let frame_number = (request.timestamp * 30.0) as u32;
     let frame_id = format!("frame_{}", frame_number);
 
-    let data_base64 = frame_data.map(|data| base64::encode(&data));
+    let data_base64 = frame_data.map(|data| STANDARD.encode(&data));
 
     info!("Retrieved frame: {} at {}s (quality: {:?}, format: {:?})",
           frame_id, request.timestamp, quality, format);
 
     let preview_frame = PreviewFrame {
-        id: frame_id,
+        id: frame_id.clone(),
         timestamp: request.timestamp,
         width,
         height,
@@ -266,6 +267,14 @@ pub async fn preview_get_frame(
         frame_number,
         fps: 30.0,
     };
+
+    if let Ok(plugin_registry) = state.plugin_registry.lock() {
+        use crate::commands::plugin::PluginHook;
+        plugin_registry.invoke_hook(
+            PluginHook::ProcessFrame,
+            &serde_json::json!({"frame_id": frame_id, "timestamp": request.timestamp, "width": width, "height": height})
+        );
+    }
 
     Ok(preview_frame)
 }
@@ -303,7 +312,7 @@ pub async fn preview_generate_thumbnails(
         let frame_data = engine.get_preview_frame()
             .map_err(|e| format!("Failed to get preview frame at {}: {}", timestamp, e))?;
 
-        let data_base64 = frame_data.map(|data| base64::encode(&data));
+        let data_base64 = frame_data.map(|data| STANDARD.encode(&data));
 
         let thumbnail = PreviewFrame {
             id: format!("thumb_{}", i),
