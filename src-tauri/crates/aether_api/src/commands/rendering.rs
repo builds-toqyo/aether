@@ -587,6 +587,15 @@ pub async fn rendering_start_job(
     rendering_state.active_jobs.insert(job_id.clone(), active_job);
 
     info!("Started job: {} ({})", request.name, job_id);
+
+    if let Ok(plugin_registry) = state.plugin_registry.lock() {
+        use crate::commands::plugin::PluginHook;
+        plugin_registry.invoke_hook(
+            PluginHook::OnRenderStart,
+            &serde_json::json!({"job_id": job_id, "name": request.name, "output_path": request.output_path})
+        );
+    }
+
     Ok(rendering_state.active_jobs[&job_id].job.clone())
 }
 
@@ -766,6 +775,14 @@ pub async fn rendering_get_job_status(
             } else {
                 job.status = RenderingStatus::Completed;
                 job.end_time = Some(chrono::Utc::now().to_rfc3339());
+
+                if let Ok(plugin_registry) = state.plugin_registry.lock() {
+                    use crate::commands::plugin::PluginHook;
+                    plugin_registry.invoke_hook(
+                        PluginHook::OnRenderComplete,
+                        &serde_json::json!({"job_id": job_id, "name": job.name, "output_path": job.output_path})
+                    );
+                }
             }
         } else {
             job.status = RenderingStatus::Rendering;
@@ -1423,9 +1440,11 @@ pub async fn rendering_apply_lut(
     }
 
     let lut_format = match format.to_lowercase().as_str() {
-        "cube" => aether_core::modules::color_grading::LutFormat::Cube,
+        "cube" => aether_core::modules::color_grading::LutFormat::CUBE,
         "3dl" => aether_core::modules::color_grading::LutFormat::ThreeDL,
-        "look" => aether_core::modules::color_grading::LutFormat::Look,
+        "hald" => aether_core::modules::color_grading::LutFormat::HALD,
+        "png" => aether_core::modules::color_grading::LutFormat::PNG,
+        "jpeg" => aether_core::modules::color_grading::LutFormat::JPEG,
         _ => return Err(format!("Unsupported LUT format: {}", format)),
     };
 
@@ -1481,7 +1500,7 @@ pub async fn rendering_start_batch_job(
         .map_err(|e| format!("Failed to lock rendering state: {}", e))?;
 
     let mut job_ids = Vec::new();
-    let mut failed = 0;
+    let failed = 0;
 
     for request in requests {
         let job_id = format!("render_{}", uuid::Uuid::new_v4());
@@ -1520,7 +1539,7 @@ pub async fn rendering_start_batch_job(
             error: None,
         }));
 
-        let active_job = ActiveRenderingJob {
+        let _active_job = ActiveRenderingJob {
             job: RenderingJob {
                 id: job_id.clone(),
                 name: request.name.clone(),
@@ -1544,7 +1563,21 @@ pub async fn rendering_start_batch_job(
             progress: progress.clone(),
         };
 
-        rendering_state.queued_jobs.insert(job_id.clone(), active_job);
+        let queued_job = QueuedJob {
+            id: job_id.clone(),
+            name: request.name.clone(),
+            output_path: request.output_path.clone(),
+            format: request.format.clone(),
+            quality: request.quality.clone(),
+            resolution: request.resolution.unwrap_or((1920, 1080)),
+            fps: request.fps.unwrap_or(30.0),
+            bitrate: request.video_settings.as_ref().map(|v| v.bitrate).unwrap_or(5000000),
+            estimated_size: 1024 * 1024 * 250,
+            created_at: now.clone(),
+            priority: JobPriority::Normal,
+        };
+
+        rendering_state.job_queue.push(queued_job);
         job_ids.push(job_id.clone());
     }
 
@@ -1812,7 +1845,7 @@ pub struct RenderFormatInfo {
 }
 
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RenderPresetInfo {
     pub name: String,
     pub description: String,

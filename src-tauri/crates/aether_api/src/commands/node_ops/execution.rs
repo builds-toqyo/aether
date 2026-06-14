@@ -7,7 +7,7 @@ use log::{debug, info, error};
 use crate::state::AppState;
 use aether_types::{ParameterValue};
 use aether_core::nodes::{NodeExecutor, ExecutionContext};
-use aether_core::nodes::core::factory::CoreNodes;
+use aether_core::nodes::core::CoreNodes;
 
 
 #[tauri::command]
@@ -136,9 +136,10 @@ pub async fn connect_node_to_clip(
     node_id: String,
     output_pin_name: String,
     clip_id: String,
+    effect_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<NodeClipConnectionResponse, String> {
-    debug!("Connecting node {} output {} to clip {}", node_id, output_pin_name, clip_id);
+    debug!("Connecting node {} output {} to clip {} (effect: {:?})", node_id, output_pin_name, clip_id, effect_id);
 
     let node_uuid = uuid::Uuid::parse_str(&node_id)
         .map_err(|e| format!("Invalid node ID: {}", e))?;
@@ -148,15 +149,21 @@ pub async fn connect_node_to_clip(
     let node = graph.get_node(&node_uuid)
         .ok_or_else(|| format!("Node not found: {}", node_id))?;
 
-    let output_pin = node.get_output_pin_by_name(&output_pin_name)
+    let _output_pin = node.get_output_pin_by_name(&output_pin_name)
         .ok_or_else(|| format!("Output pin '{}' not found", output_pin_name))?;
 
+    // Store the connection in execution results for later use
     let mut execution_results = state.execution_results.lock().map_err(|e| format!("Failed to lock execution results: {}", e))?;
 
-    let connection_key = format!("{}_{}", node_id, output_pin_name);
+    let _connection_key = format!("{}_{}", node_id, output_pin_name);
+    let connection_value = if let Some(ref effect_id) = effect_id {
+        format!("clip:{}:effect:{}", clip_id, effect_id)
+    } else {
+        format!("clip:{}", clip_id)
+    };
     execution_results.insert(
         uuid::Uuid::new_v4(),
-        ParameterValue::String(format!("clip:{}", clip_id))
+        ParameterValue::String(connection_value)
     );
 
     info!("Connected node {} output {} to clip {}", node_id, output_pin_name, clip_id);
@@ -164,7 +171,7 @@ pub async fn connect_node_to_clip(
     Ok(NodeClipConnectionResponse {
         node_id,
         output_pin_name,
-        clip_id,
+        clip_id: clip_id.clone(),
         success: true,
         message: format!("Node output connected to clip {}", clip_id),
     })

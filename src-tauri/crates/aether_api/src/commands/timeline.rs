@@ -2,8 +2,10 @@ use serde::{Serialize, Deserialize};
 use tauri::State;
 use anyhow::Result;
 use log::{debug, info};
+use uuid::Uuid;
 
 use crate::state::AppState;
+use aether_types::ParameterValue;
 use aether_core::engine::editing::TrackType as CoreTrackType;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -407,7 +409,7 @@ pub async fn timeline_split_clip(
         return Err("Split time cannot be negative".to_string());
     }
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let _engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
     // Split the clip by creating two new clips from the original
     // This would use GES clip splitting functionality
@@ -446,7 +448,7 @@ pub async fn timeline_add_transition(
         return Err("Transition duration must be positive".to_string());
     }
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let _engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
     // Add transition using GES transition functionality
     info!("Adding transition: {} -> {} ({}s, type: {})", from_clip_id, to_clip_id, duration, transition_type);
@@ -478,7 +480,7 @@ pub async fn timeline_ripple_delete(
         return Err("Clip ID cannot be empty".to_string());
     }
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let _engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
     // Remove clip and shift all subsequent clips left
     info!("Ripple deleting clip: {}", clip_id);
@@ -510,7 +512,7 @@ pub async fn timeline_rolling_edit(
         return Err("Edit time cannot be negative".to_string());
     }
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let _engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
     // Perform rolling edit on clip edge
     info!("Rolling edit: {} {:?} -> {}s", clip_id, edge, new_time);
@@ -598,6 +600,46 @@ pub async fn timeline_delete_track(
         message: format!("Track {} deleted successfully", track_id),
         data: Some(serde_json::json!({
             "track_id": track_id
+        })),
+    })
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BindNodeToEffectRequest {
+    pub clip_id: String,
+    pub effect_id: String,
+    pub node_id: String,
+    pub output_pin_name: String,
+}
+
+#[tauri::command]
+pub async fn timeline_bind_node_to_effect(
+    request: BindNodeToEffectRequest,
+    state: State<'_, AppState>,
+) -> Result<TimelineResponse, String> {
+    debug!("Binding node {} to effect {} on clip {}", request.node_id, request.effect_id, request.clip_id);
+
+    // Store the binding in execution results for later retrieval
+    let mut execution_results = state.execution_results.lock().map_err(|e| format!("Failed to lock execution results: {}", e))?;
+    let binding_value = format!(
+        "clip:{}:effect:{}:node:{}:pin:{}",
+        request.clip_id, request.effect_id, request.node_id, request.output_pin_name
+    );
+    execution_results.insert(
+        Uuid::new_v4(),
+        ParameterValue::String(binding_value)
+    );
+
+    info!("Bound node {} to effect {} on clip {}", request.node_id, request.effect_id, request.clip_id);
+
+    Ok(TimelineResponse {
+        success: true,
+        message: format!("Node {} bound to effect {}", request.node_id, request.effect_id),
+        data: Some(serde_json::json!({
+            "clip_id": request.clip_id,
+            "effect_id": request.effect_id,
+            "node_id": request.node_id,
+            "output_pin_name": request.output_pin_name,
         })),
     })
 }
