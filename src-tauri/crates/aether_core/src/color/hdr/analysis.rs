@@ -62,9 +62,9 @@ impl HdrAnalyzer {
         let mut max_luma: f32 = 0.0;
         let mut highlight_pixels = 0u64;
         let mut shadow_pixels = 0u64;
-        let mut contrast_ratio = 0.0;
-        let mut highlight_preservation = 0.0;
-        let mut shadow_preservation = 0.0;
+        let contrast_ratio;
+        let highlight_preservation;
+        let shadow_preservation;
 
         for pixel in &hdr_image.data {
             let luma = pixel.luminance();
@@ -102,10 +102,6 @@ impl HdrAnalyzer {
         let contrast_score = (contrast_ratio.log10() / 4.0).min(1.0).max(0.0);
         let saturation_score = saturation_avg;
         (contrast_score * 0.6 + saturation_score * 0.4) * 100.0
-    }
-
-    fn calculate_overall_quality(&self, contrast_ratio: f32, saturation_avg: f32) -> f32 {
-        Self::calculate_overall_quality_static(contrast_ratio, saturation_avg)
     }
 
     pub fn generate_statistics(hdr_image: &super::types::HdrImage) -> HdrStatistics {
