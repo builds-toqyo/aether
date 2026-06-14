@@ -859,7 +859,7 @@ impl ColorGradingEngine {
         Ok(())
     }
 
-    fn clear_lut(&mut self) -> Result<()> {
+    pub fn clear_lut(&mut self) -> Result<()> {
         debug!("Clearing LUT");
         Ok(())
     }

@@ -1,6 +1,5 @@
 use std::error::Error;
 use std::fmt;
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub enum RendererError {

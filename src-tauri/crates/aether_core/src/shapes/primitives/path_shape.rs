@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::shapes::paths::{Path, PathBuilder};
+use crate::shapes::paths::Path;
 use crate::shapes::primitives::transform::{BoundingBox, Transform};
 use crate::shapes::primitives::types::{ShapePrimitive, ShapeType};
 

@@ -27,7 +27,7 @@ pub struct Waveform {
 }
 
 /// Analyze image data to generate histogram
-pub fn analyze_histogram(image_data: &[u8], width: usize, height: usize) -> Histogram {
+pub fn analyze_histogram(image_data: &[u8], _width: usize, _height: usize) -> Histogram {
     let mut histogram = Histogram::default();
     
     // Initialize histograms with 256 bins

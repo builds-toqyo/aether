@@ -124,7 +124,7 @@ impl SequenceLoader {
         let mut image_frame = frame::Video::new(pixel_format, width as u32, height as u32);
 
         let mut packet_iter = input_format_context.packets();
-        let mut frame_id = Uuid::new_v4();
+        let frame_id: Uuid;
 
         if let Some((_, packet)) = packet_iter.next() {
             if let Err(e) = decoder.send_packet(&packet) {
@@ -160,12 +160,11 @@ impl SequenceLoader {
 
         } else {
             warn!("No packet found in sequence frame: {}", filename);
-            return self.create_default_sequence_frame(frame);
+            frame_id = self.create_default_sequence_frame(frame);
         }
 
         frame_id
     }
-
 
     fn create_default_sequence_frame(&self, frame: u64) -> Uuid {
         debug!("Creating default sequence frame for frame {}", frame);

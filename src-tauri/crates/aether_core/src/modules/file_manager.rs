@@ -379,7 +379,7 @@ impl FileManager {
             }
         }
 
-        for tag_list in discover_info.tags() {
+        if let Some(tag_list) = discover_info.tags() {
             for (tag, value) in tag_list.iter() {
                 if let Ok(serialized) = value.serialize() {
                     info.metadata.insert(tag.to_string(), serialized.to_string());

@@ -14,11 +14,8 @@ use crate::engine::editing::types::{
 #[derive(Debug, Clone)]
 pub struct ImportOptions {
     pub analyze: bool,
-
     pub extract_thumbnails: bool,
-
     pub create_proxy: bool,
-
     pub proxy_format: Option<String>,
 }
 
@@ -320,10 +317,7 @@ impl MediaImporter {
 
 
     fn generate_thumbnails(&self, _uri: &str, path: &Path) -> Result<(), EditingError> {
-        use gst::prelude::*;
-
         debug!("Generating thumbnails for {}", path.display());
-
 
         let uri = match filename_to_uri(path, None) {
             Ok(uri) => uri,
@@ -345,7 +339,6 @@ impl MediaImporter {
     pub fn get_ges_asset<P: AsRef<Path>>(&self, path: P) -> Option<ges::UriClipAsset> {
 
         let _project = self.ges_project.as_ref()?;
-
 
         let path = path.as_ref();
         let uri = match if path.is_absolute() {

@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Mutex;
 use uuid::Uuid;
 use log::{debug, info, warn};
 use tauri::State;

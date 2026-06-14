@@ -56,5 +56,7 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             color_analyze_histogram,
             color_analyze_vectorscope,
             color_analyze_waveform,
+
+            timeline_bind_node_to_effect,
         ])
 }

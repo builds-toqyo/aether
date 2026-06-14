@@ -139,7 +139,7 @@ fn run_gst_exporter_thread(receiver: std::sync::mpsc::Receiver<RenderCommand>, c
     match GstExporter::new(options) {
         Ok(mut exporter) => {
             info!("GstExporter initialized successfully");
-            let mut paused = false;
+            let _paused = false;
             for cmd in receiver {
                 match cmd {
                     RenderCommand::StartExport { resp } => {

@@ -188,8 +188,8 @@ impl IntermediateExporter {
         })
         .expect("Failed to add bus watch");
 
-        let progress = self.progress.clone();
-        let timeline_duration = self.timeline.duration().nseconds() as i64;
+        let _progress = self.progress.clone();
+        let _timeline_duration = self.timeline.duration().nseconds() as i64;
 
         let _timeout_id = glib::timeout_add_seconds(1, move || {
             // Note: Can't capture ges_pipeline due to Send bounds
