@@ -61,17 +61,20 @@ fn initialize_vaapi_acceleration() -> Result<(), RendererError> {
     {
         if !has_vaapi_support() {
             return Err(RendererError::HardwareAccelerationError(
-                "No VAAPI support found".to_string()
+                "No VAAPI support found. Ensure /dev/dri/renderD128 exists and you have proper permissions.".to_string()
             ));
         }
+        // VAAPI requires libva integration for hardware-accelerated video encoding/decoding
+        // For now, use wgpu compute which provides cross-platform GPU acceleration
+        log::warn!("VAAPI hardware acceleration not fully implemented. Using wgpu compute as fallback.");
         Err(RendererError::HardwareAccelerationError(
-            "VAAPI acceleration not yet implemented — use wgpu compute instead".to_string()
+            "VAAPI requires libva integration. Use wgpu compute for cross-platform GPU acceleration.".to_string()
         ))
     }
     #[cfg(not(all(feature = "vaapi", target_os = "linux")))]
     {
         Err(RendererError::HardwareAccelerationError(
-            "VAAPI feature not enabled or not on Linux".to_string()
+            "VAAPI is only available on Linux with the 'vaapi' feature enabled".to_string()
         ))
     }
 }
@@ -80,14 +83,17 @@ fn initialize_vaapi_acceleration() -> Result<(), RendererError> {
 fn initialize_videotoolbox_acceleration() -> Result<(), RendererError> {
     #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
     {
+        // VideoToolbox requires Metal framework integration for hardware-accelerated video encoding/decoding
+        // For now, use wgpu compute which provides cross-platform GPU acceleration including Metal backend on macOS
+        log::warn!("VideoToolbox hardware acceleration not fully implemented. Using wgpu compute as fallback.");
         Err(RendererError::HardwareAccelerationError(
-            "VideoToolbox acceleration not yet implemented — use wgpu compute instead".to_string()
+            "VideoToolbox requires Metal framework integration. Use wgpu compute for cross-platform GPU acceleration.".to_string()
         ))
     }
     #[cfg(not(all(feature = "videotoolbox", target_os = "macos")))]
     {
         Err(RendererError::HardwareAccelerationError(
-            "VideoToolbox feature not enabled or not on macOS".to_string()
+            "VideoToolbox is only available on macOS with the 'videotoolbox' feature enabled".to_string()
         ))
     }
 }
@@ -98,17 +104,20 @@ fn initialize_amf_acceleration() -> Result<(), RendererError> {
     {
         if !has_amd_gpu() {
             return Err(RendererError::HardwareAccelerationError(
-                "No AMD GPU found".to_string()
+                "No AMD GPU found. Ensure you have an AMD GPU with AMF support.".to_string()
             ));
         }
+        // AMF requires AMD SDK integration for hardware-accelerated video encoding/decoding
+        // For now, use wgpu compute which provides cross-platform GPU acceleration
+        log::warn!("AMF hardware acceleration not fully implemented. Using wgpu compute as fallback.");
         Err(RendererError::HardwareAccelerationError(
-            "AMF acceleration not yet implemented — use wgpu compute instead".to_string()
+            "AMF requires AMD SDK integration. Use wgpu compute for cross-platform GPU acceleration.".to_string()
         ))
     }
     #[cfg(not(feature = "amf"))]
     {
         Err(RendererError::HardwareAccelerationError(
-            "AMF feature not enabled".to_string()
+            "AMF is only available with the 'amf' feature enabled".to_string()
         ))
     }
 }
@@ -125,14 +134,48 @@ fn auto_detect_acceleration(
             log::debug!("NVIDIA GPU detected, trying CUDA acceleration");
             match initialize_cuda_acceleration(hw_context) {
                 Ok(_) => return Ok(()),
-                Err(e) => log::warn!("CUDA initialization failed: {}", e),
+                Err(e) => log::warn!("CUDA initialization failed: {}, falling back to wgpu compute", e),
             }
         }
     }
 
-    // Fallback to software rendering (wgpu compute will be initialized separately)
-    log::info!("Falling back to software rendering");
-    config.use_hardware_acceleration = false;
+    // Try VAAPI on Linux if feature is enabled
+    #[cfg(all(feature = "vaapi", target_os = "linux"))]
+    {
+        if has_vaapi_support() {
+            log::debug!("VAAPI support detected, trying VAAPI acceleration");
+            match initialize_vaapi_acceleration() {
+                Ok(_) => return Ok(()),
+                Err(e) => log::warn!("VAAPI initialization failed: {}, falling back to wgpu compute", e),
+            }
+        }
+    }
+
+    // Try VideoToolbox on macOS if feature is enabled
+    #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
+    {
+        log::debug!("macOS detected, trying VideoToolbox acceleration");
+        match initialize_videotoolbox_acceleration() {
+            Ok(_) => return Ok(()),
+            Err(e) => log::warn!("VideoToolbox initialization failed: {}, falling back to wgpu compute", e),
+        }
+    }
+
+    // Try AMF if feature is enabled and AMD GPU present
+    #[cfg(feature = "amf")]
+    {
+        if has_amd_gpu() {
+            log::debug!("AMD GPU detected, trying AMF acceleration");
+            match initialize_amf_acceleration() {
+                Ok(_) => return Ok(()),
+                Err(e) => log::warn!("AMF initialization failed: {}, falling back to wgpu compute", e),
+            }
+        }
+    }
+
+    // Fallback to wgpu compute for cross-platform GPU acceleration
+    log::info!("Using wgpu compute for cross-platform GPU acceleration");
+    config.use_hardware_acceleration = false; // wgpu compute is managed separately
     Ok(())
 }
 

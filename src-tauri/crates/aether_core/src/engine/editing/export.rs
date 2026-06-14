@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use anyhow::Result;
+use log::info;
 use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_pbutils as gst_pbutils;
@@ -9,6 +10,65 @@ use gstreamer_editing_services::prelude::TimelineExt;
 use gstreamer_pbutils::prelude::EncodingProfileBuilder;
 use glib::{filename_to_uri, ControlFlow};
 use crate::engine::editing::types::EditingError;
+
+fn get_hardware_encoder_for_export() -> Option<&'static str> {
+    #[cfg(target_os = "linux")]
+    {
+        if gst::ElementFactory::find("vaapiencode_h264").is_some() {
+            info!("Using VAAPI H.264 hardware encoder (Linux)");
+            return Some("vaapiencode_h264");
+        }
+        if gst::ElementFactory::find("vaapiencode").is_some() {
+            info!("Using VAAPI hardware encoder (Linux)");
+            return Some("vaapiencode");
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if gst::ElementFactory::find("vtenc_h264").is_some() {
+            info!("Using VideoToolbox H.264 hardware encoder (macOS)");
+            return Some("vtenc_h264");
+        }
+        if gst::ElementFactory::find("videotoolboxenc").is_some() {
+            info!("Using VideoToolbox hardware encoder (macOS)");
+            return Some("videotoolboxenc");
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if gst::ElementFactory::find("d3d11h264enc").is_some() {
+            info!("Using D3D11 H.264 hardware encoder (Windows)");
+            return Some("d3d11h264enc");
+        }
+        if gst::ElementFactory::find("d3d11enc").is_some() {
+            info!("Using D3D11 hardware encoder (Windows)");
+            return Some("d3d11enc");
+        }
+    }
+
+    if gst::ElementFactory::find("nvh264enc").is_some() {
+        info!("Using NVIDIA H.264 hardware encoder");
+        return Some("nvh264enc");
+    }
+    if gst::ElementFactory::find("nvenc").is_some() {
+        info!("Using NVIDIA NVENC hardware encoder");
+        return Some("nvenc");
+    }
+
+    if gst::ElementFactory::find("amfh264enc").is_some() {
+        info!("Using AMD AMF H.264 hardware encoder");
+        return Some("amfh264enc");
+    }
+    if gst::ElementFactory::find("amfenc").is_some() {
+        info!("Using AMD AMF hardware encoder");
+        return Some("amfenc");
+    }
+
+    info!("No hardware encoder found, using software encoder");
+    None
+}
 
 #[derive(Debug, Clone)]
 pub struct ExportOptions {
@@ -195,8 +255,20 @@ impl IntermediateExporter {
         let container_caps = gst::Caps::new_empty_simple(
             Self::container_to_caps(&self.options.container)
         );
+
+        let video_codec = if self.options.hardware_acceleration {
+            if let Some(hw_encoder) = get_hardware_encoder_for_export() {
+                hw_encoder
+            } else {
+                info!("Hardware acceleration requested but no hardware encoder found, using software encoder");
+                &self.options.video_codec
+            }
+        } else {
+            &self.options.video_codec
+        };
+
         let video_caps = gst::Caps::new_empty_simple(
-            Self::codec_to_video_caps(&self.options.video_codec)
+            Self::codec_to_video_caps(video_codec)
         );
         let audio_caps = gst::Caps::new_empty_simple(
             Self::codec_to_audio_caps(&self.options.audio_codec)
@@ -233,12 +305,16 @@ impl IntermediateExporter {
 
     fn codec_to_video_caps(codec: &str) -> &str {
         match codec {
+            // Software encoders
             "libx264" | "x264" | "h264" | "avc" => "video/x-h264",
             "libx265" | "x265" | "h265" | "hevc" => "video/x-h265",
             "vp8" => "video/x-vp8",
             "vp9" => "video/x-vp9",
             "av1" => "video/x-av1",
             "prores" => "video/x-prores",
+            // Hardware encoders
+            "nvh264enc" | "nvenc" | "vaapiencode_h264" | "vtenc_h264" | "d3d11h264enc" | "amfh264enc" => "video/x-h264",
+            "nvh265enc" | "nvenc_hevc" | "vaapiencode_h265" | "vtenc_hevc" | "d3d11h265enc" | "amfh265enc" => "video/x-h265",
             _ => "video/x-h264",
         }
     }
