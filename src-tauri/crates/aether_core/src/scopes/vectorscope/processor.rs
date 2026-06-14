@@ -19,7 +19,7 @@ pub struct VectorscopeProcessor {
     intensity_cache: Vec<u16>,
 
 
-    target_renderer: TargetRenderer,
+    _target_renderer: TargetRenderer,
     vectorscope_renderer: VectorscopeRenderer,
 }
 
@@ -37,7 +37,7 @@ impl VectorscopeProcessor {
             base,
             uv_buffer: Vec::with_capacity(grid_size * grid_size),
             intensity_cache: vec![0; grid_size * grid_size],
-            target_renderer: TargetRenderer::new(),
+            _target_renderer: TargetRenderer::new(),
             vectorscope_renderer: VectorscopeRenderer::new(),
         };
 

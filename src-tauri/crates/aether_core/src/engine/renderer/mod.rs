@@ -3,7 +3,6 @@ mod shader;
 mod gpu;
 mod post_process;
 mod hardware;
-mod cuda;
 
 pub use types::{Frame, RendererConfig, RendererError};
 
@@ -17,7 +16,7 @@ pub struct Renderer {
     is_initialized: bool,
     hw_context: Option<HardwareContext>,
     shaders: Option<Shaders>,
-    gpu_buffers: Option<GpuBuffers>,
+    _gpu_buffers: Option<GpuBuffers>,
     cpu_buffers: Option<CpuBuffers>,
     lookup_tables: Option<LookupTables>,
     post_process_pipeline: Option<PostProcessPipeline>,
@@ -39,7 +38,7 @@ impl Renderer {
             is_initialized: false,
             hw_context: None,
             shaders: None,
-            gpu_buffers: None,
+            _gpu_buffers: None,
             cpu_buffers: None,
             lookup_tables: None,
             post_process_pipeline: None,

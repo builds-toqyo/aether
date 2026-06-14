@@ -8,14 +8,14 @@ use super::types::{LutData, LutFormat};
 
 
 pub struct LutLoader {
-    config: crate::color::luts::config::LutConfig,
+    _config: crate::color::luts::config::LutConfig,
 }
 
 impl LutLoader {
 
     pub fn new() -> Self {
         Self {
-            config: crate::color::luts::config::LutConfig::default(),
+            _config: crate::color::luts::config::LutConfig::default(),
         }
     }
 

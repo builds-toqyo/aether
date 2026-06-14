@@ -206,33 +206,3 @@ impl Transition {
         Ok(transition)
     }
 }
-
-pub fn get_available_effects() -> Vec<EffectType> {
-    vec![
-        EffectType::ColorCorrection,
-        EffectType::ColorGrading,
-        EffectType::Blur,
-        EffectType::Sharpen,
-        EffectType::Crop,
-        EffectType::Scale,
-        EffectType::Rotate,
-        EffectType::Flip,
-        EffectType::Text,
-        EffectType::Overlay,
-        EffectType::Volume,
-        EffectType::Fade,
-        EffectType::Equalizer,
-        EffectType::Reverb,
-        EffectType::Delay,
-    ]
-}
-
-pub fn get_available_transitions() -> Vec<TransitionType> {
-    vec![
-        TransitionType::Crossfade,
-        TransitionType::Wipe,
-        TransitionType::Slide,
-        TransitionType::Fade,
-        TransitionType::AudioCrossfade,
-    ]
-}

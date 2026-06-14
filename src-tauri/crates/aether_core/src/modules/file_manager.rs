@@ -620,6 +620,7 @@ impl FileManager {
                 }
             }
         });
+        
         gst::Element::link_many([&audioconvert, &audiowaveform, &pngenc, &filesink])
             .map_err(|e| anyhow!("downstream: {}", e))?;
 
@@ -637,75 +638,6 @@ impl FileManager {
                 _ => Err(anyhow!("unexpected")),
             },
             None => Err(anyhow!("timeout")),
-        }
-    }
-        
-    fn generate_generic_audio_thumbnail(&self, options: &ThumbnailOptions) -> Result<PathBuf> {
-
-        let thumbnail_path = self.temp_dir.join(format!(
-            "audio-icon-{}x{}.png",
-            options.width,
-            options.height
-        ));
-
-        let pipeline = gst::Pipeline::new();
-
-        let videotestsrc = gst::ElementFactory::make("videotestsrc")
-            .property("pattern", "black")
-            .build()
-            .map_err(|e| anyhow!("Failed to create videotestsrc: {}", e))?;
-
-        let capsfilter = gst::ElementFactory::make("capsfilter")
-            .property("caps", gst::Caps::builder("video/x-raw")
-                .field("width", options.width as i32)
-                .field("height", options.height as i32)
-                .build())
-            .build()
-            .map_err(|e| anyhow!("Failed to create capsfilter: {}", e))?;
-
-        let textoverlay = gst::ElementFactory::make("textoverlay")
-            .property("text", "Audio File")
-            .property("font-desc", "Sans 24")
-            .build()
-            .map_err(|e| anyhow!("Failed to create textoverlay: {}", e))?;
-
-        let pngenc = gst::ElementFactory::make("pngenc")
-            .property("compression-level", 6i32)
-            .build()
-            .map_err(|e| anyhow!("Failed to create pngenc: {}", e))?;
-
-        let filesink = gst::ElementFactory::make("filesink")
-            .property("location", thumbnail_path.to_str().unwrap())
-            .build()
-            .map_err(|e| anyhow!("Failed to create filesink: {}", e))?;
-
-        pipeline.add_many([&videotestsrc, &capsfilter, &textoverlay, &pngenc, &filesink])
-            .map_err(|e| anyhow!("Failed to add elements to pipeline: {}", e))?;
-
-        gst::Element::link_many([&videotestsrc, &capsfilter, &textoverlay, &pngenc, &filesink])
-            .map_err(|e| anyhow!("Failed to link elements: {}", e))?;
-
-        let bus = pipeline.bus().ok_or_else(|| anyhow!("Pipeline has no bus"))?;
-        pipeline.set_state(gst::State::Playing)
-            .map_err(|e| anyhow!("Failed to start pipeline: {}", e))?;
-
-        let msg = bus.timed_pop_filtered(
-            gst::ClockTime::from_seconds(30),
-            &[gst::MessageType::Error, gst::MessageType::Eos],
-        );
-
-        pipeline.set_state(gst::State::Null)
-            .map_err(|e| anyhow!("Failed to stop pipeline: {}", e))?;
-
-        match msg {
-            Some(msg) => match msg.view() {
-                gst::MessageView::Error(err) => {
-                    Err(anyhow!("Pipeline error: {}", err.error()))
-                }
-                gst::MessageView::Eos(_) => Ok(thumbnail_path),
-                _ => Err(anyhow!("Unexpected pipeline message")),
-            },
-            None => Err(anyhow!("Pipeline timed out")),
         }
     }
 }

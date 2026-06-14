@@ -864,38 +864,6 @@ impl ColorGradingEngine {
         Ok(())
     }
 
-    fn pull_processed_frame(&self) -> Result<Vec<u8>> {
-
-        let sink = self.elements.get("sink")
-            .ok_or_else(|| anyhow::anyhow!("sink element not found"))?;
-        let appsink = sink.clone().dynamic_cast::<gst_app::AppSink>()
-            .map_err(|_| anyhow::anyhow!("Failed to cast to AppSink"))?;
-
-
-        let timeout = std::time::Duration::from_millis(100);
-        let start_time = std::time::Instant::now();
-
-        while start_time.elapsed() < timeout {
-            if let Some(sample) = appsink.try_pull_sample(gst::ClockTime::from_mseconds(10)) {
-
-                let buffer = sample.buffer()
-                    .ok_or_else(|| anyhow::anyhow!("No buffer in sample"))?;
-
-
-                let map = buffer.map_readable()
-                    .map_err(|_| anyhow::anyhow!("Cannot map buffer"))?;
-
-
-                let processed_data = map.as_slice().to_vec();
-
-                return Ok(processed_data);
-            }
-        }
-
-        Err(anyhow::anyhow!("Timeout waiting for processed frame"))
-    }
-
-
     pub fn start(&mut self) -> Result<()> {
         if !self.initialized {
             self.initialize()?;
@@ -908,7 +876,6 @@ impl ColorGradingEngine {
 
         Ok(())
     }
-
 
     pub fn pause(&mut self) -> Result<()> {
         if let Some(pipeline) = &self.pipeline {
@@ -926,19 +893,6 @@ impl ColorGradingEngine {
             pipeline.set_state(gst::State::Ready)?;
         }
 
-        Ok(())
-    }
-
-
-    fn apply_cube_lut(&self, element: &gst::Element, lut_settings: &LutSettings) -> Result<()> {
-        // Read CUBE LUT file and apply it to the element
-        let lut_data = std::fs::read_to_string(&lut_settings.path)
-            .map_err(|_| anyhow::anyhow!("Failed to read CUBE LUT file"))?;
-
-        // Parse CUBE LUT format and apply to element
-        element.set_property("data", &lut_data);
-
-        debug!("Applied CUBE LUT: {}", lut_settings.path.display());
         Ok(())
     }
 
@@ -972,52 +926,10 @@ impl ColorGradingEngine {
         self.scopes.values().any(|config| config.continuous_update)
     }
 
-    fn setup_scope_update_timer(&mut self) -> Result<()> {
-
-        self.remove_scope_update_timer();
-
-        let min_interval = self.scopes.values()
-            .filter(|config| config.continuous_update)
-            .map(|config| config.update_interval_ms)
-            .min()
-            .unwrap_or(100);
-
-        let weak_self = self.self_weak.clone().unwrap_or_else(|| Arc::downgrade(&Arc::new(Mutex::new(ColorGradingEngine::new().unwrap()))));
-
-        let timeout_id = glib::timeout_add_local(std::time::Duration::from_millis(min_interval as u64), move || {
-            if let Some(arc_self) = weak_self.upgrade() {
-                if let Ok(mut this) = arc_self.lock() {
-                    if let Err(e) = this.update_scopes() {
-                        error!("Error updating scopes: {}", e);
-                    }
-                    return ControlFlow::Continue;
-                }
-            }
-            ControlFlow::Break
-        });
-
-        self.scope_update_timeout_id = Some(timeout_id);
-        Ok(())
-    }
-
     fn remove_scope_update_timer(&mut self) {
         if let Some(timeout_id) = self.scope_update_timeout_id.take() {
             timeout_id.remove();
         }
-    }
-
-    fn update_scopes(&mut self) -> Result<()> {
-        if !self.initialized {
-            return Ok(());
-        }
-
-        for (scope_type, config) in self.scopes.iter() {
-            if let Err(e) = self.update_scope(*scope_type, config) {
-                error!("Error updating scope {:?}: {}", scope_type, e);
-            }
-        }
-
-        Ok(())
     }
 
     fn update_scope(&self, _scope_type: ScopeType, config: &ScopeConfig) -> Result<ScopeData> {
@@ -1044,97 +956,6 @@ impl ColorGradingEngine {
                 .unwrap_or_default()
                 .as_millis() as u64,
             data: ScopeDataFormat::Raw(histogram),
-        })
-    }
-
-
-    fn generate_waveform_data(&self, config: &ScopeConfig) -> Result<ScopeData> {
-
-
-        let mut vectorscope = vec![0u8; config.width as usize * config.height as usize * 3];
-
-
-        let center_x = config.width as f32 / 2.0;
-        let center_y = config.height as f32 / 2.0;
-        let radius = config.width.min(config.height) as f32 / 2.0;
-
-        for y in 0..config.height as usize {
-            for x in 0..config.width as usize {
-                let dx = x as f32 - center_x;
-                let dy = y as f32 - center_y;
-                let distance = (dx * dx + dy * dy).sqrt();
-
-                if distance <= radius {
-                    let angle = dy.atan2(dx);
-                    let hue = ((angle / std::f32::consts::PI + 1.0) * 180.0) as u8;
-                    let saturation = (distance / radius * 255.0) as u8;
-
-
-                    let idx = (y * config.width as usize + x) * 3;
-                    vectorscope[idx] = hue;
-                    vectorscope[idx + 1] = saturation;
-                    vectorscope[idx + 2] = 255;
-                }
-            }
-        }
-
-        Ok(ScopeData {
-            scope_type: ScopeType::Vectorscope,
-            width: config.width,
-            height: config.height,
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis() as u64,
-            data: ScopeDataFormat::Raw(vectorscope),
-        })
-    }
-
-
-    fn generate_rgb_parade_data(&self, config: &ScopeConfig) -> Result<ScopeData> {
-
-
-        let parade_width = config.width / 3;
-        let mut rgb_parade = vec![0u8; config.width as usize * config.height as usize * 3];
-
-
-        for y in 0..config.height as usize {
-            let y_value = 255 - (y as f32 / config.height as f32 * 255.0) as u8;
-
-
-            for x in 0..parade_width as usize {
-                let idx = (y * config.width as usize + x) * 3;
-                rgb_parade[idx] = y_value;
-                rgb_parade[idx + 1] = 0;
-                rgb_parade[idx + 2] = 0;
-            }
-
-
-            for x in parade_width as usize..(parade_width * 2) as usize {
-                let idx = (y * config.width as usize + x) * 3;
-                rgb_parade[idx] = 0;
-                rgb_parade[idx + 1] = y_value;
-                rgb_parade[idx + 2] = 0;
-            }
-
-
-            for x in (parade_width * 2) as usize..config.width as usize {
-                let idx = (y * config.width as usize + x) * 3;
-                rgb_parade[idx] = 0;
-                rgb_parade[idx + 1] = 0;
-                rgb_parade[idx + 2] = y_value;
-            }
-        }
-
-        Ok(ScopeData {
-            scope_type: ScopeType::RGBParade,
-            width: config.width,
-            height: config.height,
-            timestamp: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis() as u64,
-            data: ScopeDataFormat::Raw(rgb_parade),
         })
     }
 

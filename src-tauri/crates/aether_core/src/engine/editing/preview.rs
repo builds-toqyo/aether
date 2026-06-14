@@ -66,54 +66,6 @@ fn get_hardware_decoder() -> Option<&'static str> {
     None
 }
 
-/// Detect the best available hardware video encoder
-fn get_hardware_encoder() -> Option<&'static str> {
-    // Try platform-specific hardware encoders in order of preference
-    #[cfg(target_os = "linux")]
-    {
-        if gst::ElementFactory::find("vaapiencode").is_some() {
-            info!("Using VAAPI hardware encoder (Linux)");
-            return Some("vaapiencode");
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        if gst::ElementFactory::find("videotoolboxenc").is_some() {
-            info!("Using VideoToolbox hardware encoder (macOS)");
-            return Some("videotoolboxenc");
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        if gst::ElementFactory::find("d3d11enc").is_some() {
-            info!("Using D3D11 hardware encoder (Windows)");
-            return Some("d3d11enc");
-        }
-    }
-
-    // Try NVIDIA encoder
-    if gst::ElementFactory::find("nvv4l2encoder").is_some() {
-        info!("Using NVIDIA V4L2 hardware encoder");
-        return Some("nvv4l2encoder");
-    }
-
-    if gst::ElementFactory::find("nvenc").is_some() {
-        info!("Using NVIDIA NVENC hardware encoder");
-        return Some("nvenc");
-    }
-
-    // Try AMD encoder
-    if gst::ElementFactory::find("amfenc").is_some() {
-        info!("Using AMD AMF hardware encoder");
-        return Some("amfenc");
-    }
-
-    info!("No hardware encoder found, using software encoder");
-    None
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PreviewQuality {
     Low,

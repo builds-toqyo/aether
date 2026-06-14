@@ -5,14 +5,14 @@ use log::{debug, error, warn};
 
 pub struct VideoDecoder {
 
-    frame_cache: std::collections::HashMap<u64, Uuid>,
+    _frame_cache: std::collections::HashMap<u64, Uuid>,
 }
 
 impl VideoDecoder {
 
     pub fn new() -> Self {
         Self {
-            frame_cache: std::collections::HashMap::new(),
+            _frame_cache: std::collections::HashMap::new(),
         }
     }
 

@@ -269,8 +269,8 @@ fn initialize_lookup_tables(
     }
 
     *lookup_tables = Some(LookupTables {
-        gamma: gamma_lut,
-        vignette: vignette_lut,
+        _gamma: gamma_lut,
+        _vignette: vignette_lut,
     });
 
     log::debug!("Lookup tables initialized");
@@ -327,8 +327,8 @@ fn allocate_cpu_buffers(width: usize, height: usize, cpu_buffers: &mut Option<Cp
     let output_buffer = vec![0u8; buffer_size];
 
     *cpu_buffers = Some(CpuBuffers {
-        input: input_buffer,
-        output: output_buffer,
+        _input: input_buffer,
+        _output: output_buffer,
     });
 
     log::debug!("CPU buffers allocated: {} bytes each", buffer_size);
@@ -356,7 +356,7 @@ fn initialize_post_processing(
     }
 
     let stage_count = stages.len();
-    *post_process_pipeline = Some(PostProcessPipeline { stages });
+    *post_process_pipeline = Some(PostProcessPipeline { _stages: stages });
 
     log::debug!("Post-processing pipeline initialized with {} stages", stage_count);
     Ok(())

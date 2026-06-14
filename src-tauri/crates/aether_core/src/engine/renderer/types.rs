@@ -43,8 +43,6 @@ pub(super) enum HardwareContext {
 
     #[cfg(feature = "amf")]
     Amf { factory: *mut std::ffi::c_void, context: *mut std::ffi::c_void },
-
-    Software,
 }
 
 /// Shader programs for different hardware backends
@@ -99,15 +97,15 @@ pub(super) enum GpuBuffers {
 /// CPU buffers for software rendering
 #[derive(Debug)]
 pub(super) struct CpuBuffers {
-    pub input: Vec<u8>,
-    pub output: Vec<u8>,
+    pub _input: Vec<u8>,
+    pub _output: Vec<u8>,
 }
 
 /// Lookup tables for various effects
 #[derive(Debug)]
 pub(super) struct LookupTables {
-    pub gamma: Vec<u8>,
-    pub vignette: Vec<u8>,
+    pub _gamma: Vec<u8>,
+    pub _vignette: Vec<u8>,
 }
 
 /// Post-processing pipeline stages
@@ -116,16 +114,12 @@ pub(super) enum PostProcessStage {
     ColorCorrection,
     ColorGrading,
     Vignette,
-    Blur,
-    Sharpen,
-    Denoise,
-    Custom(usize), // Index into custom effects
 }
 
 /// Post-processing pipeline
 #[derive(Debug)]
 pub(super) struct PostProcessPipeline {
-    pub stages: Vec<PostProcessStage>,
+    pub _stages: Vec<PostProcessStage>,
 }
 
 #[cfg(all(feature = "vaapi", target_os = "linux"))]

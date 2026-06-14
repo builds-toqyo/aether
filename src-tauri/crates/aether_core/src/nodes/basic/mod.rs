@@ -6,11 +6,11 @@ pub mod color_correction;
 pub mod blur;
 
 pub use input::*;
-pub use output::*;
+pub use output::{OutputNode};
 pub use merge::*;
-pub use transform::*;
+pub use transform::{TransformNode, TransformOperations};
 pub use color_correction::*;
-pub use blur::*;
+pub use blur::{BlurNode};
 
 use crate::nodes::NodeExecutor;
 use aether_types::{Node, NodeType};

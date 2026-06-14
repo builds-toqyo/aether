@@ -74,13 +74,6 @@ impl CoreTransformNode {
 
         input_value
     }
-
-
-    fn is_transform_active(&self) -> bool {
-        let (pos_x, pos_y, scale, rotation, anchor_x) = self.get_transform_params();
-
-        pos_x != 0.0 || pos_y != 0.0 || scale != 1.0 || rotation != 0.0 || anchor_x != 0.0
-    }
 }
 
 impl NodeExecutor for CoreTransformNode {

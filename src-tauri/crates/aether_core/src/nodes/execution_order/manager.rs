@@ -7,7 +7,7 @@ use log::debug;
 
 pub struct ExecutionOrderManager {
     cache: ExecutionCache,
-    calculator: ExecutionOrderCalculator,
+    _calculator: ExecutionOrderCalculator,
 }
 
 impl ExecutionOrderManager {
@@ -15,7 +15,7 @@ impl ExecutionOrderManager {
     pub fn new() -> Self {
         Self {
             cache: ExecutionCache::new(),
-            calculator: ExecutionOrderCalculator,
+            _calculator: ExecutionOrderCalculator,
         }
     }
 

@@ -386,84 +386,6 @@ impl GradientMask {
         }
     }
 
-    fn interpolate_gradient(&self, t: f64) -> (f64, f64, f64, f64) {
-        if self.stops.is_empty() {
-            return (0.0, 0.0, 0.0, 0.0);
-        }
-
-        if self.stops.len() == 1 {
-            return self.stops[0].color;
-        }
-
-
-        let mut lower_stop = &self.stops[0];
-        let mut upper_stop = &self.stops[self.stops.len() - 1];
-
-        for i in 0..self.stops.len() - 1 {
-            if self.stops[i].position <= t && self.stops[i + 1].position >= t {
-                lower_stop = &self.stops[i];
-                upper_stop = &self.stops[i + 1];
-                break;
-            }
-        }
-
-        if lower_stop.position == upper_stop.position {
-            return lower_stop.color;
-        }
-
-        let local_t = (t - lower_stop.position) / (upper_stop.position - lower_stop.position);
-        let eased_t = self.apply_easing(local_t, lower_stop.mid_point);
-
-        (
-            lower_stop.color.0 + (upper_stop.color.0 - lower_stop.color.0) * eased_t,
-            lower_stop.color.1 + (upper_stop.color.1 - lower_stop.color.1) * eased_t,
-            lower_stop.color.2 + (upper_stop.color.2 - lower_stop.color.2) * eased_t,
-            lower_stop.color.3 + (upper_stop.color.3 - lower_stop.color.3) * eased_t,
-        )
-    }
-
-    fn apply_easing(&self, t: f64, mid_point: f64) -> f64 {
-        let adjusted_t = if t < mid_point {
-            t / mid_point
-        } else {
-            (t - mid_point) / (1.0 - mid_point)
-        };
-
-        let eased_t = match self.interpolation {
-            GradientInterpolation::Linear => adjusted_t,
-            GradientInterpolation::Ease => {
-                if adjusted_t < 0.5 {
-                    2.0 * adjusted_t * adjusted_t
-                } else {
-                    1.0 - 2.0 * (1.0 - adjusted_t) * (1.0 - adjusted_t)
-                }
-            }
-            GradientInterpolation::EaseIn => adjusted_t * adjusted_t,
-            GradientInterpolation::EaseOut => 1.0 - (1.0 - adjusted_t) * (1.0 - adjusted_t),
-            GradientInterpolation::EaseInOut => {
-                if adjusted_t < 0.5 {
-                    2.0 * adjusted_t * adjusted_t
-                } else {
-                    1.0 - 2.0 * (1.0 - adjusted_t) * (1.0 - adjusted_t)
-                }
-            }
-            GradientInterpolation::Cubic => adjusted_t * adjusted_t * adjusted_t,
-            GradientInterpolation::Exponential => {
-                if adjusted_t <= 0.0 {
-                    0.0
-                } else {
-                    2.0f64.powf(10.0 * (adjusted_t - 1.0))
-                }
-            }
-        };
-
-        if t < mid_point {
-            eased_t * mid_point
-        } else {
-            mid_point + eased_t * (1.0 - mid_point)
-        }
-    }
-
     pub fn create_linear_gradient(id: String, name: String, start: (f64, f64), end: (f64, f64)) -> Self {
         Self::new(id, name, GradientType::Linear)
             .with_start_point(start.0, start.1)
@@ -676,16 +598,6 @@ mod tests {
         invalid_mask.radius = 50.0;
         invalid_mask.noise_scale = 0.0;
         assert!(invalid_mask.validate().is_err());
-    }
-
-    #[test]
-    fn test_gradient_interpolation() {
-        let mask = GradientMask::new("test".to_string(), "Test".to_string(), GradientType::Linear)
-            .with_interpolation(GradientInterpolation::Ease);
-
-        let color = mask.interpolate_gradient(0.5);
-
-        assert!(color.3 > 0.0 && color.3 < 1.0);
     }
 
     #[test]

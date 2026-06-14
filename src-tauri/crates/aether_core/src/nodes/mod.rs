@@ -271,27 +271,6 @@ impl Default for NodeManager {
 }
 
 
-#[derive(Debug)]
-struct DummyNode;
-
-impl NodeExecutor for DummyNode {
-    fn execute(&mut self, _context: &mut ExecutionContext) -> NodeResult<()> {
-        Ok(())
-    }
-
-    fn node_type(&self) -> NodeType {
-        NodeType::Custom("dummy".to_string())
-    }
-
-    fn get_inputs(&self) -> Vec<Uuid> {
-        vec![]
-    }
-
-    fn get_outputs(&self) -> Vec<Uuid> {
-        vec![]
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -8,7 +8,7 @@ pub struct SequenceLoader {
 
     sequence_pattern: Option<String>,
 
-    frame_cache: std::collections::HashMap<u64, Uuid>,
+    _frame_cache: std::collections::HashMap<u64, Uuid>,
 }
 
 impl SequenceLoader {
@@ -16,7 +16,7 @@ impl SequenceLoader {
     pub fn new() -> Self {
         Self {
             sequence_pattern: None,
-            frame_cache: std::collections::HashMap::new(),
+            _frame_cache: std::collections::HashMap::new(),
         }
     }
 

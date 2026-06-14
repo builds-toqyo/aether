@@ -98,10 +98,10 @@ impl Default for TimelineRendererConfig {
 
 pub struct ClipRenderer {
     decoder: VideoDecoder,
-    clip_id: String,
+    _clip_id: String,
     source_path: String,
     in_point: f64,
-    out_point: f64,
+    _out_point: f64,
     last_decoded_frame: Option<VideoFrame>,
 }
 
@@ -114,10 +114,10 @@ impl ClipRenderer {
 
         Ok(Self {
             decoder,
-            clip_id,
+            _clip_id: clip_id,
             source_path,
             in_point,
-            out_point,
+            _out_point: out_point,
             last_decoded_frame: None,
         })
     }

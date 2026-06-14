@@ -7,14 +7,14 @@ use crate::types::{HistogramData, HistogramChannel, HistogramConfig, HistogramMo
 
 
 pub struct HistogramRenderer {
-    grid_color: Rgb<u8>,
+    _grid_color: Rgb<u8>,
 }
 
 impl HistogramRenderer {
 
     pub fn new() -> Self {
         Self {
-            grid_color: Rgb([8, 8, 8]),
+            _grid_color: Rgb([8, 8, 8]),
         }
     }
 

@@ -90,7 +90,7 @@ pub struct AudioTrack {
 
     id: String,
 
-    source: AudioSourceType,
+    _source: AudioSourceType,
 
     pipeline: Option<gst::Pipeline>,
 
@@ -136,7 +136,7 @@ impl AudioTrack {
     pub fn new(id: &str, source: AudioSourceType) -> Self {
         Self {
             id: id.to_string(),
-            source,
+            _source: source,
             pipeline: None,
             audio_bin: None,
             volume: None,
