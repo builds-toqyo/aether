@@ -46,18 +46,75 @@ impl ProjectRegistry {
                 timeline_count INTEGER NOT NULL DEFAULT 1,
                 media_count INTEGER NOT NULL DEFAULT 0,
                 file_size INTEGER NOT NULL DEFAULT 0,
-                file_path TEXT NOT NULL
+                file_path TEXT NOT NULL,
+                timeline_data TEXT
             )",
             [],
         ).map_err(|e| format!("Failed to create projects table: {}", e))?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS tracks (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                track_type TEXT NOT NULL,
+                name TEXT,
+                position INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+            )",
+            [],
+        ).map_err(|e| format!("Failed to create tracks table: {}", e))?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS clips (
+                id TEXT PRIMARY KEY,
+                track_id TEXT NOT NULL,
+                media_id TEXT,
+                name TEXT,
+                start_time REAL NOT NULL DEFAULT 0,
+                duration REAL NOT NULL DEFAULT 0,
+                in_point REAL NOT NULL DEFAULT 0,
+                out_point REAL NOT NULL DEFAULT 0,
+                layer INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
+            )",
+            [],
+        ).map_err(|e| format!("Failed to create clips table: {}", e))?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS effects (
+                id TEXT PRIMARY KEY,
+                clip_id TEXT NOT NULL,
+                effect_type TEXT NOT NULL,
+                name TEXT,
+                parameters TEXT,
+                FOREIGN KEY (clip_id) REFERENCES clips(id) ON DELETE CASCADE
+            )",
+            [],
+        ).map_err(|e| format!("Failed to create effects table: {}", e))?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS media (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                media_type TEXT NOT NULL,
+                duration REAL NOT NULL DEFAULT 0,
+                width INTEGER NOT NULL DEFAULT 0,
+                height INTEGER NOT NULL DEFAULT 0,
+                fps REAL NOT NULL DEFAULT 30,
+                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+            )",
+            [],
+        ).map_err(|e| format!("Failed to create media table: {}", e))?;
+
         Ok(())
     }
 
-    pub fn add(&self, project: &ProjectInfo) -> Result<(), String> {
+    pub fn add(&self, project: &ProjectInfo, timeline_data: Option<&str>) -> Result<(), String> {
         self.conn.execute(
             "INSERT OR REPLACE INTO projects
-             (id, name, description, created_at, modified_at, duration, fps, width, height, timeline_count, media_count, file_size, file_path)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+             (id, name, description, created_at, modified_at, duration, fps, width, height, timeline_count, media_count, file_size, file_path, timeline_data)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 project.id,
                 project.name,
@@ -72,6 +129,7 @@ impl ProjectRegistry {
                 project.media_count as i64,
                 project.file_size as i64,
                 project.file_path,
+                timeline_data,
             ],
         ).map_err(|e| format!("Failed to insert project: {}", e))?;
         info!("Registered project {} in SQLite registry", project.id);
@@ -86,9 +144,9 @@ impl ProjectRegistry {
         Ok(rows > 0)
     }
 
-    pub fn get(&self, project_id: &str) -> Result<Option<ProjectInfo>, String> {
+    pub fn get(&self, project_id: &str) -> Result<Option<(ProjectInfo, Option<String>)>, String> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, name, description, created_at, modified_at, duration, fps, width, height, timeline_count, media_count, file_size, file_path
+            "SELECT id, name, description, created_at, modified_at, duration, fps, width, height, timeline_count, media_count, file_size, file_path, timeline_data
              FROM projects WHERE id = ?1"
         ).map_err(|e| format!("Failed to prepare query: {}", e))?;
 
@@ -97,7 +155,7 @@ impl ProjectRegistry {
 
         if let Some(row) = rows.next()
             .map_err(|e| format!("Failed to read row: {}", e))? {
-            Ok(Some(Self::row_to_project(row).map_err(|e| format!("Row parse error: {}", e))?))
+            Ok(Some(Self::row_to_project_with_timeline(row).map_err(|e| format!("Row parse error: {}", e))?))
         } else {
             Ok(None)
         }
@@ -156,6 +214,26 @@ impl ProjectRegistry {
             file_size: row.get::<_, i64>(11)? as u64,
             file_path: row.get(12)?,
         })
+    }
+
+    fn row_to_project_with_timeline(row: &rusqlite::Row) -> Result<(ProjectInfo, Option<String>), rusqlite::Error> {
+        Ok((
+            ProjectInfo {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                created_at: row.get(3)?,
+                modified_at: row.get(4)?,
+                duration: row.get(5)?,
+                fps: row.get(6)?,
+                resolution: (row.get::<_, i64>(7)? as u32, row.get::<_, i64>(8)? as u32),
+                timeline_count: row.get::<_, i64>(9)? as usize,
+                media_count: row.get::<_, i64>(10)? as usize,
+                file_size: row.get::<_, i64>(11)? as u64,
+                file_path: row.get(12)?,
+            },
+            row.get(13)?,
+        ))
     }
 }
 
