@@ -166,9 +166,11 @@ mod tests {
     #[test]
     fn test_histogram_analysis() {
         // Create a simple red image (RGBA)
-        let image_data = vec![255u8, 0, 0, 255; 100 * 100 * 4];
+        let image_data = vec
+![255u8, 0, 0, 255]
+.repeat(100 * 100);
         let histogram = analyze_histogram(&image_data, 100, 100);
-        
+
         // Red channel should have all pixels at 255
         assert_eq!(histogram.red[255], 100 * 100);
         assert_eq!(histogram.green[0], 100 * 100);
@@ -178,9 +180,11 @@ mod tests {
     #[test]
     fn test_vectorscope_analysis() {
         // Create a simple image
-        let image_data = vec![255u8, 0, 0, 255; 100 * 100 * 4];
+        let image_data = vec
+![255u8, 0, 0, 255]
+.repeat(100 * 100);
         let vectorscope = analyze_vectorscope(&image_data, 100, 100);
-        
+
         // Should have some UV points
         assert!(!vectorscope.uv_points.is_empty());
     }
@@ -188,7 +192,9 @@ mod tests {
     #[test]
     fn test_waveform_analysis() {
         // Create a simple image
-        let image_data = vec![255u8, 0, 0, 255; 10 * 10 * 4];
+        let image_data = vec
+![255u8, 0, 0, 255]
+.repeat(10 * 10);
         let waveform = analyze_waveform(&image_data, 10, 10);
         
         // Should have 10 scanlines

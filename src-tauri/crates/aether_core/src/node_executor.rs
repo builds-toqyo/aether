@@ -1,5 +1,5 @@
 use crate::nodes::{
-    NodeManager, NodeExecutor, ExecutionContext, NodeError, NodeResult,
+    NodeManager, NodeExecutor, ExecutionContext, NodeError, NodeResult, GpuContext,
     validation::GraphValidator, execution_order::ExecutionOrderManager
 };
 use aether_types::{Graph, ParameterValue, Uuid};
@@ -158,6 +158,42 @@ impl NodeExecutorEngine {
         &mut self.node_manager
     }
 
+    fn initialize_gpu_context(&self) -> Result<GpuContext, NodeError> {
+        use wgpu::InstanceDescriptor;
+
+        info!("Initializing GPU context for node execution");
+
+        let instance = wgpu::Instance::new(InstanceDescriptor::default());
+
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            compatible_surface: None,
+            force_fallback_adapter: false,
+        })).map_err(|e| NodeError::ExecutionFailed(format!("Failed to request GPU adapter: {}", e)))?;
+
+        let (device, queue) = pollster::block_on(adapter.request_device(
+            &wgpu::DeviceDescriptor {
+                label: Some("Aether GPU Device"),
+                required_features: wgpu::Features::default(),
+                required_limits: wgpu::Limits::default(),
+            },
+            None,
+        )).map_err(|e| NodeError::ExecutionFailed(format!("Failed to request GPU device: {}", e)))?;
+
+        let device_arc = std::sync::Arc::new(device);
+        let queue_arc = std::sync::Arc::new(queue);
+
+        let available_memory = adapter.get_limits().max_buffer_size;
+
+        info!("GPU context initialized successfully with {} bytes available", available_memory);
+
+        Ok(GpuContext {
+            device: Some(device_arc),
+            queue: Some(queue_arc),
+            available_memory,
+        })
+    }
+
 
     pub fn execute_graph(&mut self, graph: &Graph, frame: u64) -> NodeResult<ExecutionContext> {
         let start_time = Instant::now();
@@ -174,11 +210,11 @@ impl NodeExecutorEngine {
 
 
         if self.config.enable_gpu {
-            context.gpu_context = Some(GpuContext {
-                device: 1,
-                command_queue: 1,
-                available_memory: 1024 * 1024 * 1024,
-            });
+            if let Ok(gpu_ctx) = self.initialize_gpu_context() {
+                context.gpu_context = Some(gpu_ctx);
+            } else {
+                warn!("GPU initialization failed, falling back to CPU execution");
+            }
         }
 
 
@@ -436,17 +472,6 @@ pub struct MemoryUsage {
     pub cache_memory_bytes: usize,
 
     pub total_memory_bytes: usize,
-}
-
-
-#[derive(Debug, Clone)]
-pub struct GpuContext {
-
-    pub device: u64,
-
-    pub command_queue: u64,
-
-    pub available_memory: u64,
 }
 
 
