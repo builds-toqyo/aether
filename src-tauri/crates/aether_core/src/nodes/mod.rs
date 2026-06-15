@@ -2,11 +2,13 @@ pub mod core;
 pub mod validation;
 pub mod execution_order;
 pub mod basic;
+pub mod gpu;
 
 pub use core::*;
 pub use validation::*;
 pub use execution_order::*;
 pub use basic::*;
+pub use gpu::*;
 
 use aether_types::{Node, NodeType, ParameterValue};
 use std::collections::HashMap;
@@ -78,8 +80,8 @@ pub struct ExecutionContext {
 
 #[derive(Debug, Clone)]
 pub struct GpuContext {
-    pub device: u64,
-    pub command_queue: u64,
+    pub device: Option<std::sync::Arc<wgpu::Device>>,
+    pub queue: Option<std::sync::Arc<wgpu::Queue>>,
     pub available_memory: u64,
 }
 

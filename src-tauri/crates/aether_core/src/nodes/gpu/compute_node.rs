@@ -1,14 +1,12 @@
 use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult, NodeError};
-use aether_types::{Node, NodeType, ParameterValue};
-use std::collections::HashMap;
+use aether_types::{Node, NodeType};
 use uuid::Uuid;
-use anyhow::{Result, anyhow};
 
 pub struct GpuComputeNode {
     pub node: Node,
     pub shader_source: String,
-    pub binding_config: Option<crate::gpu::shaders::BindingConfig>,
-    pub pipeline_handle: Option<crate::gpu::shaders::PipelineHandle>,
+    pub compute_pipeline: Option<wgpu::ComputePipeline>,
+    pub bind_group_layout: Option<wgpu::BindGroupLayout>,
 }
 
 impl GpuComputeNode {
@@ -16,61 +14,53 @@ impl GpuComputeNode {
         Self {
             node,
             shader_source,
-            binding_config: None,
-            pipeline_handle: None,
+            compute_pipeline: None,
+            bind_group_layout: None,
         }
     }
 
-    pub fn with_binding_config(mut self, config: crate::gpu::shaders::BindingConfig) -> Self {
-        self.binding_config = Some(config);
-        self
-    }
-
-    fn ensure_pipeline_initialized(&mut self, context: &ExecutionContext) -> Result<()> {
-        if self.pipeline_handle.is_some() {
+    fn ensure_pipeline_initialized(&mut self, context: &ExecutionContext) -> NodeResult<()> {
+        if self.compute_pipeline.is_some() {
             return Ok(());
         }
 
         let gpu_context = context.gpu_context
             .as_ref()
-            .ok_or_else(|| anyhow!("GPU context not available"))?;
+            .ok_or_else(|| NodeError::ExecutionFailed("GPU context not available".to_string()))?;
 
-        let shader_system = gpu_context.shader_system
+        let device = gpu_context.device
             .as_ref()
-            .ok_or_else(|| anyhow!("Shader system not available"))?;
+            .ok_or_else(|| NodeError::ExecutionFailed("GPU device not available".to_string()))?;
 
-        let binding_config = self.binding_config
-            .as_ref()
-            .cloned()
-            .unwrap_or_default();
+        let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some(&format!("shader_{}", self.node.id)),
+            source: wgpu::ShaderSource::Wgsl(self.shader_source.clone().into()),
+        });
 
-        let pipeline = shader_system.create_compute_pipeline(
-            &format!("compute_{}", self.node.id),
-            &self.shader_source,
-            &binding_config,
-        )?;
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some(&format!("bind_group_layout_{}", self.node.id)),
+            entries: &[],
+        });
 
-        self.pipeline_handle = Some(pipeline);
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some(&format!("pipeline_layout_{}", self.node.id)),
+            bind_group_layouts: &[Some(&bind_group_layout)],
+            immediate_size: 0,
+        });
+
+        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some(&format!("compute_pipeline_{}", self.node.id)),
+            layout: Some(&pipeline_layout),
+            module: &shader_module,
+            entry_point: Some("main"),
+            cache: None,
+            compilation_options: Default::default(),
+        });
+
+        self.compute_pipeline = Some(compute_pipeline);
+        self.bind_group_layout = Some(bind_group_layout);
+
         Ok(())
-    }
-
-    fn create_bindings(&self, context: &ExecutionContext) -> Result<HashMap<String, wgpu::BindingResource>> {
-        let mut bindings = HashMap::new();
-
-        for (param_name, param_value) in &context.global_parameters {
-            match param_value {
-                ParameterValue::Float(val) => {
-                    // Create a uniform buffer for float parameters
-                    // This would need actual buffer allocation from memory manager
-                }
-                ParameterValue::Int(val) => {
-                    // Create a uniform buffer for int parameters
-                }
-                _ => {}
-            }
-        }
-
-        Ok(bindings)
     }
 }
 
@@ -78,31 +68,33 @@ impl NodeExecutor for GpuComputeNode {
     fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
         log::debug!("Executing GPU compute node: {}", self.node.name);
 
-        if let Err(e) = self.ensure_pipeline_initialized(context) {
-            return Err(NodeError::ExecutionFailed(format!("Failed to initialize pipeline: {}", e)));
-        }
+        self.ensure_pipeline_initialized(context)?;
 
         let gpu_context = context.gpu_context
             .as_ref()
             .ok_or_else(|| NodeError::ExecutionFailed("GPU context not available".to_string()))?;
 
-        let shader_system = gpu_context.shader_system
-            .as_ref()
-            .ok_or_else(|| NodeError::ExecutionFailed("Shader system not available".to_string()))?;
-
-        let pipeline = self.pipeline_handle
-            .as_ref()
-            .ok_or_else(|| NodeError::ExecutionFailed("Pipeline not initialized".to_string()))?;
-
-        let bindings = self.create_bindings(context)
-            .map_err(|e| NodeError::ExecutionFailed(format!("Failed to create bindings: {}", e)))?;
-
-        let bind_group = shader_system.create_bind_group(pipeline, &bindings)
-            .map_err(|e| NodeError::ExecutionFailed(format!("Failed to create bind group: {}", e)))?;
-
         let device = gpu_context.device
             .as_ref()
             .ok_or_else(|| NodeError::ExecutionFailed("GPU device not available".to_string()))?;
+
+        let queue = gpu_context.queue
+            .as_ref()
+            .ok_or_else(|| NodeError::ExecutionFailed("GPU queue not available".to_string()))?;
+
+        let pipeline = self.compute_pipeline
+            .as_ref()
+            .ok_or_else(|| NodeError::ExecutionFailed("Pipeline not initialized".to_string()))?;
+
+        let bind_group_layout = self.bind_group_layout
+            .as_ref()
+            .ok_or_else(|| NodeError::ExecutionFailed("Bind group layout not initialized".to_string()))?;
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some(&format!("bind_group_{}", self.node.id)),
+            layout: bind_group_layout,
+            entries: &[],
+        });
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some(&format!("compute_encoder_{}", self.node.id)),
@@ -114,12 +106,17 @@ impl NodeExecutor for GpuComputeNode {
             1,
         );
 
-        shader_system.execute_pipeline(pipeline, &bind_group, workgroup_count, &mut encoder)
-            .map_err(|e| NodeError::ExecutionFailed(format!("Failed to execute pipeline: {}", e)))?;
-
-        if let Some(queue) = &gpu_context.queue {
-            queue.submit(Some(encoder.finish()));
+        {
+            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some(&format!("compute_pass_{}", self.node.id)),
+                timestamp_writes: None,
+            });
+            compute_pass.set_pipeline(pipeline);
+            compute_pass.set_bind_group(0, &bind_group, &[]);
+            compute_pass.dispatch_workgroups(workgroup_count.0, workgroup_count.1, workgroup_count.2);
         }
+
+        queue.submit(Some(encoder.finish()));
 
         Ok(())
     }
