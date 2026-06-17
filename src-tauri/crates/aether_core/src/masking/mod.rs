@@ -9,5 +9,5 @@ pub use types::*;
 pub use shapes::*;
 pub use gradients::*;
 pub use animation::*;
-pub use composition::*;
+pub use composition::{MaskCompositionMode, MaskCompositionOrder, MaskLayer, MaskCompositionResult, MaskCompositor};
 pub use effects::*;

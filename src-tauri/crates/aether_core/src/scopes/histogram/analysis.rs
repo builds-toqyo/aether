@@ -1,7 +1,6 @@
 
 
 use anyhow::{Result};
-use log::debug;
 
 use crate::types::{HistogramData, HistogramChannel};
 
@@ -9,14 +8,14 @@ use crate::scopes::{Statistics, ChannelStatistics};
 
 
 pub struct HistogramAnalyzer {
-    statistics: Statistics,
+    _statistics: Statistics,
 }
 
 impl HistogramAnalyzer {
 
     pub fn new() -> Self {
         Self {
-            statistics: Statistics,
+            _statistics: Statistics,
         }
     }
 

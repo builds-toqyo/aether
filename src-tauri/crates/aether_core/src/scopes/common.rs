@@ -2,10 +2,9 @@
 
 use std::sync::{Arc, RwLock};
 use anyhow::{Result, anyhow};
-use log::{debug, info};
 use image::{Rgb, RgbImage};
 
-use crate::types::{ScopeStats, ScopeResolution, ColorSpace};
+use crate::types::{ScopeStats, ColorSpace};
 
 
 pub struct BaseScopeProcessor {
@@ -40,7 +39,7 @@ impl BaseScopeProcessor {
     }
 
 
-    pub fn update_stats(&self, frame_number: u64, timestamp: f64, processing_time: f64, pixels_processed: u64) -> Result<()> {
+    pub fn update_stats(&self, _frame_number: u64, _timestamp: f64, processing_time: f64, pixels_processed: u64) -> Result<()> {
         if let Ok(mut stats) = self.stats.write() {
             stats.frames_processed += 1;
             stats.total_pixels_processed += pixels_processed;
@@ -149,7 +148,7 @@ impl ColorConverter {
         let bf = b as f32 / 255.0;
 
 
-        let y = self.rgb_to_yuv_matrix[0][0] * rf +
+        let _y = self.rgb_to_yuv_matrix[0][0] * rf +
                self.rgb_to_yuv_matrix[0][1] * gf +
                self.rgb_to_yuv_matrix[0][2] * bf;
         let u = self.rgb_to_yuv_matrix[1][0] * rf +

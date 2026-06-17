@@ -131,8 +131,8 @@ impl Transform {
     pub fn combine(&self, other: &Transform) -> Self {
         let cos_r1 = self.rotation.cos();
         let sin_r1 = self.rotation.sin();
-        let cos_r2 = other.rotation.cos();
-        let sin_r2 = other.rotation.sin();
+        let _cos_r2 = other.rotation.cos();
+        let _sin_r2 = other.rotation.sin();
 
 
         let sx = self.sx * other.sx;

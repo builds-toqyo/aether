@@ -24,7 +24,7 @@ impl GamutMapper {
     pub fn apply_gamut_mapping(
         &self,
         hdr_image: &HdrImage,
-        target_color_space: crate::types::ColorSpace,
+        _target_color_space: crate::types::ColorSpace,
         config: &GamutMappingConfig,
     ) -> Result<HdrImage> {
         debug!("Applying gamut mapping with algorithm: {:?}", config.algorithm);

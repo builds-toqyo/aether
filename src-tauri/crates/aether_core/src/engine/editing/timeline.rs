@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_editing_services as ges;
@@ -211,11 +210,25 @@ impl Timeline {
             name: effect_type.to_string(),
             ges_effect: effect,
             parameters: HashMap::new(),
+            node_connection: None,
         };
 
         clip.effects.push(timeline_effect.clone());
 
         Ok(timeline_effect)
+    }
+
+    pub fn bind_node_to_effect(&mut self, clip_id: &str, effect_id: &str, node_id: &str, output_pin_name: &str) -> Result<(), EditingError> {
+        let clip = self.clips.get_mut(clip_id)
+            .ok_or(EditingError::InvalidParameter(format!("Clip not found: {}", clip_id)))?;
+
+        let effect = clip.effects.iter_mut()
+            .find(|e| e.id == effect_id)
+            .ok_or(EditingError::InvalidParameter(format!("Effect not found: {}", effect_id)))?;
+
+        effect.node_connection = Some((node_id.to_string(), output_pin_name.to_string()));
+
+        Ok(())
     }
 
     pub fn remove_clip(&mut self, clip_id: &str) -> Result<(), EditingError> {
@@ -263,6 +276,25 @@ impl Timeline {
 
     pub fn get_ges_timeline(&self) -> Option<&ges::Timeline> {
         self.ges_timeline.as_ref()
+    }
+
+    pub fn get_video_tracks(&self) -> &Vec<TimelineTrack> {
+        &self.video_tracks
+    }
+
+    pub fn get_audio_tracks(&self) -> &Vec<TimelineTrack> {
+        &self.audio_tracks
+    }
+
+    pub fn remove_track(&mut self, track_id: &str) -> Result<(), EditingError> {
+        let before = self.video_tracks.len() + self.audio_tracks.len();
+        self.video_tracks.retain(|t| t.id != track_id);
+        self.audio_tracks.retain(|t| t.id != track_id);
+        let after = self.video_tracks.len() + self.audio_tracks.len();
+        if after == before {
+            return Err(EditingError::InvalidParameter(format!("Track not found: {}", track_id)));
+        }
+        Ok(())
     }
 }
 
@@ -321,6 +353,9 @@ pub struct TimelineEffect {
     pub ges_effect: ges::Effect,
 
     pub parameters: HashMap<String, String>,
+
+    /// Node graph connection: (node_id, output_pin_name)
+    pub node_connection: Option<(String, String)>,
 }
 
 impl TimelineEffect {

@@ -1,4 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlyphRenderInfo {
@@ -16,8 +19,7 @@ pub struct GlyphRenderInfo {
     pub tracking: f64,
 }
 
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct TextRenderer {
     pub backend: RenderBackend,
     pub anti_aliasing: bool,
@@ -26,8 +28,8 @@ pub struct TextRenderer {
     pub color_space: ColorSpace,
     pub glyph_cache: GlyphCache,
     pub performance: PerformanceSettings,
+    pub font_cache: HashMap<String, fontdue::Font>,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum RenderBackend {
@@ -35,7 +37,6 @@ pub enum RenderBackend {
     Gpu,
     Hybrid,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum HintingMode {
@@ -93,7 +94,6 @@ pub struct GlyphMetrics {
     pub lsb: f64,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PerformanceSettings {
     pub max_batch_size: usize,
@@ -142,6 +142,7 @@ impl TextRenderer {
             color_space: ColorSpace::Srgb,
             glyph_cache: GlyphCache::new(),
             performance: PerformanceSettings::default(),
+            font_cache: HashMap::new(),
         }
     }
 
@@ -154,6 +155,7 @@ impl TextRenderer {
             color_space: ColorSpace::Srgb,
             glyph_cache: GlyphCache::new(),
             performance: PerformanceSettings::default(),
+            font_cache: HashMap::new(),
         }
     }
 
@@ -169,15 +171,25 @@ impl TextRenderer {
 
         let animated_values = self.get_animated_values(text_layer, time);
 
-        for line in &layout.lines {
-            for glyph_pos in &line.glyph_positions {
-                let render_info = self.create_render_info(
-                    glyph_pos,
-                    text_layer,
-                    &layout.metrics,
-                    &animated_values,
-                );
-                render_infos.push(render_info);
+        let font = self.get_or_load_font(&text_layer.style.font_family, text_layer.style.font_size, text_layer.style.font_weight);
+
+        if let Some(font_ref) = &font {
+            for line in &layout.lines {
+                for glyph_pos in &line.glyph_positions {
+                    let render_info = self.create_render_info(
+                        glyph_pos,
+                        text_layer,
+                        &layout.metrics,
+                        &animated_values,
+                    );
+
+                    let rasterized_glyph = self.rasterize_glyph(glyph_pos.character, font_ref, text_layer.style.font_size);
+                    if let Some(glyph_data) = rasterized_glyph {
+                        self.cache_glyph(glyph_pos.character, &text_layer.style, glyph_data);
+                    }
+
+                    render_infos.push(render_info);
+                }
             }
         }
 
@@ -187,6 +199,113 @@ impl TextRenderer {
         }
 
         render_infos
+    }
+
+    fn get_or_load_font(&mut self, font_family: &str, font_size: f64, font_weight: u16) -> Option<fontdue::Font> {
+        let font_key = format!("{}_{}_{}", font_family, font_size, font_weight);
+
+        if let Some(font) = self.font_cache.get(&font_key) {
+            return Some(font.clone());
+        }
+
+        if let Some(font) = self.load_system_font(font_family, font_size, font_weight) {
+            self.font_cache.insert(font_key, font.clone());
+            return Some(font);
+        }
+
+        None
+    }
+
+    fn load_system_font(&self, font_family: &str, font_size: f64, font_weight: u16) -> Option<fontdue::Font> {
+        let paths = self.system_font_paths(font_family, font_weight);
+        for path in paths {
+            if let Ok(bytes) = fs::read(&path) {
+                let settings = fontdue::FontSettings {
+                    collection_index: 0,
+                    scale: font_size as f32,
+                    load_substitutions: false,
+                };
+                if let Ok(font) = fontdue::Font::from_bytes(bytes, settings) {
+                    return Some(font);
+                }
+            }
+        }
+        None
+    }
+
+    fn system_font_paths(&self, font_family: &str, font_weight: u16) -> Vec<PathBuf> {
+        let mut paths = Vec::new();
+        let weight_suffix = match font_weight {
+            100..=300 => "Light",
+            400 => "Regular",
+            500 => "Medium",
+            600 => "SemiBold",
+            700 => "Bold",
+            800..=900 => "Black",
+            _ => "Regular",
+        };
+
+        let mac_dirs = ["/System/Library/Fonts", "/Library/Fonts", "/System/Library/Fonts/Supplemental"];
+        for dir in &mac_dirs {
+            paths.push(PathBuf::from(format!("{}/{}.ttf", dir, font_family)));
+            paths.push(PathBuf::from(format!("{}/{}-{}.ttf", dir, font_family, weight_suffix)));
+            paths.push(PathBuf::from(format!("{}/{}.ttc", dir, font_family)));
+            paths.push(PathBuf::from(format!("{}/{}.otf", dir, font_family)));
+        }
+
+        let linux_dirs = ["/usr/share/fonts/truetype", "/usr/local/share/fonts"];
+        for dir in &linux_dirs {
+            paths.push(PathBuf::from(format!("{}/{}/{}.ttf", dir, font_family, font_family)));
+            paths.push(PathBuf::from(format!("{}/{}-{}.ttf", dir, font_family, weight_suffix)));
+            paths.push(PathBuf::from(format!("{}/{}.ttf", dir, font_family)));
+        }
+
+        let win_dir = std::env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".to_string());
+        paths.push(PathBuf::from(format!("{}\\Fonts\\{}.ttf", win_dir, font_family)));
+        paths.push(PathBuf::from(format!("{}\\Fonts\\{}-{}.ttf", win_dir, font_family, weight_suffix)));
+
+        paths
+    }
+
+    fn rasterize_glyph(&self, character: char, font: &fontdue::Font, font_size: f64) -> Option<Vec<u8>> {
+        let (_metrics, bitmap) = font.rasterize(character, font_size as f32);
+
+        let mut rgba_data = Vec::with_capacity(bitmap.len() * 4);
+        for alpha in bitmap {
+            rgba_data.push(255);
+            rgba_data.push(255);
+            rgba_data.push(255);
+            rgba_data.push(alpha);
+        }
+
+        Some(rgba_data)
+    }
+
+    fn cache_glyph(&mut self, character: char, style: &crate::text::types::TextStyle, glyph_data: Vec<u8>) {
+        let key = format!("{}_{}_{}_{}_{:?}",
+            style.font_family,
+            style.font_size,
+            style.font_weight,
+            character,
+            style.font_style
+        );
+
+        let cached_glyph = CachedGlyph {
+            key: key.clone(),
+            data: glyph_data,
+            metrics: GlyphMetrics {
+                width: style.font_size * 0.5,
+                height: style.font_size,
+                bearing_x: 0.0,
+                bearing_y: style.font_size * 0.8,
+                advance: style.font_size * 0.5,
+                lsb: 0.0,
+            },
+            last_access: 0,
+            frequency: 1,
+        };
+
+        self.glyph_cache.add(key, cached_glyph);
     }
 
 
@@ -270,11 +389,11 @@ impl TextRenderer {
 
     fn render_path_text(
         &self,
-        path_text: &crate::text::path_text::TextOnPath,
-        text_layer: &crate::text::types::TextLayer,
-        time: f64,
+        _path_text: &crate::text::path_text::TextOnPath,
+        _text_layer: &crate::text::types::TextLayer,
+        _time: f64,
     ) -> Vec<GlyphRenderInfo> {
-        let mut render_infos = Vec::new();
+        let render_infos = Vec::new();
 
         render_infos
     }
@@ -485,7 +604,7 @@ impl GlyphRenderer {
         self
     }
 
-    pub fn create_glyph_key(&self, character: char) -> String {
+    pub fn create_glyph_key(&self, _character: char) -> String {
         format!(
             "{}_{:.2}_{}_{}_{:?}_{:?}",
             self.font_family,

@@ -233,7 +233,7 @@ impl GpuOperations {
     }
 
 
-    pub fn convert_from_rgb_float(&self, rgb_data: &[(f32, f32, f32)], texture_info: &TextureInfo) -> Vec<u8> {
+    pub fn convert_from_rgb_float(&self, rgb_data: &[(f32, f32, f32)], _texture_info: &TextureInfo) -> Vec<u8> {
         debug!("Converting {} RGB pixels to raw format", rgb_data.len());
 
         let mut raw_data = Vec::with_capacity(rgb_data.len() * 4);

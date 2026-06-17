@@ -3,15 +3,26 @@ use std::sync::Mutex;
 use aether_types::{Graph, ParameterValue};
 use uuid::Uuid;
 use log::info;
+use crate::commands::editing::{MediaInfo, ExportJob};
 use crate::commands::rendering::RenderingState;
-use aether_core::engine::editing::EditingEngine;
+use crate::commands::multicam::MulticamRegistry;
+use crate::commands::plugin::PluginRegistry;
+use crate::engine_proxy::EditingEngineProxy;
+use crate::project_registry::ProjectRegistry;
+use aether_core::modules::color_grading::ColorGradingEngine;
 
 pub struct AppState {
     pub graph: Mutex<Graph>,
     pub execution_results: Mutex<HashMap<Uuid, ParameterValue>>,
     pub node_execution_order: Mutex<Vec<Uuid>>,
     pub rendering_state: Mutex<RenderingState>,
-    pub editing_engine: Mutex<Option<EditingEngine>>,
+    pub editing_engine: Mutex<EditingEngineProxy>,
+    pub media_registry: Mutex<HashMap<String, MediaInfo>>,
+    pub project_registry: Mutex<ProjectRegistry>,
+    pub multicam_registry: Mutex<MulticamRegistry>,
+    pub plugin_registry: Mutex<PluginRegistry>,
+    pub active_exports: Mutex<HashMap<String, ExportJob>>,
+    pub color_grading_engine: Mutex<ColorGradingEngine>,
 }
 
 impl AppState {
@@ -24,7 +35,13 @@ impl AppState {
             execution_results: Mutex::new(HashMap::new()),
             node_execution_order: Mutex::new(Vec::new()),
             rendering_state: Mutex::new(RenderingState::default()),
-            editing_engine: Mutex::new(None),
+            editing_engine: Mutex::new(EditingEngineProxy::new()),
+            media_registry: Mutex::new(HashMap::new()),
+            project_registry: Mutex::new(ProjectRegistry::new().expect("Failed to initialize project registry")),
+            multicam_registry: Mutex::new(MulticamRegistry::new()),
+            plugin_registry: Mutex::new(PluginRegistry::new()),
+            active_exports: Mutex::new(HashMap::new()),
+            color_grading_engine: Mutex::new(ColorGradingEngine::new().expect("Failed to initialize color grading engine")),
         }
     }
 
@@ -34,7 +51,6 @@ impl AppState {
             .map(|graph| graph.clone())
             .map_err(|e| format!("Failed to lock graph: {}", e))
     }
-
 
     pub fn clear_execution_results(&self) -> Result<(), String> {
         let mut results = self.execution_results.lock()

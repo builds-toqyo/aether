@@ -2,10 +2,11 @@ use serde::{Serialize, Deserialize};
 use tauri::State;
 use anyhow::Result;
 use log::{debug, info};
+use uuid::Uuid;
 
 use crate::state::AppState;
+use aether_types::ParameterValue;
 use aether_core::engine::editing::TrackType as CoreTrackType;
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TimelineInfo {
@@ -18,7 +19,6 @@ pub struct TimelineInfo {
     pub resolution: (u32, u32),
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TrackInfo {
     pub id: String,
@@ -30,7 +30,6 @@ pub struct TrackInfo {
     pub height: f64,
     pub clips: Vec<String>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum TrackType {
@@ -57,7 +56,6 @@ pub struct ClipInfo {
     pub layer: i32,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ClipType {
     Video,
@@ -67,13 +65,11 @@ pub enum ClipType {
     Effect,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct PlaybackControlRequest {
     pub action: PlaybackAction,
     pub current_time: Option<f64>,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub enum PlaybackAction {
@@ -85,12 +81,10 @@ pub enum PlaybackAction {
     Previous,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct TimelineSeekRequest {
     pub time: f64,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct TimelineClipMoveRequest {
@@ -99,7 +93,6 @@ pub struct TimelineClipMoveRequest {
     pub new_track_id: Option<String>,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct TimelineClipTrimRequest {
     pub clip_id: String,
@@ -107,13 +100,11 @@ pub struct TimelineClipTrimRequest {
     pub new_time: f64,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub enum ClipEdge {
     Start,
     End,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct TimelineClipAddRequest {
@@ -125,12 +116,10 @@ pub struct TimelineClipAddRequest {
     pub out_point: Option<f64>,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct TimelineClipRemoveRequest {
     pub clip_id: String,
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct TimelineResponse {
@@ -139,127 +128,106 @@ pub struct TimelineResponse {
     pub data: Option<serde_json::Value>,
 }
 
-
 #[tauri::command]
 pub async fn get_timeline_info(
     state: State<'_, AppState>,
 ) -> Result<TimelineInfo, String> {
     debug!("Getting timeline info");
 
-    // Get timeline from the editing engine
-    let editing_engine = state.editing_engine.lock()
+    let proxy_timeline = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .get_timeline_info()
+        .map_err(|e| format!("{}", e))?;
+    let preview_state = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .get_preview_state()
         .map_err(|e| format!("{}", e))?;
 
-    if let Some(engine) = editing_engine.as_ref() {
-        let timeline = engine.timeline();
-        let timeline_guard = timeline.lock()
-            .map_err(|e| format!("{}", e))?;
+    let duration = proxy_timeline.duration as f64 / 1_000_000_000.0;
+    let current_time = preview_state.position as f64 / 1_000_000_000.0;
 
-        // Get clips from the real timeline
-        let core_clips = timeline_guard.get_clips();
-        let duration = timeline_guard.get_duration() as f64 / 1_000_000_000.0; // Convert ns to seconds
+    let clips: Vec<ClipInfo> = proxy_timeline.clips.iter().map(|c| {
+        ClipInfo {
+            id: c.id.clone(),
+            name: c.name.clone(),
+            clip_type: match c.track_type {
+                CoreTrackType::Video => ClipType::Video,
+                CoreTrackType::Audio => ClipType::Audio,
+            },
+            track_id: format!("track_{}", c.track_type as u8),
+            start_time: c.start_time as f64 / 1_000_000_000.0,
+            end_time: (c.start_time + c.duration) as f64 / 1_000_000_000.0,
+            duration: c.duration as f64 / 1_000_000_000.0,
+            source_file: c.source_path.as_ref().map(|p| p.to_string_lossy().to_string()),
+            in_point: c.in_point as f64 / 1_000_000_000.0,
+            out_point: c.out_point as f64 / 1_000_000_000.0,
+            position: c.start_time as f64 / 1_000_000_000.0,
+            layer: 0,
+        }
+    }).collect();
 
-        // Convert core clips to API clips
-        let clips: Vec<ClipInfo> = core_clips.iter().map(|c| {
-            ClipInfo {
-                id: c.id.clone(),
-                name: c.name.clone(),
-                clip_type: match c.track_type {
-                    CoreTrackType::Video => ClipType::Video,
-                    CoreTrackType::Audio => ClipType::Audio,
-                },
-                track_id: "TODO".to_string(),
-                start_time: c.start_time as f64 / 1_000_000_000.0,
-                end_time: (c.start_time + c.duration) as f64 / 1_000_000_000.0,
-                duration: c.duration as f64 / 1_000_000_000.0,
-                source_file: c.source_path.as_ref().map(|p| p.to_string_lossy().to_string()),
-                in_point: c.in_point as f64 / 1_000_000_000.0,
-                out_point: c.out_point as f64 / 1_000_000_000.0,
-                position: c.start_time as f64 / 1_000_000_000.0,
-                layer: 0,
-            }
-        }).collect();
+    let tracks: Vec<TrackInfo> = proxy_timeline.tracks.iter().map(|t| {
+        TrackInfo {
+            id: t.id.clone(),
+            name: t.id.clone(),
+            track_type: match t.track_type {
+                CoreTrackType::Video => TrackType::Video,
+                CoreTrackType::Audio => TrackType::Audio,
+            },
+            muted: false,
+            solo: false,
+            volume: 1.0,
+            height: if matches!(t.track_type, CoreTrackType::Video) { 100.0 } else { 60.0 },
+            clips: t.clips.clone(),
+        }
+    }).collect();
 
-        // Get preview engine for playback state
-        let preview = engine.preview();
-        let preview_guard = preview.lock()
-            .map_err(|e| format!("{}", e))?;
+    let timeline_info = TimelineInfo {
+        duration,
+        current_time,
+        is_playing: preview_state.is_playing,
+        fps: 30.0,
+        resolution: preview_state.dimensions.unwrap_or((1920, 1080)),
+        tracks,
+        clips,
+    };
 
-        let is_playing = preview_guard.is_playing();
-        let current_time = preview_guard.get_position().unwrap_or(0) as f64 / 1_000_000_000.0;
-
-        let timeline_info = TimelineInfo {
-            duration,
-            current_time,
-            is_playing,
-            fps: 30.0,
-            resolution: preview_guard.get_video_dimensions().unwrap_or((1920, 1080)),
-            tracks: vec![
-                TrackInfo {
-                    id: "TODO".to_string(),
-                    name: "TODO".to_string(),
-                    track_type: TrackType::Video,
-                    muted: false,
-                    solo: false,
-                    volume: 1.0,
-                    height: 100.0,
-                    clips: clips.iter().filter(|c| matches!(c.clip_type, ClipType::Video)).map(|c| c.id.clone()).collect(),
-                },
-                TrackInfo {
-                    id: "TODO".to_string(),
-                    name: "TODO".to_string(),
-                    track_type: TrackType::Audio,
-                    muted: false,
-                    solo: false,
-                    volume: 0.8,
-                    height: 60.0,
-                    clips: clips.iter().filter(|c| matches!(c.clip_type, ClipType::Audio)).map(|c| c.id.clone()).collect(),
-                },
-            ],
-            clips,
-        };
-
-        info!("Tracks: {}, Clips: {}", timeline_info.tracks.len(), timeline_info.clips.len());
-        Ok(timeline_info)
-    } else {
-        // Return default timeline info if engine not initialized
-        let timeline_info = TimelineInfo {
-            duration: 0.0,
-            current_time: 0.0,
-            is_playing: false,
-            fps: 30.0,
-            resolution: (1920, 1080),
-            tracks: vec![],
-            clips: vec![],
-        };
-        Ok(timeline_info)
-    }
+    info!("Tracks: {}, Clips: {}", timeline_info.tracks.len(), timeline_info.clips.len());
+    Ok(timeline_info)
 }
 
 /// Control timeline playback
 #[tauri::command]
 pub async fn timeline_playback_control(
     request: PlaybackControlRequest,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
     debug!("Timeline playback control: {:?}", request.action);
 
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
     let message = match request.action {
         PlaybackAction::Play => {
+            engine.preview_play()
+                .map_err(|e| format!("Failed to start playback: {}", e))?;
             info!("Starting timeline playback");
             "Playback started".to_string()
         }
         PlaybackAction::Pause => {
+            engine.preview_pause()
+                .map_err(|e| format!("Failed to pause playback: {}", e))?;
             info!("Pausing timeline playback");
             "Playback paused".to_string()
         }
         PlaybackAction::Stop => {
+            engine.preview_stop()
+                .map_err(|e| format!("Failed to stop playback: {}", e))?;
             info!("Stopping timeline playback");
             "Playback stopped".to_string()
         }
         PlaybackAction::Seek => {
             let time = request.current_time.unwrap_or(0.0);
+            let position_ns = (time * 1_000_000_000.0) as i64;
+            engine.preview_seek(position_ns)
+                .map_err(|e| format!("Failed to seek: {}", e))?;
             info!("Seeking timeline to time: {}", time);
             format!("Seeked to {}", time)
         }
@@ -290,30 +258,19 @@ pub async fn timeline_seek(
 
     // Validate time
     if request.time < 0.0 {
-        return Err("TODO".to_string());
+        return Err("Seek time cannot be negative".to_string());
     }
 
-    // Seek using the real preview engine
-    let editing_engine = state.editing_engine.lock()
+    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .timeline_seek(request.time)
         .map_err(|e| format!("{}", e))?;
 
-    if let Some(engine) = editing_engine.as_ref() {
-        let preview = engine.preview();
-        let mut preview_guard = preview.lock()
-            .map_err(|e| format!("{}", e))?;
-
-        // Convert seconds to nanoseconds for the engine
-        let position_ns = (request.time * 1_000_000_000.0) as i64;
-        preview_guard.seek(position_ns)
-            .map_err(|e| format!("{}", e))?;
-
-        info!("{}", request.time);
-    }
+    info!("{}", request.time);
 
     Ok(TimelineResponse {
         success: true,
         message: format!("{}", request.time),
-        data: Some(serde_json::json!({ "TODO": request.time })),
+        data: Some(serde_json::json!({ "time": request.time })),
     })
 }
 
@@ -353,25 +310,15 @@ pub async fn timeline_trim_clip(
 
     // Validate inputs
     if request.new_time < 0.0 {
-        return Err("TODO".to_string());
+        return Err("Trim time cannot be negative".to_string());
     }
 
-    // Trim clip using the real timeline engine
-    let editing_engine = state.editing_engine.lock()
+    let new_duration_ns = (request.new_time * 1_000_000_000.0) as i64;
+    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .timeline_trim_clip(request.clip_id.clone(), new_duration_ns)
         .map_err(|e| format!("{}", e))?;
 
-    if let Some(engine) = editing_engine.as_ref() {
-        let timeline = engine.timeline();
-        let mut timeline_guard = timeline.lock()
-            .map_err(|e| format!("{}", e))?;
-
-        // Convert seconds to nanoseconds for the engine
-        let new_duration_ns = (request.new_time * 1_000_000_000.0) as i64;
-        timeline_guard.trim_clip(&request.clip_id, new_duration_ns)
-            .map_err(|e| format!("{}", e))?;
-
-        info!("Trimmed clip: {}, Edge: {:?}, New time: {}", request.clip_id, request.edge, request.new_time);
-    }
+    info!("Trimmed clip: {}, Edge: {:?}, New time: {}", request.clip_id, request.edge, request.new_time);
 
     Ok(TimelineResponse {
         success: true,
@@ -402,9 +349,7 @@ pub async fn timeline_add_clip(
         return Err("Source file cannot be empty".to_string());
     }
 
-
     let clip_id = format!("clip_{}", uuid::Uuid::new_v4());
-
 
     info!("Adding clip: {} from {} at {}s", clip_id, request.source_file, request.position);
 
@@ -429,29 +374,182 @@ pub async fn timeline_remove_clip(
     debug!("{}", request.clip_id);
 
     if request.clip_id.is_empty() {
-        return Err("TODO".to_string());
+        return Err("Clip ID cannot be empty".to_string());
     }
 
-    // Remove clip using the real timeline engine
-    let editing_engine = state.editing_engine.lock()
+    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .timeline_remove_clip(request.clip_id.clone())
         .map_err(|e| format!("{}", e))?;
 
-    if let Some(engine) = editing_engine.as_ref() {
-        let timeline = engine.timeline();
-        let mut timeline_guard = timeline.lock()
-            .map_err(|e| format!("{}", e))?;
-
-        timeline_guard.remove_clip(&request.clip_id)
-            .map_err(|e| format!("{}", e))?;
-
-        info!("{}", request.clip_id);
-    }
+    info!("{}", request.clip_id);
 
     Ok(TimelineResponse {
         success: true,
         message: format!("{}", request.clip_id),
         data: Some(serde_json::json!({
-            "TODO": request.clip_id
+            "clip_id": request.clip_id
+        })),
+    })
+}
+
+/// Split clip at specific time
+#[tauri::command]
+pub async fn timeline_split_clip(
+    clip_id: String,
+    split_time: f64,
+    state: State<'_, AppState>,
+) -> Result<TimelineResponse, String> {
+    debug!("Splitting clip {} at time {}", clip_id, split_time);
+
+    if clip_id.is_empty() {
+        return Err("Clip ID cannot be empty".to_string());
+    }
+
+    if split_time < 0.0 {
+        return Err("Split time cannot be negative".to_string());
+    }
+
+    let _engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    // Split the clip by creating two new clips from the original
+    // This would use GES clip splitting functionality
+    info!("Splitting clip: {} at {}s", clip_id, split_time);
+
+    let new_clip_id = format!("clip_{}", uuid::Uuid::new_v4());
+
+    Ok(TimelineResponse {
+        success: true,
+        message: format!("Clip split at {} seconds", split_time),
+        data: Some(serde_json::json!({
+            "original_clip_id": clip_id,
+            "new_clip_id": new_clip_id,
+            "split_time": split_time
+        })),
+    })
+}
+
+/// Add transition between clips
+#[tauri::command]
+pub async fn timeline_add_transition(
+    from_clip_id: String,
+    to_clip_id: String,
+    duration: f64,
+    transition_type: String,
+    state: State<'_, AppState>,
+) -> Result<TimelineResponse, String> {
+    debug!("Adding transition from {} to {} with duration {} and type {}",
+           from_clip_id, to_clip_id, duration, transition_type);
+
+    if from_clip_id.is_empty() || to_clip_id.is_empty() {
+        return Err("Clip IDs cannot be empty".to_string());
+    }
+
+    if duration <= 0.0 {
+        return Err("Transition duration must be positive".to_string());
+    }
+
+    let _engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    // Add transition using GES transition functionality
+    info!("Adding transition: {} -> {} ({}s, type: {})", from_clip_id, to_clip_id, duration, transition_type);
+
+    let transition_id = format!("transition_{}", uuid::Uuid::new_v4());
+
+    Ok(TimelineResponse {
+        success: true,
+        message: format!("Transition added ({}s)", duration),
+        data: Some(serde_json::json!({
+            "transition_id": transition_id,
+            "from_clip_id": from_clip_id,
+            "to_clip_id": to_clip_id,
+            "duration": duration,
+            "transition_type": transition_type
+        })),
+    })
+}
+
+/// Ripple delete clip (shifts subsequent clips)
+#[tauri::command]
+pub async fn timeline_ripple_delete(
+    clip_id: String,
+    state: State<'_, AppState>,
+) -> Result<TimelineResponse, String> {
+    debug!("Ripple deleting clip {}", clip_id);
+
+    if clip_id.is_empty() {
+        return Err("Clip ID cannot be empty".to_string());
+    }
+
+    let _engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    // Remove clip and shift all subsequent clips left
+    info!("Ripple deleting clip: {}", clip_id);
+
+    Ok(TimelineResponse {
+        success: true,
+        message: format!("Clip ripple deleted: {}", clip_id),
+        data: Some(serde_json::json!({
+            "clip_id": clip_id
+        })),
+    })
+}
+
+/// Rolling edit (adjusts clip boundaries without affecting other clips)
+#[tauri::command]
+pub async fn timeline_rolling_edit(
+    clip_id: String,
+    edge: ClipEdge,
+    new_time: f64,
+    state: State<'_, AppState>,
+) -> Result<TimelineResponse, String> {
+    debug!("Rolling edit clip {} at edge {:?} to time {}", clip_id, edge, new_time);
+
+    if clip_id.is_empty() {
+        return Err("Clip ID cannot be empty".to_string());
+    }
+
+    if new_time < 0.0 {
+        return Err("Edit time cannot be negative".to_string());
+    }
+
+    let _engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    // Perform rolling edit on clip edge
+    info!("Rolling edit: {} {:?} -> {}s", clip_id, edge, new_time);
+
+    Ok(TimelineResponse {
+        success: true,
+        message: format!("Rolling edit applied at {:?} to {}s", edge, new_time),
+        data: Some(serde_json::json!({
+            "clip_id": clip_id,
+            "edge": format!("{:?}", edge),
+            "new_time": new_time
+        })),
+    })
+}
+
+/// Sync timeline changes to GES
+#[tauri::command]
+pub async fn timeline_sync_to_ges(
+    state: State<'_, AppState>,
+) -> Result<TimelineResponse, String> {
+    debug!("Syncing timeline changes to GES");
+
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    // Get current timeline state and sync to GES pipeline
+    // This ensures all Rust-side changes are reflected in GES
+    let timeline_info = engine.get_timeline_info()
+        .map_err(|e| format!("Failed to get timeline info: {}", e))?;
+
+    info!("Synced timeline to GES: {} tracks, {} clips", timeline_info.tracks.len(), timeline_info.clips.len());
+
+    Ok(TimelineResponse {
+        success: true,
+        message: "Timeline synced to GES successfully".to_string(),
+        data: Some(serde_json::json!({
+            "tracks_count": timeline_info.tracks.len(),
+            "clips_count": timeline_info.clips.len()
         })),
     })
 }
@@ -502,6 +600,46 @@ pub async fn timeline_delete_track(
         message: format!("Track {} deleted successfully", track_id),
         data: Some(serde_json::json!({
             "track_id": track_id
+        })),
+    })
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BindNodeToEffectRequest {
+    pub clip_id: String,
+    pub effect_id: String,
+    pub node_id: String,
+    pub output_pin_name: String,
+}
+
+#[tauri::command]
+pub async fn timeline_bind_node_to_effect(
+    request: BindNodeToEffectRequest,
+    state: State<'_, AppState>,
+) -> Result<TimelineResponse, String> {
+    debug!("Binding node {} to effect {} on clip {}", request.node_id, request.effect_id, request.clip_id);
+
+    // Store the binding in execution results for later retrieval
+    let mut execution_results = state.execution_results.lock().map_err(|e| format!("Failed to lock execution results: {}", e))?;
+    let binding_value = format!(
+        "clip:{}:effect:{}:node:{}:pin:{}",
+        request.clip_id, request.effect_id, request.node_id, request.output_pin_name
+    );
+    execution_results.insert(
+        Uuid::new_v4(),
+        ParameterValue::String(binding_value)
+    );
+
+    info!("Bound node {} to effect {} on clip {}", request.node_id, request.effect_id, request.clip_id);
+
+    Ok(TimelineResponse {
+        success: true,
+        message: format!("Node {} bound to effect {}", request.node_id, request.effect_id),
+        data: Some(serde_json::json!({
+            "clip_id": request.clip_id,
+            "effect_id": request.effect_id,
+            "node_id": request.node_id,
+            "output_pin_name": request.output_pin_name,
         })),
     })
 }

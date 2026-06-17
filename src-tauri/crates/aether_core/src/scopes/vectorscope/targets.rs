@@ -1,5 +1,4 @@
 use anyhow::{Result};
-use log::debug;
 use image::{Rgb, RgbImage};
 
 use crate::types::{VectorscopeTarget, VectorscopeConfig};

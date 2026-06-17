@@ -2,7 +2,6 @@ use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult};
 use crate::nodes::basic::blur::{BlurParams, BlurAlgorithms, BlurType};
 use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, OutputPin};
 use uuid::Uuid;
-use log::debug;
 
 
 pub struct BlurNode {
@@ -185,7 +184,7 @@ impl BlurNode {
 }
 
 impl NodeExecutor for BlurNode {
-    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
+    fn execute(&mut self, _context: &mut ExecutionContext) -> NodeResult<()> {
 
         let input_value = self.node.get_input_value("input").unwrap_or(ParameterValue::None);
 

@@ -1,7 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
 use anyhow::Result;
 use ffmpeg_next as ffmpeg;
 use crate::engine::editing::types::EditingError;
@@ -36,11 +35,8 @@ impl Default for ExportOptions {
             container_format: ContainerFormat::Mp4,
             video_format: VideoFormat::H264,
             audio_format: AudioFormat::Aac,
-            // Set a reasonable default video bitrate (2 Mbps)
             video_bitrate: 2_000_000,
-            // Set a reasonable default audio bitrate (128 kbps)
             audio_bitrate: 128_000,
-            // Set a standard default frame rate
             frame_rate: 30.0,
             width: 0,
             height: 0,
@@ -55,35 +51,21 @@ impl Default for ExportOptions {
 #[derive(Debug, Clone)]
 pub struct ExportProgress {
     pub current_frame: u64,
-
     pub total_frames: u64,
-
     pub current_time: f64,
-
     pub total_duration: f64,
-
     pub percent: f64,
-
     pub complete: bool,
-
     pub error: Option<String>,
 }
 
 pub struct Exporter {
     options: ExportOptions,
-
     progress: Arc<Mutex<ExportProgress>>,
-
     progress_callback: Option<ExportCallback>,
-
-    export_thread: Option<thread::JoinHandle<Result<(), EditingError>>>,
-
     cancel_flag: Arc<Mutex<bool>>,
+    pause_flag: Arc<Mutex<bool>>,
 }
-
-// TODO: thread::JoinHandle is not Sync; this is a compilation workaround.
-unsafe impl Send for Exporter {}
-unsafe impl Sync for Exporter {}
 
 impl Exporter {
     pub fn new(options: ExportOptions) -> Result<Self, EditingError> {
@@ -103,8 +85,8 @@ impl Exporter {
             options,
             progress,
             progress_callback: None,
-            export_thread: None,
             cancel_flag: Arc::new(Mutex::new(false)),
+            pause_flag: Arc::new(Mutex::new(false)),
         })
     }
 
@@ -122,8 +104,9 @@ impl Exporter {
         let progress = self.progress.clone();
         let callback = self.progress_callback.clone();
         let cancel_flag = self.cancel_flag.clone();
+        let pause_flag = self.pause_flag.clone();
 
-        let handle = thread::spawn(move || {
+        thread::spawn(move || {
             let input_path = options.input_path.to_string_lossy().to_string();
             let mut input_context = match ffmpeg::format::input(&input_path) {
                 Ok(ctx) => ctx,
@@ -192,7 +175,7 @@ impl Exporter {
                 }
             };
 
-            let format_name = options.container_format.to_ffmpeg_name();
+            let _format_name = options.container_format.to_ffmpeg_name();
 
             let video_codec_name = options.video_format.to_ffmpeg_name();
             let video_codec = ffmpeg::encoder::find_by_name(video_codec_name)
@@ -205,7 +188,7 @@ impl Exporter {
             let mut video_stream = output_context.add_stream(video_codec)?;
 
             {
-                let mut context = ffmpeg::codec::context::Context::new_with_codec(video_codec);
+                let context = ffmpeg::codec::context::Context::new_with_codec(video_codec);
                 let mut video = context.encoder().video()?;
 
                 let out_width = if options.width > 0 { options.width } else { width as u32 };
@@ -255,9 +238,9 @@ impl Exporter {
 
                 {
                     let input_stream = input_context.stream(audio_index).unwrap();
-                    let input_codec_par = input_stream.parameters();
+                    let _input_codec_par = input_stream.parameters();
 
-                    let mut context = ffmpeg::codec::context::Context::new_with_codec(audio_codec);
+                    let context = ffmpeg::codec::context::Context::new_with_codec(audio_codec);
                     let mut audio = context.encoder().audio()?;
 
                     audio.set_rate(48000);
@@ -332,15 +315,8 @@ impl Exporter {
                 video_decoder.height(),
             );
 
-            let mut encoded = ffmpeg::frame::Video::new(
-                ffmpeg::format::pixel::Pixel::YUV420P,
-                if options.width > 0 { options.width } else { width as u32 },
-                if options.height > 0 { options.height } else { height as u32 },
-            );
-
             let mut audio_decoded = ffmpeg::frame::Audio::empty();
-            let mut audio_encoded = ffmpeg::frame::Audio::empty();
-            let mut packet = ffmpeg::packet::Packet::empty();
+            let _packet = ffmpeg::packet::Packet::empty();
 
             let mut frame_count = 0;
 
@@ -351,13 +327,17 @@ impl Exporter {
                     return Err(EditingError::ExportError(error_msg));
                 }
 
+                while *pause_flag.lock().unwrap() && !*cancel_flag.lock().unwrap() {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+
                 if let Some(stream_index) = video_stream_index {
                     if stream.index() == stream_index {
                         video_decoder.send_packet(&packet)?;
 
                         while video_decoder.receive_frame(&mut decoded).is_ok() {
 
-                            encoded = ffmpeg::frame::Video::new(
+                            let mut encoded = ffmpeg::frame::Video::new(
                                 ffmpeg::format::pixel::Pixel::YUV420P,
                                 if options.width > 0 { options.width } else { width as u32 },
                                 if options.height > 0 { options.height } else { height as u32 },
@@ -414,6 +394,10 @@ impl Exporter {
                                     return Err(EditingError::ExportError(error_msg));
                                 }
 
+                                while *pause_flag.lock().unwrap() && !*cancel_flag.lock().unwrap() {
+                                    std::thread::sleep(std::time::Duration::from_millis(100));
+                                }
+
 
                                 if let Err(e) = audio_decoder.send_packet(&packet) {
                                     let error_msg = format!("Audio decoder error: {}", e);
@@ -426,9 +410,7 @@ impl Exporter {
 
                                 while audio_frame_result.is_ok() {
 
-                                    audio_encoded = ffmpeg::frame::Audio::empty();
-
-
+                                    let mut audio_encoded = ffmpeg::frame::Audio::empty();
                                     if let Some(ref mut resampler) = resampler {
                                         if let Err(e) = resampler.run(&audio_decoded, &mut audio_encoded) {
                                             let error_msg = format!("Audio resampling error: {}", e);
@@ -543,8 +525,6 @@ impl Exporter {
             Ok(())
         });
 
-        self.export_thread = Some(handle);
-
         Ok(())
     }
 
@@ -564,39 +544,21 @@ impl Exporter {
 
     pub fn cancel(&mut self) -> Result<(), EditingError> {
         *self.cancel_flag.lock().unwrap() = true;
-
-        if let Some(handle) = self.export_thread.take() {
-
-            const MAX_JOIN_ATTEMPTS: u8 = 10;
-            let mut attempts = 0;
-
-
-            while !handle.is_finished() && attempts < MAX_JOIN_ATTEMPTS {
-                thread::sleep(Duration::from_millis(100));
-                attempts += 1;
-            }
-
-            match handle.join() {
-                Ok(_) => {
-
-                },
-                Err(e) => {
-
-                    let error_msg = format!("Export thread panicked: {:?}", e);
-                    let mut progress = self.progress.lock().unwrap();
-                    progress.error = Some(error_msg.clone());
-
-                    if let Some(callback) = &self.progress_callback {
-                        callback.lock().unwrap()(progress.clone());
-                    }
-
-
-                    return Err(EditingError::ExportError(error_msg));
-                }
-            }
-        }
-
         Ok(())
+    }
+
+    pub fn pause(&mut self) -> Result<(), EditingError> {
+        *self.pause_flag.lock().unwrap() = true;
+        Ok(())
+    }
+
+    pub fn resume(&mut self) -> Result<(), EditingError> {
+        *self.pause_flag.lock().unwrap() = false;
+        Ok(())
+    }
+
+    pub fn is_paused(&self) -> bool {
+        *self.pause_flag.lock().unwrap()
     }
 
    pub fn get_progress(&self) -> ExportProgress {

@@ -1,4 +1,4 @@
-use crate::nodes::basic::transform::{TransformParams, TransformMatrix, TransformResult};
+use crate::nodes::basic::transform::{TransformParams, TransformMatrix};
 use aether_types::ParameterValue;
 use uuid::Uuid;
 use log::debug;
@@ -140,7 +140,7 @@ impl TransformOperations {
     }
 
 
-    fn upload_transformed_texture(&self, data: &[u8], width: usize, height: usize, channels: usize) -> Uuid {
+    fn upload_transformed_texture(&self, _data: &[u8], width: usize, height: usize, channels: usize) -> Uuid {
         debug!("Uploading transformed texture: {}x{} ({} channels)", width, height, channels);
 
 

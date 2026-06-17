@@ -244,7 +244,7 @@ impl MaskEffect {
         value * emboss_factor * self.parameters.intensity
     }
 
-    fn apply_edge_detect(&self, value: f64, x: f64, y: f64) -> f64 {
+    fn apply_edge_detect(&self, _value: f64, x: f64, y: f64) -> f64 {
         let threshold = self.parameters.threshold;
         let edge_factor = ((x * 0.2).sin() * (y * 0.2).cos()).abs();
         if edge_factor > threshold {
@@ -335,7 +335,7 @@ impl MaskEffect {
         values[values.len() / 2]
     }
 
-    fn apply_custom_effect(&self, value: f64, x: f64, y: f64) -> f64 {
+    fn apply_custom_effect(&self, value: f64, _x: f64, _y: f64) -> f64 {
 
         if let Some(custom_value) = self.parameters.get_custom_param("multiplier") {
             value * custom_value

@@ -3,14 +3,12 @@ use gstreamer as gst;
 use gstreamer_pbutils as gst_pbutils;
 use gstreamer_pbutils::prelude::DiscovererStreamInfoExt;
 use gst::prelude::*;
-use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MediaType {
@@ -202,21 +200,107 @@ impl FileManager {
 
         fs::create_dir_all(output_dir)?;
 
+        let pattern = format!("{}/frame-%04d.jpg", output_dir.to_str().unwrap());
+        let pipeline = gst::Pipeline::new();
 
-        let _pipeline_str = format!(
-            "filesrc location=\"{}\" ! decodebin ! videorate ! video/x-raw,framerate={}/1 ! \
-             videoconvert ! jpegenc quality=90 ! multifilesink location=\"{}/frame-%04d.jpg\"",
-            video_path.to_str().unwrap(),
-            fps,
-            output_dir.to_str().unwrap()
+        let filesrc = gst::ElementFactory::make("filesrc")
+            .property("location", video_path.to_str().unwrap())
+            .build()
+            .map_err(|e| anyhow!("Failed to create filesrc: {}", e))?;
+
+        let decodebin = gst::ElementFactory::make("decodebin")
+            .build()
+            .map_err(|e| anyhow!("Failed to create decodebin: {}", e))?;
+
+        let videorate = gst::ElementFactory::make("videorate")
+            .build()
+            .map_err(|e| anyhow!("Failed to create videorate: {}", e))?;
+
+        let capsfilter = gst::ElementFactory::make("capsfilter")
+            .property("caps", gst::Caps::builder("video/x-raw")
+                .field("framerate", gst::Fraction::new(fps as i32, 1))
+                .build())
+            .build()
+            .map_err(|e| anyhow!("Failed to create capsfilter: {}", e))?;
+
+        let videoconvert = gst::ElementFactory::make("videoconvert")
+            .build()
+            .map_err(|e| anyhow!("Failed to create videoconvert: {}", e))?;
+
+        let jpegenc = gst::ElementFactory::make("jpegenc")
+            .property("quality", 90i32)
+            .build()
+            .map_err(|e| anyhow!("Failed to create jpegenc: {}", e))?;
+
+        let multifilesink = gst::ElementFactory::make("multifilesink")
+            .property("location", pattern.as_str())
+            .build()
+            .map_err(|e| anyhow!("Failed to create multifilesink: {}", e))?;
+
+        pipeline.add_many([&filesrc, &decodebin, &videorate, &capsfilter, &videoconvert, &jpegenc, &multifilesink])
+            .map_err(|e| anyhow!("Failed to add elements: {}", e))?;
+
+        filesrc.link(&decodebin)
+            .map_err(|e| anyhow!("Failed to link filesrc to decodebin: {}", e))?;
+
+        // Link decodebin to downstream chain via pad-added signal
+        let videorate_ref = videorate.clone();
+        decodebin.connect_pad_added(move |_, src_pad| {
+            let sink_pad = videorate_ref.static_pad("sink");
+            if let Some(sink_pad) = sink_pad {
+                if sink_pad.is_linked() {
+                    return;
+                }
+                let caps = src_pad.current_caps();
+                if let Some(caps) = caps {
+                    let s = caps.structure(0);
+                    if let Some(s) = s {
+                        if s.name().starts_with("video/") {
+                            let _ = src_pad.link(&sink_pad);
+                        }
+                    }
+                }
+            }
+        });
+
+        gst::Element::link_many([&videorate, &capsfilter, &videoconvert, &jpegenc, &multifilesink])
+            .map_err(|e| anyhow!("Failed to link downstream chain: {}", e))?;
+
+        let bus = pipeline.bus().ok_or_else(|| anyhow!("Pipeline has no bus"))?;
+        pipeline.set_state(gst::State::Playing)
+            .map_err(|e| anyhow!("Failed to start pipeline: {}", e))?;
+
+        let msg = bus.timed_pop_filtered(
+            gst::ClockTime::from_seconds(60),
+            &[gst::MessageType::Error, gst::MessageType::Eos],
         );
 
-        // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow!("parse_launch not available in current GStreamer version"));
+        pipeline.set_state(gst::State::Null)
+            .map_err(|e| anyhow!("Failed to stop pipeline: {}", e))?;
+
+        match msg {
+            Some(msg) => match msg.view() {
+                gst::MessageView::Error(err) => Err(anyhow!("Pipeline error: {}", err.error())),
+                gst::MessageView::Eos(_) => {
+                    // Collect generated frame paths
+                    let mut frames = Vec::new();
+                    for entry in fs::read_dir(output_dir)? {
+                        let entry = entry?;
+                        let path = entry.path();
+                        if path.extension().and_then(|e| e.to_str()) == Some("jpg") {
+                            frames.push(path);
+                        }
+                    }
+                    frames.sort();
+                    Ok(frames)
+                }
+                _ => Err(anyhow!("Unexpected pipeline message")),
+            },
+            None => Err(anyhow!("Pipeline timed out")),
+        }
     }
 
     pub fn cleanup(&self) -> Result<()> {
-
         self.media_info_cache.lock().unwrap().clear();
         self.thumbnail_cache.lock().unwrap().clear();
 
@@ -295,7 +379,7 @@ impl FileManager {
             }
         }
 
-        for tag_list in discover_info.tags() {
+        if let Some(tag_list) = discover_info.tags() {
             for (tag, value) in tag_list.iter() {
                 if let Ok(serialized) = value.serialize() {
                     info.metadata.insert(tag.to_string(), serialized.to_string());
@@ -307,94 +391,253 @@ impl FileManager {
     }
 
     fn extract_image_info(&self, path: &Path, _info: &mut MediaInfo) -> Result<()> {
-        let _pipeline_str = format!(
-            "filesrc location=\"{}\" ! decodebin ! imagefreeze ! fakesink",
-            path.to_str().unwrap()
-        );
+        let pipeline = gst::Pipeline::new();
+        let filesrc = gst::ElementFactory::make("filesrc")
+            .property("location", path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesrc: {}", e))?;
+        let decodebin = gst::ElementFactory::make("decodebin")
+            .build().map_err(|e| anyhow!("decodebin: {}", e))?;
+        let imagefreeze = gst::ElementFactory::make("imagefreeze")
+            .build().map_err(|e| anyhow!("imagefreeze: {}", e))?;
+        let fakesink = gst::ElementFactory::make("fakesink")
+            .build().map_err(|e| anyhow!("fakesink: {}", e))?;
 
-        // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow!("parse_launch not available in current GStreamer version"));
+        pipeline.add_many([&filesrc, &decodebin, &imagefreeze, &fakesink])
+            .map_err(|e| anyhow!("add: {}", e))?;
+        filesrc.link(&decodebin).map_err(|e| anyhow!("link: {}", e))?;
+
+        let imagefreeze_ref = imagefreeze.clone();
+        decodebin.connect_pad_added(move |_, src_pad| {
+            if let Some(sink) = imagefreeze_ref.static_pad("sink") {
+                if !sink.is_linked() {
+                    if let Some(caps) = src_pad.current_caps() {
+                        if let Some(s) = caps.structure(0) {
+                            if s.name().starts_with("image/") || s.name().starts_with("video/") {
+                                let _ = src_pad.link(&sink);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        imagefreeze.link(&fakesink).map_err(|e| anyhow!("link: {}", e))?;
+
+        let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;
+        pipeline.set_state(gst::State::Playing).map_err(|e| anyhow!("play: {}", e))?;
+        let msg = bus.timed_pop_filtered(gst::ClockTime::from_seconds(10), &[gst::MessageType::Error, gst::MessageType::Eos]);
+        pipeline.set_state(gst::State::Null).map_err(|e| anyhow!("stop: {}", e))?;
+
+        match msg {
+            Some(msg) => match msg.view() {
+                gst::MessageView::Error(err) => Err(anyhow!("err: {}", err.error())),
+                gst::MessageView::Eos(_) => Ok(()),
+                _ => Err(anyhow!("unexpected")),
+            },
+            None => Err(anyhow!("timeout")),
+        }
     }
 
     fn generate_video_thumbnail(&self, path: &Path, options: &ThumbnailOptions) -> Result<PathBuf> {
-
         let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
         let thumbnail_path = self.temp_dir.join(format!(
-            "{}-thumb-{}x{}-{}.jpg",
-            file_stem,
-            options.width,
-            options.height,
+            "{}-thumb-{}x{}-{}.jpg", file_stem, options.width, options.height,
             options.position.unwrap_or(0.0)
         ));
+        let position_ns = (options.position.unwrap_or(0.0) * 1_000_000_000.0) as i64;
 
-        let _position_ns = (options.position.unwrap_or(0.0) * 1_000_000_000.0) as i64;
-        let _pipeline_str = format!(
-            "filesrc location=\"{}\" ! decodebin ! videoconvert ! videoscale ! \
-             video/x-raw,width={},height={} ! jpegenc quality={} ! filesink location=\"{}\"",
-            path.to_str().unwrap(),
-            options.width,
-            options.height,
-            options.quality,
-            thumbnail_path.to_str().unwrap()
-        );
+        let pipeline = gst::Pipeline::new();
+        let filesrc = gst::ElementFactory::make("filesrc")
+            .property("location", path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesrc: {}", e))?;
+        let decodebin = gst::ElementFactory::make("decodebin")
+            .build().map_err(|e| anyhow!("decodebin: {}", e))?;
+        let videoconvert = gst::ElementFactory::make("videoconvert")
+            .build().map_err(|e| anyhow!("videoconvert: {}", e))?;
+        let videoscale = gst::ElementFactory::make("videoscale")
+            .build().map_err(|e| anyhow!("videoscale: {}", e))?;
+        let capsfilter = gst::ElementFactory::make("capsfilter")
+            .property("caps", gst::Caps::builder("video/x-raw")
+                .field("width", options.width as i32).field("height", options.height as i32).build())
+            .build().map_err(|e| anyhow!("capsfilter: {}", e))?;
+        let jpegenc = gst::ElementFactory::make("jpegenc")
+            .property("quality", options.quality as i32)
+            .build().map_err(|e| anyhow!("jpegenc: {}", e))?;
+        let filesink = gst::ElementFactory::make("filesink")
+            .property("location", thumbnail_path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesink: {}", e))?;
 
-        // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow!("parse_launch not available in current GStreamer version"));
+        pipeline.add_many([&filesrc, &decodebin, &videoconvert, &videoscale, &capsfilter, &jpegenc, &filesink])
+            .map_err(|e| anyhow!("add: {}", e))?;
+        filesrc.link(&decodebin).map_err(|e| anyhow!("link: {}", e))?;
+
+        let videoconvert_ref = videoconvert.clone();
+        decodebin.connect_pad_added(move |_, src_pad| {
+            if let Some(sink) = videoconvert_ref.static_pad("sink") {
+                if !sink.is_linked() {
+                    if let Some(caps) = src_pad.current_caps() {
+                        if let Some(s) = caps.structure(0) {
+                            if s.name().starts_with("video/") {
+                                let _ = src_pad.link(&sink);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        gst::Element::link_many([&videoconvert, &videoscale, &capsfilter, &jpegenc, &filesink])
+            .map_err(|e| anyhow!("downstream: {}", e))?;
+
+        let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;
+        pipeline.set_state(gst::State::Playing).map_err(|e| anyhow!("play: {}", e))?;
+
+        if let Some(_clock) = pipeline.clock() {
+            let _ = pipeline.seek(1.0, gst::SeekFlags::FLUSH, gst::SeekType::Set,
+                gst::ClockTime::from_nseconds(position_ns as u64), gst::SeekType::None, gst::ClockTime::NONE);
+        }
+
+        let msg = bus.timed_pop_filtered(gst::ClockTime::from_seconds(30),
+            &[gst::MessageType::Error, gst::MessageType::Eos]);
+        pipeline.set_state(gst::State::Null).map_err(|e| anyhow!("stop: {}", e))?;
+
+        match msg {
+            Some(msg) => match msg.view() {
+                gst::MessageView::Error(err) => Err(anyhow!("err: {}", err.error())),
+                gst::MessageView::Eos(_) => Ok(thumbnail_path),
+                _ => Err(anyhow!("unexpected")),
+            },
+            None => Err(anyhow!("timeout")),
+        }
     }
 
     fn generate_image_thumbnail(&self, path: &Path, options: &ThumbnailOptions) -> Result<PathBuf> {
         let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
         let thumbnail_path = self.temp_dir.join(format!(
-            "{}-thumbnail-{}x{}.png",
-            file_stem,
-            options.width,
-            options.height
+            "{}-thumbnail-{}x{}.png", file_stem, options.width, options.height
         ));
-        // TODO: implement image thumbnail generation
-        return Err(anyhow!("Image thumbnail generation not yet implemented"));
+
+        let pipeline = gst::Pipeline::new();
+        let filesrc = gst::ElementFactory::make("filesrc")
+            .property("location", path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesrc: {}", e))?;
+        let decodebin = gst::ElementFactory::make("decodebin")
+            .build().map_err(|e| anyhow!("decodebin: {}", e))?;
+        let videoconvert = gst::ElementFactory::make("videoconvert")
+            .build().map_err(|e| anyhow!("videoconvert: {}", e))?;
+        let videoscale = gst::ElementFactory::make("videoscale")
+            .build().map_err(|e| anyhow!("videoscale: {}", e))?;
+        let capsfilter = gst::ElementFactory::make("capsfilter")
+            .property("caps", gst::Caps::builder("video/x-raw")
+                .field("width", options.width as i32).field("height", options.height as i32).build())
+            .build().map_err(|e| anyhow!("capsfilter: {}", e))?;
+        let pngenc = gst::ElementFactory::make("pngenc")
+            .build().map_err(|e| anyhow!("pngenc: {}", e))?;
+        let filesink = gst::ElementFactory::make("filesink")
+            .property("location", thumbnail_path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesink: {}", e))?;
+
+        pipeline.add_many([&filesrc, &decodebin, &videoconvert, &videoscale, &capsfilter, &pngenc, &filesink])
+            .map_err(|e| anyhow!("add: {}", e))?;
+        filesrc.link(&decodebin).map_err(|e| anyhow!("link: {}", e))?;
+
+        let videoconvert_ref = videoconvert.clone();
+        decodebin.connect_pad_added(move |_, src_pad| {
+            if let Some(sink) = videoconvert_ref.static_pad("sink") {
+                if !sink.is_linked() {
+                    if let Some(caps) = src_pad.current_caps() {
+                        if let Some(s) = caps.structure(0) {
+                            if s.name().starts_with("image/") || s.name().starts_with("video/") {
+                                let _ = src_pad.link(&sink);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        gst::Element::link_many([&videoconvert, &videoscale, &capsfilter, &pngenc, &filesink])
+            .map_err(|e| anyhow!("downstream: {}", e))?;
+
+        let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;
+        pipeline.set_state(gst::State::Playing).map_err(|e| anyhow!("play: {}", e))?;
+
+        let msg = bus.timed_pop_filtered(gst::ClockTime::from_seconds(30),
+            &[gst::MessageType::Error, gst::MessageType::Eos]);
+        pipeline.set_state(gst::State::Null).map_err(|e| anyhow!("stop: {}", e))?;
+
+        match msg {
+            Some(msg) => match msg.view() {
+                gst::MessageView::Error(err) => Err(anyhow!("err: {}", err.error())),
+                gst::MessageView::Eos(_) => Ok(thumbnail_path),
+                _ => Err(anyhow!("unexpected")),
+            },
+            None => Err(anyhow!("timeout")),
+        }
     }
 
     fn generate_audio_thumbnail(&self, path: &Path, options: &ThumbnailOptions) -> Result<PathBuf> {
-
         let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
         let thumbnail_path = self.temp_dir.join(format!(
-            "{}-waveform-{}x{}.png",
-            file_stem,
-            options.width,
-            options.height
+            "{}-waveform-{}x{}.png", file_stem, options.width, options.height
         ));
 
-        let _pipeline_str = format!(
-            "filesrc location=\"{}\" ! decodebin ! audioconvert ! \
-             audiowaveform wave-mode=lines style=lines fill=true background-color=0x000000ff \
-             foreground-color=0x00FF00FF scale-digitized=true ! \
-             pngenc compression-level=6 ! filesink location=\"{}\"",
-            path.to_str().unwrap(),
-            thumbnail_path.to_str().unwrap()
-        );
+        let pipeline = gst::Pipeline::new();
+        let filesrc = gst::ElementFactory::make("filesrc")
+            .property("location", path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesrc: {}", e))?;
+        let decodebin = gst::ElementFactory::make("decodebin")
+            .build().map_err(|e| anyhow!("decodebin: {}", e))?;
+        let audioconvert = gst::ElementFactory::make("audioconvert")
+            .build().map_err(|e| anyhow!("audioconvert: {}", e))?;
+        let audiowaveform = gst::ElementFactory::make("audiowaveform")
+            .property("wave-mode", "lines")
+            .property("style", "lines")
+            .property("fill", true)
+            .property("background-color", 0x000000ff_u32)
+            .property("foreground-color", 0x00FF00FF_u32)
+            .property("scale-digitized", true)
+            .build().map_err(|e| anyhow!("audiowaveform: {}", e))?;
+        let pngenc = gst::ElementFactory::make("pngenc")
+            .property("compression-level", 6i32)
+            .build().map_err(|e| anyhow!("pngenc: {}", e))?;
+        let filesink = gst::ElementFactory::make("filesink")
+            .property("location", thumbnail_path.to_str().unwrap())
+            .build().map_err(|e| anyhow!("filesink: {}", e))?;
 
-        // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow!("parse_launch not available in current GStreamer version"));
-    }
+        pipeline.add_many([&filesrc, &decodebin, &audioconvert, &audiowaveform, &pngenc, &filesink])
+            .map_err(|e| anyhow!("add: {}", e))?;
+        filesrc.link(&decodebin).map_err(|e| anyhow!("link: {}", e))?;
+
+        let audioconvert_ref = audioconvert.clone();
+        decodebin.connect_pad_added(move |_, src_pad| {
+            if let Some(sink) = audioconvert_ref.static_pad("sink") {
+                if !sink.is_linked() {
+                    if let Some(caps) = src_pad.current_caps() {
+                        if let Some(s) = caps.structure(0) {
+                            if s.name().starts_with("audio/") {
+                                let _ = src_pad.link(&sink);
+                            }
+                        }
+                    }
+                }
+            }
+        });
         
-    fn generate_generic_audio_thumbnail(&self, options: &ThumbnailOptions) -> Result<PathBuf> {
+        gst::Element::link_many([&audioconvert, &audiowaveform, &pngenc, &filesink])
+            .map_err(|e| anyhow!("downstream: {}", e))?;
 
-        let thumbnail_path = self.temp_dir.join(format!(
-            "audio-icon-{}x{}.png",
-            options.width,
-            options.height
-        ));
+        let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;
+        pipeline.set_state(gst::State::Playing).map_err(|e| anyhow!("play: {}", e))?;
 
-        let _pipeline_str = format!(
-            "videotestsrc pattern=black ! video/x-raw,width={},height={} ! \
-             textoverlay text=\"Audio File\" font-desc=\"Sans 24\" ! \
-             pngenc compression-level=6 ! filesink location=\"{}\"",
-            options.width,
-            options.height,
-            thumbnail_path.to_str().unwrap()
-        );
+        let msg = bus.timed_pop_filtered(gst::ClockTime::from_seconds(60),
+            &[gst::MessageType::Error, gst::MessageType::Eos]);
+        pipeline.set_state(gst::State::Null).map_err(|e| anyhow!("stop: {}", e))?;
 
-        // TODO: GStreamer parse_launch API has changed - need to update to use manual pipeline construction
-        return Err(anyhow!("parse_launch not available in current GStreamer version"));
+        match msg {
+            Some(msg) => match msg.view() {
+                gst::MessageView::Error(err) => Err(anyhow!("err: {}", err.error())),
+                gst::MessageView::Eos(_) => Ok(thumbnail_path),
+                _ => Err(anyhow!("unexpected")),
+            },
+            None => Err(anyhow!("timeout")),
+        }
     }
 }

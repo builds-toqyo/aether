@@ -1,5 +1,5 @@
 use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult};
-use aether_types::{Node, NodeType, PinDataType, ParameterValue};
+use aether_types::{Node, NodeType, ParameterValue};
 use std::collections::HashMap;
 use uuid::Uuid;
 use log::debug;

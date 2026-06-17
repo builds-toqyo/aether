@@ -1,5 +1,5 @@
 use crate::nodes::{NodeError, NodeResult};
-use aether_types::{Graph, Connection};
+use aether_types::Graph;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 use log::debug;

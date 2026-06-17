@@ -43,7 +43,7 @@ pub async fn create_node(
         name,
         position,
         success: true,
-        message: "TODO".to_string(),
+        message: "Node created successfully".to_string(),
     })
 }
 

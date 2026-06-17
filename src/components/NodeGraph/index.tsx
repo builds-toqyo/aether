@@ -342,7 +342,7 @@ export const NodeGraphEditor: React.FC = () => {
 
   return (
     <NodeGraphProvider value={contextValue}>
-      <div className="flex h-screen bg-gray-900">
+      <div className="flex h-full bg-[#0d0d0d]">
         <NodeGraphToolbar />
         
         <div className="flex-1 relative overflow-hidden">

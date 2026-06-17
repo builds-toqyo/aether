@@ -2,13 +2,15 @@ pub mod core;
 pub mod validation;
 pub mod execution_order;
 pub mod basic;
+pub mod gpu;
 
 pub use core::*;
 pub use validation::*;
 pub use execution_order::*;
 pub use basic::*;
+pub use gpu::*;
 
-use aether_types::{Node, Graph, Connection, NodeType, PinDataType, ParameterValue};
+use aether_types::{Node, NodeType, ParameterValue};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -59,7 +61,7 @@ pub trait NodeExecutor {
 
     fn get_outputs(&self) -> Vec<Uuid>;
 
-    fn can_execute(&self, context: &ExecutionContext) -> bool {
+    fn can_execute(&self, _context: &ExecutionContext) -> bool {
         true
     }
 }
@@ -78,8 +80,8 @@ pub struct ExecutionContext {
 
 #[derive(Debug, Clone)]
 pub struct GpuContext {
-    pub device: u64,
-    pub command_queue: u64,
+    pub device: Option<std::sync::Arc<wgpu::Device>>,
+    pub queue: Option<std::sync::Arc<wgpu::Queue>>,
     pub available_memory: u64,
 }
 
@@ -270,27 +272,6 @@ impl Default for NodeManager {
     }
 }
 
-
-#[derive(Debug)]
-struct DummyNode;
-
-impl NodeExecutor for DummyNode {
-    fn execute(&mut self, _context: &mut ExecutionContext) -> NodeResult<()> {
-        Ok(())
-    }
-
-    fn node_type(&self) -> NodeType {
-        NodeType::Custom("dummy".to_string())
-    }
-
-    fn get_inputs(&self) -> Vec<Uuid> {
-        vec![]
-    }
-
-    fn get_outputs(&self) -> Vec<Uuid> {
-        vec![]
-    }
-}
 
 #[cfg(test)]
 mod tests {

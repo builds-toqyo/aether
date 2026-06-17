@@ -1,11 +1,10 @@
 use anyhow::{anyhow, Result};
-use log::{debug, error, info};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use super::file_manager::{FileManager, MediaInfo, ThumbnailOptions};
+use super::file_manager::{FileManager, ThumbnailOptions};
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -464,10 +463,10 @@ impl BatchProcessor {
 
 
     fn process_convert(
-        file_manager: &FileManager,
-        operation: &BatchOperation,
-        id: u64,
-        results: &Arc<Mutex<Vec<(u64, BatchResult<Vec<PathBuf>>)>>>
+        _file_manager: &FileManager,
+        _operation: &BatchOperation,
+        _id: u64,
+        _results: &Arc<Mutex<Vec<(u64, BatchResult<Vec<PathBuf>>)>>>
     ) -> Result<Vec<PathBuf>> {
 
 

@@ -163,39 +163,13 @@ impl AnimationInterpolator {
     ) -> InterpolationResult {
         let prev_time = prev_keyframe.time();
         let next_time = next_keyframe.time();
-        let interpolation_method = prev_keyframe.interpolation();
         let easing_function = prev_keyframe.easing();
 
-        let t = (time - prev_time) / (next_time - prev_time);
+        let t = ((time - prev_time) / (next_time - prev_time)).clamp(0.0, 1.0);
         let curve_t = self.apply_easing(t, easing_function);
 
-        let mut result = self.linear_interpolate(prev_keyframe, next_keyframe, t).unwrap_or_else(|_| InterpolationResult::failure(time));
-
-        match &mut result.value {
-            TrackValue::Float(v) => *v *= curve_t,
-            TrackValue::Vector2(v) => {
-                v[0] *= curve_t;
-                v[1] *= curve_t;
-            }
-            TrackValue::Vector3(v) => {
-                v[0] *= curve_t;
-                v[1] *= curve_t;
-                v[2] *= curve_t;
-            }
-            TrackValue::Vector4(v) => {
-                v[0] *= curve_t;
-                v[1] *= curve_t;
-                v[2] *= curve_t;
-                v[3] *= curve_t;
-            }
-            TrackValue::Color(v) => {
-                v[0] *= curve_t;
-                v[1] *= curve_t;
-                v[2] *= curve_t;
-                v[3] *= curve_t;
-            }
-            TrackValue::Boolean(_) | TrackValue::String(_) => {}
-        }
+        let result = self.linear_interpolate(prev_keyframe, next_keyframe, curve_t)
+            .unwrap_or_else(|_| InterpolationResult::failure(time));
 
         result
     }
@@ -214,9 +188,8 @@ impl AnimationInterpolator {
         self.stats = InterpolationStats::default();
     }
 
-    fn apply_easing(&self, t: f64, _easing: EasingFunction) -> f64 {
-        // TODO: implement actual easing functions
-        t
+    fn apply_easing(&self, t: f64, easing: EasingFunction) -> f64 {
+        easing.apply(t)
     }
 
     fn linear_interpolate(

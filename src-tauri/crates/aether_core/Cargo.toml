@@ -39,8 +39,17 @@ num_cpus = "1.17.0"      # For CPU count detection
 aether_types = { path = "../aether_types" }
 
 # ACES/OpenColorIO dependencies for professional color pipeline
-# Note: OpenColorIO Rust bindings not available on crates.io yet
-# Will need to implement custom bindings or use C FFI
+libloading = "0.9.0"
+
+# Font metrics and text rendering
+fontdue = "0.9"
+
+[features]
+default = []
+cuda = []
+vaapi = []
+videotoolbox = []
+amf = []
 
 [dev-dependencies]
 env_logger = "0.11.10"   # For test logging

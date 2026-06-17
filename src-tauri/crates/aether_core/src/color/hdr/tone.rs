@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use log::debug;
 
 use super::types::HdrImage;
@@ -48,7 +48,7 @@ impl ToneMapper {
     }
 
 
-    fn reinhard_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, config: &ToneMappingConfig) -> super::types::HdrPixel {
+    fn reinhard_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, _config: &ToneMappingConfig) -> super::types::HdrPixel {
         let scale = 1.0 / display.peak_luminance;
         let r = pixel.r * scale;
         let g = pixel.g * scale;
@@ -96,9 +96,9 @@ impl ToneMapper {
     }
 
 
-    fn aces_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, config: &ToneMappingConfig) -> super::types::HdrPixel {
+    fn aces_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, _config: &ToneMappingConfig) -> super::types::HdrPixel {
         let a = 2.51;
-        let b = 0.03;
+        let _b = 0.03;
         let c = 2.43;
         let d = 0.59;
         let e = 0.14;
@@ -120,9 +120,9 @@ impl ToneMapper {
     }
 
 
-    fn hable_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, config: &ToneMappingConfig) -> super::types::HdrPixel {
+    fn hable_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, _config: &ToneMappingConfig) -> super::types::HdrPixel {
         let a = 0.22;
-        let b = 0.30;
+        let _b = 0.30;
         let c = 0.10;
         let d = 0.20;
         let e = 0.01;
@@ -149,7 +149,7 @@ impl ToneMapper {
     }
 
 
-    fn drago_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, config: &ToneMappingConfig) -> super::types::HdrPixel {
+    fn drago_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, _config: &ToneMappingConfig) -> super::types::HdrPixel {
         let log_max = display.peak_luminance.log10();
         let bias = 0.85;
 

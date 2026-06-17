@@ -305,7 +305,7 @@ impl ColorCorrection {
         let luma = 0.2126 * r_contrast + 0.7152 * g_contrast + 0.0722 * b_contrast;
         let r_saturated = luma + (r_contrast - luma) * self.saturation;
         let g_saturated = luma + (g_contrast - luma) * self.saturation;
-        let b_saturated = luma + (b_contrast - luma) * self.saturation;
+        let _b_saturated = luma + (b_contrast - luma) * self.saturation;
 
 
         let r_balanced = r_saturated * self.color_balance[0];

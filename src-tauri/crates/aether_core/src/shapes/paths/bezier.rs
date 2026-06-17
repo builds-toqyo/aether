@@ -168,7 +168,7 @@ impl BezierCurve {
 
 
     pub fn subdivide_cubic_bezier(
-        t: f64,
+        _t: f64,
         p0: (f64, f64),
         p1: (f64, f64),
         p2: (f64, f64),
@@ -190,7 +190,7 @@ impl BezierCurve {
     }
 
     pub fn subdivide_quadratic_bezier(
-        t: f64,
+        _t: f64,
         p0: (f64, f64),
         p1: (f64, f64),
         p2: (f64, f64),

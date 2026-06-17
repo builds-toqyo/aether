@@ -7,6 +7,7 @@ use log::{debug, info, error};
 use crate::state::AppState;
 use aether_types::{ParameterValue};
 use aether_core::nodes::{NodeExecutor, ExecutionContext};
+use aether_core::nodes::core::CoreNodes;
 
 
 #[tauri::command]
@@ -26,16 +27,12 @@ pub async fn execute_graph(
 
     // Create execution context
     let frame_number = frame.unwrap_or(0);
-    let mut context = ExecutionContext {
-        frame: frame_number,
-        time: frame_number as f64 / 30.0,
-        frame_rate: 30.0,
-        resolution: (1920, 1080),
-        inputs: HashMap::new(),
-        outputs: HashMap::new(),
-        global_parameters: HashMap::new(),
-        gpu_context: None,
-    };
+    let mut context = ExecutionContext::new(
+        frame_number,
+        frame_number as f64 / 30.0,
+        30.0,
+        (1920, 1080),
+    );
 
     // Execute nodes in order
     let mut executed_nodes = Vec::new();
@@ -100,9 +97,7 @@ pub async fn get_node_result(
     let node = graph.get_node(&node_uuid)
         .ok_or_else(|| format!("Node not found: {}", node_id))?;
 
-
     let execution_results = state.execution_results.lock().map_err(|e| format!("Failed to lock execution results: {}", e))?;
-
 
     let mut outputs = HashMap::new();
 
@@ -136,9 +131,55 @@ pub async fn get_node_result(
     })
 }
 
+#[tauri::command]
+pub async fn connect_node_to_clip(
+    node_id: String,
+    output_pin_name: String,
+    clip_id: String,
+    effect_id: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<NodeClipConnectionResponse, String> {
+    debug!("Connecting node {} output {} to clip {} (effect: {:?})", node_id, output_pin_name, clip_id, effect_id);
 
-fn create_node_executor(_node: &aether_types::Node) -> Result<Box<dyn NodeExecutor + Send + Sync>, String> {
-    Err("Node executor creation not implemented".to_string())
+    let node_uuid = uuid::Uuid::parse_str(&node_id)
+        .map_err(|e| format!("Invalid node ID: {}", e))?;
+
+    let graph = state.graph.lock().map_err(|e| format!("Failed to lock graph: {}", e))?;
+
+    let node = graph.get_node(&node_uuid)
+        .ok_or_else(|| format!("Node not found: {}", node_id))?;
+
+    let _output_pin = node.get_output_pin_by_name(&output_pin_name)
+        .ok_or_else(|| format!("Output pin '{}' not found", output_pin_name))?;
+
+    // Store the connection in execution results for later use
+    let mut execution_results = state.execution_results.lock().map_err(|e| format!("Failed to lock execution results: {}", e))?;
+
+    let _connection_key = format!("{}_{}", node_id, output_pin_name);
+    let connection_value = if let Some(ref effect_id) = effect_id {
+        format!("clip:{}:effect:{}", clip_id, effect_id)
+    } else {
+        format!("clip:{}", clip_id)
+    };
+    execution_results.insert(
+        uuid::Uuid::new_v4(),
+        ParameterValue::String(connection_value)
+    );
+
+    info!("Connected node {} output {} to clip {}", node_id, output_pin_name, clip_id);
+
+    Ok(NodeClipConnectionResponse {
+        node_id,
+        output_pin_name,
+        clip_id: clip_id.clone(),
+        success: true,
+        message: format!("Node output connected to clip {}", clip_id),
+    })
+}
+
+fn create_node_executor(node: &aether_types::Node) -> Result<Box<dyn NodeExecutor + Send + Sync>, String> {
+    CoreNodes::create_node_by_type(node.node_type.clone(), node.clone())
+        .ok_or_else(|| format!("Unsupported node type: {:?}", node.node_type))
 }
 
 
@@ -177,6 +218,15 @@ pub struct NodeResultResponse {
     pub node_name: String,
     pub node_type: String,
     pub outputs: HashMap<String, String>,
+    pub success: bool,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NodeClipConnectionResponse {
+    pub node_id: String,
+    pub output_pin_name: String,
+    pub clip_id: String,
     pub success: bool,
     pub message: String,
 }

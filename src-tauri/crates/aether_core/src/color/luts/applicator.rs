@@ -1,7 +1,7 @@
 
 
 use image::{Rgb, RgbImage};
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use log::debug;
 
 use super::{types::LutData, config::LutConfig};
@@ -167,7 +167,7 @@ impl LutApplicator {
 
         let c000 = lut_data.data.get(idx000).unwrap_or(&[0.0, 0.0, 0.0]);
         let c100 = lut_data.data.get(idx100).unwrap_or(&[0.0, 0.0, 0.0]);
-        let c010 = lut_data.data.get(idx010).unwrap_or(&[0.0, 0.0, 0.0]);
+        let _c010 = lut_data.data.get(idx010).unwrap_or(&[0.0, 0.0, 0.0]);
         let c001 = lut_data.data.get(idx001).unwrap_or(&[0.0, 0.0, 0.0]);
 
 
@@ -324,7 +324,7 @@ impl LutApplicator {
 
 
     pub fn get_performance_metrics(&self, lut_data: &LutData) -> LutPerformanceMetrics {
-        let size = lut_data.size as f32;
+        let _size = lut_data.size as f32;
         let memory_usage = lut_data.data.len() * 3 * std::mem::size_of::<f32>();
 
         LutPerformanceMetrics {

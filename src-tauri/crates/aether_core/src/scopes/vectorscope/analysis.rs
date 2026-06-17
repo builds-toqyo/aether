@@ -1,5 +1,4 @@
 use anyhow::{Result};
-use log::debug;
 
 use crate::types::{
     VectorscopeData, VectorscopeTarget, ColorSpace,
@@ -8,13 +7,13 @@ use crate::types::{
 use crate::scopes::ColorConverter;
 
 pub struct VectorscopeAnalyzer {
-    color_converter: ColorConverter,
+    _color_converter: ColorConverter,
 }
 
 impl VectorscopeAnalyzer {
     pub fn new() -> Self {
         Self {
-            color_converter: ColorConverter::new(ColorSpace::Rec709),
+            _color_converter: ColorConverter::new(ColorSpace::Rec709),
         }
     }
 

@@ -6,7 +6,7 @@ use gstreamer as gst;
 use gst::prelude::*;
 use gstreamer_pbutils as gst_pbutils;
 use gstreamer_editing_services as ges;
-use gstreamer_editing_services::prelude::{TimelineExt, PipelineExt, EncodingProfileBuilder};
+use gstreamer_editing_services::prelude::*;
 use glib::{filename_to_uri, ControlFlow, MainLoop, SourceId};
 use crate::engine::editing::types::EditingError;
 use crate::engine::rendering::formats::{VideoFormat, AudioFormat, ContainerFormat};
@@ -16,38 +16,25 @@ pub type ExportCallback = Arc<dyn Fn(ExportProgress) + Send + Sync + 'static>;
 
 #[derive(Debug, Clone)]
 pub struct ExportOptions {
-    pub timeline: ges::Timeline,
-
     pub output_path: PathBuf,
-
     pub container_format: ContainerFormat,
-
     pub video_format: VideoFormat,
     pub audio_format: AudioFormat,
-
     pub video_bitrate: u32,
-
     pub audio_bitrate: u32,
-
     pub frame_rate: f64,
-
     pub width: u32,
-
     pub height: u32,
-
     pub encoder_preset: EncoderPreset,
-
     pub crf: u8,
-
     pub hardware_acceleration: bool,
-
     pub threads: u8,
+    pub project_path: Option<PathBuf>,
 }
 
 impl Default for ExportOptions {
     fn default() -> Self {
         Self {
-            timeline: ges::Timeline::new(),
             output_path: PathBuf::new(),
             container_format: ContainerFormat::Mp4,
             video_format: VideoFormat::H264,
@@ -61,6 +48,7 @@ impl Default for ExportOptions {
             crf: 23,
             hardware_acceleration: false,
             threads: 0,
+            project_path: None,
         }
     }
 }
@@ -98,15 +86,13 @@ pub struct GstExporter {
     timeout_id: Option<SourceId>,
 
     cancel_flag: Arc<Mutex<bool>>,
+    pause_flag: Arc<Mutex<bool>>,
 }
-
-// TODO: GStreamer types are not Send/Sync; this is a compilation workaround.
-unsafe impl Send for GstExporter {}
-unsafe impl Sync for GstExporter {}
 
 impl GstExporter {
     pub fn new(options: ExportOptions) -> Result<Self, EditingError> {
         gst::init().map_err(|e| EditingError::ExportError(format!("Failed to initialize GStreamer: {}", e)))?;
+        ges::init().map_err(|e| EditingError::ExportError(format!("Failed to initialize GES: {}", e)))?;
 
         let progress = Arc::new(Mutex::new(ExportProgress {
             current_frame: 0,
@@ -127,6 +113,7 @@ impl GstExporter {
             bus_watch_id: None,
             timeout_id: None,
             cancel_flag: Arc::new(Mutex::new(false)),
+            pause_flag: Arc::new(Mutex::new(false)),
         })
     }
 
@@ -142,14 +129,27 @@ impl GstExporter {
 
         let pipeline = ges::Pipeline::new();
 
-        let duration = self.options.timeline.duration();
+        let timeline = ges::Timeline::new();
+
+        if let Some(project_path) = &self.options.project_path {
+            let uri = filename_to_uri(project_path, None)
+                .map_err(|e| EditingError::ExportError(format!("Failed to convert project path to URI: {}", e)))?;
+            timeline.load_from_uri(&uri)
+                .map_err(|e| EditingError::ExportError(format!("Failed to load timeline from {}: {}", project_path.display(), e)))?;
+        }
+
+        pipeline.set_timeline(&timeline)
+            .map_err(|e| EditingError::ExportError(format!("Failed to set timeline on pipeline: {}", e)))?;
+
+        let duration = timeline.duration();
         let duration_nanos = duration.nseconds();
-        let total_frames = (duration_nanos as f64 / gst::ClockTime::SECOND.nseconds() as f64 * self.options.frame_rate) as u64;
+        let duration_seconds = duration_nanos as f64 / gst::ClockTime::SECOND.nseconds() as f64;
+        let total_frames = (duration_seconds * self.options.frame_rate) as u64;
 
         {
             let mut progress = self.progress.lock().unwrap();
             progress.total_frames = total_frames;
-            progress.total_duration = duration_nanos as f64 / gst::ClockTime::SECOND.nseconds() as f64;
+            progress.total_duration = duration_seconds;
 
             if let Some(callback) = &self.progress_callback {
                 callback(progress.clone());
@@ -162,11 +162,35 @@ impl GstExporter {
         let output_uri = filename_to_uri(self.options.output_path.as_path(), None)
             .context("Failed to convert output path to URI")?;
 
-        // TODO: GES Pipeline API changed - set_render_settings and set_mode no longer available
-        // pipeline.set_render_settings(&output_uri, &profile)
-        //     .context("Failed to set render settings")?;
-        // pipeline.set_mode(ges::PipelineFlags::RENDER)
-        //     .context("Failed to set pipeline mode to render")?;
+        let encodebin = gst::ElementFactory::make("encodebin")
+            .name("encoder")
+            .property("profile", &profile)
+            .build()
+            .map_err(|_| EditingError::ExportError("Failed to create encodebin".to_string()))?;
+        let filesink = gst::ElementFactory::make("filesink")
+            .name("export_sink")
+            .property("location", &output_uri)
+            .build()
+            .map_err(|_| EditingError::ExportError("Failed to create filesink".to_string()))?;
+
+        pipeline.add_many(&[&encodebin, &filesink])
+            .map_err(|e| EditingError::ExportError(format!("Failed to add elements: {}", e)))?;
+        gst::Element::link_many(&[&encodebin, &filesink])
+            .map_err(|e| EditingError::ExportError(format!("Failed to link encodebin to filesink: {}", e)))?;
+
+        let v_src_pad = pipeline.static_pad("video_0")
+            .ok_or_else(|| EditingError::ExportError("Pipeline has no video src pad".to_string()))?;
+        let a_src_pad = pipeline.static_pad("audio_0")
+            .ok_or_else(|| EditingError::ExportError("Pipeline has no audio src pad".to_string()))?;
+        let v_sink_pad = encodebin.request_pad_simple("video_%u")
+            .ok_or_else(|| EditingError::ExportError("Failed to request video sink pad".to_string()))?;
+        let a_sink_pad = encodebin.request_pad_simple("audio_%u")
+            .ok_or_else(|| EditingError::ExportError("Failed to request audio sink pad".to_string()))?;
+
+        v_src_pad.link(&v_sink_pad)
+            .map_err(|e| EditingError::ExportError(format!("Failed to link video to encodebin: {}", e)))?;
+        a_src_pad.link(&a_sink_pad)
+            .map_err(|e| EditingError::ExportError(format!("Failed to link audio to encodebin: {}", e)))?;
 
         let bus = pipeline.bus().expect("Pipeline without bus");
 
@@ -343,6 +367,28 @@ impl GstExporter {
         Ok(())
     }
 
+    pub fn pause(&mut self) -> Result<(), EditingError> {
+        *self.pause_flag.lock().unwrap() = true;
+        if let Some(pipeline) = &self.pipeline {
+            pipeline.set_state(gst::State::Paused)
+                .map_err(|e| EditingError::ExportError(format!("Failed to pause pipeline: {:?}", e)))?;
+        }
+        Ok(())
+    }
+
+    pub fn resume(&mut self) -> Result<(), EditingError> {
+        *self.pause_flag.lock().unwrap() = false;
+        if let Some(pipeline) = &self.pipeline {
+            pipeline.set_state(gst::State::Playing)
+                .map_err(|e| EditingError::ExportError(format!("Failed to resume pipeline: {:?}", e)))?;
+        }
+        Ok(())
+    }
+
+    pub fn is_paused(&self) -> bool {
+        *self.pause_flag.lock().unwrap()
+    }
+
     pub fn get_progress(&self) -> ExportProgress {
         self.progress.lock().unwrap().clone()
     }
@@ -362,7 +408,7 @@ impl GstExporter {
 
 impl Drop for GstExporter {
     fn drop(&mut self) {
-        if let Some(watch_id) = self.bus_watch_id.take() {
+        if let Some(_watch_id) = self.bus_watch_id.take() {
             // BusWatchGuard removed on drop
         }
 

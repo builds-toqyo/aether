@@ -8,9 +8,7 @@ use crate::engine::editing::{
 };
 use crate::engine::rendering::{
     RenderingEngine,
-    ExportOptions as FfmpegExportOptions,
-    ExportProgress as FfmpegExportProgress,
-    formats::ContainerFormat
+    ExportOptions as FfmpegExportOptions
 };
 use crate::engine::editing::types::EditingError;
 
@@ -111,7 +109,7 @@ impl ExportOptions {
 /// Integrated exporter that combines GStreamer and FFmpeg
 pub struct IntegratedExporter {
     editing_engine: Arc<Mutex<EditingEngine>>,
-    rendering_engine: Arc<Mutex<RenderingEngine>>,
+    _rendering_engine: Arc<Mutex<RenderingEngine>>,
     options: ExportOptions,
     progress: Arc<Mutex<ExportProgress>>,
     progress_callback: Option<Arc<Mutex<Box<dyn Fn(ExportProgress) + Send>>>>,
@@ -135,7 +133,7 @@ impl IntegratedExporter {
 
         Self {
             editing_engine,
-            rendering_engine,
+            _rendering_engine: rendering_engine,
             options,
             progress,
             progress_callback: None,
@@ -154,7 +152,7 @@ impl IntegratedExporter {
     pub fn start_export(&mut self) -> Result<(), EditingError> {
         self.update_progress(ExportStage::Preparing, 0.0, None);
 
-        let timeline = self.editing_engine.lock().unwrap()
+        let _timeline = self.editing_engine.lock().unwrap()
             .timeline().lock().unwrap()
             .get_ges_timeline()
             .ok_or(EditingError::NotInitialized)?

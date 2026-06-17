@@ -1,21 +1,20 @@
 
 
 use anyhow::{Result};
-use log::debug;
 use image::{Rgb, RgbImage};
 
 use crate::types::{HistogramData, HistogramChannel, HistogramConfig, HistogramMode};
 
 
 pub struct HistogramRenderer {
-    grid_color: Rgb<u8>,
+    _grid_color: Rgb<u8>,
 }
 
 impl HistogramRenderer {
 
     pub fn new() -> Self {
         Self {
-            grid_color: Rgb([8, 8, 8]),
+            _grid_color: Rgb([8, 8, 8]),
         }
     }
 

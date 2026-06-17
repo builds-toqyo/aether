@@ -3,10 +3,10 @@
 use std::sync::{Arc, RwLock};
 use anyhow::{Result, anyhow};
 use log::{debug, info};
-use image::{Rgb, RgbImage};
+use image::RgbImage;
 
 use crate::types::{
-    HistogramData, HistogramChannel, HistogramConfig, HistogramMode,
+    HistogramData, HistogramChannel, HistogramConfig,
     ScopeStats,
 };
 

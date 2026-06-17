@@ -5,6 +5,7 @@ pub mod transforms;
 pub mod looks;
 pub mod config;
 pub mod gamma;
+pub mod ocio;
 
 
 pub use processor::AcesProcessor;

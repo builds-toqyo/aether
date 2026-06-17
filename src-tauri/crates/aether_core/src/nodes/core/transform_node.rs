@@ -1,5 +1,5 @@
 use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult};
-use aether_types::{Node, NodeType, PinDataType, ParameterValue};
+use aether_types::{Node, NodeType, ParameterValue};
 use uuid::Uuid;
 use log::debug;
 
@@ -23,7 +23,7 @@ impl CoreTransformNode {
         let mut scale = 1.0;
         let mut rotation = 0.0;
         let mut anchor_x = 0.0;
-        let mut anchor_y = 0.0;
+        let mut _anchor_y = 0.0;
 
         if let Some(param) = self.node.parameters.get("position_x") {
             if let ParameterValue::Float(val) = param.value {
@@ -57,7 +57,7 @@ impl CoreTransformNode {
 
         if let Some(param) = self.node.parameters.get("anchor_y") {
             if let ParameterValue::Float(val) = param.value {
-                anchor_y = val;
+                _anchor_y = val;
             }
         }
 
@@ -73,13 +73,6 @@ impl CoreTransformNode {
 
 
         input_value
-    }
-
-
-    fn is_transform_active(&self) -> bool {
-        let (pos_x, pos_y, scale, rotation, anchor_x) = self.get_transform_params();
-
-        pos_x != 0.0 || pos_y != 0.0 || scale != 1.0 || rotation != 0.0 || anchor_x != 0.0
     }
 }
 

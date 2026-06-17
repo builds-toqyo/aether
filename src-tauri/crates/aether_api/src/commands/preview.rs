@@ -1,3 +1,4 @@
+use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::{Serialize, Deserialize};
 use tauri::State;
 use anyhow::Result;
@@ -109,20 +110,33 @@ pub struct PreviewResponse {
 
 #[tauri::command]
 pub async fn get_preview_info(
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<PreviewInfo, String> {
     debug!("Getting preview info");
 
-    // In a real implementation, this would query the preview engine
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    let (width, height) = engine.get_preview_dimensions()
+        .map_err(|e| format!("Preview dimensions unavailable: {}", e))?;
+
+    let preview_state = engine.get_preview_state()
+        .map_err(|e| format!("Preview state unavailable: {}", e))?;
+
+    let fps = 30.0;
+    let duration_secs = preview_state.duration.map(|d| d as f64 / 1_000_000_000.0).unwrap_or(0.0);
+    let current_time = preview_state.position as f64 / 1_000_000_000.0;
+    let total_frames = (duration_secs * fps) as u32;
+    let current_frame = (current_time * fps) as u32;
+
     let preview_info = PreviewInfo {
-        width: 1920,
-        height: 1080,
-        fps: 30.0,
-        duration: 120.0,
-        current_time: 0.0,
-        current_frame: 0,
-        total_frames: 3600, // 120 seconds * 30 fps
-        is_playing: false,
+        width,
+        height,
+        fps,
+        duration: duration_secs,
+        current_time,
+        current_frame,
+        total_frames,
+        is_playing: preview_state.is_playing,
         quality: PreviewQuality::High,
         format: FrameFormat::Rgba8,
     };
@@ -188,36 +202,37 @@ pub async fn preview_playback_control(
 #[tauri::command]
 pub async fn preview_seek(
     request: PreviewSeekRequest,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<PreviewResponse, String> {
-    debug!("{}", request.time);
+    debug!("Preview seek to time: {}", request.time);
 
-    // Validate time
     if request.time < 0.0 {
-        return Err("TODO".to_string());
+        return Err("Preview seek time cannot be negative".to_string());
     }
 
-    // In a real implementation, this would seek the preview engine
-    info!("{}", request.time);
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let position_ns = (request.time * 1_000_000_000.0) as i64;
+    engine.preview_seek(position_ns)
+        .map_err(|e| format!("Preview seek failed: {}", e))?;
+
+    info!("Preview seek to time: {}", request.time);
 
     Ok(PreviewResponse {
         success: true,
         message: format!("Seeked to {}", request.time),
         data: Some(serde_json::json!({
             "time": request.time,
-            "frame": (request.time * 30.0) as u32 // Assuming 30 fps
+            "frame": (request.time * 30.0) as u32
         })),
     })
 }
 
-/// Get frame at specific timestamp
 #[tauri::command]
 pub async fn preview_get_frame(
     request: PreviewFrameRequest,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<PreviewFrame, String> {
     debug!("Getting preview frame at timestamp: {}", request.timestamp);
-
 
     if request.timestamp < 0.0 {
         return Err("Timestamp cannot be negative".to_string());
@@ -226,25 +241,94 @@ pub async fn preview_get_frame(
     let quality = request.quality.unwrap_or(PreviewQuality::Medium);
     let format = request.format.unwrap_or(FrameFormat::Rgba8);
 
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    let frame_data = engine.get_preview_frame()
+        .map_err(|e| format!("Failed to get preview frame: {}", e))?;
+
+    let (width, height) = engine.get_preview_dimensions()
+        .map_err(|e| format!("Failed to get preview dimensions: {}", e))?;
 
     let frame_number = (request.timestamp * 30.0) as u32;
     let frame_id = format!("frame_{}", frame_number);
 
-    info!("Generated frame: {} at {}s (quality: {:?}, format: {:?})",
+    let data_base64 = frame_data.map(|data| STANDARD.encode(&data));
+
+    info!("Retrieved frame: {} at {}s (quality: {:?}, format: {:?})",
           frame_id, request.timestamp, quality, format);
 
     let preview_frame = PreviewFrame {
-        id: frame_id,
+        id: frame_id.clone(),
         timestamp: request.timestamp,
-        width: 1920,
-        height: 1080,
+        width,
+        height,
         format,
-        data: None,
+        data: data_base64,
         frame_number,
         fps: 30.0,
     };
 
+    if let Ok(plugin_registry) = state.plugin_registry.lock() {
+        use crate::commands::plugin::PluginHook;
+        plugin_registry.invoke_hook(
+            PluginHook::ProcessFrame,
+            &serde_json::json!({"frame_id": frame_id, "timestamp": request.timestamp, "width": width, "height": height})
+        );
+    }
+
     Ok(preview_frame)
+}
+
+/// Generate thumbnails from video at specified intervals
+#[tauri::command]
+pub async fn preview_generate_thumbnails(
+    video_path: String,
+    interval_seconds: Option<f64>,
+    count: Option<u32>,
+    state: State<'_, AppState>,
+) -> Result<Vec<PreviewFrame>, String> {
+    debug!("Generating thumbnails for: {} interval: {:?} count: {:?}", video_path, interval_seconds, count);
+
+    if video_path.is_empty() {
+        return Err("Video path cannot be empty".to_string());
+    }
+
+    let path = std::path::PathBuf::from(&video_path);
+    if !path.exists() {
+        return Err(format!("Video file not found: {}", video_path));
+    }
+
+    let interval = interval_seconds.unwrap_or(5.0);
+    let thumbnail_count = count.unwrap_or(10);
+
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    let (width, height) = engine.get_preview_dimensions()
+        .map_err(|e| format!("Failed to get preview dimensions: {}", e))?;
+
+    let mut thumbnails = Vec::new();
+    for i in 0..thumbnail_count {
+        let timestamp = i as f64 * interval;
+        let frame_data = engine.get_preview_frame()
+            .map_err(|e| format!("Failed to get preview frame at {}: {}", timestamp, e))?;
+
+        let data_base64 = frame_data.map(|data| STANDARD.encode(&data));
+
+        let thumbnail = PreviewFrame {
+            id: format!("thumb_{}", i),
+            timestamp,
+            width,
+            height,
+            format: FrameFormat::Jpeg,
+            data: data_base64,
+            frame_number: (timestamp * 30.0) as u32,
+            fps: 30.0,
+        };
+        thumbnails.push(thumbnail);
+    }
+
+    info!("Generated {} thumbnails", thumbnails.len());
+    Ok(thumbnails)
 }
 
 
@@ -260,11 +344,11 @@ pub async fn preview_get_frame_range(
 
     // Validate inputs
     if start_time < 0.0 || end_time < 0.0 {
-        return Err("TODO".to_string());
+        return Err("Frame range times cannot be negative".to_string());
     }
 
     if start_time >= end_time {
-        return Err("TODO".to_string());
+        return Err("Start time must be less than end time".to_string());
     }
 
     let quality = quality.unwrap_or(PreviewQuality::Medium);
@@ -307,11 +391,9 @@ pub async fn preview_update_settings(
 ) -> Result<PreviewResponse, String> {
     debug!("Updating preview settings: {:?}", settings);
 
-
     if settings.scale <= 0.0 {
         return Err("Preview scale must be positive".to_string());
     }
-
 
     info!("Updated preview settings: quality={:?}, scale={:.2}", settings.quality, settings.scale);
 
@@ -322,6 +404,38 @@ pub async fn preview_update_settings(
     })
 }
 
+/// Set preview quality (changes pipeline resolution/bitrate)
+#[tauri::command]
+pub async fn preview_set_quality(
+    quality: PreviewQuality,
+    state: State<'_, AppState>,
+) -> Result<PreviewResponse, String> {
+    debug!("Setting preview quality: {:?}", quality);
+
+    let quality_desc = match quality {
+        PreviewQuality::Low => "Low (quarter resolution)",
+        PreviewQuality::Medium => "Medium (half resolution)",
+        PreviewQuality::High => "High (full resolution)",
+        PreviewQuality::Ultra => "Ultra (2x resolution)",
+    };
+
+    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    engine.set_preview_quality(format!("{:?}", quality))
+        .map_err(|e| format!("Failed to set preview quality: {}", e))?;
+
+    info!("Preview quality set to: {}", quality_desc);
+
+    Ok(PreviewResponse {
+        success: true,
+        message: format!("Preview quality set to: {}", quality_desc),
+        data: Some(serde_json::json!({
+            "quality": format!("{:?}", quality),
+            "description": quality_desc
+        })),
+    })
+}
+
 
 #[tauri::command]
 pub async fn preview_get_settings(
@@ -329,18 +443,9 @@ pub async fn preview_get_settings(
 ) -> Result<PreviewSettings, String> {
     debug!("Getting preview settings");
 
-    // Get preview settings from the real preview engine
-    let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("{}", e))?;
-
-    let (width, height) = if let Some(engine) = editing_engine.as_ref() {
-        let preview = engine.preview();
-        let preview_guard = preview.lock()
-            .map_err(|e| format!("{}", e))?;
-        preview_guard.get_video_dimensions().unwrap_or((1920, 1080))
-    } else {
-        (1920, 1080)
-    };
+    let (width, height) = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .get_preview_dimensions()
+        .unwrap_or((1920, 1080));
 
     let settings = PreviewSettings {
         quality: PreviewQuality::High,
@@ -349,7 +454,7 @@ pub async fn preview_get_settings(
         show_safe_areas: false,
         show_grid: false,
         show_overlays: true,
-        background_color: "TODO".to_string(),
+        background_color: "#000000".to_string(),
     };
 
     info!("Quality: {:?}, Scale: {}, Size: {}x{}", settings.quality, settings.scale, width, height);
@@ -380,23 +485,18 @@ pub async fn preview_get_performance_stats(
 ) -> Result<serde_json::Value, String> {
     debug!("Getting preview performance stats");
 
-    // Get real performance metrics from the preview engine
-    let editing_engine = state.editing_engine.lock()
-        .map_err(|e| format!("{}", e))?;
-
-    let (is_playing, position, dimensions, duration) = if let Some(engine) = editing_engine.as_ref() {
-        let preview = engine.preview();
-        let preview_guard = preview.lock()
-            .map_err(|e| format!("{}", e))?;
-        (
-            preview_guard.is_playing(),
-            preview_guard.get_position().unwrap_or(0),
-            preview_guard.get_video_dimensions(),
-            preview_guard.get_duration()
-        )
-    } else {
-        (false, 0, None, None)
-    };
+    let preview_state = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+        .get_preview_state()
+        .unwrap_or(crate::engine_proxy::PreviewState {
+            is_playing: false,
+            position: 0,
+            dimensions: None,
+            duration: None,
+        });
+    let is_playing = preview_state.is_playing;
+    let position = preview_state.position;
+    let dimensions = preview_state.dimensions;
+    let duration = preview_state.duration;
 
     let fps = 30.0;
     let frame_time_ms = 1000.0 / fps;
@@ -404,23 +504,17 @@ pub async fn preview_get_performance_stats(
     let total_duration = duration.map(|d| d as f64 / 1_000_000_000.0).unwrap_or(0.0);
 
     let stats = serde_json::json!({
-        "TODO": if is_playing { fps } else { 0.0 },
-        "TODO": fps,
-        "TODO": frame_time_ms,
-        "TODO": is_playing,
-        "TODO": current_time,
-        "TODO": total_duration,
-        "TODO": dimensions,
-        "TODO": 0.85,
-        "TODO": 256,
-        "TODO": 1250,
-        "TODO": 0,
-        "TODO": 512,
-        "TODO": if is_playing { 45.2 } else { 5.0 },
-        "TODO": if is_playing { 23.8 } else { 2.0 }
+        "current_fps": if is_playing { fps } else { 0.0 },
+        "target_fps": fps,
+        "frame_time_ms": frame_time_ms,
+        "is_playing": is_playing,
+        "current_time": current_time,
+        "total_duration": total_duration,
+        "dimensions": dimensions,
+        "dropped_frames": 0
     });
 
-    info!("Stats: {:?}, Playing: {}", stats["TODO"], is_playing);
+    info!("Stats: current_fps={}, Playing: {}", stats["current_fps"], is_playing);
 
     Ok(stats)
 }

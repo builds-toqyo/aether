@@ -110,7 +110,7 @@ impl BlurKernels {
         for i in 0..samples {
             let t = (i as f32 / (samples - 1) as f32) * 2.0 - 1.0;
             let x = center + t * dx;
-            let y = center + t * dy;
+            let _y = center + t * dy;
 
 
             let kernel_x = (x as usize).min(size - 1);

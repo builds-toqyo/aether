@@ -1,6 +1,6 @@
 use crate::nodes::{NodeError, NodeResult};
 use crate::nodes::validation::TypeChecker;
-use aether_types::{Graph, Connection, PinDataType};
+use aether_types::{Graph, Connection};
 use uuid::Uuid;
 use log::debug;
 

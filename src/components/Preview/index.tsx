@@ -7,6 +7,7 @@ import { PreviewSettings } from './PreviewSettings';
 import { PreviewProvider, usePreview } from './PreviewContext';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, Settings } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { formatTime } from '@/lib/utils';
 
 // Types
 interface PreviewFrame {
@@ -351,8 +352,8 @@ export const PreviewWindow: React.FC = () => {
         <PreviewCanvas />
 
         {state.isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="text-white text-lg">Loading frame...</div>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+            <div className="text-[#888] text-[13px]">Loading frame...</div>
           </div>
         )}
 
@@ -370,28 +371,28 @@ export const PreviewWindow: React.FC = () => {
           showControls || state.showSettings ? 'opacity-100' : 'opacity-0'
         }`}>
           <div className="flex items-center justify-between">
-            <div className="text-white text-sm font-mono">
+            <div className="text-[#ccc] text-[12px] font-mono">
               {formatTime(state.currentTime)} / {formatTime(state.duration)}
             </div>
           <div className="flex items-center space-x-4">
-              <div className="text-white text-sm">
+              <div className="text-[#888] text-[11px]">
                 {state.quality.toUpperCase()}
               </div>
 
-              <div className="text-white text-sm">
+              <div className="text-[#888] text-[11px]">
                 {Math.round(state.zoom * 100)}%
               </div>
 
               <button
                 onClick={handleSettingsToggle}
-                className="p-2 bg-gray-800 hover:bg-gray-700 rounded text-white transition-colors"
+                className="p-1.5 bg-[#1a1a1a]/80 hover:bg-[#2a2a2a] rounded-md text-[#ccc] transition-colors"
               >
                 <Settings className="w-4 h-4" />
               </button>
 
               <button
                 onClick={handleFullscreenToggle}
-                className="p-2 bg-gray-800 hover:bg-gray-700 rounded text-white transition-colors"
+                className="p-1.5 bg-[#1a1a1a]/80 hover:bg-[#2a2a2a] rounded-md text-[#ccc] transition-colors"
               >
                 <Maximize2 className="w-4 h-4" />
               </button>
@@ -400,7 +401,7 @@ export const PreviewWindow: React.FC = () => {
         </div>
 
         {!showControls && !state.showSettings && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-sm opacity-50 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#555] text-[11px] pointer-events-none">
             Move mouse to show controls
           </div>
         )}
@@ -408,18 +409,5 @@ export const PreviewWindow: React.FC = () => {
     </PreviewProvider>
   );
 };
-
-// Helper function to format time
-function formatTime(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  const frames = Math.floor((seconds % 1) * 30); // Assuming 30 fps
-  
-  if (hours > 0) {
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
-  }
-  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
-}
 
 export default PreviewWindow;

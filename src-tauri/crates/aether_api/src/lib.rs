@@ -1,5 +1,8 @@
 pub mod commands;
 pub mod state;
+pub mod engine_proxy;
+pub mod render_proxy;
+pub mod project_registry;
 
 pub use commands::*;
 pub use state::*;
@@ -15,6 +18,7 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             disconnect_nodes,
             execute_graph,
             get_node_result,
+            connect_node_to_clip,
             get_graph_info,
 
             get_timeline_info,
@@ -24,6 +28,11 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             timeline_trim_clip,
             timeline_add_clip,
             timeline_remove_clip,
+            timeline_split_clip,
+            timeline_add_transition,
+            timeline_ripple_delete,
+            timeline_rolling_edit,
+            timeline_sync_to_ges,
             timeline_create_track,
             timeline_delete_track,
 
@@ -32,7 +41,9 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             preview_seek,
             preview_get_frame,
             preview_get_frame_range,
+            preview_generate_thumbnails,
             preview_update_settings,
+            preview_set_quality,
             preview_get_settings,
             preview_clear_cache,
             preview_get_performance_stats,
@@ -62,8 +73,35 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             rendering_get_queue,
             rendering_get_formats,
             rendering_get_presets,
+            rendering_save_preset,
+            rendering_delete_preset,
+            rendering_reset_presets,
             rendering_estimate_time,
             rendering_get_performance_stats,
             rendering_cleanup_completed,
+            rendering_apply_lut,
+            rendering_remove_lut,
+            rendering_start_batch_job,
+            rendering_detect_scenes,
+            rendering_save_template,
+            rendering_load_template,
+            rendering_list_templates,
+            rendering_delete_template,
+
+            multicam_create,
+            multicam_add_angle,
+            multicam_remove_angle,
+            multicam_set_active_angle,
+            multicam_get_clip,
+            multicam_list_clips,
+            multicam_delete_clip,
+            multicam_sync_by_timecode,
+            multicam_sync_by_audio,
+
+            plugin_load,
+            plugin_unload,
+            plugin_list,
+            plugin_get_info,
+            plugin_scan_directory,
         ])
 }

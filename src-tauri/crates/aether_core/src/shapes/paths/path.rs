@@ -282,7 +282,7 @@ impl Path {
             return 0.0;
         }
 
-        let mut area = 0.0;
+        let _area = 0.0;
         let mut current_x = self.start_x;
         let mut current_y = self.start_y;
 
@@ -336,7 +336,7 @@ impl Path {
         area.abs() / 2.0
     }
 
-    pub fn vertices(&self, tolerance: f64) -> Vec<(f64, f64)> {
+    pub fn vertices(&self, _tolerance: f64) -> Vec<(f64, f64)> {
         let mut verts = vec![(self.start_x, self.start_y)];
         let mut current_x = self.start_x;
         let mut current_y = self.start_y;
@@ -398,7 +398,7 @@ impl Path {
                 }
                 super::segments::PathSegmentType::LineTo => {
 
-                    if let Some(last_segment) = simplified_segments.last() {
+                    if let Some(_last_segment) = simplified_segments.last() {
                         let distance = ((segment.x - current_x).powi(2) + (segment.y - current_y).powi(2)).sqrt();
 
                         if distance > tolerance {
