@@ -96,6 +96,7 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             multicam_list_clips,
             multicam_delete_clip,
             multicam_sync_by_timecode,
+            multicam_sync_by_audio,
 
             plugin_load,
             plugin_unload,
