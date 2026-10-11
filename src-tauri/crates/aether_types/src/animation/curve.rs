@@ -229,7 +229,7 @@ impl AnimationCurve {
         match self.curve_type {
             CurveType::Linear => t,
             CurveType::Step => {
-                if t < 0.5 {
+                if t <= 0.5 {
                     0.0
                 } else {
                     1.0

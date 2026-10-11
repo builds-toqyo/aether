@@ -138,12 +138,9 @@ impl EasingFunction {
             }
 
             // Sine
-            EasingFunction::SineIn => {
-                let t = t - 1.0;
-                -t.cos() + 1.0
-            }
-            EasingFunction::SineOut => t.sin(),
-            EasingFunction::SineInOut => -(t.cos() * std::f64::consts::PI) / 2.0 + 0.5,
+            EasingFunction::SineIn => 1.0 - (t * std::f64::consts::FRAC_PI_2).cos(),
+            EasingFunction::SineOut => (t * std::f64::consts::FRAC_PI_2).sin(),
+            EasingFunction::SineInOut => (1.0 - (t * std::f64::consts::PI).cos()) / 2.0,
 
             // Exponential
             EasingFunction::ExpoIn => {
@@ -250,7 +247,15 @@ impl EasingFunction {
             }
 
             // Bounce
-            EasingFunction::BounceIn => 1.0 - EasingFunction::BounceOut.apply(1.0 - t),
+            EasingFunction::BounceIn => {
+                if t == 0.0 {
+                    0.0
+                } else if t == 1.0 {
+                    1.0
+                } else {
+                    1.0 - EasingFunction::BounceOut.apply(1.0 - t)
+                }
+            }
             EasingFunction::BounceOut => {
                 const N1: f64 = 7.5625;
                 const D1: f64 = 2.75;
@@ -329,6 +334,16 @@ impl EasingFunction {
                 | EasingFunction::BackIn
                 | EasingFunction::ElasticIn
                 | EasingFunction::BounceIn
+                | EasingFunction::QuadInOut
+                | EasingFunction::CubicInOut
+                | EasingFunction::QuartInOut
+                | EasingFunction::QuintInOut
+                | EasingFunction::SineInOut
+                | EasingFunction::ExpoInOut
+                | EasingFunction::CircInOut
+                | EasingFunction::BackInOut
+                | EasingFunction::ElasticInOut
+                | EasingFunction::BounceInOut
         )
     }
 
@@ -346,6 +361,16 @@ impl EasingFunction {
                 | EasingFunction::BackOut
                 | EasingFunction::ElasticOut
                 | EasingFunction::BounceOut
+                | EasingFunction::QuadInOut
+                | EasingFunction::CubicInOut
+                | EasingFunction::QuartInOut
+                | EasingFunction::QuintInOut
+                | EasingFunction::SineInOut
+                | EasingFunction::ExpoInOut
+                | EasingFunction::CircInOut
+                | EasingFunction::BackInOut
+                | EasingFunction::ElasticInOut
+                | EasingFunction::BounceInOut
         )
     }
 
@@ -503,7 +528,7 @@ impl EasingCategory {
 
     pub fn description(&self) -> &'static str {
         match self {
-            EasingCategory::Linear => "Linear interpolation",
+            EasingCategory::Linear => "Constant-speed interpolation",
             EasingCategory::Quadratic => "Quadratic power functions",
             EasingCategory::Cubic => "Cubic power functions",
             EasingCategory::Quartic => "Quartic power functions",
@@ -560,14 +585,15 @@ mod tests {
 
     #[test]
     fn test_complex_easing_functions() {
+        // ElasticOut and BackOut overshoot above 1.0 by design
         let elastic_out = EasingFunction::ElasticOut.apply(0.5);
-        assert!(elastic_out > 0.0 && elastic_out <= 1.0);
+        assert!(elastic_out > 0.0 && elastic_out <= 1.5);
 
         let bounce_out = EasingFunction::BounceOut.apply(0.5);
         assert!(bounce_out >= 0.0 && bounce_out <= 1.0);
 
         let back_out = EasingFunction::BackOut.apply(0.5);
-        assert!(back_out >= 0.0 && back_out <= 1.0);
+        assert!(back_out >= 0.0 && back_out <= 1.5);
     }
 
     #[test]

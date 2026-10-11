@@ -152,10 +152,6 @@ impl AnimationTrack {
 
         self.binding.validate()?;
 
-        if self.keyframes.is_empty() {
-            return Err("Track must have at least one keyframe".to_string());
-        }
-
         for keyframe in &self.keyframes {
             let keyframe_type = match keyframe {
                 KeyframeData::Float(_) => TrackType::Opacity,
