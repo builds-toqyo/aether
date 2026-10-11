@@ -1,12 +1,8 @@
-
-
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TrackValue {
-
     Float(f64),
 
     Vector2([f64; 2]),
@@ -23,14 +19,12 @@ pub enum TrackValue {
 }
 
 impl TrackValue {
-
     pub fn as_float(&self) -> Option<f64> {
         match self {
             TrackValue::Float(v) => Some(*v),
             _ => None,
         }
     }
-
 
     pub fn as_vector2(&self) -> Option<[f64; 2]> {
         match self {
@@ -39,14 +33,12 @@ impl TrackValue {
         }
     }
 
-
     pub fn as_vector3(&self) -> Option<[f64; 3]> {
         match self {
             TrackValue::Vector3(v) => Some(*v),
             _ => None,
         }
     }
-
 
     pub fn as_vector4(&self) -> Option<[f64; 4]> {
         match self {
@@ -56,7 +48,6 @@ impl TrackValue {
         }
     }
 
-
     pub fn as_color(&self) -> Option<[f64; 4]> {
         match self {
             TrackValue::Color(v) => Some(*v),
@@ -65,7 +56,6 @@ impl TrackValue {
         }
     }
 
-
     pub fn as_boolean(&self) -> Option<bool> {
         match self {
             TrackValue::Boolean(v) => Some(*v),
@@ -73,14 +63,12 @@ impl TrackValue {
         }
     }
 
-
     pub fn as_string(&self) -> Option<&str> {
         match self {
             TrackValue::String(v) => Some(v),
             _ => None,
         }
     }
-
 
     pub fn dimension(&self) -> usize {
         match self {
@@ -94,55 +82,45 @@ impl TrackValue {
         }
     }
 
-
     pub fn interpolate(&self, other: &TrackValue, t: f64) -> Result<TrackValue, String> {
         if std::mem::discriminant(self) != std::mem::discriminant(other) {
             return Err("Cannot interpolate different value types".to_string());
         }
 
         match (self, other) {
-            (TrackValue::Float(a), TrackValue::Float(b)) => {
-                Ok(TrackValue::Float(a + (b - a) * t))
-            }
-            (TrackValue::Vector2(a), TrackValue::Vector2(b)) => {
-                Ok(TrackValue::Vector2([
-                    a[0] + (b[0] - a[0]) * t,
-                    a[1] + (b[1] - a[1]) * t,
-                ]))
-            }
-            (TrackValue::Vector3(a), TrackValue::Vector3(b)) => {
-                Ok(TrackValue::Vector3([
-                    a[0] + (b[0] - a[0]) * t,
-                    a[1] + (b[1] - a[1]) * t,
-                    a[2] + (b[2] - a[2]) * t,
-                ]))
-            }
-            (TrackValue::Vector4(a), TrackValue::Vector4(b)) => {
-                Ok(TrackValue::Vector4([
-                    a[0] + (b[0] - a[0]) * t,
-                    a[1] + (b[1] - a[1]) * t,
-                    a[2] + (b[2] - a[2]) * t,
-                    a[3] + (b[3] - a[3]) * t,
-                ]))
-            }
-            (TrackValue::Color(a), TrackValue::Color(b)) => {
-                Ok(TrackValue::Color([
-                    a[0] + (b[0] - a[0]) * t,
-                    a[1] + (b[1] - a[1]) * t,
-                    a[2] + (b[2] - a[2]) * t,
-                    a[3] + (b[3] - a[3]) * t,
-                ]))
-            }
+            (TrackValue::Float(a), TrackValue::Float(b)) => Ok(TrackValue::Float(a + (b - a) * t)),
+            (TrackValue::Vector2(a), TrackValue::Vector2(b)) => Ok(TrackValue::Vector2([
+                a[0] + (b[0] - a[0]) * t,
+                a[1] + (b[1] - a[1]) * t,
+            ])),
+            (TrackValue::Vector3(a), TrackValue::Vector3(b)) => Ok(TrackValue::Vector3([
+                a[0] + (b[0] - a[0]) * t,
+                a[1] + (b[1] - a[1]) * t,
+                a[2] + (b[2] - a[2]) * t,
+            ])),
+            (TrackValue::Vector4(a), TrackValue::Vector4(b)) => Ok(TrackValue::Vector4([
+                a[0] + (b[0] - a[0]) * t,
+                a[1] + (b[1] - a[1]) * t,
+                a[2] + (b[2] - a[2]) * t,
+                a[3] + (b[3] - a[3]) * t,
+            ])),
+            (TrackValue::Color(a), TrackValue::Color(b)) => Ok(TrackValue::Color([
+                a[0] + (b[0] - a[0]) * t,
+                a[1] + (b[1] - a[1]) * t,
+                a[2] + (b[2] - a[2]) * t,
+                a[3] + (b[3] - a[3]) * t,
+            ])),
             (TrackValue::Boolean(a), TrackValue::Boolean(b)) => {
                 Ok(TrackValue::Boolean(if t < 0.5 { *a } else { *b }))
             }
-            (TrackValue::String(a), TrackValue::String(b)) => {
-                Ok(TrackValue::String(if t < 0.5 { a.clone() } else { b.clone() }))
-            }
+            (TrackValue::String(a), TrackValue::String(b)) => Ok(TrackValue::String(if t < 0.5 {
+                a.clone()
+            } else {
+                b.clone()
+            })),
             _ => Err("Unsupported interpolation for this type".to_string()),
         }
     }
-
 
     pub fn default_for_type(track_type: super::types::TrackType) -> Self {
         match track_type {
@@ -155,10 +133,11 @@ impl TrackValue {
         }
     }
 
-
     pub fn is_compatible_with_track(&self, track_type: super::types::TrackType) -> bool {
         match track_type {
-            super::types::TrackType::Position | super::types::TrackType::Rotation | super::types::TrackType::Scale => {
+            super::types::TrackType::Position
+            | super::types::TrackType::Rotation
+            | super::types::TrackType::Scale => {
                 matches!(self, TrackValue::Vector3(_))
             }
             super::types::TrackType::Opacity => {
@@ -178,8 +157,14 @@ impl fmt::Display for TrackValue {
             TrackValue::Float(v) => write!(f, "{:.3}", v),
             TrackValue::Vector2(v) => write!(f, "[{:.3}, {:.3}]", v[0], v[1]),
             TrackValue::Vector3(v) => write!(f, "[{:.3}, {:.3}, {:.3}]", v[0], v[1], v[2]),
-            TrackValue::Vector4(v) => write!(f, "[{:.3}, {:.3}, {:.3}, {:.3}]", v[0], v[1], v[2], v[3]),
-            TrackValue::Color(v) => write!(f, "rgba({:.3}, {:.3}, {:.3}, {:.3})", v[0], v[1], v[2], v[3]),
+            TrackValue::Vector4(v) => {
+                write!(f, "[{:.3}, {:.3}, {:.3}, {:.3}]", v[0], v[1], v[2], v[3])
+            }
+            TrackValue::Color(v) => write!(
+                f,
+                "rgba({:.3}, {:.3}, {:.3}, {:.3})",
+                v[0], v[1], v[2], v[3]
+            ),
             TrackValue::Boolean(v) => write!(f, "{}", v),
             TrackValue::String(v) => write!(f, "\"{}\"", v),
         }
@@ -192,15 +177,12 @@ impl Default for TrackValue {
     }
 }
 
-
 pub struct TrackValueUtils;
 
 impl TrackValueUtils {
-
     pub fn lerp(a: &TrackValue, b: &TrackValue, t: f64) -> Result<TrackValue, String> {
         a.interpolate(b, t)
     }
-
 
     pub fn zero_for_type(track_type: super::types::TrackType) -> TrackValue {
         match track_type {
@@ -213,7 +195,6 @@ impl TrackValueUtils {
         }
     }
 
-
     pub fn identity_for_type(track_type: super::types::TrackType) -> TrackValue {
         match track_type {
             super::types::TrackType::Position => TrackValue::Vector3([0.0, 0.0, 0.0]),
@@ -224,7 +205,6 @@ impl TrackValueUtils {
             super::types::TrackType::Custom => TrackValue::Float(0.0),
         }
     }
-
 
     pub fn to_float_array(value: &TrackValue) -> Vec<f64> {
         match value {
@@ -238,10 +218,14 @@ impl TrackValueUtils {
         }
     }
 
-
-    pub fn from_float_array(values: &[f64], track_type: super::types::TrackType) -> Result<TrackValue, String> {
+    pub fn from_float_array(
+        values: &[f64],
+        track_type: super::types::TrackType,
+    ) -> Result<TrackValue, String> {
         match track_type {
-            super::types::TrackType::Position | super::types::TrackType::Rotation | super::types::TrackType::Scale => {
+            super::types::TrackType::Position
+            | super::types::TrackType::Rotation
+            | super::types::TrackType::Scale => {
                 if values.len() >= 3 {
                     Ok(TrackValue::Vector3([values[0], values[1], values[2]]))
                 } else {
@@ -257,7 +241,9 @@ impl TrackValueUtils {
             }
             super::types::TrackType::Color => {
                 if values.len() >= 4 {
-                    Ok(TrackValue::Color([values[0], values[1], values[2], values[3]]))
+                    Ok(TrackValue::Color([
+                        values[0], values[1], values[2], values[3],
+                    ]))
                 } else {
                     Err("Insufficient values for color".to_string())
                 }

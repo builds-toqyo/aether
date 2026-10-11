@@ -1,23 +1,23 @@
-mod timeline;
-mod import;
-mod preview;
 mod effects;
 mod export;
+mod import;
+mod preview;
+mod timeline;
 pub mod types;
 
-pub use timeline::{Timeline, TimelineTrack, TimelineClip, TimelineEffect};
-pub use import::{MediaImporter, ImportOptions};
-pub use preview::{PreviewEngine, PreviewFrame, PreviewQuality};
 pub use effects::{Effect, EffectType, Transition, TransitionType};
-pub use export::{IntermediateExporter, ExportOptions, ExportProgress};
-pub use types::{EditingError, MediaInfo, ClipInfo, TrackType};
+pub use export::{ExportOptions, ExportProgress, IntermediateExporter};
+pub use import::{ImportOptions, MediaImporter};
+pub use preview::{PreviewEngine, PreviewFrame, PreviewQuality};
+pub use timeline::{Timeline, TimelineClip, TimelineEffect, TimelineTrack};
+pub use types::{ClipInfo, EditingError, MediaInfo, TrackType};
 
-use std::sync::{Arc, Mutex};
 use anyhow::Result;
-use gstreamer as gst;
-use gst::prelude::*;
-use gstreamer_editing_services as ges;
 use ges::prelude::*;
+use gst::prelude::*;
+use gstreamer as gst;
+use gstreamer_editing_services as ges;
+use std::sync::{Arc, Mutex};
 
 pub struct EditingEngine {
     ges_timeline: Option<ges::Timeline>,
@@ -63,8 +63,14 @@ impl EditingEngine {
         self.project_path = project_path;
 
         if let Some(timeline) = &self.ges_timeline {
-            self.timeline.lock().unwrap().set_ges_timeline(timeline.clone())?;
-            self.preview_engine.lock().unwrap().set_pipeline(self.ges_pipeline.clone())?;
+            self.timeline
+                .lock()
+                .unwrap()
+                .set_ges_timeline(timeline.clone())?;
+            self.preview_engine
+                .lock()
+                .unwrap()
+                .set_pipeline(self.ges_pipeline.clone())?;
         }
 
         Ok(())
@@ -82,15 +88,30 @@ impl EditingEngine {
         self.preview_engine.clone()
     }
 
-    pub fn add_clip_to_timeline(&mut self, uri: &str, track_type: TrackType, start_time: i64, duration: i64, in_point: i64) -> Result<(), EditingError> {
-        self.timeline.lock().unwrap().add_clip(uri, track_type, start_time, duration, in_point)?;
+    pub fn add_clip_to_timeline(
+        &mut self,
+        uri: &str,
+        track_type: TrackType,
+        start_time: i64,
+        duration: i64,
+        in_point: i64,
+    ) -> Result<(), EditingError> {
+        self.timeline
+            .lock()
+            .unwrap()
+            .add_clip(uri, track_type, start_time, duration, in_point)?;
         Ok(())
     }
 
-    pub fn create_intermediate_export(&self, options: ExportOptions) -> Result<IntermediateExporter, EditingError> {
+    pub fn create_intermediate_export(
+        &self,
+        options: ExportOptions,
+    ) -> Result<IntermediateExporter, EditingError> {
         let exporter = IntermediateExporter::new(
-            self.ges_timeline.clone().ok_or(EditingError::NotInitialized)?,
-            options
+            self.ges_timeline
+                .clone()
+                .ok_or(EditingError::NotInitialized)?,
+            options,
         )?;
 
         Ok(exporter)

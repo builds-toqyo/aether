@@ -1,9 +1,7 @@
 use aether_types::ParameterValue;
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum OutputFormat {
-
     Raw,
 
     PngSequence,
@@ -17,10 +15,8 @@ pub enum OutputFormat {
     ExrSequence,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct QualitySettings {
-
     pub jpeg_quality: u8,
 
     pub png_compression: u8,
@@ -42,11 +38,9 @@ impl Default for QualitySettings {
 }
 
 impl QualitySettings {
-
     pub fn new() -> Self {
         Self::default()
     }
-
 
     pub fn validate(&mut self) {
         self.jpeg_quality = self.jpeg_quality.clamp(1, 100);
@@ -58,21 +52,17 @@ impl QualitySettings {
         };
     }
 
-
     pub fn set_jpeg_quality(&mut self, quality: u8) {
         self.jpeg_quality = quality.clamp(1, 100);
     }
-
 
     pub fn set_png_compression(&mut self, compression: u8) {
         self.png_compression = compression.clamp(0, 9);
     }
 
-
     pub fn set_video_bitrate(&mut self, bitrate: u32) {
         self.video_bitrate = bitrate.clamp(1, 1000);
     }
-
 
     pub fn set_color_depth(&mut self, depth: u8) {
         self.color_depth = match depth {
@@ -82,10 +72,8 @@ impl QualitySettings {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct OutputMetadata {
-
     pub frame_number: u64,
 
     pub format: OutputFormat,
@@ -99,10 +87,8 @@ pub struct OutputMetadata {
     pub quality_settings: QualitySettings,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct EncodingResult {
-
     pub success: bool,
 
     pub output_data: ParameterValue,
@@ -113,7 +99,6 @@ pub struct EncodingResult {
 }
 
 impl EncodingResult {
-
     pub fn success(output_data: ParameterValue, metadata: OutputMetadata) -> Self {
         Self {
             success: true,
@@ -122,7 +107,6 @@ impl EncodingResult {
             error: None,
         }
     }
-
 
     pub fn error(error: String, format: OutputFormat, frame: u64) -> Self {
         Self {
@@ -141,10 +125,8 @@ impl EncodingResult {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct OutputParams {
-
     pub format: OutputFormat,
 
     pub quality: QualitySettings,
@@ -169,26 +151,21 @@ impl Default for OutputParams {
 }
 
 impl OutputParams {
-
     pub fn new() -> Self {
         Self::default()
     }
 
-
     pub fn validate(&mut self) {
         self.quality.validate();
-
 
         if self.filename_pattern.is_none() {
             self.filename_pattern = Some("output_{:04}".to_string());
         }
 
-
         if self.output_dir.is_none() {
             self.output_dir = Some("/tmp/output".to_string());
         }
     }
-
 
     pub fn is_active(&self) -> bool {
         self.format != OutputFormat::Raw

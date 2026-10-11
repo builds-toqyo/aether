@@ -1,8 +1,7 @@
-use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult};
+use crate::nodes::{ExecutionContext, NodeExecutor, NodeResult};
 use aether_types::{Node, NodeType, ParameterValue};
-use uuid::Uuid;
 use log::debug;
-
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct CoreTransformNode {
@@ -10,14 +9,11 @@ pub struct CoreTransformNode {
 }
 
 impl CoreTransformNode {
-
     pub fn new(node: Node) -> Self {
         Self { node }
     }
 
-
     fn get_transform_params(&self) -> (f32, f32, f32, f32, f32) {
-
         let mut pos_x = 0.0;
         let mut pos_y = 0.0;
         let mut scale = 1.0;
@@ -64,13 +60,13 @@ impl CoreTransformNode {
         (pos_x, pos_y, scale, rotation, anchor_x)
     }
 
-
     fn apply_transform(&self, input_value: ParameterValue) -> ParameterValue {
         let (pos_x, pos_y, scale, rotation, anchor_x) = self.get_transform_params();
 
-        debug!("Applying transform: pos=({:.2}, {:.2}), scale={:.2}, rotation={:.2}°, anchor_x={:.2}",
-            pos_x, pos_y, scale, rotation, anchor_x);
-
+        debug!(
+            "Applying transform: pos=({:.2}, {:.2}), scale={:.2}, rotation={:.2}°, anchor_x={:.2}",
+            pos_x, pos_y, scale, rotation, anchor_x
+        );
 
         input_value
     }
@@ -82,15 +78,13 @@ impl NodeExecutor for CoreTransformNode {
             return Ok(());
         }
 
-
         if let Some(input_pin) = self.node.inputs.first() {
-            let input_value = context.get_input(&input_pin.id)
+            let input_value = context
+                .get_input(&input_pin.id)
                 .cloned()
                 .unwrap_or(ParameterValue::None);
 
-
             let transformed_value = self.apply_transform(input_value);
-
 
             if let Some(output_pin) = self.node.outputs.first() {
                 context.set_output(output_pin.id, transformed_value);
@@ -113,10 +107,13 @@ impl NodeExecutor for CoreTransformNode {
     }
 
     fn can_execute(&self, context: &ExecutionContext) -> bool {
-        self.node.enabled &&
-        self.node.inputs.first()
-            .and_then(|pin| context.get_input(&pin.id))
-            .is_some()
+        self.node.enabled
+            && self
+                .node
+                .inputs
+                .first()
+                .and_then(|pin| context.get_input(&pin.id))
+                .is_some()
     }
 }
 
@@ -129,7 +126,6 @@ mod tests {
     fn test_core_transform_node_creation() {
         let mut node = Node::new(NodeType::Transform, "Test Transform".to_string());
 
-
         let input_pin = InputPin {
             id: Uuid::new_v4(),
             name: "input".to_string(),
@@ -140,7 +136,6 @@ mod tests {
             connection: None,
         };
         node.add_input(input_pin);
-
 
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
@@ -159,7 +154,6 @@ mod tests {
     #[test]
     fn test_transform_params() {
         let mut node = Node::new(NodeType::Transform, "Test".to_string());
-
 
         let pos_x_param = aether_types::Parameter {
             id: Uuid::new_v4(),
@@ -226,14 +220,12 @@ mod tests {
         let test_value = ParameterValue::Image(Uuid::new_v4());
         let result = transform_node.apply_transform(test_value.clone());
 
-
         assert_eq!(result, test_value);
     }
 
     #[test]
     fn test_node_executor_interface() {
         let mut node = Node::new(NodeType::Transform, "Test Transform".to_string());
-
 
         let input_pin_id = Uuid::new_v4();
         let input_pin = InputPin {
@@ -247,7 +239,6 @@ mod tests {
         };
         node.add_input(input_pin);
 
-
         let output_pin_id = Uuid::new_v4();
         let output_pin = OutputPin {
             id: output_pin_id,
@@ -259,13 +250,10 @@ mod tests {
 
         let mut transform_node = CoreTransformNode::new(node);
 
-
         assert_eq!(transform_node.node_type(), NodeType::Transform);
-
 
         assert_eq!(transform_node.get_inputs().len(), 1);
         assert_eq!(transform_node.get_outputs().len(), 1);
-
 
         let context = ExecutionContext {
             frame: 1,
@@ -273,7 +261,6 @@ mod tests {
             outputs: std::collections::HashMap::new(),
         };
         assert!(!transform_node.can_execute(&context));
-
 
         let mut context = ExecutionContext {
             frame: 1,
@@ -286,10 +273,8 @@ mod tests {
 
         assert!(transform_node.can_execute(&context));
 
-
         let result = transform_node.execute(&mut context);
         assert!(result.is_ok());
-
 
         assert_eq!(context.outputs.get(&output_pin_id), Some(&test_value));
     }
@@ -299,9 +284,7 @@ mod tests {
         let node = Node::new(NodeType::Transform, "Test".to_string());
         let transform_node = CoreTransformNode::new(node);
 
-
         assert!(!transform_node.is_transform_active());
-
 
         let mut node = Node::new(NodeType::Transform, "Test".to_string());
 

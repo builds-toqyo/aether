@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use std::error::Error;
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use std::sync::{Arc, Mutex};
 
 // Wrapper type for f64 timestamps that implements Hash + Eq
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -30,10 +30,12 @@ impl From<Timestamp> for f64 {
     }
 }
 
-use crate::engine::timeline::{Timeline, ClipType, TimelineError};
-use crate::engine::renderer::{Renderer, Frame, RendererError};
-use crate::engine::video_decoder::{VideoDecoder, VideoDecoderConfig, VideoFrame, VideoDecoderError};
 use crate::engine::VideoFormat;
+use crate::engine::renderer::{Frame, Renderer, RendererError};
+use crate::engine::timeline::{ClipType, Timeline, TimelineError};
+use crate::engine::video_decoder::{
+    VideoDecoder, VideoDecoderConfig, VideoDecoderError, VideoFrame,
+};
 
 #[derive(Debug)]
 pub enum TimelineRendererError {
@@ -106,7 +108,12 @@ pub struct ClipRenderer {
 }
 
 impl ClipRenderer {
-    pub fn new(clip_id: String, source_path: String, in_point: f64, out_point: f64) -> Result<Self, TimelineRendererError> {
+    pub fn new(
+        clip_id: String,
+        source_path: String,
+        in_point: f64,
+        out_point: f64,
+    ) -> Result<Self, TimelineRendererError> {
         let mut config = VideoDecoderConfig::default();
         config.output_format = VideoFormat::RGBA32;
 
@@ -127,7 +134,11 @@ impl ClipRenderer {
         Ok(())
     }
 
-    pub fn seek_to_time(&mut self, timeline_time: f64, clip_start_time: f64) -> Result<(), TimelineRendererError> {
+    pub fn seek_to_time(
+        &mut self,
+        timeline_time: f64,
+        clip_start_time: f64,
+    ) -> Result<(), TimelineRendererError> {
         let source_time = self.in_point + (timeline_time - clip_start_time);
 
         self.decoder.seek(source_time)?;
@@ -159,7 +170,10 @@ pub struct TimelineRenderer {
 }
 
 impl TimelineRenderer {
-    pub fn new(config: TimelineRendererConfig, timeline: Arc<Mutex<Timeline>>) -> Result<Self, TimelineRendererError> {
+    pub fn new(
+        config: TimelineRendererConfig,
+        timeline: Arc<Mutex<Timeline>>,
+    ) -> Result<Self, TimelineRendererError> {
         let mut renderer_config = crate::engine::renderer::RendererConfig::default();
         renderer_config.width = config.width;
         renderer_config.height = config.height;
@@ -186,7 +200,9 @@ impl TimelineRenderer {
             for clip in &track.clips {
                 if clip.clip_type == ClipType::Video {
                     if let Some(source_path) = &clip.source_path {
-                        let in_point = clip.properties.get("in-point")
+                        let in_point = clip
+                            .properties
+                            .get("in-point")
                             .and_then(|s| s.parse::<f64>().ok())
                             .unwrap_or(0.0);
 
@@ -212,7 +228,9 @@ impl TimelineRenderer {
 
     pub fn render_frame(&mut self, time: f64) -> Result<&Frame, TimelineRendererError> {
         if !self.is_initialized {
-            return Err(TimelineRendererError::ResourceError("Timeline renderer not initialized".to_string()));
+            return Err(TimelineRendererError::ResourceError(
+                "Timeline renderer not initialized".to_string(),
+            ));
         }
 
         let timestamp = Timestamp::from(time);
@@ -261,12 +279,15 @@ impl TimelineRenderer {
         if self.frame_cache.len() >= self.config.cache_size {
             self.frame_cache.clear();
         }
-        self.frame_cache.insert(timestamp, Frame {
-            data: frame.data.clone(),
-            width: frame.width,
-            height: frame.height,
-            timestamp: frame.timestamp,
-        });
+        self.frame_cache.insert(
+            timestamp,
+            Frame {
+                data: frame.data.clone(),
+                width: frame.width,
+                height: frame.height,
+                timestamp: frame.timestamp,
+            },
+        );
 
         Ok(self.frame_cache.get(&timestamp).unwrap())
     }
@@ -313,9 +334,7 @@ impl TimelineRenderer {
                 let src_x = (x * video_frame.width as usize) / out_width as usize;
                 let src_idx = src_y * src_stride + src_x * bpp;
                 let dst_idx = (y * out_width as usize + x) * bpp;
-                if src_idx + bpp <= video_frame.buffer.len()
-                    && dst_idx + bpp <= frame_data.len()
-                {
+                if src_idx + bpp <= video_frame.buffer.len() && dst_idx + bpp <= frame_data.len() {
                     frame_data[dst_idx..dst_idx + bpp]
                         .copy_from_slice(&video_frame.buffer[src_idx..src_idx + bpp]);
                 }
@@ -325,19 +344,19 @@ impl TimelineRenderer {
         Ok(())
     }
 
-    pub fn update_timeline(&mut self, timeline: Arc<Mutex<Timeline>>) -> Result<(), TimelineRendererError> {
+    pub fn update_timeline(
+        &mut self,
+        timeline: Arc<Mutex<Timeline>>,
+    ) -> Result<(), TimelineRendererError> {
         self.timeline = timeline;
 
-
         self.frame_cache.clear();
-
 
         for (_, renderer) in &mut self.clip_renderers {
             renderer.close()?;
         }
 
         self.clip_renderers.clear();
-
 
         self.initialize()?;
 
@@ -345,14 +364,12 @@ impl TimelineRenderer {
     }
 
     pub fn cleanup(&mut self) -> Result<(), TimelineRendererError> {
-
         for (_, renderer) in &mut self.clip_renderers {
             renderer.close()?;
         }
 
         self.clip_renderers.clear();
         self.frame_cache.clear();
-
 
         self.renderer.cleanup()?;
         self.is_initialized = false;
@@ -367,7 +384,9 @@ impl Drop for TimelineRenderer {
     }
 }
 
-pub fn create_default_timeline_renderer(timeline: Arc<Mutex<Timeline>>) -> Result<TimelineRenderer, TimelineRendererError> {
+pub fn create_default_timeline_renderer(
+    timeline: Arc<Mutex<Timeline>>,
+) -> Result<TimelineRenderer, TimelineRendererError> {
     let config = TimelineRendererConfig::default();
     let mut renderer = TimelineRenderer::new(config, timeline)?;
     renderer.initialize()?;

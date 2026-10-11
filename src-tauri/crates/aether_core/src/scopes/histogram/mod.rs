@@ -1,10 +1,10 @@
-
-
+pub mod analysis;
 pub mod processor;
 pub mod rendering;
-pub mod analysis;
 
-
+pub use analysis::{
+    ColorBalanceAnalysis, ColorCast, ExposureAnalysis, HistogramAnalyzer, HistogramIssue,
+    HistogramStatistics,
+};
 pub use processor::HistogramProcessor;
-pub use analysis::{HistogramAnalyzer, HistogramStatistics, ExposureAnalysis, ColorBalanceAnalysis, ColorCast, HistogramIssue};
 pub use rendering::HistogramRenderer;

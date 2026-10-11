@@ -1,6 +1,6 @@
+use super::types::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use super::types::*;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MaskEffectType {
@@ -38,7 +38,6 @@ pub enum EffectQuality {
     Ultra,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaskEffect {
     pub id: String,
@@ -50,7 +49,6 @@ pub struct MaskEffect {
     pub opacity: f64,
     pub mask_channel: MaskChannel,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct MaskEffectProcessor {
@@ -216,9 +214,7 @@ impl MaskEffect {
             MaskEffectType::Custom(_) => result = self.apply_custom_effect(result, x, y),
         }
 
-
         result = result * self.opacity;
-
 
         result = self.apply_blend_mode(result, value);
 
@@ -247,11 +243,7 @@ impl MaskEffect {
     fn apply_edge_detect(&self, _value: f64, x: f64, y: f64) -> f64 {
         let threshold = self.parameters.threshold;
         let edge_factor = ((x * 0.2).sin() * (y * 0.2).cos()).abs();
-        if edge_factor > threshold {
-            1.0
-        } else {
-            0.0
-        }
+        if edge_factor > threshold { 1.0 } else { 0.0 }
     }
 
     fn apply_noise(&self, value: f64, x: f64, y: f64) -> f64 {
@@ -336,7 +328,6 @@ impl MaskEffect {
     }
 
     fn apply_custom_effect(&self, value: f64, _x: f64, _y: f64) -> f64 {
-
         if let Some(custom_value) = self.parameters.get_custom_param("multiplier") {
             value * custom_value
         } else {
@@ -360,7 +351,8 @@ impl MaskEffect {
             }
             MaskBlendMode::SoftLight => {
                 if original_value < 0.5 {
-                    2.0 * modified_value * original_value + original_value * original_value - 2.0 * original_value * original_value * modified_value
+                    2.0 * modified_value * original_value + original_value * original_value
+                        - 2.0 * original_value * original_value * modified_value
                 } else {
                     modified_value + original_value - 2.0 * modified_value * original_value
                 }
@@ -373,7 +365,9 @@ impl MaskEffect {
                 }
             }
             MaskBlendMode::Difference => (modified_value - original_value).abs(),
-            MaskBlendMode::Exclusion => modified_value + original_value - 2.0 * modified_value * original_value,
+            MaskBlendMode::Exclusion => {
+                modified_value + original_value - 2.0 * modified_value * original_value
+            }
             MaskBlendMode::In => modified_value * original_value,
             MaskBlendMode::Out => 1.0 - (1.0 - modified_value) * (1.0 - original_value),
         }
@@ -459,7 +453,9 @@ impl MaskEffectProcessor {
     }
 
     pub fn get_effect_mut(&mut self, effect_id: &str) -> Option<&mut MaskEffect> {
-        self.effects.iter_mut().find(|effect| effect.id == effect_id)
+        self.effects
+            .iter_mut()
+            .find(|effect| effect.id == effect_id)
     }
 
     pub fn process_value(&mut self, value: f64, x: f64, y: f64) -> f64 {
@@ -479,7 +475,6 @@ impl MaskEffectProcessor {
             result = effect.apply_to_value(result, x, y);
         }
 
-
         if self.cache_enabled {
             self.cache_data.insert(cache_key, vec![result]);
         }
@@ -487,7 +482,12 @@ impl MaskEffectProcessor {
         result
     }
 
-    pub fn process_region(&mut self, values: &[f64], bounds: (f64, f64, f64, f64), resolution: (u32, u32)) -> Vec<f64> {
+    pub fn process_region(
+        &mut self,
+        values: &[f64],
+        bounds: (f64, f64, f64, f64),
+        resolution: (u32, u32),
+    ) -> Vec<f64> {
         let (min_x, min_y, max_x, max_y) = bounds;
         let (width, height) = resolution;
         let mut result = Vec::with_capacity(values.len());
@@ -526,7 +526,8 @@ impl MaskEffectProcessor {
     }
 
     pub fn get_memory_usage(&self) -> usize {
-        self.cache_data.values()
+        self.cache_data
+            .values()
             .map(|data| data.len() * std::mem::size_of::<f64>())
             .sum()
     }
@@ -536,31 +537,27 @@ impl MaskEffectProcessor {
             .with_radius(radius)
             .with_intensity(intensity);
 
-        MaskEffect::new(id, name, MaskEffectType::Blur)
-            .with_parameters(params)
+        MaskEffect::new(id, name, MaskEffectType::Blur).with_parameters(params)
     }
 
     pub fn create_sharpen_effect(id: String, name: String, intensity: f64) -> MaskEffect {
-        let params = MaskEffectParameters::new()
-            .with_intensity(intensity);
+        let params = MaskEffectParameters::new().with_intensity(intensity);
 
-        MaskEffect::new(id, name, MaskEffectType::Sharpen)
-            .with_parameters(params)
+        MaskEffect::new(id, name, MaskEffectType::Sharpen).with_parameters(params)
     }
 
     pub fn create_noise_effect(id: String, name: String, intensity: f64) -> MaskEffect {
-        let params = MaskEffectParameters::new()
-            .with_intensity(intensity);
+        let params = MaskEffectParameters::new().with_intensity(intensity);
 
-        MaskEffect::new(id, name, MaskEffectType::Noise)
-            .with_parameters(params)
+        MaskEffect::new(id, name, MaskEffectType::Noise).with_parameters(params)
     }
 
     pub fn validate(&self) -> Result<(), String> {
         for (i, effect) in self.effects.iter().enumerate() {
-            effect.validate().map_err(|e| format!("Effect {}: {}", i, e))?;
+            effect
+                .validate()
+                .map_err(|e| format!("Effect {}: {}", i, e))?;
         }
-
 
         let mut ids = std::collections::HashSet::new();
         for effect in &self.effects {
@@ -585,7 +582,11 @@ mod tests {
 
     #[test]
     fn test_mask_effect_creation() {
-        let effect = MaskEffect::new("effect1".to_string(), "Blur Effect".to_string(), MaskEffectType::Blur);
+        let effect = MaskEffect::new(
+            "effect1".to_string(),
+            "Blur Effect".to_string(),
+            MaskEffectType::Blur,
+        );
 
         assert_eq!(effect.id, "effect1");
         assert_eq!(effect.name, "Blur Effect");
@@ -604,11 +605,15 @@ mod tests {
             .with_angle(45.0)
             .with_quality(EffectQuality::High);
 
-        let effect = MaskEffect::new("effect1".to_string(), "Test".to_string(), MaskEffectType::Sharpen)
-            .with_parameters(params)
-            .with_blend_mode(MaskBlendMode::Multiply)
-            .with_opacity(0.8)
-            .with_mask_channel(MaskChannel::Luminance);
+        let effect = MaskEffect::new(
+            "effect1".to_string(),
+            "Test".to_string(),
+            MaskEffectType::Sharpen,
+        )
+        .with_parameters(params)
+        .with_blend_mode(MaskBlendMode::Multiply)
+        .with_opacity(0.8)
+        .with_mask_channel(MaskChannel::Luminance);
 
         assert_eq!(effect.parameters.intensity, 1.5);
         assert_eq!(effect.parameters.radius, 5.0);
@@ -645,7 +650,11 @@ mod tests {
     #[test]
     fn test_effect_application() {
         let effect = MaskEffect::new("blur".to_string(), "Blur".to_string(), MaskEffectType::Blur)
-            .with_parameters(MaskEffectParameters::new().with_intensity(1.0).with_radius(5.0));
+            .with_parameters(
+                MaskEffectParameters::new()
+                    .with_intensity(1.0)
+                    .with_radius(5.0),
+            );
 
         let result = effect.apply_to_value(0.8, 10.0, 15.0);
         assert!(result >= 0.0 && result <= 1.0);
@@ -664,7 +673,11 @@ mod tests {
     #[test]
     fn test_add_remove_effects() {
         let mut processor = MaskEffectProcessor::new();
-        let effect = MaskEffect::new("effect1".to_string(), "Test".to_string(), MaskEffectType::Blur);
+        let effect = MaskEffect::new(
+            "effect1".to_string(),
+            "Test".to_string(),
+            MaskEffectType::Blur,
+        );
 
         processor.add_effect(effect);
         assert_eq!(processor.effects.len(), 1);
@@ -696,7 +709,7 @@ mod tests {
             "blur".to_string(),
             "Blur".to_string(),
             5.0,
-            1.0
+            1.0,
         );
 
         assert_eq!(blur_effect.effect_type, MaskEffectType::Blur);
@@ -706,17 +719,14 @@ mod tests {
         let sharpen_effect = MaskEffectProcessor::create_sharpen_effect(
             "sharpen".to_string(),
             "Sharpen".to_string(),
-            1.5
+            1.5,
         );
 
         assert_eq!(sharpen_effect.effect_type, MaskEffectType::Sharpen);
         assert_eq!(sharpen_effect.parameters.intensity, 1.5);
 
-        let noise_effect = MaskEffectProcessor::create_noise_effect(
-            "noise".to_string(),
-            "Noise".to_string(),
-            0.3
-        );
+        let noise_effect =
+            MaskEffectProcessor::create_noise_effect("noise".to_string(), "Noise".to_string(), 0.3);
 
         assert_eq!(noise_effect.effect_type, MaskEffectType::Noise);
         assert_eq!(noise_effect.parameters.intensity, 0.3);
@@ -724,20 +734,20 @@ mod tests {
 
     #[test]
     fn test_cache_functionality() {
-        let mut processor = MaskEffectProcessor::new()
-            .with_cache(true, (64, 64));
+        let mut processor = MaskEffectProcessor::new().with_cache(true, (64, 64));
 
-        let effect = MaskEffect::new("effect1".to_string(), "Test".to_string(), MaskEffectType::Blur);
+        let effect = MaskEffect::new(
+            "effect1".to_string(),
+            "Test".to_string(),
+            MaskEffectType::Blur,
+        );
         processor.add_effect(effect);
-
 
         let result1 = processor.process_value(0.8, 10.0, 15.0);
         assert_eq!(processor.get_cache_size(), 1);
 
-
         let result2 = processor.process_value(0.8, 10.0, 15.0);
         assert_eq!(result1, result2);
-
 
         processor.clear_cache();
         assert_eq!(processor.get_cache_size(), 0);
@@ -746,7 +756,11 @@ mod tests {
     #[test]
     fn test_region_processing() {
         let mut processor = MaskEffectProcessor::new();
-        let effect = MaskEffect::new("effect1".to_string(), "Test".to_string(), MaskEffectType::Blur);
+        let effect = MaskEffect::new(
+            "effect1".to_string(),
+            "Test".to_string(),
+            MaskEffectType::Blur,
+        );
         processor.add_effect(effect);
 
         let values = vec![0.5, 0.7, 0.3, 0.9];
@@ -756,7 +770,6 @@ mod tests {
         let result = processor.process_region(&values, bounds, resolution);
         assert_eq!(result.len(), 4);
 
-
         for (i, &input_value) in values.iter().enumerate() {
             assert!(result[i] != input_value);
         }
@@ -764,7 +777,11 @@ mod tests {
 
     #[test]
     fn test_effect_validation() {
-        let valid_effect = MaskEffect::new("effect1".to_string(), "Test".to_string(), MaskEffectType::Blur);
+        let valid_effect = MaskEffect::new(
+            "effect1".to_string(),
+            "Test".to_string(),
+            MaskEffectType::Blur,
+        );
         assert!(valid_effect.validate().is_ok());
 
         let mut invalid_effect = valid_effect.clone();
@@ -784,23 +801,32 @@ mod tests {
     fn test_processor_validation() {
         let mut processor = MaskEffectProcessor::new();
 
-
         assert!(processor.validate().is_ok());
 
-
-        let effect = MaskEffect::new("effect1".to_string(), "Test".to_string(), MaskEffectType::Blur);
+        let effect = MaskEffect::new(
+            "effect1".to_string(),
+            "Test".to_string(),
+            MaskEffectType::Blur,
+        );
         processor.add_effect(effect);
         assert!(processor.validate().is_ok());
 
-
-        let effect2 = MaskEffect::new("effect1".to_string(), "Test2".to_string(), MaskEffectType::Sharpen);
+        let effect2 = MaskEffect::new(
+            "effect1".to_string(),
+            "Test2".to_string(),
+            MaskEffectType::Sharpen,
+        );
         processor.add_effect(effect2);
         assert!(processor.validate().is_err());
     }
 
     #[test]
     fn test_disabled_effects() {
-        let effect = MaskEffect::new("effect1".to_string(), "Test".to_string(), MaskEffectType::Blur);
+        let effect = MaskEffect::new(
+            "effect1".to_string(),
+            "Test".to_string(),
+            MaskEffectType::Blur,
+        );
         let mut disabled_effect = effect.clone();
         disabled_effect.set_enabled(false);
 
@@ -848,11 +874,14 @@ mod tests {
 
     #[test]
     fn test_custom_effects() {
-        let params = MaskEffectParameters::new()
-            .with_custom_param("multiplier".to_string(), 2.0);
+        let params = MaskEffectParameters::new().with_custom_param("multiplier".to_string(), 2.0);
 
-        let effect = MaskEffect::new("custom".to_string(), "Custom".to_string(), MaskEffectType::Custom("test".to_string()))
-            .with_parameters(params);
+        let effect = MaskEffect::new(
+            "custom".to_string(),
+            "Custom".to_string(),
+            MaskEffectType::Custom("test".to_string()),
+        )
+        .with_parameters(params);
 
         let result = effect.apply_to_value(0.5, 10.0, 15.0);
         assert_eq!(result, 1.0);

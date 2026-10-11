@@ -1,16 +1,13 @@
-
-
-pub mod processor;
-pub mod types;
+pub mod applicator;
 pub mod config;
 pub mod loader;
+pub mod processor;
 pub mod saver;
-pub mod applicator;
+pub mod types;
 
-
-pub use processor::LutProcessor;
+pub use applicator::{LutApplicator, LutPerformanceMetrics, Region};
 pub use config::LutConfig;
-pub use types::{LutData, LutFormat, LutInfo, ColorCorrection};
 pub use loader::LutLoader;
+pub use processor::LutProcessor;
 pub use saver::LutSaver;
-pub use applicator::{LutApplicator, Region, LutPerformanceMetrics};
+pub use types::{ColorCorrection, LutData, LutFormat, LutInfo};

@@ -84,20 +84,28 @@ impl fmt::Display for BezierControlPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match (&self.handle1, &self.handle2) {
             (Some(h1), Some(h2)) => {
-                write!(f, "Point({}, {}) with handles({}, {}) and ({}, {})",
-                       self.position.0, self.position.1, h1.0, h1.1, h2.0, h2.1)
+                write!(
+                    f,
+                    "Point({}, {}) with handles({}, {}) and ({}, {})",
+                    self.position.0, self.position.1, h1.0, h1.1, h2.0, h2.1
+                )
             }
             (Some(h1), None) => {
-                write!(f, "Point({}, {}) with handle({}, {})",
-                       self.position.0, self.position.1, h1.0, h1.1)
+                write!(
+                    f,
+                    "Point({}, {}) with handle({}, {})",
+                    self.position.0, self.position.1, h1.0, h1.1
+                )
             }
             (None, Some(h2)) => {
-                write!(f, "Point({}, {}) with handle({}, {})",
-                       self.position.0, self.position.1, h2.0, h2.1)
+                write!(
+                    f,
+                    "Point({}, {}) with handle({}, {})",
+                    self.position.0, self.position.1, h2.0, h2.1
+                )
             }
             (None, None) => {
-                write!(f, "Point({}, {})",
-                       self.position.0, self.position.1)
+                write!(f, "Point({}, {})", self.position.0, self.position.1)
             }
         }
     }
@@ -195,7 +203,10 @@ impl AnimationCurve {
         match self.curve_type {
             CurveType::Bezier | CurveType::Custom => {
                 if self.control_points.len() < 2 {
-                    return Err(format!("{} curve requires at least 2 control points", self.curve_type.name()));
+                    return Err(format!(
+                        "{} curve requires at least 2 control points",
+                        self.curve_type.name()
+                    ));
                 }
 
                 for i in 1..self.control_points.len() {
@@ -206,7 +217,10 @@ impl AnimationCurve {
             }
             _ => {
                 if !self.control_points.is_empty() {
-                    return Err(format!("{} curve should not have control points", self.curve_type.name()));
+                    return Err(format!(
+                        "{} curve should not have control points",
+                        self.curve_type.name()
+                    ));
                 }
             }
         }
@@ -220,14 +234,16 @@ impl AnimationCurve {
         match self.curve_type {
             CurveType::Linear => t,
             CurveType::Step => {
-                if t < 0.5 { 0.0 } else { 1.0 }
+                if t < 0.5 {
+                    0.0
+                } else {
+                    1.0
+                }
             }
             CurveType::EaseIn => self.ease_in_function(t),
             CurveType::EaseOut => self.ease_out_function(t),
             CurveType::EaseInOut => self.ease_in_out_function(t),
-            CurveType::Bezier | CurveType::Custom => {
-                self.sample_bezier(t)
-            }
+            CurveType::Bezier | CurveType::Custom => self.sample_bezier(t),
         }
     }
 
@@ -272,12 +288,18 @@ impl AnimationCurve {
     pub fn description(&self) -> String {
         match self.curve_type {
             CurveType::Linear => "Linear interpolation".to_string(),
-            CurveType::Bezier => format!("Bezier curve with {} control points", self.control_points.len()),
+            CurveType::Bezier => format!(
+                "Bezier curve with {} control points",
+                self.control_points.len()
+            ),
             CurveType::EaseIn => "Ease in (quadratic)".to_string(),
             CurveType::EaseOut => "Ease out (quadratic)".to_string(),
             CurveType::EaseInOut => "Ease in out (quadratic)".to_string(),
             CurveType::Step => "Step function".to_string(),
-            CurveType::Custom => format!("Custom curve with {} control points", self.control_points.len()),
+            CurveType::Custom => format!(
+                "Custom curve with {} control points",
+                self.control_points.len()
+            ),
         }
     }
 }
@@ -325,8 +347,15 @@ impl CurveBuilder {
         self
     }
 
-    pub fn add_point_with_handles(mut self, x: f64, y: f64, handle1: (f64, f64), handle2: (f64, f64)) -> Self {
-        self.curve.add_control_point(BezierControlPoint::with_handles(x, y, handle1, handle2));
+    pub fn add_point_with_handles(
+        mut self,
+        x: f64,
+        y: f64,
+        handle1: (f64, f64),
+        handle2: (f64, f64),
+    ) -> Self {
+        self.curve
+            .add_control_point(BezierControlPoint::with_handles(x, y, handle1, handle2));
         self
     }
 
@@ -427,9 +456,7 @@ mod tests {
 
         assert!(valid_bezier.validate().is_ok());
 
-        let invalid_bezier = AnimationCurve::bezier(vec![
-            BezierControlPoint::new(0.0, 0.0),
-        ]);
+        let invalid_bezier = AnimationCurve::bezier(vec![BezierControlPoint::new(0.0, 0.0)]);
 
         assert!(invalid_bezier.validate().is_err());
 
@@ -475,7 +502,10 @@ mod tests {
     #[test]
     fn test_curve_descriptions() {
         let linear = AnimationCurve::linear();
-        let bezier = AnimationCurve::bezier(vec![BezierControlPoint::new(0.0, 0.0), BezierControlPoint::new(1.0, 1.0)]);
+        let bezier = AnimationCurve::bezier(vec![
+            BezierControlPoint::new(0.0, 0.0),
+            BezierControlPoint::new(1.0, 1.0),
+        ]);
 
         assert!(linear.description().contains("Linear"));
         assert!(bezier.description().contains("Bezier"));

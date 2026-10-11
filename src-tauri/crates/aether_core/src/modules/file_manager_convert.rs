@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use std::path::Path;
@@ -144,9 +144,7 @@ impl MediaConverter {
     pub fn new() -> Result<Self> {
         gst::init()?;
 
-        Ok(Self {
-            initialized: true,
-        })
+        Ok(Self { initialized: true })
     }
 
     pub fn convert_video<P: AsRef<Path>, Q: AsRef<Path>>(
@@ -186,30 +184,52 @@ impl MediaConverter {
         let pipeline = gst::Pipeline::new();
         let filesrc = gst::ElementFactory::make("filesrc")
             .property("location", input_path.to_str().unwrap())
-            .build().map_err(|e| anyhow!("filesrc: {}", e))?;
+            .build()
+            .map_err(|e| anyhow!("filesrc: {}", e))?;
         let decodebin = gst::ElementFactory::make("decodebin")
-            .build().map_err(|e| anyhow!("decodebin: {}", e))?;
+            .build()
+            .map_err(|e| anyhow!("decodebin: {}", e))?;
         let muxer = gst::ElementFactory::make(muxer_name)
-            .build().map_err(|e| anyhow!("muxer {}: {}", muxer_name, e))?;
+            .build()
+            .map_err(|e| anyhow!("muxer {}: {}", muxer_name, e))?;
         let filesink = gst::ElementFactory::make("filesink")
             .property("location", output_path.to_str().unwrap())
-            .build().map_err(|e| anyhow!("filesink: {}", e))?;
+            .build()
+            .map_err(|e| anyhow!("filesink: {}", e))?;
 
-        pipeline.add_many([&filesrc, &decodebin, &muxer, &filesink])
+        pipeline
+            .add_many([&filesrc, &decodebin, &muxer, &filesink])
             .map_err(|e| anyhow!("add: {}", e))?;
-        filesrc.link(&decodebin).map_err(|e| anyhow!("link filesrc-decodebin: {}", e))?;
-        muxer.link(&filesink).map_err(|e| anyhow!("link muxer-filesink: {}", e))?;
+        filesrc
+            .link(&decodebin)
+            .map_err(|e| anyhow!("link filesrc-decodebin: {}", e))?;
+        muxer
+            .link(&filesink)
+            .map_err(|e| anyhow!("link muxer-filesink: {}", e))?;
 
         let video_enc = gst::ElementFactory::make(video_enc_name)
-            .build().map_err(|e| anyhow!("video_enc: {}", e))?;
+            .build()
+            .map_err(|e| anyhow!("video_enc: {}", e))?;
         let audio_enc = gst::ElementFactory::make(audio_enc_name)
-            .build().map_err(|e| anyhow!("audio_enc: {}", e))?;
-        let v_queue = gst::ElementFactory::make("queue").build().map_err(|e| anyhow!("v_queue: {}", e))?;
-        let a_queue = gst::ElementFactory::make("queue").build().map_err(|e| anyhow!("a_queue: {}", e))?;
-        let v_convert = gst::ElementFactory::make("videoconvert").build().map_err(|e| anyhow!("v_convert: {}", e))?;
-        let a_convert = gst::ElementFactory::make("audioconvert").build().map_err(|e| anyhow!("a_convert: {}", e))?;
+            .build()
+            .map_err(|e| anyhow!("audio_enc: {}", e))?;
+        let v_queue = gst::ElementFactory::make("queue")
+            .build()
+            .map_err(|e| anyhow!("v_queue: {}", e))?;
+        let a_queue = gst::ElementFactory::make("queue")
+            .build()
+            .map_err(|e| anyhow!("a_queue: {}", e))?;
+        let v_convert = gst::ElementFactory::make("videoconvert")
+            .build()
+            .map_err(|e| anyhow!("v_convert: {}", e))?;
+        let a_convert = gst::ElementFactory::make("audioconvert")
+            .build()
+            .map_err(|e| anyhow!("a_convert: {}", e))?;
 
-        pipeline.add_many([&v_queue, &v_convert, &video_enc, &a_queue, &a_convert, &audio_enc])
+        pipeline
+            .add_many([
+                &v_queue, &v_convert, &video_enc, &a_queue, &a_convert, &audio_enc,
+            ])
             .map_err(|e| anyhow!("add enc: {}", e))?;
 
         gst::Element::link_many([&v_queue, &v_convert, &video_enc]).ok();
@@ -246,11 +266,17 @@ impl MediaConverter {
         });
 
         let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;
-        pipeline.set_state(gst::State::Playing).map_err(|e| anyhow!("play: {}", e))?;
+        pipeline
+            .set_state(gst::State::Playing)
+            .map_err(|e| anyhow!("play: {}", e))?;
 
-        let msg = bus.timed_pop_filtered(gst::ClockTime::from_seconds(300),
-            &[gst::MessageType::Error, gst::MessageType::Eos]);
-        pipeline.set_state(gst::State::Null).map_err(|e| anyhow!("stop: {}", e))?;
+        let msg = bus.timed_pop_filtered(
+            gst::ClockTime::from_seconds(300),
+            &[gst::MessageType::Error, gst::MessageType::Eos],
+        );
+        pipeline
+            .set_state(gst::State::Null)
+            .map_err(|e| anyhow!("stop: {}", e))?;
 
         match msg {
             Some(msg) => match msg.view() {
@@ -277,7 +303,6 @@ impl MediaConverter {
         let input_path = input_path.as_ref();
         let output_path = output_path.as_ref();
 
-
         if let Some(parent) = output_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -292,22 +317,38 @@ impl MediaConverter {
         let pipeline = gst::Pipeline::new();
         let filesrc = gst::ElementFactory::make("filesrc")
             .property("location", input_path.to_str().unwrap())
-            .build().map_err(|e| anyhow!("filesrc: {}", e))?;
+            .build()
+            .map_err(|e| anyhow!("filesrc: {}", e))?;
         let decodebin = gst::ElementFactory::make("decodebin")
-            .build().map_err(|e| anyhow!("decodebin: {}", e))?;
+            .build()
+            .map_err(|e| anyhow!("decodebin: {}", e))?;
         let queue = gst::ElementFactory::make("queue")
-            .build().map_err(|e| anyhow!("queue: {}", e))?;
+            .build()
+            .map_err(|e| anyhow!("queue: {}", e))?;
         let audioconvert = gst::ElementFactory::make("audioconvert")
-            .build().map_err(|e| anyhow!("audioconvert: {}", e))?;
+            .build()
+            .map_err(|e| anyhow!("audioconvert: {}", e))?;
         let encoder = gst::ElementFactory::make(enc_name)
-            .build().map_err(|e| anyhow!("encoder {}: {}", enc_name, e))?;
+            .build()
+            .map_err(|e| anyhow!("encoder {}: {}", enc_name, e))?;
         let filesink = gst::ElementFactory::make("filesink")
             .property("location", output_path.to_str().unwrap())
-            .build().map_err(|e| anyhow!("filesink: {}", e))?;
+            .build()
+            .map_err(|e| anyhow!("filesink: {}", e))?;
 
-        pipeline.add_many([&filesrc, &decodebin, &queue, &audioconvert, &encoder, &filesink])
+        pipeline
+            .add_many([
+                &filesrc,
+                &decodebin,
+                &queue,
+                &audioconvert,
+                &encoder,
+                &filesink,
+            ])
             .map_err(|e| anyhow!("add: {}", e))?;
-        filesrc.link(&decodebin).map_err(|e| anyhow!("link: {}", e))?;
+        filesrc
+            .link(&decodebin)
+            .map_err(|e| anyhow!("link: {}", e))?;
         gst::Element::link_many([&queue, &audioconvert, &encoder, &filesink])
             .map_err(|e| anyhow!("downstream: {}", e))?;
 
@@ -326,11 +367,17 @@ impl MediaConverter {
         });
 
         let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;
-        pipeline.set_state(gst::State::Playing).map_err(|e| anyhow!("play: {}", e))?;
+        pipeline
+            .set_state(gst::State::Playing)
+            .map_err(|e| anyhow!("play: {}", e))?;
 
-        let msg = bus.timed_pop_filtered(gst::ClockTime::from_seconds(300),
-            &[gst::MessageType::Error, gst::MessageType::Eos]);
-        pipeline.set_state(gst::State::Null).map_err(|e| anyhow!("stop: {}", e))?;
+        let msg = bus.timed_pop_filtered(
+            gst::ClockTime::from_seconds(300),
+            &[gst::MessageType::Error, gst::MessageType::Eos],
+        );
+        pipeline
+            .set_state(gst::State::Null)
+            .map_err(|e| anyhow!("stop: {}", e))?;
 
         match msg {
             Some(msg) => match msg.view() {

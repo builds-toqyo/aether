@@ -5,7 +5,6 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlyphRenderInfo {
-
     pub character: char,
     pub char_index: usize,
     pub position: (f64, f64),
@@ -46,7 +45,6 @@ pub enum HintingMode {
     Full,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ColorSpace {
     Srgb,
@@ -55,10 +53,8 @@ pub enum ColorSpace {
     Aces,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlyphCache {
-
     pub glyphs: std::collections::HashMap<String, CachedGlyph>,
 
     pub max_size: usize,
@@ -68,10 +64,8 @@ pub struct GlyphCache {
     pub misses: u64,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CachedGlyph {
-
     pub key: String,
 
     pub data: Vec<u8>,
@@ -82,7 +76,6 @@ pub struct CachedGlyph {
 
     pub frequency: u32,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlyphMetrics {
@@ -103,7 +96,6 @@ pub struct PerformanceSettings {
     pub texture_atlas_size: (u32, u32),
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlyphRenderer {
     pub font_family: String,
@@ -114,7 +106,6 @@ pub struct GlyphRenderer {
     pub quality: RenderQuality,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum GlyphRenderMode {
     Fill,
@@ -122,7 +113,6 @@ pub enum GlyphRenderMode {
     FillAndStroke,
     Outline,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum RenderQuality {
@@ -159,7 +149,11 @@ impl TextRenderer {
         }
     }
 
-    pub fn render_text_layer(&mut self, text_layer: &crate::text::types::TextLayer, time: f64) -> Vec<GlyphRenderInfo> {
+    pub fn render_text_layer(
+        &mut self,
+        text_layer: &crate::text::types::TextLayer,
+        time: f64,
+    ) -> Vec<GlyphRenderInfo> {
         let mut render_infos = Vec::new();
 
         if !text_layer.visible || text_layer.opacity == 0.0 {
@@ -171,7 +165,11 @@ impl TextRenderer {
 
         let animated_values = self.get_animated_values(text_layer, time);
 
-        let font = self.get_or_load_font(&text_layer.style.font_family, text_layer.style.font_size, text_layer.style.font_weight);
+        let font = self.get_or_load_font(
+            &text_layer.style.font_family,
+            text_layer.style.font_size,
+            text_layer.style.font_weight,
+        );
 
         if let Some(font_ref) = &font {
             for line in &layout.lines {
@@ -183,7 +181,11 @@ impl TextRenderer {
                         &animated_values,
                     );
 
-                    let rasterized_glyph = self.rasterize_glyph(glyph_pos.character, font_ref, text_layer.style.font_size);
+                    let rasterized_glyph = self.rasterize_glyph(
+                        glyph_pos.character,
+                        font_ref,
+                        text_layer.style.font_size,
+                    );
                     if let Some(glyph_data) = rasterized_glyph {
                         self.cache_glyph(glyph_pos.character, &text_layer.style, glyph_data);
                     }
@@ -201,7 +203,12 @@ impl TextRenderer {
         render_infos
     }
 
-    fn get_or_load_font(&mut self, font_family: &str, font_size: f64, font_weight: u16) -> Option<fontdue::Font> {
+    fn get_or_load_font(
+        &mut self,
+        font_family: &str,
+        font_size: f64,
+        font_weight: u16,
+    ) -> Option<fontdue::Font> {
         let font_key = format!("{}_{}_{}", font_family, font_size, font_weight);
 
         if let Some(font) = self.font_cache.get(&font_key) {
@@ -216,7 +223,12 @@ impl TextRenderer {
         None
     }
 
-    fn load_system_font(&self, font_family: &str, font_size: f64, font_weight: u16) -> Option<fontdue::Font> {
+    fn load_system_font(
+        &self,
+        font_family: &str,
+        font_size: f64,
+        font_weight: u16,
+    ) -> Option<fontdue::Font> {
         let paths = self.system_font_paths(font_family, font_weight);
         for path in paths {
             if let Ok(bytes) = fs::read(&path) {
@@ -245,29 +257,53 @@ impl TextRenderer {
             _ => "Regular",
         };
 
-        let mac_dirs = ["/System/Library/Fonts", "/Library/Fonts", "/System/Library/Fonts/Supplemental"];
+        let mac_dirs = [
+            "/System/Library/Fonts",
+            "/Library/Fonts",
+            "/System/Library/Fonts/Supplemental",
+        ];
         for dir in &mac_dirs {
             paths.push(PathBuf::from(format!("{}/{}.ttf", dir, font_family)));
-            paths.push(PathBuf::from(format!("{}/{}-{}.ttf", dir, font_family, weight_suffix)));
+            paths.push(PathBuf::from(format!(
+                "{}/{}-{}.ttf",
+                dir, font_family, weight_suffix
+            )));
             paths.push(PathBuf::from(format!("{}/{}.ttc", dir, font_family)));
             paths.push(PathBuf::from(format!("{}/{}.otf", dir, font_family)));
         }
 
         let linux_dirs = ["/usr/share/fonts/truetype", "/usr/local/share/fonts"];
         for dir in &linux_dirs {
-            paths.push(PathBuf::from(format!("{}/{}/{}.ttf", dir, font_family, font_family)));
-            paths.push(PathBuf::from(format!("{}/{}-{}.ttf", dir, font_family, weight_suffix)));
+            paths.push(PathBuf::from(format!(
+                "{}/{}/{}.ttf",
+                dir, font_family, font_family
+            )));
+            paths.push(PathBuf::from(format!(
+                "{}/{}-{}.ttf",
+                dir, font_family, weight_suffix
+            )));
             paths.push(PathBuf::from(format!("{}/{}.ttf", dir, font_family)));
         }
 
         let win_dir = std::env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".to_string());
-        paths.push(PathBuf::from(format!("{}\\Fonts\\{}.ttf", win_dir, font_family)));
-        paths.push(PathBuf::from(format!("{}\\Fonts\\{}-{}.ttf", win_dir, font_family, weight_suffix)));
+        paths.push(PathBuf::from(format!(
+            "{}\\Fonts\\{}.ttf",
+            win_dir, font_family
+        )));
+        paths.push(PathBuf::from(format!(
+            "{}\\Fonts\\{}-{}.ttf",
+            win_dir, font_family, weight_suffix
+        )));
 
         paths
     }
 
-    fn rasterize_glyph(&self, character: char, font: &fontdue::Font, font_size: f64) -> Option<Vec<u8>> {
+    fn rasterize_glyph(
+        &self,
+        character: char,
+        font: &fontdue::Font,
+        font_size: f64,
+    ) -> Option<Vec<u8>> {
         let (_metrics, bitmap) = font.rasterize(character, font_size as f32);
 
         let mut rgba_data = Vec::with_capacity(bitmap.len() * 4);
@@ -281,13 +317,15 @@ impl TextRenderer {
         Some(rgba_data)
     }
 
-    fn cache_glyph(&mut self, character: char, style: &crate::text::types::TextStyle, glyph_data: Vec<u8>) {
-        let key = format!("{}_{}_{}_{}_{:?}",
-            style.font_family,
-            style.font_size,
-            style.font_weight,
-            character,
-            style.font_style
+    fn cache_glyph(
+        &mut self,
+        character: char,
+        style: &crate::text::types::TextStyle,
+        glyph_data: Vec<u8>,
+    ) {
+        let key = format!(
+            "{}_{}_{}_{}_{:?}",
+            style.font_family, style.font_size, style.font_weight, character, style.font_style
         );
 
         let cached_glyph = CachedGlyph {
@@ -308,22 +346,24 @@ impl TextRenderer {
         self.glyph_cache.add(key, cached_glyph);
     }
 
-
     fn create_render_info(
         &self,
         glyph_pos: &crate::text::typography::GlyphPosition,
         text_layer: &crate::text::types::TextLayer,
         metrics: &crate::text::typography::FontMetrics,
-        animated_values: &std::collections::HashMap<crate::text::animation::AnimationType, crate::text::animation::AnimationValue>,
+        animated_values: &std::collections::HashMap<
+            crate::text::animation::AnimationType,
+            crate::text::animation::AnimationValue,
+        >,
     ) -> GlyphRenderInfo {
-
         let mut position = (
             text_layer.position.0 + glyph_pos.x,
             text_layer.position.1 + glyph_pos.y,
         );
 
         if let Some(crate::text::animation::AnimationValue::Vector2(dx, dy)) =
-            animated_values.get(&crate::text::animation::AnimationType::Position) {
+            animated_values.get(&crate::text::animation::AnimationType::Position)
+        {
             position.0 += dx;
             position.1 += dy;
         }
@@ -331,7 +371,8 @@ impl TextRenderer {
         let mut size = (glyph_pos.width, glyph_pos.height);
 
         if let Some(crate::text::animation::AnimationValue::Float(scale)) =
-            animated_values.get(&crate::text::animation::AnimationType::Scale) {
+            animated_values.get(&crate::text::animation::AnimationType::Scale)
+        {
             size.0 *= scale;
             size.1 *= scale;
         }
@@ -339,28 +380,32 @@ impl TextRenderer {
         let mut rotation = text_layer.rotation.to_radians();
 
         if let Some(crate::text::animation::AnimationValue::Float(rot)) =
-            animated_values.get(&crate::text::animation::AnimationType::Rotation) {
+            animated_values.get(&crate::text::animation::AnimationType::Rotation)
+        {
             rotation += rot.to_radians();
         }
 
         let mut color = self.parse_color(&text_layer.style.color);
 
         if let Some(crate::text::animation::AnimationValue::Color(r, g, b, a)) =
-            animated_values.get(&crate::text::animation::AnimationType::Color) {
+            animated_values.get(&crate::text::animation::AnimationType::Color)
+        {
             color = (*r, *g, *b, *a);
         }
 
         let mut opacity = text_layer.opacity;
 
         if let Some(crate::text::animation::AnimationValue::Float(op)) =
-            animated_values.get(&crate::text::animation::AnimationType::Opacity) {
+            animated_values.get(&crate::text::animation::AnimationType::Opacity)
+        {
             opacity *= *op;
         }
 
         let mut blur = 0.0;
 
         if let Some(crate::text::animation::AnimationValue::Float(blur_val)) =
-            animated_values.get(&crate::text::animation::AnimationType::Blur) {
+            animated_values.get(&crate::text::animation::AnimationType::Blur)
+        {
             blur = *blur_val;
         }
 
@@ -368,7 +413,8 @@ impl TextRenderer {
 
         let mut tracking = 0.0;
         if let Some(crate::text::animation::AnimationValue::Float(track)) =
-            animated_values.get(&crate::text::animation::AnimationType::Tracking) {
+            animated_values.get(&crate::text::animation::AnimationType::Tracking)
+        {
             tracking = *track;
         }
 
@@ -402,7 +448,10 @@ impl TextRenderer {
         &self,
         text_layer: &crate::text::types::TextLayer,
         time: f64,
-    ) -> std::collections::HashMap<crate::text::animation::AnimationType, crate::text::animation::AnimationValue> {
+    ) -> std::collections::HashMap<
+        crate::text::animation::AnimationType,
+        crate::text::animation::AnimationValue,
+    > {
         let mut values = std::collections::HashMap::new();
 
         let mut animator = crate::text::animation::TextAnimator::new();
@@ -419,7 +468,6 @@ impl TextRenderer {
     }
 
     fn parse_color(&self, color_str: &str) -> (f64, f64, f64, f64) {
-
         if color_str.starts_with('#') {
             let hex = &color_str[1..];
             if hex.len() == 6 {
@@ -438,7 +486,11 @@ impl TextRenderer {
     }
 
     pub fn get_cache_stats(&self) -> (usize, u64, u64) {
-        (self.glyph_cache.glyphs.len(), self.glyph_cache.hits, self.glyph_cache.misses)
+        (
+            self.glyph_cache.glyphs.len(),
+            self.glyph_cache.hits,
+            self.glyph_cache.misses,
+        )
     }
 
     pub fn optimize_cache(&mut self) {
@@ -479,7 +531,8 @@ impl TextRenderer {
             return Err("Render threads must be greater than 0".to_string());
         }
 
-        if self.performance.texture_atlas_size.0 == 0 || self.performance.texture_atlas_size.1 == 0 {
+        if self.performance.texture_atlas_size.0 == 0 || self.performance.texture_atlas_size.1 == 0
+        {
             return Err("Texture atlas size must be greater than 0".to_string());
         }
 
@@ -511,7 +564,6 @@ impl GlyphCache {
     }
 
     pub fn add(&mut self, key: String, glyph: CachedGlyph) {
-
         if self.glyphs.len() >= self.max_size {
             self.remove_oldest();
         }
@@ -537,7 +589,8 @@ impl GlyphCache {
         glyphs.sort_by(|a, b| a.1.frequency.cmp(&b.1.frequency));
 
         let remove_count = self.glyphs.len() - self.max_size;
-        let keys_to_remove: Vec<String> = glyphs.iter()
+        let keys_to_remove: Vec<String> = glyphs
+            .iter()
             .take(remove_count)
             .map(|(key, _)| (*key).clone())
             .collect();
@@ -547,16 +600,17 @@ impl GlyphCache {
     }
 
     fn remove_oldest(&mut self) {
-        if let Some(oldest_key) = self.glyphs
+        if let Some(oldest_key) = self
+            .glyphs
             .iter()
             .min_by_key(|(_, glyph)| glyph.last_access)
-            .map(|(key, _)| key.clone()) {
+            .map(|(key, _)| key.clone())
+        {
             self.glyphs.remove(&oldest_key);
         }
     }
 
     fn get_current_time(&self) -> u64 {
-
         0
     }
 
@@ -581,7 +635,6 @@ impl GlyphRenderer {
             quality: RenderQuality::Medium,
         }
     }
-
 
     pub fn with_font(font_family: String, font_size: f64) -> Self {
         Self {
@@ -684,10 +737,8 @@ mod tests {
         assert_eq!(cache.misses, 0);
         assert_eq!(cache.hit_rate(), 0.0);
 
-
         assert!(cache.get("test").is_none());
         assert_eq!(cache.misses, 1);
-
 
         let glyph = CachedGlyph {
             key: "test".to_string(),
@@ -710,7 +761,6 @@ mod tests {
         assert!(cached.is_some());
         assert_eq!(cache.hits, 1);
         assert!(cache.hit_rate() > 0.0);
-
 
         let removed = cache.remove("test");
         assert!(removed.is_some());
@@ -836,7 +886,6 @@ mod tests {
         let render_infos = renderer.render_text_layer(&text_layer, 0.0);
 
         assert!(!render_infos.is_empty());
-
 
         for (i, render_info) in render_infos.iter().enumerate() {
             assert_eq!(render_info.char_index, i);

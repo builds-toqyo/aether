@@ -1,5 +1,5 @@
-use super::types::{RendererConfig, RendererError, PostProcessUniforms};
 use super::shader::COMPUTE_SHADER;
+use super::types::{PostProcessUniforms, RendererConfig, RendererError};
 
 /// wgpu GPU compute state managed separately for clarity
 pub(super) struct WgpuComputeState {
@@ -20,33 +20,30 @@ impl WgpuComputeState {
             ..wgpu::InstanceDescriptor::new_without_display_handle()
         });
 
-        let adapter = pollster::block_on(
-            instance.request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: None,
-                force_fallback_adapter: false,
-            })
-        )
-        .map_err(|e| RendererError::HardwareAccelerationError(
-            format!("No suitable GPU adapter found: {}", e)
-        ))?;
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            compatible_surface: None,
+            force_fallback_adapter: false,
+        }))
+        .map_err(|e| {
+            RendererError::HardwareAccelerationError(format!(
+                "No suitable GPU adapter found: {}",
+                e
+            ))
+        })?;
 
         let info = adapter.get_info();
         log::info!("Selected GPU: {} ({:?})", info.name, info.backend);
 
-        let (device, queue) = pollster::block_on(
-            adapter.request_device(
-                &wgpu::DeviceDescriptor {
-                    label: Some("Aether Renderer"),
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::default(),
-                    ..Default::default()
-                }
-            )
-        )
-        .map_err(|e| RendererError::HardwareAccelerationError(
-            format!("Failed to create wgpu device: {}", e)
-        ))?;
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+            label: Some("Aether Renderer"),
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::default(),
+            ..Default::default()
+        }))
+        .map_err(|e| {
+            RendererError::HardwareAccelerationError(format!("Failed to create wgpu device: {}", e))
+        })?;
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("post_process"),

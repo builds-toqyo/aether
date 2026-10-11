@@ -146,10 +146,15 @@ impl TypographyControls {
             return Err("Line height must be positive".to_string());
         }
 
-        if self.color.0 < 0.0 || self.color.0 > 1.0 ||
-           self.color.1 < 0.0 || self.color.1 > 1.0 ||
-           self.color.2 < 0.0 || self.color.2 > 1.0 ||
-           self.color.3 < 0.0 || self.color.3 > 1.0 {
+        if self.color.0 < 0.0
+            || self.color.0 > 1.0
+            || self.color.1 < 0.0
+            || self.color.1 > 1.0
+            || self.color.2 < 0.0
+            || self.color.2 > 1.0
+            || self.color.3 < 0.0
+            || self.color.3 > 1.0
+        {
             return Err("Color values must be between 0.0 and 1.0".to_string());
         }
 
@@ -194,7 +199,6 @@ mod tests {
     fn test_font_weight_conversion() {
         let mut typography = TypographyControls::default();
 
-
         typography.font_weight = FontWeight::Thin;
         assert_eq!(typography.get_font_weight_value(), 100);
 
@@ -206,7 +210,6 @@ mod tests {
 
         typography.font_weight = FontWeight::Custom(750);
         assert_eq!(typography.get_font_weight_value(), 750);
-
 
         typography.set_font_weight_value(300);
         assert_eq!(typography.font_weight, FontWeight::Light);

@@ -1,9 +1,9 @@
 use anyhow::Result;
 use log::debug;
 
-use super::types::HdrImage;
 use super::config::ToneMappingConfig;
 use super::display::HdrDisplayProfile;
+use super::types::HdrImage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToneMappingAlgorithm {
@@ -19,7 +19,6 @@ pub struct ToneMapper {
 }
 
 impl ToneMapper {
-
     pub fn new(config: ToneMappingConfig) -> Self {
         Self { config }
     }
@@ -30,13 +29,18 @@ impl ToneMapper {
         display_info: &HdrDisplayProfile,
         config: &ToneMappingConfig,
     ) -> Result<HdrImage> {
-        debug!("Applying tone mapping with algorithm: {:?}", config.algorithm);
+        debug!(
+            "Applying tone mapping with algorithm: {:?}",
+            config.algorithm
+        );
 
         let mut tone_mapped = hdr_image.clone();
 
         for pixel in &mut tone_mapped.data {
             *pixel = match config.algorithm {
-                ToneMappingAlgorithm::Reinhard => self.reinhard_tone_map(*pixel, display_info, config),
+                ToneMappingAlgorithm::Reinhard => {
+                    self.reinhard_tone_map(*pixel, display_info, config)
+                }
                 ToneMappingAlgorithm::Filmic => self.filmic_tone_map(*pixel, display_info, config),
                 ToneMappingAlgorithm::Aces => self.aces_tone_map(*pixel, display_info, config),
                 ToneMappingAlgorithm::Hable => self.hable_tone_map(*pixel, display_info, config),
@@ -47,8 +51,12 @@ impl ToneMapper {
         Ok(tone_mapped)
     }
 
-
-    fn reinhard_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, _config: &ToneMappingConfig) -> super::types::HdrPixel {
+    fn reinhard_tone_map(
+        &self,
+        pixel: super::types::HdrPixel,
+        display: &HdrDisplayProfile,
+        _config: &ToneMappingConfig,
+    ) -> super::types::HdrPixel {
         let scale = 1.0 / display.peak_luminance;
         let r = pixel.r * scale;
         let g = pixel.g * scale;
@@ -65,15 +73,34 @@ impl ToneMapper {
         }
     }
 
-
-    fn filmic_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, config: &ToneMappingConfig) -> super::types::HdrPixel {
+    fn filmic_tone_map(
+        &self,
+        pixel: super::types::HdrPixel,
+        display: &HdrDisplayProfile,
+        config: &ToneMappingConfig,
+    ) -> super::types::HdrPixel {
         let shoulder_strength = config.shoulder_strength;
         let mid_tone = config.mid_tone;
         let highlight_strength = config.highlight_strength;
 
-        let r = self.filmic_curve(pixel.r / display.peak_luminance, shoulder_strength, mid_tone, highlight_strength);
-        let g = self.filmic_curve(pixel.g / display.peak_luminance, shoulder_strength, mid_tone, highlight_strength);
-        let b = self.filmic_curve(pixel.b / display.peak_luminance, shoulder_strength, mid_tone, highlight_strength);
+        let r = self.filmic_curve(
+            pixel.r / display.peak_luminance,
+            shoulder_strength,
+            mid_tone,
+            highlight_strength,
+        );
+        let g = self.filmic_curve(
+            pixel.g / display.peak_luminance,
+            shoulder_strength,
+            mid_tone,
+            highlight_strength,
+        );
+        let b = self.filmic_curve(
+            pixel.b / display.peak_luminance,
+            shoulder_strength,
+            mid_tone,
+            highlight_strength,
+        );
 
         super::types::HdrPixel {
             r: r * display.peak_luminance,
@@ -81,7 +108,6 @@ impl ToneMapper {
             b: b * display.peak_luminance,
         }
     }
-
 
     fn filmic_curve(&self, x: f32, shoulder: f32, mid: f32, highlight: f32) -> f32 {
         let a = shoulder;
@@ -95,8 +121,12 @@ impl ToneMapper {
         }
     }
 
-
-    fn aces_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, _config: &ToneMappingConfig) -> super::types::HdrPixel {
+    fn aces_tone_map(
+        &self,
+        pixel: super::types::HdrPixel,
+        display: &HdrDisplayProfile,
+        _config: &ToneMappingConfig,
+    ) -> super::types::HdrPixel {
         let a = 2.51;
         let _b = 0.03;
         let c = 2.43;
@@ -119,8 +149,12 @@ impl ToneMapper {
         }
     }
 
-
-    fn hable_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, _config: &ToneMappingConfig) -> super::types::HdrPixel {
+    fn hable_tone_map(
+        &self,
+        pixel: super::types::HdrPixel,
+        display: &HdrDisplayProfile,
+        _config: &ToneMappingConfig,
+    ) -> super::types::HdrPixel {
         let a = 0.22;
         let _b = 0.30;
         let c = 0.10;
@@ -133,9 +167,7 @@ impl ToneMapper {
         let g = pixel.g * scale;
         let b = pixel.b * scale;
 
-        let hable = |x: f32| -> f32 {
-            ((x * (a * x + b) + c) / (x * (d * x + e) + f)) - e / f
-        };
+        let hable = |x: f32| -> f32 { ((x * (a * x + b) + c) / (x * (d * x + e) + f)) - e / f };
 
         let r_hable = hable(r);
         let g_hable = hable(g);
@@ -148,8 +180,12 @@ impl ToneMapper {
         }
     }
 
-
-    fn drago_tone_map(&self, pixel: super::types::HdrPixel, display: &HdrDisplayProfile, _config: &ToneMappingConfig) -> super::types::HdrPixel {
+    fn drago_tone_map(
+        &self,
+        pixel: super::types::HdrPixel,
+        display: &HdrDisplayProfile,
+        _config: &ToneMappingConfig,
+    ) -> super::types::HdrPixel {
         let log_max = display.peak_luminance.log10();
         let bias = 0.85;
 
@@ -173,11 +209,9 @@ impl ToneMapper {
         }
     }
 
-
     pub fn update_config(&mut self, config: ToneMappingConfig) {
         self.config = config;
     }
-
 
     pub fn get_available_algorithms(&self) -> Vec<ToneMappingAlgorithm> {
         vec![
@@ -189,10 +223,11 @@ impl ToneMapper {
         ]
     }
 
-
     pub fn get_algorithm_description(&self, algorithm: ToneMappingAlgorithm) -> &'static str {
         match algorithm {
-            ToneMappingAlgorithm::Reinhard => "Classic photographic tone mapping with smooth highlights",
+            ToneMappingAlgorithm::Reinhard => {
+                "Classic photographic tone mapping with smooth highlights"
+            }
             ToneMappingAlgorithm::Filmic => "Film-like tone reproduction with cinematic look",
             ToneMappingAlgorithm::Aces => "Academy Color Encoding System tone mapping",
             ToneMappingAlgorithm::Hable => "Uncharted 2 game engine tone mapping",
@@ -200,8 +235,10 @@ impl ToneMapper {
         }
     }
 
-
-    pub fn get_algorithm_characteristics(&self, algorithm: ToneMappingAlgorithm) -> ToneMappingCharacteristics {
+    pub fn get_algorithm_characteristics(
+        &self,
+        algorithm: ToneMappingAlgorithm,
+    ) -> ToneMappingCharacteristics {
         match algorithm {
             ToneMappingAlgorithm::Reinhard => ToneMappingCharacteristics {
                 preserves_highlights: false,
@@ -242,7 +279,6 @@ impl ToneMapper {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct ToneMappingCharacteristics {
     pub preserves_highlights: bool,
@@ -266,7 +302,10 @@ mod tests {
     fn test_tone_mapper_creation() {
         let config = ToneMappingConfig::default();
         let mapper = ToneMapper::new(config);
-        assert!(matches!(mapper.config.algorithm, ToneMappingAlgorithm::Reinhard));
+        assert!(matches!(
+            mapper.config.algorithm,
+            ToneMappingAlgorithm::Reinhard
+        ));
     }
 
     #[test]
@@ -322,19 +361,23 @@ mod tests {
 
         let config = ToneMappingConfig::default();
 
-
-        let bright_pixel = super::types::HdrPixel { r: 1000.0, g: 1000.0, b: 1000.0 };
+        let bright_pixel = super::types::HdrPixel {
+            r: 1000.0,
+            g: 1000.0,
+            b: 1000.0,
+        };
         let mapped = mapper.reinhard_tone_map(bright_pixel, &display, &config);
-
 
         assert!(mapped.r < bright_pixel.r);
         assert!(mapped.g < bright_pixel.g);
         assert!(mapped.b < bright_pixel.b);
 
-
-        let dark_pixel = super::types::HdrPixel { r: 10.0, g: 10.0, b: 10.0 };
+        let dark_pixel = super::types::HdrPixel {
+            r: 10.0,
+            g: 10.0,
+            b: 10.0,
+        };
         let mapped_dark = mapper.reinhard_tone_map(dark_pixel, &display, &config);
-
 
         assert!(mapped_dark.r >= dark_pixel.r);
         assert!(mapped_dark.g >= dark_pixel.g);

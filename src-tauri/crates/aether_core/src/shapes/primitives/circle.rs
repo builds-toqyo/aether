@@ -1,11 +1,7 @@
-
-
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Circle {
-
     pub cx: f64,
 
     pub cy: f64,
@@ -14,21 +10,17 @@ pub struct Circle {
 }
 
 impl Circle {
-
     pub fn new(cx: f64, cy: f64, radius: f64) -> Self {
         Self { cx, cy, radius }
     }
-
 
     pub fn diameter(&self) -> f64 {
         self.radius * 2.0
     }
 
-
     pub fn circumference(&self) -> f64 {
         2.0 * std::f64::consts::PI * self.radius
     }
-
 
     pub fn is_valid(&self) -> bool {
         self.radius > 0.0
@@ -52,29 +44,40 @@ impl super::types::ShapePrimitive for Circle {
     fn to_path(&self) -> super::super::paths::Path {
         let mut builder = super::super::paths::PathBuilder::new();
 
-
         let k = 0.552284749831;
 
         builder.move_to(self.cx + self.radius, self.cy);
         builder.bezier_to(
-            self.cx + self.radius, self.cy - k * self.radius,
-            self.cx + k * self.radius, self.cy - self.radius,
-            self.cx, self.cy - self.radius,
+            self.cx + self.radius,
+            self.cy - k * self.radius,
+            self.cx + k * self.radius,
+            self.cy - self.radius,
+            self.cx,
+            self.cy - self.radius,
         );
         builder.bezier_to(
-            self.cx - k * self.radius, self.cy - self.radius,
-            self.cx - self.radius, self.cy - k * self.radius,
-            self.cx - self.radius, self.cy,
+            self.cx - k * self.radius,
+            self.cy - self.radius,
+            self.cx - self.radius,
+            self.cy - k * self.radius,
+            self.cx - self.radius,
+            self.cy,
         );
         builder.bezier_to(
-            self.cx - self.radius, self.cy + k * self.radius,
-            self.cx - k * self.radius, self.cy + self.radius,
-            self.cx, self.cy + self.radius,
+            self.cx - self.radius,
+            self.cy + k * self.radius,
+            self.cx - k * self.radius,
+            self.cy + self.radius,
+            self.cx,
+            self.cy + self.radius,
         );
         builder.bezier_to(
-            self.cx + k * self.radius, self.cy + self.radius,
-            self.cx + self.radius, self.cy + k * self.radius,
-            self.cx + self.radius, self.cy,
+            self.cx + k * self.radius,
+            self.cy + self.radius,
+            self.cx + self.radius,
+            self.cy + k * self.radius,
+            self.cx + self.radius,
+            self.cy,
         );
         builder.close();
 
@@ -100,7 +103,6 @@ impl super::types::ShapePrimitive for Circle {
         self.cx = cx;
         self.cy = cy;
 
-
         self.radius *= (transform.sx * transform.sy).sqrt() / 2.0;
     }
 
@@ -124,8 +126,8 @@ impl super::types::ShapePrimitive for Circle {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::ShapePrimitive;
+    use super::*;
 
     #[test]
     fn test_circle_creation() {

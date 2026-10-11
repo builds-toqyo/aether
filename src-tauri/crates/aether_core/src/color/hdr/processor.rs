@@ -1,9 +1,12 @@
 use anyhow::Result;
-use log::{debug, info};
 use image::{Rgb, RgbImage};
+use log::{debug, info};
 
+use super::{
+    config::HdrConfig, display::HdrDisplayManager, gamut::GamutMapper, tone::ToneMapper,
+    types::HdrImage,
+};
 use crate::types::ColorSpace;
-use super::{display::HdrDisplayManager, tone::ToneMapper, gamut::GamutMapper, config::HdrConfig, types::HdrImage};
 
 pub struct HdrProcessor {
     config: HdrConfig,
@@ -92,7 +95,11 @@ impl HdrProcessor {
         Ok(hdr_image)
     }
 
-    fn hdr_to_sdr(&self, hdr_image: &HdrImage, _output_color_space: ColorSpace) -> Result<RgbImage> {
+    fn hdr_to_sdr(
+        &self,
+        hdr_image: &HdrImage,
+        _output_color_space: ColorSpace,
+    ) -> Result<RgbImage> {
         let (width, height) = (hdr_image.width, hdr_image.height);
         let mut sdr_image = RgbImage::new(width, height);
 
@@ -111,7 +118,10 @@ impl HdrProcessor {
         Ok(sdr_image)
     }
 
-    pub fn analyze_hdr_content(&self, hdr_image: &HdrImage) -> Result<super::analysis::HdrAnalysis> {
+    pub fn analyze_hdr_content(
+        &self,
+        hdr_image: &HdrImage,
+    ) -> Result<super::analysis::HdrAnalysis> {
         debug!("Analyzing HDR content");
 
         let mut max_nits: f32 = 0.0;

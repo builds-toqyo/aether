@@ -1,27 +1,28 @@
-use crate::nodes::basic::blur::{BlurType, BlurResult, BlurKernels, NextOdd};
+use crate::nodes::basic::blur::{BlurKernels, BlurResult, BlurType, NextOdd};
 use aether_types::ParameterValue;
-use uuid::Uuid;
 use log::debug;
-
+use uuid::Uuid;
 
 pub struct BlurAlgorithms {
-
     params: crate::nodes::basic::blur::BlurParams,
 }
 
 impl BlurAlgorithms {
-
     pub fn new(params: crate::nodes::basic::blur::BlurParams) -> Self {
         Self { params }
     }
 
-
     pub fn apply_blur(&self, input_value: ParameterValue) -> ParameterValue {
         match input_value {
             ParameterValue::Image(input_id) => {
-                debug!("Applying blur: type={:?}, radius={:.1}, iterations={}, directional={}, angle={:.1}°",
-                    self.params.blur_type, self.params.radius, self.params.iterations, self.params.directional, self.params.angle);
-
+                debug!(
+                    "Applying blur: type={:?}, radius={:.1}, iterations={}, directional={}, angle={:.1}°",
+                    self.params.blur_type,
+                    self.params.radius,
+                    self.params.iterations,
+                    self.params.directional,
+                    self.params.angle
+                );
 
                 let mut current_id = input_id;
                 for i in 0..self.params.iterations {
@@ -31,13 +32,9 @@ impl BlurAlgorithms {
 
                 ParameterValue::Image(current_id)
             }
-            _ => {
-
-                ParameterValue::None
-            }
+            _ => ParameterValue::None,
         }
     }
-
 
     fn apply_blur_iteration(&self, input_id: Uuid) -> Uuid {
         match self.params.blur_type {
@@ -49,13 +46,14 @@ impl BlurAlgorithms {
         }
     }
 
-
     fn apply_gaussian_blur(&self, input_id: Uuid) -> Uuid {
-        debug!("Applying Gaussian blur with radius {:.1}", self.params.radius);
+        debug!(
+            "Applying Gaussian blur with radius {:.1}",
+            self.params.radius
+        );
 
         let blurred_id = Uuid::new_v4();
         let kernel_size = ((self.params.radius * 2.0) as usize).max(3).next_odd();
-
 
         let kernels = BlurKernels::new(self.params.radius);
         let _kernel = kernels.generate_gaussian_kernel(kernel_size);
@@ -75,7 +73,6 @@ impl BlurAlgorithms {
 
         blurred_id
     }
-
 
     fn apply_box_blur(&self, input_id: Uuid) -> Uuid {
         debug!("Applying box blur with radius {:.1}", self.params.radius);
@@ -99,14 +96,14 @@ impl BlurAlgorithms {
         blurred_id
     }
 
-
     fn apply_motion_blur(&self, input_id: Uuid) -> Uuid {
-        debug!("Applying motion blur: length={:.1}, angle={:.1}°",
-            self.params.radius, self.params.angle);
+        debug!(
+            "Applying motion blur: length={:.1}, angle={:.1}°",
+            self.params.radius, self.params.angle
+        );
 
         let blurred_id = Uuid::new_v4();
         let kernel_size = ((self.params.radius * 2.0) as usize).max(3).next_odd();
-
 
         let kernels = BlurKernels::new(self.params.radius);
         let _kernel = kernels.generate_motion_blur_kernel(kernel_size, self.params.angle);
@@ -121,12 +118,14 @@ impl BlurAlgorithms {
             iterations: self.params.iterations,
         };
 
-        debug!("Generated motion blur kernel: size={}, angle={:.1}°", kernel_size, self.params.angle);
+        debug!(
+            "Generated motion blur kernel: size={}, angle={:.1}°",
+            kernel_size, self.params.angle
+        );
         debug!("Created blur result: {:?}", blur_result);
 
         blurred_id
     }
-
 
     fn apply_radial_blur(&self, input_id: Uuid) -> Uuid {
         debug!("Applying radial blur with radius {:.1}", self.params.radius);
@@ -150,7 +149,6 @@ impl BlurAlgorithms {
         blurred_id
     }
 
-
     fn apply_zoom_blur(&self, input_id: Uuid) -> Uuid {
         debug!("Applying zoom blur with radius {:.1}", self.params.radius);
 
@@ -173,11 +171,9 @@ impl BlurAlgorithms {
         blurred_id
     }
 
-
     pub fn get_params(&self) -> &crate::nodes::basic::blur::BlurParams {
         &self.params
     }
-
 
     pub fn update_params(&mut self, params: crate::nodes::basic::blur::BlurParams) {
         self.params = params;

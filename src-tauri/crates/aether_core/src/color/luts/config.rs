@@ -1,5 +1,3 @@
-
-
 #[derive(Debug, Clone)]
 pub struct LutConfig {
     pub interpolation_quality: crate::color::luts::types::InterpolationQuality,
@@ -22,41 +20,37 @@ impl Default for LutConfig {
 }
 
 impl LutConfig {
-
     pub fn new() -> Self {
         Self::default()
     }
 
-
-    pub fn with_interpolation_quality(mut self, quality: crate::color::luts::types::InterpolationQuality) -> Self {
+    pub fn with_interpolation_quality(
+        mut self,
+        quality: crate::color::luts::types::InterpolationQuality,
+    ) -> Self {
         self.interpolation_quality = quality;
         self
     }
-
 
     pub fn with_color_space(mut self, color_space: crate::types::ColorSpace) -> Self {
         self.color_space = color_space;
         self
     }
 
-
     pub fn with_clamp_output(mut self, clamp: bool) -> Self {
         self.clamp_output = clamp;
         self
     }
-
 
     pub fn with_cache(mut self, enabled: bool) -> Self {
         self.cache_enabled = enabled;
         self
     }
 
-
     pub fn with_max_cache_size(mut self, size: usize) -> Self {
         self.max_cache_size = size;
         self
     }
-
 
     pub fn validate(&self) -> Result<(), String> {
         if self.max_cache_size == 0 {
@@ -65,7 +59,6 @@ impl LutConfig {
 
         Ok(())
     }
-
 
     pub fn summary(&self) -> String {
         format!(
@@ -88,8 +81,14 @@ mod tests {
     fn test_default_config() {
         let config = LutConfig::default();
 
-        assert!(matches!(config.interpolation_quality, InterpolationQuality::Trilinear));
-        assert!(matches!(config.color_space, crate::types::ColorSpace::Rec709));
+        assert!(matches!(
+            config.interpolation_quality,
+            InterpolationQuality::Trilinear
+        ));
+        assert!(matches!(
+            config.color_space,
+            crate::types::ColorSpace::Rec709
+        ));
         assert!(config.clamp_output);
         assert!(config.cache_enabled);
         assert_eq!(config.max_cache_size, 100);
@@ -104,8 +103,14 @@ mod tests {
             .with_cache(false)
             .with_max_cache_size(50);
 
-        assert!(matches!(config.interpolation_quality, InterpolationQuality::Linear));
-        assert!(matches!(config.color_space, crate::types::ColorSpace::Rec2020));
+        assert!(matches!(
+            config.interpolation_quality,
+            InterpolationQuality::Linear
+        ));
+        assert!(matches!(
+            config.color_space,
+            crate::types::ColorSpace::Rec2020
+        ));
         assert!(!config.clamp_output);
         assert!(!config.cache_enabled);
         assert_eq!(config.max_cache_size, 50);

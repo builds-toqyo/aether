@@ -5,7 +5,6 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypographyControls {
-
     pub font_family: String,
 
     pub font_size: f64,
@@ -46,7 +45,6 @@ pub struct TextJustification {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct HyphenationSettings {
-
     pub enabled: bool,
 
     pub language: String,
@@ -57,7 +55,6 @@ pub struct HyphenationSettings {
 
     pub hyphen_char: String,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct FontMetrics {
@@ -76,7 +73,6 @@ pub struct FontMetrics {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextLayout {
-
     pub lines: Vec<TextLine>,
 
     pub width: f64,
@@ -88,10 +84,8 @@ pub struct TextLayout {
     pub metrics: FontMetrics,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextLine {
-
     pub text: String,
 
     pub start_index: usize,
@@ -109,10 +103,8 @@ pub struct TextLine {
     pub word_boundaries: Vec<usize>,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlyphPosition {
-
     pub character: char,
 
     pub char_index: usize,
@@ -131,7 +123,6 @@ pub struct GlyphPosition {
 }
 
 impl TypographyControls {
-
     pub fn new() -> Self {
         Self {
             font_family: "Arial".to_string(),
@@ -150,7 +141,6 @@ impl TypographyControls {
             font_features: HashMap::new(),
         }
     }
-
 
     pub fn from_style(style: &crate::text::types::TextStyle) -> Self {
         Self {
@@ -171,19 +161,24 @@ impl TypographyControls {
         }
     }
 
-
     pub fn get_font_metrics(&self) -> FontMetrics {
         Self::compute_font_metrics(&self.font_family, self.font_size, self.font_weight)
     }
 
     fn compute_font_metrics(font_family: &str, font_size: f64, font_weight: u16) -> FontMetrics {
-        if let Some(metrics) = Self::try_load_system_font_metrics(font_family, font_size, font_weight) {
+        if let Some(metrics) =
+            Self::try_load_system_font_metrics(font_family, font_size, font_weight)
+        {
             return metrics;
         }
         Self::heuristic_font_metrics(font_family, font_size)
     }
 
-    fn try_load_system_font_metrics(font_family: &str, font_size: f64, font_weight: u16) -> Option<FontMetrics> {
+    fn try_load_system_font_metrics(
+        font_family: &str,
+        font_size: f64,
+        font_weight: u16,
+    ) -> Option<FontMetrics> {
         let paths = Self::system_font_paths(font_family, font_weight);
         for path in paths {
             if let Ok(bytes) = fs::read(&path) {
@@ -244,10 +239,17 @@ impl TypographyControls {
         };
 
         // macOS
-        let mac_dirs = ["/System/Library/Fonts", "/Library/Fonts", "/System/Library/Fonts/Supplemental"];
+        let mac_dirs = [
+            "/System/Library/Fonts",
+            "/Library/Fonts",
+            "/System/Library/Fonts/Supplemental",
+        ];
         for dir in &mac_dirs {
             paths.push(PathBuf::from(format!("{}/{}.ttf", dir, font_family)));
-            paths.push(PathBuf::from(format!("{}/{}-{}.ttf", dir, font_family, weight_suffix)));
+            paths.push(PathBuf::from(format!(
+                "{}/{}-{}.ttf",
+                dir, font_family, weight_suffix
+            )));
             paths.push(PathBuf::from(format!("{}/{}.ttc", dir, font_family)));
             paths.push(PathBuf::from(format!("{}/{}.otf", dir, font_family)));
         }
@@ -255,15 +257,27 @@ impl TypographyControls {
         // Linux
         let linux_dirs = ["/usr/share/fonts/truetype", "/usr/local/share/fonts"];
         for dir in &linux_dirs {
-            paths.push(PathBuf::from(format!("{}/{}/{}.ttf", dir, font_family, font_family)));
-            paths.push(PathBuf::from(format!("{}/{}-{}.ttf", dir, font_family, weight_suffix)));
+            paths.push(PathBuf::from(format!(
+                "{}/{}/{}.ttf",
+                dir, font_family, font_family
+            )));
+            paths.push(PathBuf::from(format!(
+                "{}/{}-{}.ttf",
+                dir, font_family, weight_suffix
+            )));
             paths.push(PathBuf::from(format!("{}/{}.ttf", dir, font_family)));
         }
 
         // Windows
         let win_dir = std::env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".to_string());
-        paths.push(PathBuf::from(format!("{}\\Fonts\\{}.ttf", win_dir, font_family)));
-        paths.push(PathBuf::from(format!("{}\\Fonts\\{}-{}.ttf", win_dir, font_family, weight_suffix)));
+        paths.push(PathBuf::from(format!(
+            "{}\\Fonts\\{}.ttf",
+            win_dir, font_family
+        )));
+        paths.push(PathBuf::from(format!(
+            "{}\\Fonts\\{}-{}.ttf",
+            win_dir, font_family, weight_suffix
+        )));
 
         paths
     }

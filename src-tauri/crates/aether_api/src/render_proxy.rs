@@ -1,13 +1,13 @@
-use std::path::PathBuf;
-use std::sync::mpsc::{channel, Sender};
 use log::{error, info};
+use std::path::PathBuf;
+use std::sync::mpsc::{Sender, channel};
 
-use aether_core::engine::rendering::gst_exporter::{
-    GstExporter, ExportOptions as GstExportOptions, ExportProgress,
-};
-use aether_core::engine::rendering::formats::{VideoFormat, AudioFormat, ContainerFormat};
-use aether_core::engine::rendering::encoder::EncoderPreset;
 use aether_core::engine::editing::types::EditingError;
+use aether_core::engine::rendering::encoder::EncoderPreset;
+use aether_core::engine::rendering::formats::{AudioFormat, ContainerFormat, VideoFormat};
+use aether_core::engine::rendering::gst_exporter::{
+    ExportOptions as GstExportOptions, ExportProgress, GstExporter,
+};
 
 #[derive(Debug, Clone)]
 pub struct GstExportConfig {
@@ -29,15 +29,33 @@ pub struct GstExportConfig {
 
 #[derive(Debug)]
 pub enum RenderCommand {
-    StartExport { resp: Sender<Result<(), EditingError>> },
-    CancelExport { resp: Sender<Result<(), EditingError>> },
-    GetProgress { resp: Sender<ExportProgress> },
-    IsComplete { resp: Sender<bool> },
-    HasError { resp: Sender<bool> },
-    GetError { resp: Sender<Option<String>> },
-    Pause { resp: Sender<Result<(), EditingError>> },
-    Resume { resp: Sender<Result<(), EditingError>> },
-    IsPaused { resp: Sender<bool> },
+    StartExport {
+        resp: Sender<Result<(), EditingError>>,
+    },
+    CancelExport {
+        resp: Sender<Result<(), EditingError>>,
+    },
+    GetProgress {
+        resp: Sender<ExportProgress>,
+    },
+    IsComplete {
+        resp: Sender<bool>,
+    },
+    HasError {
+        resp: Sender<bool>,
+    },
+    GetError {
+        resp: Sender<Option<String>>,
+    },
+    Pause {
+        resp: Sender<Result<(), EditingError>>,
+    },
+    Resume {
+        resp: Sender<Result<(), EditingError>>,
+    },
+    IsPaused {
+        resp: Sender<bool>,
+    },
 }
 
 pub struct GstExporterProxy {
@@ -53,16 +71,20 @@ impl GstExporterProxy {
 
     pub fn start_export(&self) -> Result<(), EditingError> {
         let (tx, rx) = channel();
-        self.sender.send(RenderCommand::StartExport { resp: tx })
+        self.sender
+            .send(RenderCommand::StartExport { resp: tx })
             .map_err(|_| EditingError::ExportError("Render thread disconnected".to_string()))?;
-        rx.recv().map_err(|_| EditingError::ExportError("Render thread response lost".to_string()))?
+        rx.recv()
+            .map_err(|_| EditingError::ExportError("Render thread response lost".to_string()))?
     }
 
     pub fn cancel_export(&self) -> Result<(), EditingError> {
         let (tx, rx) = channel();
-        self.sender.send(RenderCommand::CancelExport { resp: tx })
+        self.sender
+            .send(RenderCommand::CancelExport { resp: tx })
             .map_err(|_| EditingError::ExportError("Render thread disconnected".to_string()))?;
-        rx.recv().map_err(|_| EditingError::ExportError("Render thread response lost".to_string()))?
+        rx.recv()
+            .map_err(|_| EditingError::ExportError("Render thread response lost".to_string()))?
     }
 
     pub fn get_progress(&self) -> ExportProgress {
@@ -99,16 +121,20 @@ impl GstExporterProxy {
 
     pub fn pause(&self) -> Result<(), EditingError> {
         let (tx, rx) = channel();
-        self.sender.send(RenderCommand::Pause { resp: tx })
+        self.sender
+            .send(RenderCommand::Pause { resp: tx })
             .map_err(|_| EditingError::ExportError("Render thread disconnected".to_string()))?;
-        rx.recv().map_err(|_| EditingError::ExportError("Render thread response lost".to_string()))?
+        rx.recv()
+            .map_err(|_| EditingError::ExportError("Render thread response lost".to_string()))?
     }
 
     pub fn resume(&self) -> Result<(), EditingError> {
         let (tx, rx) = channel();
-        self.sender.send(RenderCommand::Resume { resp: tx })
+        self.sender
+            .send(RenderCommand::Resume { resp: tx })
             .map_err(|_| EditingError::ExportError("Render thread disconnected".to_string()))?;
-        rx.recv().map_err(|_| EditingError::ExportError("Render thread response lost".to_string()))?
+        rx.recv()
+            .map_err(|_| EditingError::ExportError("Render thread response lost".to_string()))?
     }
 
     pub fn is_paused(&self) -> bool {
@@ -118,7 +144,10 @@ impl GstExporterProxy {
     }
 }
 
-fn run_gst_exporter_thread(receiver: std::sync::mpsc::Receiver<RenderCommand>, config: GstExportConfig) {
+fn run_gst_exporter_thread(
+    receiver: std::sync::mpsc::Receiver<RenderCommand>,
+    config: GstExportConfig,
+) {
     info!("Starting GstExporter background thread");
     let options = GstExportOptions {
         output_path: config.output_path,
@@ -178,7 +207,10 @@ fn run_gst_exporter_thread(receiver: std::sync::mpsc::Receiver<RenderCommand>, c
             info!("GstExporter command channel closed; shutting down");
         }
         Err(err) => {
-            error!("Failed to initialize GstExporter: {}. Render thread exiting.", err);
+            error!(
+                "Failed to initialize GstExporter: {}. Render thread exiting.",
+                err
+            );
             for cmd in receiver {
                 match cmd {
                     RenderCommand::StartExport { resp } => {

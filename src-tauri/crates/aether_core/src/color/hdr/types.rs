@@ -32,7 +32,6 @@ pub enum ColorPrimaries {
     DciP3,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransferFunction {
     Srgb,
@@ -43,7 +42,6 @@ pub enum TransferFunction {
 }
 
 impl HdrImage {
-
     pub fn new(width: u32, height: u32) -> Self {
         Self {
             width,
@@ -161,7 +159,6 @@ mod tests {
     fn test_hdr_image_pixel_access() {
         let mut image = HdrImage::new(10, 10);
         let pixel = HdrPixel::new(500.0, 500.0, 500.0);
-
 
         assert!(image.set_pixel(5, 5, pixel).is_ok());
         assert!(image.set_pixel(10, 10, pixel).is_err());

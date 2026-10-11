@@ -1,11 +1,10 @@
-use aether_types::{ParameterValue};
-use ffmpeg_next as ffmpeg;
+use aether_types::ParameterValue;
 use ffmpeg::{format, frame, media, software::scaling};
-use uuid::Uuid;
+use ffmpeg_next as ffmpeg;
 use log::{debug, error};
+use uuid::Uuid;
 
 pub struct ImageDecoder {
-
     _frame_cache: std::collections::HashMap<u64, Uuid>,
 }
 
@@ -17,7 +16,6 @@ impl ImageDecoder {
     }
 
     pub fn decode_image_with_ffmpeg(&mut self, media_path: &str) -> ParameterValue {
-
         debug!("Decoding image from {}", media_path);
 
         if let Err(e) = ffmpeg::init() {
@@ -41,19 +39,20 @@ impl ImageDecoder {
             }
         };
 
-        let mut decoder = match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
-            Ok(context) => match context.decoder().video() {
-                Ok(decoder) => decoder,
+        let mut decoder =
+            match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
+                Ok(context) => match context.decoder().video() {
+                    Ok(decoder) => decoder,
+                    Err(e) => {
+                        error!("Failed to create image decoder: {}", e);
+                        return ParameterValue::None;
+                    }
+                },
                 Err(e) => {
-                    error!("Failed to create image decoder: {}", e);
+                    error!("Failed to create decoder context: {}", e);
                     return ParameterValue::None;
                 }
-            },
-            Err(e) => {
-                error!("Failed to create decoder context: {}", e);
-                return ParameterValue::None;
-            }
-        };
+            };
 
         let width = decoder.width() as usize;
         let height = decoder.height() as usize;
@@ -79,7 +78,8 @@ impl ImageDecoder {
                 _ => (3, false),
             };
 
-            let image_data = self.extract_frame_data(&image_frame, channels, &format!("{:?}", pixel_format))
+            let image_data = self
+                .extract_frame_data(&image_frame, channels, &format!("{:?}", pixel_format))
                 .unwrap_or_else(|_| {
                     error!("Failed to extract data for image: {}", media_path);
                     vec![0u8; width * height * channels]
@@ -96,15 +96,13 @@ impl ImageDecoder {
             };
 
             match self.convert_image_to_rgb(&decoded_frame) {
-                Ok(rgb_frame) => {
-                    match self.upload_image_to_gpu(&rgb_frame) {
-                        Ok(id) => id,
-                        Err(e) => {
-                            error!("Failed to upload image to GPU: {}", e);
-                            return ParameterValue::None;
-                        }
+                Ok(rgb_frame) => match self.upload_image_to_gpu(&rgb_frame) {
+                    Ok(id) => id,
+                    Err(e) => {
+                        error!("Failed to upload image to GPU: {}", e);
+                        return ParameterValue::None;
                     }
-                }
+                },
                 Err(e) => {
                     error!("Failed to convert image to RGB: {}", e);
                     return ParameterValue::None;
@@ -118,7 +116,12 @@ impl ImageDecoder {
         ParameterValue::Image(frame_id)
     }
 
-    fn extract_frame_data(&self, frame: &frame::Video, channels: usize, _pixel_format: &str) -> Result<Vec<u8>, String> {
+    fn extract_frame_data(
+        &self,
+        frame: &frame::Video,
+        channels: usize,
+        _pixel_format: &str,
+    ) -> Result<Vec<u8>, String> {
         let width = frame.width() as usize;
         let height = frame.height() as usize;
         let line_size = frame.stride(0) as usize;
@@ -142,8 +145,10 @@ impl ImageDecoder {
         Ok(data)
     }
 
-    fn convert_image_to_rgb(&self, decoded_frame: &DecodedImageFrame) -> Result<RGBImageFrame, String> {
-
+    fn convert_image_to_rgb(
+        &self,
+        decoded_frame: &DecodedImageFrame,
+    ) -> Result<RGBImageFrame, String> {
         debug!("Converting image from {} to RGB24", decoded_frame.format);
 
         ffmpeg::init().map_err(|e| format!("Failed to initialize FFmpeg: {}", e))?;
@@ -170,7 +175,8 @@ impl ImageDecoder {
             decoded_frame.width as u32,
             decoded_frame.height as u32,
             scaling::Flags::BILINEAR,
-        ).map_err(|e| format!("Failed to create scaling context: {}", e))?;
+        )
+        .map_err(|e| format!("Failed to create scaling context: {}", e))?;
 
         let mut source_frame = frame::Video::new(
             source_format,
@@ -178,7 +184,11 @@ impl ImageDecoder {
             decoded_frame.height as u32,
         );
 
-        self.copy_data_to_frame(&mut source_frame, &decoded_frame.data, decoded_frame.channels)?;
+        self.copy_data_to_frame(
+            &mut source_frame,
+            &decoded_frame.data,
+            decoded_frame.channels,
+        )?;
 
         let mut target_frame = frame::Video::new(
             target_format,
@@ -186,7 +196,8 @@ impl ImageDecoder {
             decoded_frame.height as u32,
         );
 
-        scaler.run(&source_frame, &mut target_frame)
+        scaler
+            .run(&source_frame, &mut target_frame)
             .map_err(|e| format!("Failed to convert image format: {}", e))?;
 
         let rgb_data = self.extract_frame_data(&target_frame, 3, "rgb24")?;
@@ -199,13 +210,20 @@ impl ImageDecoder {
             channels: 3,
         };
 
-        debug!("Image converted to RGB24 via FFmpeg scaling: {}x{}",
-            rgb_frame.width, rgb_frame.height);
+        debug!(
+            "Image converted to RGB24 via FFmpeg scaling: {}x{}",
+            rgb_frame.width, rgb_frame.height
+        );
 
         Ok(rgb_frame)
     }
 
-    fn copy_data_to_frame(&self, frame: &mut frame::Video, data: &[u8], channels: usize) -> Result<(), String> {
+    fn copy_data_to_frame(
+        &self,
+        frame: &mut frame::Video,
+        data: &[u8],
+        channels: usize,
+    ) -> Result<(), String> {
         let width = frame.width() as usize;
         let height = frame.height() as usize;
         let line_size = frame.stride(0) as usize;
@@ -229,9 +247,10 @@ impl ImageDecoder {
     }
 
     fn upload_image_to_gpu(&self, rgb_frame: &RGBImageFrame) -> Result<Uuid, String> {
-
-        debug!("Uploading image to GPU: {}x{} ({} channels)",
-            rgb_frame.width, rgb_frame.height, rgb_frame.channels);
+        debug!(
+            "Uploading image to GPU: {}x{} ({} channels)",
+            rgb_frame.width, rgb_frame.height, rgb_frame.channels
+        );
 
         let texture_id = Uuid::new_v4();
 

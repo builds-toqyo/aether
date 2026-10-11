@@ -5,10 +5,7 @@ use tauri::{AppHandle, Emitter};
 /// Send a real-time event from the frontend.
 /// Broadcasts the event back to all windows so other listeners can react.
 #[tauri::command]
-pub async fn send_real_time_event(
-    event: Value,
-    app: AppHandle,
-) -> Result<Value, String> {
+pub async fn send_real_time_event(event: Value, app: AppHandle) -> Result<Value, String> {
     debug!("Received real-time event: {:?}", event);
 
     let event_type = event

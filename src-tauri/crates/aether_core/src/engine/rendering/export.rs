@@ -1,11 +1,11 @@
+use crate::engine::editing::types::EditingError;
+use crate::engine::rendering::encoder::EncoderPreset;
+use crate::engine::rendering::formats::{AudioFormat, ContainerFormat, VideoFormat};
+use anyhow::Result;
+use ffmpeg_next as ffmpeg;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use anyhow::Result;
-use ffmpeg_next as ffmpeg;
-use crate::engine::editing::types::EditingError;
-use crate::engine::rendering::formats::{VideoFormat, AudioFormat, ContainerFormat};
-use crate::engine::rendering::encoder::EncoderPreset;
 
 pub type ExportCallback = Arc<Mutex<dyn Fn(ExportProgress) + Send + 'static>>;
 
@@ -69,7 +69,9 @@ pub struct Exporter {
 
 impl Exporter {
     pub fn new(options: ExportOptions) -> Result<Self, EditingError> {
-        ffmpeg::init().map_err(|e| EditingError::ExportError(format!("FFmpeg initialization failed: {}", e)))?;
+        ffmpeg::init().map_err(|e| {
+            EditingError::ExportError(format!("FFmpeg initialization failed: {}", e))
+        })?;
 
         let progress = Arc::new(Mutex::new(ExportProgress {
             current_frame: 0,
@@ -121,39 +123,43 @@ impl Exporter {
             // ffmpeg::format::context::input::Input::dump(&input_context, 0, None);
 
             let (video_stream_index, audio_stream_index) = {
-                let video_stream = input_context.streams()
+                let video_stream = input_context
+                    .streams()
                     .best(ffmpeg::media::Type::Video)
                     .map(|s| s.index());
 
-                let audio_stream = input_context.streams()
+                let audio_stream = input_context
+                    .streams()
                     .best(ffmpeg::media::Type::Audio)
                     .map(|s| s.index());
 
                 (video_stream, audio_stream)
             };
 
-            let (width, height, frame_rate, total_frames, duration) = if let Some(stream_index) = video_stream_index {
-                let stream = input_context.stream(stream_index).unwrap();
-                let codec_context = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
-                let decoder = codec_context.decoder().video()?;
+            let (width, height, frame_rate, total_frames, duration) =
+                if let Some(stream_index) = video_stream_index {
+                    let stream = input_context.stream(stream_index).unwrap();
+                    let codec_context =
+                        ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
+                    let decoder = codec_context.decoder().video()?;
 
-                let width = decoder.width();
-                let height = decoder.height();
+                    let width = decoder.width();
+                    let height = decoder.height();
 
-                let frame_rate = {
-                    let rate = stream.avg_frame_rate();
-                    rate.numerator() as f64 / rate.denominator() as f64
+                    let frame_rate = {
+                        let rate = stream.avg_frame_rate();
+                        rate.numerator() as f64 / rate.denominator() as f64
+                    };
+
+                    let duration = stream.duration() as f64 * f64::from(stream.time_base());
+                    let total_frames = (duration * frame_rate) as u64;
+
+                    (width, height, frame_rate, total_frames, duration)
+                } else {
+                    let error_msg = "No video stream found in input file".to_string();
+                    Self::update_progress_with_error(&progress, &callback, &error_msg);
+                    return Err(EditingError::ExportError(error_msg));
                 };
-
-                let duration = stream.duration() as f64 * f64::from(stream.time_base());
-                let total_frames = (duration * frame_rate) as u64;
-
-                (width, height, frame_rate, total_frames, duration)
-            } else {
-                let error_msg = "No video stream found in input file".to_string();
-                Self::update_progress_with_error(&progress, &callback, &error_msg);
-                return Err(EditingError::ExportError(error_msg));
-            };
 
             {
                 let mut progress_guard = progress.lock().unwrap();
@@ -178,12 +184,11 @@ impl Exporter {
             let _format_name = options.container_format.to_ffmpeg_name();
 
             let video_codec_name = options.video_format.to_ffmpeg_name();
-            let video_codec = ffmpeg::encoder::find_by_name(video_codec_name)
-                .ok_or_else(|| {
-                    let error_msg = format!("Video codec not found: {}", video_codec_name);
-                    Self::update_progress_with_error(&progress, &callback, &error_msg);
-                    EditingError::ExportError(error_msg)
-                })?;
+            let video_codec = ffmpeg::encoder::find_by_name(video_codec_name).ok_or_else(|| {
+                let error_msg = format!("Video codec not found: {}", video_codec_name);
+                Self::update_progress_with_error(&progress, &callback, &error_msg);
+                EditingError::ExportError(error_msg)
+            })?;
 
             let mut video_stream = output_context.add_stream(video_codec)?;
 
@@ -191,18 +196,28 @@ impl Exporter {
                 let context = ffmpeg::codec::context::Context::new_with_codec(video_codec);
                 let mut video = context.encoder().video()?;
 
-                let out_width = if options.width > 0 { options.width } else { width as u32 };
-                let out_height = if options.height > 0 { options.height } else { height as u32 };
+                let out_width = if options.width > 0 {
+                    options.width
+                } else {
+                    width as u32
+                };
+                let out_height = if options.height > 0 {
+                    options.height
+                } else {
+                    height as u32
+                };
                 video.set_width(out_width);
                 video.set_height(out_height);
 
                 video.set_format(ffmpeg::format::pixel::Pixel::YUV420P);
 
-                let out_frame_rate = if options.frame_rate > 0.0 { options.frame_rate } else { frame_rate };
-                let frame_rate_rational = ffmpeg::util::rational::Rational::new(
-                    (out_frame_rate * 1000.0) as i32,
-                    1000,
-                );
+                let out_frame_rate = if options.frame_rate > 0.0 {
+                    options.frame_rate
+                } else {
+                    frame_rate
+                };
+                let frame_rate_rational =
+                    ffmpeg::util::rational::Rational::new((out_frame_rate * 1000.0) as i32, 1000);
                 video.set_time_base(frame_rate_rational.invert());
                 video_stream.set_time_base(frame_rate_rational.invert());
 
@@ -211,7 +226,7 @@ impl Exporter {
                 }
 
                 let mut dict = ffmpeg::Dictionary::new();
-                if options.video_bitrate <= 0 {
+                if options.video_bitrate == 0 {
                     dict.set("crf", &options.crf.to_string());
                 }
                 dict.set("preset", options.encoder_preset.to_ffmpeg_name());
@@ -226,8 +241,8 @@ impl Exporter {
             let mut audio_stream_index_out = None;
             if let Some(audio_index) = audio_stream_index {
                 let audio_codec_name = options.audio_format.to_ffmpeg_name();
-                let audio_codec = ffmpeg::encoder::find_by_name(audio_codec_name)
-                    .ok_or_else(|| {
+                let audio_codec =
+                    ffmpeg::encoder::find_by_name(audio_codec_name).ok_or_else(|| {
                         let error_msg = format!("Audio codec not found: {}", audio_codec_name);
                         Self::update_progress_with_error(&progress, &callback, &error_msg);
                         EditingError::ExportError(error_msg)
@@ -245,7 +260,9 @@ impl Exporter {
 
                     audio.set_rate(48000);
                     audio.set_channel_layout(ffmpeg::channel_layout::ChannelLayout::STEREO);
-                    audio.set_format(ffmpeg::format::sample::Sample::F32(ffmpeg::format::sample::Type::Planar));
+                    audio.set_format(ffmpeg::format::sample::Sample::F32(
+                        ffmpeg::format::sample::Type::Planar,
+                    ));
 
                     let time_base = ffmpeg::util::rational::Rational::new(1, 48000);
                     audio.set_time_base(time_base);
@@ -264,22 +281,35 @@ impl Exporter {
 
             let mut video_decoder = {
                 let stream = input_context.stream(video_stream_index.unwrap()).unwrap();
-                let context = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
+                let context =
+                    ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
                 context.decoder().video()?
             };
-            let video_time_base = input_context.stream(video_stream_index.unwrap()).unwrap().time_base();
+            let video_time_base = input_context
+                .stream(video_stream_index.unwrap())
+                .unwrap()
+                .time_base();
 
             let mut audio_decoder = if let Some(audio_index) = audio_stream_index {
                 let stream = input_context.stream(audio_index).unwrap();
-                let context = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
+                let context =
+                    ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
                 Some(context.decoder().audio()?)
             } else {
                 None
             };
 
             let mut scaler = {
-                let out_width = if options.width > 0 { options.width } else { width as u32 };
-                let out_height = if options.height > 0 { options.height } else { height as u32 };
+                let out_width = if options.width > 0 {
+                    options.width
+                } else {
+                    width as u32
+                };
+                let out_height = if options.height > 0 {
+                    options.height
+                } else {
+                    height as u32
+                };
 
                 ffmpeg::software::scaling::context::Context::get(
                     video_decoder.format(),
@@ -293,8 +323,11 @@ impl Exporter {
             };
 
             let mut resampler = if let Some(ref audio_decoder) = audio_decoder {
-                let out_stream = output_context.stream(audio_stream_index_out.unwrap()).unwrap();
-                let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
+                let out_stream = output_context
+                    .stream(audio_stream_index_out.unwrap())
+                    .unwrap();
+                let out_codec_context =
+                    ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
                 let out_codec = out_codec_context.encoder().audio()?;
 
                 Some(ffmpeg::software::resampling::context::Context::get(
@@ -336,11 +369,18 @@ impl Exporter {
                         video_decoder.send_packet(&packet)?;
 
                         while video_decoder.receive_frame(&mut decoded).is_ok() {
-
                             let mut encoded = ffmpeg::frame::Video::new(
                                 ffmpeg::format::pixel::Pixel::YUV420P,
-                                if options.width > 0 { options.width } else { width as u32 },
-                                if options.height > 0 { options.height } else { height as u32 },
+                                if options.width > 0 {
+                                    options.width
+                                } else {
+                                    width as u32
+                                },
+                                if options.height > 0 {
+                                    options.height
+                                } else {
+                                    height as u32
+                                },
                             );
 
                             scaler.run(&decoded, &mut encoded)?;
@@ -352,7 +392,10 @@ impl Exporter {
 
                             let out_stream = output_context.stream(0).unwrap();
                             let out_time_base = out_stream.time_base();
-                            let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
+                            let out_codec_context =
+                                ffmpeg::codec::context::Context::from_parameters(
+                                    out_stream.parameters(),
+                                )?;
                             let mut encoder = out_codec_context.encoder().video()?;
 
                             encoder.send_frame(&encoded)?;
@@ -360,10 +403,7 @@ impl Exporter {
                             let mut out_packet = ffmpeg::packet::Packet::empty();
                             while encoder.receive_packet(&mut out_packet).is_ok() {
                                 out_packet.set_stream(0);
-                                out_packet.rescale_ts(
-                                    encoder.time_base(),
-                                    out_time_base,
-                                );
+                                out_packet.rescale_ts(encoder.time_base(), out_time_base);
 
                                 out_packet.write_interleaved(&mut output_context)?;
                             }
@@ -373,7 +413,8 @@ impl Exporter {
                                 let mut progress_guard = progress.lock().unwrap();
                                 progress_guard.current_frame = frame_count;
                                 progress_guard.current_time = pts_seconds;
-                                progress_guard.percent = (frame_count as f64 / total_frames as f64) * 100.0;
+                                progress_guard.percent =
+                                    (frame_count as f64 / total_frames as f64) * 100.0;
 
                                 if let Some(callback) = &callback {
                                     callback.lock().unwrap()(progress_guard.clone());
@@ -387,10 +428,12 @@ impl Exporter {
                     if let Some(audio_stream_out) = audio_stream_index_out {
                         if stream.index() == audio_index {
                             if let Some(ref mut audio_decoder) = audio_decoder {
-
                                 if *cancel_flag.lock().unwrap() {
-                                    let error_msg = "Export cancelled during audio processing".to_string();
-                                    Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                    let error_msg =
+                                        "Export cancelled during audio processing".to_string();
+                                    Self::update_progress_with_error(
+                                        &progress, &callback, &error_msg,
+                                    );
                                     return Err(EditingError::ExportError(error_msg));
                                 }
 
@@ -398,44 +441,57 @@ impl Exporter {
                                     std::thread::sleep(std::time::Duration::from_millis(100));
                                 }
 
-
                                 if let Err(e) = audio_decoder.send_packet(&packet) {
                                     let error_msg = format!("Audio decoder error: {}", e);
-                                    Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                    Self::update_progress_with_error(
+                                        &progress, &callback, &error_msg,
+                                    );
                                     return Err(EditingError::ExportError(error_msg));
                                 }
 
-
-                                let mut audio_frame_result = audio_decoder.receive_frame(&mut audio_decoded);
+                                let mut audio_frame_result =
+                                    audio_decoder.receive_frame(&mut audio_decoded);
 
                                 while audio_frame_result.is_ok() {
-
                                     let mut audio_encoded = ffmpeg::frame::Audio::empty();
                                     if let Some(ref mut resampler) = resampler {
-                                        if let Err(e) = resampler.run(&audio_decoded, &mut audio_encoded) {
-                                            let error_msg = format!("Audio resampling error: {}", e);
-                                            Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                        if let Err(e) =
+                                            resampler.run(&audio_decoded, &mut audio_encoded)
+                                        {
+                                            let error_msg =
+                                                format!("Audio resampling error: {}", e);
+                                            Self::update_progress_with_error(
+                                                &progress, &callback, &error_msg,
+                                            );
                                             return Err(EditingError::ExportError(error_msg));
                                         }
                                     } else {
                                         audio_encoded = audio_decoded.clone();
                                     }
 
-                                    let out_stream = output_context.stream(audio_stream_out).unwrap();
+                                    let out_stream =
+                                        output_context.stream(audio_stream_out).unwrap();
                                     let out_time_base = out_stream.time_base();
-                                    let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
+                                    let out_codec_context =
+                                        ffmpeg::codec::context::Context::from_parameters(
+                                            out_stream.parameters(),
+                                        )?;
                                     let mut encoder = match out_codec_context.encoder().audio() {
                                         Ok(enc) => enc,
                                         Err(e) => {
                                             let error_msg = format!("Audio encoder error: {}", e);
-                                            Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                            Self::update_progress_with_error(
+                                                &progress, &callback, &error_msg,
+                                            );
                                             return Err(EditingError::ExportError(error_msg));
                                         }
                                     };
 
                                     if let Err(e) = encoder.send_frame(&audio_encoded) {
                                         let error_msg = format!("Audio encoding error: {}", e);
-                                        Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                        Self::update_progress_with_error(
+                                            &progress, &callback, &error_msg,
+                                        );
                                         return Err(EditingError::ExportError(error_msg));
                                     }
 
@@ -444,21 +500,24 @@ impl Exporter {
 
                                     while packet_result.is_ok() {
                                         out_packet.set_stream(audio_stream_out);
-                                        out_packet.rescale_ts(
-                                            encoder.time_base(),
-                                            out_time_base,
-                                        );
+                                        out_packet.rescale_ts(encoder.time_base(), out_time_base);
 
-                                        if let Err(e) = out_packet.write_interleaved(&mut output_context) {
-                                            let error_msg = format!("Error writing audio packet: {}", e);
-                                            Self::update_progress_with_error(&progress, &callback, &error_msg);
+                                        if let Err(e) =
+                                            out_packet.write_interleaved(&mut output_context)
+                                        {
+                                            let error_msg =
+                                                format!("Error writing audio packet: {}", e);
+                                            Self::update_progress_with_error(
+                                                &progress, &callback, &error_msg,
+                                            );
                                             return Err(EditingError::ExportError(error_msg));
                                         }
 
                                         packet_result = encoder.receive_packet(&mut out_packet);
                                     }
 
-                                    audio_frame_result = audio_decoder.receive_frame(&mut audio_decoded);
+                                    audio_frame_result =
+                                        audio_decoder.receive_frame(&mut audio_decoded);
                                 }
                             }
                         }
@@ -470,7 +529,8 @@ impl Exporter {
                 {
                     let out_stream = output_context.stream(0).unwrap();
                     let out_stream_time_base = out_stream.time_base();
-                    let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
+                    let out_codec_context =
+                        ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
                     let mut encoder = out_codec_context.encoder().video()?;
 
                     encoder.send_eof()?;
@@ -478,10 +538,7 @@ impl Exporter {
                     let mut out_packet = ffmpeg::packet::Packet::empty();
                     while encoder.receive_packet(&mut out_packet).is_ok() {
                         out_packet.set_stream(0);
-                        out_packet.rescale_ts(
-                            encoder.time_base(),
-                            out_stream_time_base,
-                        );
+                        out_packet.rescale_ts(encoder.time_base(), out_stream_time_base);
 
                         out_packet.write_interleaved(&mut output_context)?;
                     }
@@ -490,7 +547,8 @@ impl Exporter {
                 if let Some(audio_stream_out) = audio_stream_index_out {
                     let out_stream = output_context.stream(audio_stream_out).unwrap();
                     let out_stream_time_base = out_stream.time_base();
-                    let out_codec_context = ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
+                    let out_codec_context =
+                        ffmpeg::codec::context::Context::from_parameters(out_stream.parameters())?;
                     let mut encoder = out_codec_context.encoder().audio()?;
 
                     encoder.send_eof()?;
@@ -498,10 +556,7 @@ impl Exporter {
                     let mut out_packet = ffmpeg::packet::Packet::empty();
                     while encoder.receive_packet(&mut out_packet).is_ok() {
                         out_packet.set_stream(audio_stream_out);
-                        out_packet.rescale_ts(
-                            encoder.time_base(),
-                            out_stream_time_base,
-                        );
+                        out_packet.rescale_ts(encoder.time_base(), out_stream_time_base);
 
                         out_packet.write_interleaved(&mut output_context)?;
                     }
@@ -561,7 +616,7 @@ impl Exporter {
         *self.pause_flag.lock().unwrap()
     }
 
-   pub fn get_progress(&self) -> ExportProgress {
+    pub fn get_progress(&self) -> ExportProgress {
         self.progress.lock().unwrap().clone()
     }
 

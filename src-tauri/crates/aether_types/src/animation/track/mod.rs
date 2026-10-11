@@ -1,12 +1,11 @@
-
-
+pub mod collection;
+pub mod track;
 pub mod types;
 pub mod value;
-pub mod track;
-pub mod collection;
 
-
-pub use types::{TrackType, BindingType, ParameterBinding};
-pub use value::{TrackValue, TrackValueUtils};
+pub use collection::{
+    AnimationTrackCollection, AnimationTrackCollectionBuilder, TrackCollectionStats,
+};
 pub use track::{AnimationTrack, AnimationTrackBuilder};
-pub use collection::{AnimationTrackCollection, TrackCollectionStats, AnimationTrackCollectionBuilder};
+pub use types::{BindingType, ParameterBinding, TrackType};
+pub use value::{TrackValue, TrackValueUtils};

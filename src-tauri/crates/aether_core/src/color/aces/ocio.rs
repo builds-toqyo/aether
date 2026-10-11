@@ -1,6 +1,6 @@
-use std::ffi::{c_char, c_void, CString};
 use anyhow::Result;
 use log::{debug, info};
+use std::ffi::{CString, c_char, c_void};
 
 #[allow(non_camel_case_types)]
 pub type OCIO_Config = *mut c_void;
@@ -11,7 +11,8 @@ pub type OCIO_CPUProcessor = *mut c_void;
 
 type FnConfigCreateFromFile = unsafe extern "C" fn(*const c_char) -> OCIO_Config;
 type FnConfigRelease = unsafe extern "C" fn(OCIO_Config);
-type FnConfigGetProcessor = unsafe extern "C" fn(OCIO_Config, *const c_char, *const c_char) -> OCIO_Processor;
+type FnConfigGetProcessor =
+    unsafe extern "C" fn(OCIO_Config, *const c_char, *const c_char) -> OCIO_Processor;
 type FnProcessorRelease = unsafe extern "C" fn(OCIO_Processor);
 type FnProcessorGetCPUProcessor = unsafe extern "C" fn(OCIO_Processor) -> OCIO_CPUProcessor;
 type FnCpuProcessorRelease = unsafe extern "C" fn(OCIO_CPUProcessor);
@@ -47,13 +48,19 @@ impl OcioLib {
         debug!("OpenColorIO library loaded successfully");
 
         unsafe {
-            let config_create_from_file: FnConfigCreateFromFile = *lib.get(b"OCIO_configCreateFromFile\0").ok()?;
+            let config_create_from_file: FnConfigCreateFromFile =
+                *lib.get(b"OCIO_configCreateFromFile\0").ok()?;
             let config_release: FnConfigRelease = *lib.get(b"OCIO_configRelease\0").ok()?;
-            let config_get_processor: FnConfigGetProcessor = *lib.get(b"OCIO_configGetProcessor\0").ok()?;
-            let processor_release: FnProcessorRelease = *lib.get(b"OCIO_processorRelease\0").ok()?;
-            let processor_get_cpu_processor: FnProcessorGetCPUProcessor = *lib.get(b"OCIO_processorGetDefaultCPUProcessor\0").ok()?;
-            let cpu_processor_release: FnCpuProcessorRelease = *lib.get(b"OCIO_cpuProcessorRelease\0").ok()?;
-            let cpu_processor_apply_rgb: FnCpuProcessorApplyRGB = *lib.get(b"OCIO_cpuProcessorApplyRGB\0").ok()?;
+            let config_get_processor: FnConfigGetProcessor =
+                *lib.get(b"OCIO_configGetProcessor\0").ok()?;
+            let processor_release: FnProcessorRelease =
+                *lib.get(b"OCIO_processorRelease\0").ok()?;
+            let processor_get_cpu_processor: FnProcessorGetCPUProcessor =
+                *lib.get(b"OCIO_processorGetDefaultCPUProcessor\0").ok()?;
+            let cpu_processor_release: FnCpuProcessorRelease =
+                *lib.get(b"OCIO_cpuProcessorRelease\0").ok()?;
+            let cpu_processor_apply_rgb: FnCpuProcessorApplyRGB =
+                *lib.get(b"OCIO_cpuProcessorApplyRGB\0").ok()?;
 
             Some(Self {
                 _lib: lib,
@@ -88,9 +95,8 @@ impl OcioConfig {
     pub fn get_processor(&self, src: &str, dst: &str) -> Result<OcioProcessor> {
         let src_c = CString::new(src)?;
         let dst_c = CString::new(dst)?;
-        let processor = unsafe {
-            (self.lib.config_get_processor)(self.inner, src_c.as_ptr(), dst_c.as_ptr())
-        };
+        let processor =
+            unsafe { (self.lib.config_get_processor)(self.inner, src_c.as_ptr(), dst_c.as_ptr()) };
         if processor.is_null() {
             return Err(anyhow::anyhow!(
                 "Failed to create OCIO processor: {} -> {}",
@@ -177,7 +183,12 @@ impl OcioPipeline {
     }
 
     /// Convert a single RGB pixel from source to destination color space
-    pub fn transform_pixel(&self, src_space: &str, dst_space: &str, rgb: &mut [f32; 3]) -> Result<()> {
+    pub fn transform_pixel(
+        &self,
+        src_space: &str,
+        dst_space: &str,
+        rgb: &mut [f32; 3],
+    ) -> Result<()> {
         let processor = self.config.get_processor(src_space, dst_space)?;
         let cpu = processor.get_cpu_processor()?;
         cpu.apply_rgb(rgb);

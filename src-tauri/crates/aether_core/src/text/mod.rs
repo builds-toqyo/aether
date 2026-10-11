@@ -1,14 +1,14 @@
-pub mod types;
-pub mod typography;
 pub mod animation;
+pub mod compositor;
 pub mod path_text;
 pub mod renderer;
-pub mod compositor;
+pub mod types;
+pub mod typography;
 
-pub use types::{TextLayer, TextContent, TextStyle, TextAlignment, TextDirection};
-pub use typography::{TypographyControls, FontMetrics, TextLayout};
-pub use animation::{TextAnimator, CharacterAnimation};
 pub use animation::{AnimationType, TextKeyframe};
-pub use path_text::{TextOnPath, PathTextRenderer};
-pub use renderer::{TextRenderer, GlyphRenderer};
-pub use compositor::{TextCompositor, BlendMode};
+pub use animation::{CharacterAnimation, TextAnimator};
+pub use compositor::{BlendMode, TextCompositor};
+pub use path_text::{PathTextRenderer, TextOnPath};
+pub use renderer::{GlyphRenderer, TextRenderer};
+pub use types::{TextAlignment, TextContent, TextDirection, TextLayer, TextStyle};
+pub use typography::{FontMetrics, TextLayout, TypographyControls};

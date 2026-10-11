@@ -1,11 +1,7 @@
-
-
-use serde::{Serialize, Deserialize};
-
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColorScopeData {
-
     pub waveform: WaveformData,
 
     pub vectorscope: VectorscopeData,
@@ -16,7 +12,6 @@ pub struct ColorScopeData {
 }
 
 impl ColorScopeData {
-
     pub fn new(resolution: ScopeResolution) -> Self {
         Self {
             waveform: WaveformData::new(resolution),
@@ -26,7 +21,6 @@ impl ColorScopeData {
         }
     }
 
-
     pub fn clear(&mut self) {
         self.waveform.clear();
         self.vectorscope.clear();
@@ -34,16 +28,13 @@ impl ColorScopeData {
         self.metadata.reset();
     }
 
-
     pub fn size_bytes(&self) -> usize {
         self.waveform.size_bytes() + self.vectorscope.size_bytes() + self.histogram.size_bytes()
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WaveformData {
-
     pub luma: Vec<u8>,
 
     pub red: Vec<u8>,
@@ -56,7 +47,6 @@ pub struct WaveformData {
 }
 
 impl WaveformData {
-
     pub fn new(resolution: ScopeResolution) -> Self {
         let width = resolution.width();
         let height = resolution.height();
@@ -70,14 +60,12 @@ impl WaveformData {
         }
     }
 
-
     pub fn clear(&mut self) {
         self.luma.fill(0);
         self.red.fill(0);
         self.green.fill(0);
         self.blue.fill(0);
     }
-
 
     pub fn channel_data(&self, channel: WaveformChannel) -> &[u8] {
         match channel {
@@ -88,7 +76,6 @@ impl WaveformData {
         }
     }
 
-
     pub fn channel_data_mut(&mut self, channel: WaveformChannel) -> &mut [u8] {
         match channel {
             WaveformChannel::Luma => &mut self.luma,
@@ -98,7 +85,6 @@ impl WaveformData {
         }
     }
 
-
     pub fn set_pixel(&mut self, x: usize, y: usize, channel: WaveformChannel, value: u8) {
         let width = self.config.resolution.width();
         if x < width && y < self.config.resolution.height() {
@@ -107,16 +93,13 @@ impl WaveformData {
         }
     }
 
-
     pub fn size_bytes(&self) -> usize {
         self.luma.len() + self.red.len() + self.green.len() + self.blue.len()
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorscopeData {
-
     pub points: Vec<VectorscopePoint>,
 
     pub intensity_grid: Vec<u16>,
@@ -125,7 +108,6 @@ pub struct VectorscopeData {
 }
 
 impl VectorscopeData {
-
     pub fn new(resolution: ScopeResolution) -> Self {
         let grid_size = resolution.vectorscope_grid_size();
 
@@ -136,35 +118,33 @@ impl VectorscopeData {
         }
     }
 
-
     pub fn clear(&mut self) {
         self.points.clear();
         self.intensity_grid.fill(0);
     }
 
-
     pub fn add_point(&mut self, u: f32, v: f32, intensity: u16) {
         let point = VectorscopePoint::new(u, v, intensity);
         self.points.push(point);
 
-
         let grid_x = ((u + 0.5) * self.config.resolution.vectorscope_grid_size() as f32) as usize;
         let grid_y = ((v + 0.5) * self.config.resolution.vectorscope_grid_size() as f32) as usize;
 
-        if grid_x < self.config.resolution.vectorscope_grid_size() &&
-           grid_y < self.config.resolution.vectorscope_grid_size() {
+        if grid_x < self.config.resolution.vectorscope_grid_size()
+            && grid_y < self.config.resolution.vectorscope_grid_size()
+        {
             let index = grid_y * self.config.resolution.vectorscope_grid_size() + grid_x;
             self.intensity_grid[index] = self.intensity_grid[index].saturating_add(intensity);
         }
     }
 
-
     pub fn get_intensity(&self, u: f32, v: f32) -> u16 {
         let grid_x = ((u + 0.5) * self.config.resolution.vectorscope_grid_size() as f32) as usize;
         let grid_y = ((v + 0.5) * self.config.resolution.vectorscope_grid_size() as f32) as usize;
 
-        if grid_x < self.config.resolution.vectorscope_grid_size() &&
-           grid_y < self.config.resolution.vectorscope_grid_size() {
+        if grid_x < self.config.resolution.vectorscope_grid_size()
+            && grid_y < self.config.resolution.vectorscope_grid_size()
+        {
             let index = grid_y * self.config.resolution.vectorscope_grid_size() + grid_x;
             self.intensity_grid[index]
         } else {
@@ -172,17 +152,14 @@ impl VectorscopeData {
         }
     }
 
-
     pub fn size_bytes(&self) -> usize {
-        self.points.len() * std::mem::size_of::<VectorscopePoint>() +
-        self.intensity_grid.len() * std::mem::size_of::<u16>()
+        self.points.len() * std::mem::size_of::<VectorscopePoint>()
+            + self.intensity_grid.len() * std::mem::size_of::<u16>()
     }
 }
 
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct VectorscopePoint {
-
     pub u: f32,
 
     pub v: f32,
@@ -191,7 +168,6 @@ pub struct VectorscopePoint {
 }
 
 impl VectorscopePoint {
-
     pub fn new(u: f32, v: f32, intensity: u16) -> Self {
         Self {
             u: u.clamp(-0.5, 0.5),
@@ -200,9 +176,7 @@ impl VectorscopePoint {
         }
     }
 
-
     pub fn from_rgb(r: f32, g: f32, b: f32) -> Self {
-
         let y = 0.299 * r + 0.587 * g + 0.114 * b;
         let u = (b - y) / 1.772;
         let v = (r - y) / 1.402;
@@ -211,10 +185,8 @@ impl VectorscopePoint {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct HistogramData {
-
     pub red: [u32; 256],
 
     pub green: [u32; 256],
@@ -232,7 +204,7 @@ impl serde::Serialize for HistogramData {
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
-        
+
         let mut state = serializer.serialize_struct("HistogramData", 5)?;
         state.serialize_field("red", &self.red.to_vec())?;
         state.serialize_field("green", &self.green.to_vec())?;
@@ -258,7 +230,7 @@ impl<'de> serde::Deserialize<'de> for HistogramData {
         }
 
         let helper = HistogramDataHelper::deserialize(deserializer)?;
-        
+
         let red: [u32; 256] = helper.red.try_into().unwrap_or_else(|_| [0; 256]);
         let green: [u32; 256] = helper.green.try_into().unwrap_or_else(|_| [0; 256]);
         let blue: [u32; 256] = helper.blue.try_into().unwrap_or_else(|_| [0; 256]);
@@ -275,7 +247,6 @@ impl<'de> serde::Deserialize<'de> for HistogramData {
 }
 
 impl HistogramData {
-
     pub fn new(resolution: ScopeResolution) -> Self {
         Self {
             red: [0; 256],
@@ -286,7 +257,6 @@ impl HistogramData {
         }
     }
 
-
     pub fn clear(&mut self) {
         self.red.fill(0);
         self.green.fill(0);
@@ -294,17 +264,14 @@ impl HistogramData {
         self.luma.fill(0);
     }
 
-
     pub fn add_sample(&mut self, r: u8, g: u8, b: u8) {
         self.red[r as usize] += 1;
         self.green[g as usize] += 1;
         self.blue[b as usize] += 1;
 
-
         let y = (0.299 * r as f32 + 0.587 * g as f32 + 0.114 * b as f32) as u8;
         self.luma[y as usize] += 1;
     }
-
 
     pub fn channel_data(&self, channel: HistogramChannel) -> &[u32; 256] {
         match channel {
@@ -315,11 +282,13 @@ impl HistogramData {
         }
     }
 
-
     pub fn max_value(&self, channel: HistogramChannel) -> u32 {
-        self.channel_data(channel).iter().copied().max().unwrap_or(0)
+        self.channel_data(channel)
+            .iter()
+            .copied()
+            .max()
+            .unwrap_or(0)
     }
-
 
     pub fn normalize(&self, channel: HistogramChannel) -> Vec<u8> {
         let data = self.channel_data(channel);
@@ -334,16 +303,13 @@ impl HistogramData {
             .collect()
     }
 
-
     pub fn size_bytes(&self) -> usize {
         4 * 256 * std::mem::size_of::<u32>()
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScopeMetadata {
-
     pub frame_number: u64,
 
     pub timestamp: f64,
@@ -358,7 +324,6 @@ pub struct ScopeMetadata {
 }
 
 impl ScopeMetadata {
-
     pub fn new() -> Self {
         Self {
             frame_number: 0,
@@ -370,13 +335,11 @@ impl ScopeMetadata {
         }
     }
 
-
     pub fn reset(&mut self) {
         self.frame_number = 0;
         self.timestamp = 0.0;
         self.stats = ScopeStats::new();
     }
-
 
     pub fn update_frame(&mut self, frame_number: u64, timestamp: f64) {
         self.frame_number = frame_number;
@@ -385,10 +348,8 @@ impl ScopeMetadata {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScopeStats {
-
     pub frames_processed: u64,
 
     pub avg_processing_time_us: f64,
@@ -399,7 +360,6 @@ pub struct ScopeStats {
 }
 
 impl ScopeStats {
-
     pub fn new() -> Self {
         Self {
             frames_processed: 0,
@@ -409,7 +369,6 @@ impl ScopeStats {
         }
     }
 
-
     pub fn update_processing_time(&mut self, processing_time_us: f64, pixels_processed: u64) {
         self.total_pixels_processed += pixels_processed;
 
@@ -417,17 +376,16 @@ impl ScopeStats {
             self.peak_processing_time_us = processing_time_us;
         }
 
-
         if self.frames_processed > 0 {
-            self.avg_processing_time_us =
-                (self.avg_processing_time_us * (self.frames_processed - 1) as f64 + processing_time_us) /
-                self.frames_processed as f64;
+            self.avg_processing_time_us = (self.avg_processing_time_us
+                * (self.frames_processed - 1) as f64
+                + processing_time_us)
+                / self.frames_processed as f64;
         } else {
             self.avg_processing_time_us = processing_time_us;
         }
     }
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ScopeResolution {
@@ -438,7 +396,6 @@ pub enum ScopeResolution {
 }
 
 impl ScopeResolution {
-
     pub fn width(&self) -> usize {
         match self {
             ScopeResolution::Low => 640,
@@ -448,7 +405,6 @@ impl ScopeResolution {
         }
     }
 
-
     pub fn height(&self) -> usize {
         match self {
             ScopeResolution::Low => 480,
@@ -457,7 +413,6 @@ impl ScopeResolution {
             ScopeResolution::Ultra => 2160,
         }
     }
-
 
     pub fn vectorscope_grid_size(&self) -> usize {
         match self {
@@ -469,7 +424,6 @@ impl ScopeResolution {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WaveformChannel {
     Luma,
@@ -478,7 +432,6 @@ pub enum WaveformChannel {
     Blue,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HistogramChannel {
     Red,
@@ -486,7 +439,6 @@ pub enum HistogramChannel {
     Blue,
     Luma,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ColorSpace {
@@ -498,13 +450,11 @@ pub enum ColorSpace {
     ProPhotoRGB,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum VideoRange {
     Limited,
     Full,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WaveformConfig {
@@ -525,7 +475,6 @@ impl WaveformConfig {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WaveformMode {
     Luma,
@@ -533,14 +482,12 @@ pub enum WaveformMode {
     Overlay,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WaveformScale {
     IRE,
     Millivolts,
     Bits,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorscopeConfig {
@@ -570,7 +517,6 @@ impl VectorscopeConfig {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum VectorscopeTarget {
     Primary,
@@ -583,14 +529,12 @@ pub enum VectorscopeTarget {
     Red,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum VectorscopeScale {
     UV,
     YPbPr,
     XY,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistogramConfig {
@@ -610,7 +554,6 @@ impl HistogramConfig {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HistogramMode {

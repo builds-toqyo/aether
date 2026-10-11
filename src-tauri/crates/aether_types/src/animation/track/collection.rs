@@ -1,23 +1,18 @@
-
-
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use std::collections::HashMap;
+use std::fmt;
 
 use super::track::AnimationTrack;
 use super::types::TrackType;
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnimationTrackCollection {
-
     tracks: HashMap<String, AnimationTrack>,
 
     name: String,
 }
 
 impl AnimationTrackCollection {
-
     pub fn new(name: String) -> Self {
         Self {
             tracks: HashMap::new(),
@@ -25,97 +20,88 @@ impl AnimationTrackCollection {
         }
     }
 
-
     pub fn add_track(&mut self, track: AnimationTrack) -> Result<(), String> {
         track.validate()?;
         self.tracks.insert(track.id.clone(), track);
         Ok(())
     }
 
-
     pub fn remove_track(&mut self, track_id: &str) -> Option<AnimationTrack> {
         self.tracks.remove(track_id)
     }
-
 
     pub fn get_track(&self, track_id: &str) -> Option<&AnimationTrack> {
         self.tracks.get(track_id)
     }
 
-
     pub fn get_track_mut(&mut self, track_id: &str) -> Option<&mut AnimationTrack> {
         self.tracks.get_mut(track_id)
     }
-
 
     pub fn get_tracks(&self) -> Vec<&AnimationTrack> {
         self.tracks.values().collect()
     }
 
-
     pub fn get_tracks_mut(&mut self) -> Vec<&mut AnimationTrack> {
         self.tracks.values_mut().collect()
     }
 
-
     pub fn get_tracks_by_type(&self, track_type: TrackType) -> Vec<&AnimationTrack> {
-        self.tracks.values()
+        self.tracks
+            .values()
             .filter(|track| track.track_type == track_type)
             .collect()
     }
-
 
     pub fn get_tracks_by_type_mut(&mut self, track_type: TrackType) -> Vec<&mut AnimationTrack> {
-        self.tracks.values_mut()
+        self.tracks
+            .values_mut()
             .filter(|track| track.track_type == track_type)
             .collect()
     }
 
-
     pub fn get_tracks_by_target(&self, target_id: &str) -> Vec<&AnimationTrack> {
-        self.tracks.values()
+        self.tracks
+            .values()
             .filter(|track| track.binding.target_id == target_id)
             .collect()
     }
-
 
     pub fn get_tracks_by_target_mut(&mut self, target_id: &str) -> Vec<&mut AnimationTrack> {
-        self.tracks.values_mut()
+        self.tracks
+            .values_mut()
             .filter(|track| track.binding.target_id == target_id)
             .collect()
     }
 
-
     pub fn get_enabled_tracks(&self) -> Vec<&AnimationTrack> {
-        self.tracks.values()
+        self.tracks
+            .values()
             .filter(|track| track.enabled && !track.muted)
             .collect()
     }
 
-
     pub fn get_enabled_tracks_by_type(&self, track_type: TrackType) -> Vec<&AnimationTrack> {
-        self.tracks.values()
+        self.tracks
+            .values()
             .filter(|track| track.track_type == track_type && track.enabled && !track.muted)
             .collect()
     }
-
 
     pub fn track_count(&self) -> usize {
         self.tracks.len()
     }
 
-
     pub fn track_count_by_type(&self, track_type: TrackType) -> usize {
-        self.tracks.values()
+        self.tracks
+            .values()
             .filter(|track| track.track_type == track_type)
             .count()
     }
 
-
     pub fn clear(&mut self) {
         self.tracks.clear();
     }
-
 
     pub fn validate(&self) -> Result<(), String> {
         if self.name.is_empty() {
@@ -124,7 +110,10 @@ impl AnimationTrackCollection {
 
         for (id, track) in &self.tracks {
             if id != &track.id {
-                return Err(format!("Track ID mismatch: key '{}' vs track.id '{}'", id, track.id));
+                return Err(format!(
+                    "Track ID mismatch: key '{}' vs track.id '{}'",
+                    id, track.id
+                ));
             }
 
             track.validate()?;
@@ -133,21 +122,24 @@ impl AnimationTrackCollection {
         Ok(())
     }
 
-
     pub fn description(&self) -> String {
-        format!("Track collection '{}' with {} tracks", self.name, self.track_count())
+        format!(
+            "Track collection '{}' with {} tracks",
+            self.name,
+            self.track_count()
+        )
     }
 
-
     pub fn get_target_ids(&self) -> Vec<String> {
-        let mut targets: Vec<String> = self.tracks.values()
+        let mut targets: Vec<String> = self
+            .tracks
+            .values()
             .map(|track| track.binding.target_id.clone())
             .collect();
         targets.sort();
         targets.dedup();
         targets
     }
-
 
     pub fn get_values_at_time(&self, time: f64) -> HashMap<String, super::value::TrackValue> {
         let mut values = HashMap::new();
@@ -161,8 +153,11 @@ impl AnimationTrackCollection {
         values
     }
 
-
-    pub fn get_values_at_time_for_target(&self, time: f64, target_id: &str) -> HashMap<String, super::value::TrackValue> {
+    pub fn get_values_at_time_for_target(
+        &self,
+        time: f64,
+        target_id: &str,
+    ) -> HashMap<String, super::value::TrackValue> {
         let mut values = HashMap::new();
 
         for track in self.get_tracks_by_target(target_id) {
@@ -175,7 +170,6 @@ impl AnimationTrackCollection {
 
         values
     }
-
 
     pub fn time_range(&self) -> Option<(f64, f64)> {
         if self.tracks.is_empty() {
@@ -199,13 +193,11 @@ impl AnimationTrackCollection {
         }
     }
 
-
     pub fn clone_with_name(&self, new_name: String) -> Self {
         let mut cloned = self.clone();
         cloned.name = new_name;
         cloned
     }
-
 
     pub fn merge(&mut self, other: AnimationTrackCollection) -> Result<(), String> {
         for (id, track) in other.tracks {
@@ -216,7 +208,6 @@ impl AnimationTrackCollection {
         }
         Ok(())
     }
-
 
     pub fn filter_tracks<F>(&self, predicate: F) -> AnimationTrackCollection
     where
@@ -232,7 +223,6 @@ impl AnimationTrackCollection {
 
         filtered
     }
-
 
     pub fn get_statistics(&self) -> TrackCollectionStats {
         let mut stats = TrackCollectionStats::default();
@@ -334,10 +324,24 @@ impl fmt::Display for TrackCollectionStats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Track Collection Statistics:")?;
         writeln!(f, "  Total tracks: {}", self.total_tracks)?;
-        writeln!(f, "  Enabled tracks: {} ({:.1}%)", self.enabled_tracks, self.enabled_percentage())?;
-        writeln!(f, "  Muted tracks: {} ({:.1}%)", self.muted_tracks, self.muted_percentage())?;
+        writeln!(
+            f,
+            "  Enabled tracks: {} ({:.1}%)",
+            self.enabled_tracks,
+            self.enabled_percentage()
+        )?;
+        writeln!(
+            f,
+            "  Muted tracks: {} ({:.1}%)",
+            self.muted_tracks,
+            self.muted_percentage()
+        )?;
         writeln!(f, "  Total keyframes: {}", self.total_keyframes)?;
-        writeln!(f, "  Average keyframes per track: {:.1}", self.average_keyframes_per_track())?;
+        writeln!(
+            f,
+            "  Average keyframes per track: {:.1}",
+            self.average_keyframes_per_track()
+        )?;
         writeln!(f, "  Track types:")?;
         writeln!(f, "    Position: {}", self.position_tracks)?;
         writeln!(f, "    Rotation: {}", self.rotation_tracks)?;
@@ -349,24 +353,20 @@ impl fmt::Display for TrackCollectionStats {
     }
 }
 
-
 pub struct AnimationTrackCollectionBuilder {
     collection: AnimationTrackCollection,
 }
 
 impl AnimationTrackCollectionBuilder {
-
     pub fn new(name: String) -> Self {
         let collection = AnimationTrackCollection::new(name);
         Self { collection }
     }
 
-
     pub fn track(mut self, track: AnimationTrack) -> Self {
         let _ = self.collection.add_track(track);
         self
     }
-
 
     pub fn tracks(mut self, tracks: Vec<AnimationTrack>) -> Self {
         for track in tracks {
@@ -374,7 +374,6 @@ impl AnimationTrackCollectionBuilder {
         }
         self
     }
-
 
     pub fn build(self) -> Result<AnimationTrackCollection, String> {
         self.collection.validate()?;
@@ -385,9 +384,9 @@ impl AnimationTrackCollectionBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::animation::interpolation::{EasingFunction, InterpolationMethod};
     use crate::animation::keyframe::{Keyframe, KeyframeData};
-    use crate::animation::interpolation::{InterpolationMethod, EasingFunction};
-    use crate::animation::track::types::{TrackType, ParameterBinding};
+    use crate::animation::track::types::{ParameterBinding, TrackType};
     use crate::animation::track::value::TrackValue;
 
     #[test]
@@ -435,15 +434,12 @@ mod tests {
             binding,
         );
 
-
         track1.add_keyframe(KeyframeData::Vector3(Keyframe::new(0.0, [1.0, 2.0, 3.0])));
 
         collection.add_track(track1).unwrap();
 
-
         let enabled_tracks = collection.get_enabled_tracks();
         assert_eq!(enabled_tracks.len(), 1);
-
 
         let position_tracks = collection.get_tracks_by_type(TrackType::Position);
         assert_eq!(position_tracks.len(), 1);

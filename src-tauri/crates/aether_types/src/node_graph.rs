@@ -200,7 +200,10 @@ impl Node {
     }
 
     pub fn get_input_value(&self, name: &str) -> Option<ParameterValue> {
-        self.inputs.iter().find(|pin| pin.name == name).map(|pin| pin.current_value.clone())
+        self.inputs
+            .iter()
+            .find(|pin| pin.name == name)
+            .map(|pin| pin.current_value.clone())
     }
 }
 
@@ -303,7 +306,9 @@ impl Graph {
     }
 
     pub fn get_nodes_by_type(&self, node_type: NodeType) -> impl Iterator<Item = &Node> {
-        self.nodes.values().filter(move |node| node.node_type == node_type)
+        self.nodes
+            .values()
+            .filter(move |node| node.node_type == node_type)
     }
 
     pub fn get_input_nodes(&self) -> impl Iterator<Item = &Node> {
@@ -504,7 +509,8 @@ mod tests {
         graph.add_node(output_node);
         graph.add_node(input_node);
 
-        let connection = Connection::new(output_node_id, output_pin_id, input_node_id, input_pin_id);
+        let connection =
+            Connection::new(output_node_id, output_pin_id, input_node_id, input_pin_id);
         graph.add_connection(connection);
 
         assert_eq!(graph.connection_count(), 1);

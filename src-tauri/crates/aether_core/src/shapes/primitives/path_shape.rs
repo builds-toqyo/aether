@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
 use crate::shapes::paths::Path;
 use crate::shapes::primitives::transform::{BoundingBox, Transform};
 use crate::shapes::primitives::types::{ShapePrimitive, ShapeType};
+use serde::{Deserialize, Serialize};
 
 /// A generic shape that wraps a Path, allowing any path-based geometry
 /// to be treated as a ShapePrimitive.

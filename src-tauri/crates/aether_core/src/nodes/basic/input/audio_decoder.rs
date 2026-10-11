@@ -1,33 +1,26 @@
-use ffmpeg_next as ffmpeg;
 use ffmpeg::{format, frame, media};
-use uuid::Uuid;
+use ffmpeg_next as ffmpeg;
 use log::{debug, error, warn};
+use uuid::Uuid;
 
 pub struct AudioDecoder {
-
     _frame_cache: std::collections::HashMap<u64, Uuid>,
 }
 
 impl AudioDecoder {
-
     pub fn new() -> Self {
         Self {
             _frame_cache: std::collections::HashMap::new(),
         }
     }
 
-
     pub fn decode_audio_frame_with_ffmpeg(&mut self, frame: u64, media_path: &str) -> Uuid {
-
-
         debug!("Decoding audio frame {} from {}", frame, media_path);
-
 
         if let Err(e) = ffmpeg::init() {
             error!("Failed to initialize FFmpeg for audio: {}", e);
             return Uuid::new_v4();
         }
-
 
         let mut input_format_context = match format::input(media_path) {
             Ok(context) => context,
@@ -45,19 +38,20 @@ impl AudioDecoder {
             }
         };
 
-        let mut decoder = match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
-            Ok(context) => match context.decoder().audio() {
-                Ok(decoder) => decoder,
+        let mut decoder =
+            match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
+                Ok(context) => match context.decoder().audio() {
+                    Ok(decoder) => decoder,
+                    Err(e) => {
+                        error!("Failed to create audio decoder: {}", e);
+                        return Uuid::new_v4();
+                    }
+                },
                 Err(e) => {
-                    error!("Failed to create audio decoder: {}", e);
+                    error!("Failed to create decoder context: {}", e);
                     return Uuid::new_v4();
                 }
-            },
-            Err(e) => {
-                error!("Failed to create decoder context: {}", e);
-                return Uuid::new_v4();
-            }
-        };
+            };
 
         let sample_rate = decoder.rate() as u32;
         let channels = decoder.channels() as u8;
@@ -99,11 +93,12 @@ impl AudioDecoder {
                 audio_id,
             };
 
-            debug!("Audio decoded via FFmpeg: {}Hz, {} channels, {} bits, {} samples/frame",
-                sample_rate, channels, bit_depth, samples_per_frame);
+            debug!(
+                "Audio decoded via FFmpeg: {}Hz, {} channels, {} bits, {} samples/frame",
+                sample_rate, channels, bit_depth, samples_per_frame
+            );
 
             debug!("Audio metadata: {:?}", audio_metadata);
-
         } else {
             warn!("No audio packet found for frame {}", frame);
         }
@@ -111,16 +106,12 @@ impl AudioDecoder {
         audio_id
     }
 
-
     fn extract_audio_samples(&self, frame: &frame::Audio, channels: u8) -> Vec<f32> {
         use ffmpeg::format::sample::Sample;
 
         fn decode_plane(data: &[u8], sample_fmt: Sample) -> Vec<f32> {
             match sample_fmt {
-                Sample::U8(_) => data
-                    .iter()
-                    .map(|&v| (v as f32 - 128.0) / 128.0)
-                    .collect(),
+                Sample::U8(_) => data.iter().map(|&v| (v as f32 - 128.0) / 128.0).collect(),
                 Sample::I16(_) => data
                     .chunks_exact(2)
                     .map(|c| i16::from_ne_bytes([c[0], c[1]]) as f32 / i16::MAX as f32)

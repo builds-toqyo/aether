@@ -1,9 +1,6 @@
-
-
+use crate::animation::interpolation::{EasingFunction, InterpolationMethod};
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use crate::animation::interpolation::{InterpolationMethod, EasingFunction};
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Keyframe<T> {
@@ -16,7 +13,6 @@ pub struct Keyframe<T> {
 }
 
 impl<T> Keyframe<T> {
-
     pub fn new(time: f64, value: T) -> Self {
         Self {
             time,
@@ -30,11 +26,7 @@ impl<T> Keyframe<T> {
         self.time
     }
 
-    pub fn with_interpolation(
-        time: f64,
-        value: T,
-        interpolation: InterpolationMethod,
-    ) -> Self {
+    pub fn with_interpolation(time: f64, value: T, interpolation: InterpolationMethod) -> Self {
         Self {
             time,
             value,
@@ -42,7 +34,6 @@ impl<T> Keyframe<T> {
             easing: EasingFunction::Linear,
         }
     }
-
 
     pub fn with_easing(
         time: f64,
@@ -58,16 +49,13 @@ impl<T> Keyframe<T> {
         }
     }
 
-
     pub fn set_interpolation(&mut self, interpolation: InterpolationMethod) {
         self.interpolation = interpolation;
     }
 
-
     pub fn set_easing(&mut self, easing: EasingFunction) {
         self.easing = easing;
     }
-
 
     pub fn time_string(&self) -> String {
         format!("{:.3}s", self.time)
@@ -76,8 +64,11 @@ impl<T> Keyframe<T> {
 
 impl<T: fmt::Display> fmt::Display for Keyframe<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Keyframe(time: {:.3}, value: {}, interpolation: {}, easing: {})",
-               self.time, self.value, self.interpolation, self.easing)
+        write!(
+            f,
+            "Keyframe(time: {:.3}, value: {}, interpolation: {}, easing: {})",
+            self.time, self.value, self.interpolation, self.easing
+        )
     }
 }
 
@@ -240,39 +231,59 @@ impl Default for TransformData {
 
 impl fmt::Display for TransformData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Transform(pos: [{:.1}, {:.1}, {:.1}], rot: [{:.1}, {:.1}, {:.1}], scale: [{:.1}, {:.1}, {:.1}])",
-               self.position[0], self.position[1], self.position[2],
-               self.rotation[0], self.rotation[1], self.rotation[2],
-               self.scale[0], self.scale[1], self.scale[2])
+        write!(
+            f,
+            "Transform(pos: [{:.1}, {:.1}, {:.1}], rot: [{:.1}, {:.1}, {:.1}], scale: [{:.1}, {:.1}, {:.1}])",
+            self.position[0],
+            self.position[1],
+            self.position[2],
+            self.rotation[0],
+            self.rotation[1],
+            self.rotation[2],
+            self.scale[0],
+            self.scale[1],
+            self.scale[2]
+        )
     }
 }
-
 
 pub struct KeyframeCollection;
 
 impl KeyframeCollection {
-
     pub fn sort_by_time<T>(keyframes: &mut Vec<Keyframe<T>>) {
-        keyframes.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap_or(std::cmp::Ordering::Equal));
+        keyframes.sort_by(|a, b| {
+            a.time
+                .partial_cmp(&b.time)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
     }
 
     pub fn sort_by_time_data(keyframes: &mut Vec<KeyframeData>) {
-        keyframes.sort_by(|a, b| a.time().partial_cmp(&b.time()).unwrap_or(std::cmp::Ordering::Equal));
+        keyframes.sort_by(|a, b| {
+            a.time()
+                .partial_cmp(&b.time())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
     }
 
     pub fn find_keyframe_at_time<T>(keyframes: &[Keyframe<T>], time: f64) -> Option<usize> {
-        keyframes.iter().position(|k| k.time >= time).map(|i| {
-            if i > 0 { i - 1 } else { i }
-        })
+        keyframes
+            .iter()
+            .position(|k| k.time >= time)
+            .map(|i| if i > 0 { i - 1 } else { i })
     }
 
     pub fn find_keyframe_at_time_data(keyframes: &[KeyframeData], time: f64) -> Option<usize> {
-        keyframes.iter().position(|k| k.time() >= time).map(|i| {
-            if i > 0 { i - 1 } else { i }
-        })
+        keyframes
+            .iter()
+            .position(|k| k.time() >= time)
+            .map(|i| if i > 0 { i - 1 } else { i })
     }
 
-    pub fn find_surrounding_keyframes<T>(keyframes: &[Keyframe<T>], time: f64) -> (Option<&Keyframe<T>>, Option<&Keyframe<T>>) {
+    pub fn find_surrounding_keyframes<T>(
+        keyframes: &[Keyframe<T>],
+        time: f64,
+    ) -> (Option<&Keyframe<T>>, Option<&Keyframe<T>>) {
         let pos = keyframes.iter().position(|k| k.time >= time);
 
         match pos {
@@ -288,7 +299,10 @@ impl KeyframeCollection {
         }
     }
 
-    pub fn find_surrounding_keyframes_data(keyframes: &[KeyframeData], time: f64) -> (Option<&KeyframeData>, Option<&KeyframeData>) {
+    pub fn find_surrounding_keyframes_data(
+        keyframes: &[KeyframeData],
+        time: f64,
+    ) -> (Option<&KeyframeData>, Option<&KeyframeData>) {
         let pos = keyframes.iter().position(|k| k.time() >= time);
 
         match pos {
@@ -309,7 +323,6 @@ impl KeyframeCollection {
             return Err("No keyframes provided".to_string());
         }
 
-
         let mut times = Vec::new();
         for keyframe in keyframes {
             if times.contains(&keyframe.time) {
@@ -318,11 +331,13 @@ impl KeyframeCollection {
             times.push(keyframe.time);
         }
 
-
         for i in 1..keyframes.len() {
             if keyframes[i].time < keyframes[i - 1].time {
-                return Err(format!("Keyframe time not monotonic: {} < {}",
-                                 keyframes[i].time, keyframes[i - 1].time));
+                return Err(format!(
+                    "Keyframe time not monotonic: {} < {}",
+                    keyframes[i].time,
+                    keyframes[i - 1].time
+                ));
             }
         }
 
@@ -344,8 +359,11 @@ impl KeyframeCollection {
 
         for i in 1..keyframes.len() {
             if keyframes[i].time() < keyframes[i - 1].time() {
-                return Err(format!("Keyframe time not monotonic: {} < {}",
-                                 keyframes[i].time(), keyframes[i - 1].time()));
+                return Err(format!(
+                    "Keyframe time not monotonic: {} < {}",
+                    keyframes[i].time(),
+                    keyframes[i - 1].time()
+                ));
             }
         }
 
@@ -356,7 +374,7 @@ impl KeyframeCollection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::animation::interpolation::{InterpolationMethod, EasingFunction};
+    use crate::animation::interpolation::{EasingFunction, InterpolationMethod};
 
     #[test]
     fn test_keyframe_creation() {
@@ -370,11 +388,7 @@ mod tests {
 
     #[test]
     fn test_keyframe_with_interpolation() {
-        let keyframe = Keyframe::with_interpolation(
-            2.0,
-            100.0,
-            InterpolationMethod::Bezier
-        );
+        let keyframe = Keyframe::with_interpolation(2.0, 100.0, InterpolationMethod::Bezier);
 
         assert_eq!(keyframe.interpolation, InterpolationMethod::Bezier);
         assert_eq!(keyframe.easing, EasingFunction::Linear);
@@ -442,10 +456,7 @@ mod tests {
 
         assert!(KeyframeCollection::validate_keyframes(&valid_keyframes).is_ok());
 
-        let invalid_keyframes = vec![
-            Keyframe::new(1.0, 1.0),
-            Keyframe::new(1.0, 2.0),
-        ];
+        let invalid_keyframes = vec![Keyframe::new(1.0, 1.0), Keyframe::new(1.0, 2.0)];
 
         assert!(KeyframeCollection::validate_keyframes(&invalid_keyframes).is_err());
     }
@@ -458,19 +469,16 @@ mod tests {
             Keyframe::new(5.0, 5.0),
         ];
 
-
         let (prev, next) = KeyframeCollection::find_surrounding_keyframes(&keyframes, 0.5);
         assert!(prev.is_none());
         assert!(next.is_some());
         assert_eq!(next.unwrap().time, 1.0);
-
 
         let (prev, next) = KeyframeCollection::find_surrounding_keyframes(&keyframes, 2.0);
         assert!(prev.is_some());
         assert!(next.is_some());
         assert_eq!(prev.unwrap().time, 1.0);
         assert_eq!(next.unwrap().time, 3.0);
-
 
         let (prev, next) = KeyframeCollection::find_surrounding_keyframes(&keyframes, 6.0);
         assert!(prev.is_some());

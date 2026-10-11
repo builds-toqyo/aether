@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use anyhow::{Result, anyhow};
 use log::debug;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum InputTransform {
@@ -34,28 +34,52 @@ impl TransformManager {
     pub fn initialize_transforms(&mut self) -> Result<()> {
         debug!("Initializing transformation matrices");
 
-        self.input_transforms.insert(InputTransform::Rec709ToAces, Self::rec709_to_aces_matrix());
-        self.input_transforms.insert(InputTransform::Rec2020ToAces, Self::rec2020_to_aces_matrix());
-        self.input_transforms.insert(InputTransform::SrgbToAces, Self::srgb_to_aces_matrix());
-        self.input_transforms.insert(InputTransform::RawToAces, Self::raw_to_aces_matrix());
+        self.input_transforms
+            .insert(InputTransform::Rec709ToAces, Self::rec709_to_aces_matrix());
+        self.input_transforms.insert(
+            InputTransform::Rec2020ToAces,
+            Self::rec2020_to_aces_matrix(),
+        );
+        self.input_transforms
+            .insert(InputTransform::SrgbToAces, Self::srgb_to_aces_matrix());
+        self.input_transforms
+            .insert(InputTransform::RawToAces, Self::raw_to_aces_matrix());
 
-        self.output_transforms.insert(OutputTransform::AcesToRec709, Self::aces_to_rec709_matrix());
-        self.output_transforms.insert(OutputTransform::AcesToRec2020, Self::aces_to_rec2020_matrix());
-        self.output_transforms.insert(OutputTransform::AcesToSrgb, Self::aces_to_srgb_matrix());
-        self.output_transforms.insert(OutputTransform::AcesToHdr10, Self::aces_to_hdr10_matrix());
+        self.output_transforms
+            .insert(OutputTransform::AcesToRec709, Self::aces_to_rec709_matrix());
+        self.output_transforms.insert(
+            OutputTransform::AcesToRec2020,
+            Self::aces_to_rec2020_matrix(),
+        );
+        self.output_transforms
+            .insert(OutputTransform::AcesToSrgb, Self::aces_to_srgb_matrix());
+        self.output_transforms
+            .insert(OutputTransform::AcesToHdr10, Self::aces_to_hdr10_matrix());
 
         Ok(())
     }
 
-    pub fn apply_input_transform(&self, rgb: [u8; 3], transform: InputTransform) -> Result<[u8; 3]> {
-        let matrix = self.input_transforms.get(&transform)
+    pub fn apply_input_transform(
+        &self,
+        rgb: [u8; 3],
+        transform: InputTransform,
+    ) -> Result<[u8; 3]> {
+        let matrix = self
+            .input_transforms
+            .get(&transform)
             .ok_or_else(|| anyhow!("Input transform not found: {:?}", transform))?;
 
         Ok(self.apply_matrix(rgb, *matrix))
     }
 
-    pub fn apply_output_transform(&self, rgb: [u8; 3], transform: OutputTransform) -> Result<[u8; 3]> {
-        let matrix = self.output_transforms.get(&transform)
+    pub fn apply_output_transform(
+        &self,
+        rgb: [u8; 3],
+        transform: OutputTransform,
+    ) -> Result<[u8; 3]> {
+        let matrix = self
+            .output_transforms
+            .get(&transform)
             .ok_or_else(|| anyhow!("Output transform not found: {:?}", transform))?;
 
         Ok(self.apply_matrix(rgb, *matrix))
@@ -110,11 +134,7 @@ impl TransformManager {
     }
 
     fn raw_to_aces_matrix() -> [[f32; 3]; 3] {
-        [
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-            [0.0, 0.0, 1.0],
-        ]
+        [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     }
 
     fn aces_to_rec709_matrix() -> [[f32; 3]; 3] {

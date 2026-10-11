@@ -1,5 +1,5 @@
-use super::types::{RendererError, PostProcessUniforms};
 use super::gpu::WgpuComputeState;
+use super::types::{PostProcessUniforms, RendererError};
 
 pub(super) fn apply_post_processing_gpu(
     state: &WgpuComputeState,
@@ -37,13 +37,24 @@ pub(super) fn apply_post_processing_gpu(
         label: Some("post_process_bind_group"),
         layout: bind_group_layout,
         entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: input_buffer.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 1, resource: output_buffer.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 2, resource: uniform_buffer.as_entire_binding() },
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: input_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: output_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: uniform_buffer.as_entire_binding(),
+            },
         ],
     });
 
-    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("post_process_encoder") });
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("post_process_encoder"),
+    });
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("post_process_pass"),
@@ -66,8 +77,11 @@ pub(super) fn apply_post_processing_gpu(
     slice.map_async(wgpu::MapMode::Read, move |result| {
         let _ = tx.send(result);
     });
-    device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| RendererError::RenderError(format!("GPU poll failed: {:?}", e)))?;
-    rx.recv().map_err(|_| RendererError::RenderError("GPU map channel closed".to_string()))?
+    device
+        .poll(wgpu::PollType::wait_indefinitely())
+        .map_err(|e| RendererError::RenderError(format!("GPU poll failed: {:?}", e)))?;
+    rx.recv()
+        .map_err(|_| RendererError::RenderError("GPU map channel closed".to_string()))?
         .map_err(|e| RendererError::RenderError(format!("GPU map failed: {}", e)))?;
 
     let data = slice.get_mapped_range();
@@ -124,7 +138,9 @@ fn apply_color_grading(frame_data: &mut [u8], width: usize, height: usize) {
             b = (b * brightness).clamp(0.0, 1.0);
             let (h, s, l) = rgb_to_hsl(r, g, b);
             let (r_new, g_new, b_new) = hsl_to_rgb(h, (s * saturation).clamp(0.0, 1.0), l);
-            r = r_new; g = g_new; b = b_new;
+            r = r_new;
+            g = g_new;
+            b = b_new;
             r = (r * temp_r).clamp(0.0, 1.0);
             g = (g * temp_g).clamp(0.0, 1.0);
             b = (b * temp_b).clamp(0.0, 1.0);
@@ -164,7 +180,11 @@ fn rgb_to_hsl(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
     let min = r.min(g).min(b);
     let delta = max - min;
     let l = (max + min) / 2.0;
-    let s = if delta == 0.0 { 0.0 } else { delta / (1.0 - (2.0 * l - 1.0).abs()) };
+    let s = if delta == 0.0 {
+        0.0
+    } else {
+        delta / (1.0 - (2.0 * l - 1.0).abs())
+    };
     let h = if delta == 0.0 {
         0.0
     } else if max == r {
@@ -179,16 +199,25 @@ fn rgb_to_hsl(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
 }
 
 fn hsl_to_rgb(h: f32, s: f32, l: f32) -> (f32, f32, f32) {
-    if s == 0.0 { return (l, l, l); }
+    if s == 0.0 {
+        return (l, l, l);
+    }
     let h = h * 360.0;
     let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
     let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
     let m = l - c / 2.0;
-    let (r1, g1, b1) = if h < 60.0 { (c, x, 0.0) }
-    else if h < 120.0 { (x, c, 0.0) }
-    else if h < 180.0 { (0.0, c, x) }
-    else if h < 240.0 { (0.0, x, c) }
-    else if h < 300.0 { (x, 0.0, c) }
-    else { (c, 0.0, x) };
+    let (r1, g1, b1) = if h < 60.0 {
+        (c, x, 0.0)
+    } else if h < 120.0 {
+        (x, c, 0.0)
+    } else if h < 180.0 {
+        (0.0, c, x)
+    } else if h < 240.0 {
+        (0.0, x, c)
+    } else if h < 300.0 {
+        (x, 0.0, c)
+    } else {
+        (c, 0.0, x)
+    };
     (r1 + m, g1 + m, b1 + m)
 }

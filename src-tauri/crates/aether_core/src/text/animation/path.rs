@@ -335,7 +335,6 @@ mod tests {
         let length = path.get_length();
         assert!((length - 400.0).abs() < 0.001);
 
-
         let point = path.get_point_at_distance(450.0);
         assert!(point.is_some());
     }

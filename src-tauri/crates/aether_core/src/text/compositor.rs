@@ -1,4 +1,4 @@
-use crate::text::renderer::{GlyphRenderInfo, TextRenderer, CachedGlyph};
+use crate::text::renderer::{CachedGlyph, GlyphRenderInfo, TextRenderer};
 use crate::text::types::TextLayer;
 use aether_types::ParameterValue;
 use uuid::Uuid;
@@ -36,14 +36,16 @@ impl TextCompositor {
         time: f64,
     ) -> ParameterValue {
         if !text_layer.visible || text_layer.opacity == 0.0 {
-            return base_image.map(|(id, _, _, _)| ParameterValue::Image(id))
+            return base_image
+                .map(|(id, _, _, _)| ParameterValue::Image(id))
                 .unwrap_or(ParameterValue::None);
         }
 
         let render_infos = renderer.render_text_layer(text_layer, time);
 
         if render_infos.is_empty() {
-            return base_image.map(|(id, _, _, _)| ParameterValue::Image(id))
+            return base_image
+                .map(|(id, _, _, _)| ParameterValue::Image(id))
                 .unwrap_or(ParameterValue::None);
         }
 

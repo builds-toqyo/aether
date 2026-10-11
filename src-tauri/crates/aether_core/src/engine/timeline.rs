@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use std::error::Error;
 use std::fmt;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub enum TimelineError {
@@ -95,14 +95,17 @@ impl Track {
     }
 
     pub fn add_clip(&mut self, clip: Clip) -> Result<(), TimelineError> {
-
         for existing_clip in &self.clips {
-            if existing_clip.clip_type == clip.clip_type &&
-               ((clip.start_time >= existing_clip.start_time && clip.start_time < existing_clip.end_time()) ||
-                (clip.end_time() > existing_clip.start_time && clip.end_time() <= existing_clip.end_time())) {
-                return Err(TimelineError::OperationError(
-                    format!("Clip overlaps with existing clip {} of the same type", existing_clip.id)
-                ));
+            if existing_clip.clip_type == clip.clip_type
+                && ((clip.start_time >= existing_clip.start_time
+                    && clip.start_time < existing_clip.end_time())
+                    || (clip.end_time() > existing_clip.start_time
+                        && clip.end_time() <= existing_clip.end_time()))
+            {
+                return Err(TimelineError::OperationError(format!(
+                    "Clip overlaps with existing clip {} of the same type",
+                    existing_clip.id
+                )));
             }
         }
 
@@ -114,12 +117,16 @@ impl Track {
         if let Some(index) = self.clips.iter().position(|clip| clip.id == clip_id) {
             Ok(self.clips.remove(index))
         } else {
-            Err(TimelineError::InvalidClip(format!("Clip with id {} not found", clip_id)))
+            Err(TimelineError::InvalidClip(format!(
+                "Clip with id {} not found",
+                clip_id
+            )))
         }
     }
 
     pub fn clips_at_time(&self, time: f64) -> Vec<&Clip> {
-        self.clips.iter()
+        self.clips
+            .iter()
             .filter(|clip| clip.contains_time(time))
             .collect()
     }
@@ -170,9 +177,10 @@ impl Timeline {
 
     pub fn add_track(&mut self, track: Track) -> Result<(), TimelineError> {
         if self.tracks.contains_key(&track.id) {
-            return Err(TimelineError::InvalidTrack(
-                format!("Track with id {} already exists", track.id)
-            ));
+            return Err(TimelineError::InvalidTrack(format!(
+                "Track with id {} already exists",
+                track.id
+            )));
         }
 
         self.tracks.insert(track.id.clone(), track);
@@ -183,9 +191,10 @@ impl Timeline {
         if let Some(track) = self.tracks.remove(track_id) {
             Ok(track)
         } else {
-            Err(TimelineError::InvalidTrack(
-                format!("Track with id {} not found", track_id)
-            ))
+            Err(TimelineError::InvalidTrack(format!(
+                "Track with id {} not found",
+                track_id
+            )))
         }
     }
 
@@ -206,24 +215,26 @@ impl Timeline {
         track.add_clip(clip)
     }
 
-
-    pub fn remove_clip_from_track(&mut self, track_id: &str, clip_id: &str) -> Result<Clip, TimelineError> {
+    pub fn remove_clip_from_track(
+        &mut self,
+        track_id: &str,
+        clip_id: &str,
+    ) -> Result<Clip, TimelineError> {
         let track = self.get_track_mut(track_id)?;
         track.remove_clip(clip_id)
     }
 
-
     pub fn seek(&mut self, time: f64) -> Result<(), TimelineError> {
         if time < 0.0 || time > self.config.duration {
-            return Err(TimelineError::InvalidTime(
-                format!("Time {} is outside timeline bounds (0 to {})", time, self.config.duration)
-            ));
+            return Err(TimelineError::InvalidTime(format!(
+                "Time {} is outside timeline bounds (0 to {})",
+                time, self.config.duration
+            )));
         }
 
         self.current_time = time;
         Ok(())
     }
-
 
     pub fn play(&mut self) {
         let mut state = self.state.lock().unwrap();
@@ -231,25 +242,23 @@ impl Timeline {
         state.last_update_time = std::time::Instant::now();
     }
 
-
     pub fn pause(&mut self) {
         let mut state = self.state.lock().unwrap();
         state.is_playing = false;
     }
 
-
     pub fn set_playback_speed(&mut self, speed: f64) -> Result<(), TimelineError> {
         if speed <= 0.0 {
-            return Err(TimelineError::OperationError(
-                format!("Invalid playback speed: {}", speed)
-            ));
+            return Err(TimelineError::OperationError(format!(
+                "Invalid playback speed: {}",
+                speed
+            )));
         }
 
         let mut state = self.state.lock().unwrap();
         state.playback_speed = speed;
         Ok(())
     }
-
 
     pub fn update(&mut self) -> Result<f64, TimelineError> {
         let mut state = self.state.lock().unwrap();
@@ -259,9 +268,7 @@ impl Timeline {
             let elapsed = now.duration_since(state.last_update_time).as_secs_f64();
             state.last_update_time = now;
 
-
             self.current_time += elapsed * state.playback_speed;
-
 
             if self.current_time >= self.config.duration {
                 self.current_time = self.config.duration;
@@ -271,7 +278,6 @@ impl Timeline {
 
         Ok(self.current_time)
     }
-
 
     pub fn active_clips(&self) -> HashMap<String, Vec<&Clip>> {
         let mut result = HashMap::new();
@@ -288,26 +294,23 @@ impl Timeline {
         result
     }
 
-
     pub fn current_time(&self) -> f64 {
         self.current_time
     }
-
 
     pub fn duration(&self) -> f64 {
         self.config.duration
     }
 
-
     pub fn set_duration(&mut self, duration: f64) -> Result<(), TimelineError> {
         if duration <= 0.0 {
-            return Err(TimelineError::OperationError(
-                format!("Invalid duration: {}", duration)
-            ));
+            return Err(TimelineError::OperationError(format!(
+                "Invalid duration: {}",
+                duration
+            )));
         }
 
         self.config.duration = duration;
-
 
         if self.current_time > duration {
             self.current_time = duration;
@@ -316,17 +319,14 @@ impl Timeline {
         Ok(())
     }
 
-
     pub fn tracks(&self) -> &HashMap<String, Track> {
         &self.tracks
     }
-
 
     pub fn is_playing(&self) -> bool {
         self.state.lock().unwrap().is_playing
     }
 }
-
 
 pub fn create_default_timeline() -> Timeline {
     Timeline::new(TimelineConfig::default())

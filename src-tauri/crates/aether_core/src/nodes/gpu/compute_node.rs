@@ -1,4 +1,4 @@
-use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult, NodeError};
+use crate::nodes::{ExecutionContext, NodeError, NodeExecutor, NodeResult};
 use aether_types::{Node, NodeType};
 use uuid::Uuid;
 
@@ -24,11 +24,13 @@ impl GpuComputeNode {
             return Ok(());
         }
 
-        let gpu_context = context.gpu_context
+        let gpu_context = context
+            .gpu_context
             .as_ref()
             .ok_or_else(|| NodeError::ExecutionFailed("GPU context not available".to_string()))?;
 
-        let device = gpu_context.device
+        let device = gpu_context
+            .device
             .as_ref()
             .ok_or_else(|| NodeError::ExecutionFailed("GPU device not available".to_string()))?;
 
@@ -70,25 +72,29 @@ impl NodeExecutor for GpuComputeNode {
 
         self.ensure_pipeline_initialized(context)?;
 
-        let gpu_context = context.gpu_context
+        let gpu_context = context
+            .gpu_context
             .as_ref()
             .ok_or_else(|| NodeError::ExecutionFailed("GPU context not available".to_string()))?;
 
-        let device = gpu_context.device
+        let device = gpu_context
+            .device
             .as_ref()
             .ok_or_else(|| NodeError::ExecutionFailed("GPU device not available".to_string()))?;
 
-        let queue = gpu_context.queue
+        let queue = gpu_context
+            .queue
             .as_ref()
             .ok_or_else(|| NodeError::ExecutionFailed("GPU queue not available".to_string()))?;
 
-        let pipeline = self.compute_pipeline
+        let pipeline = self
+            .compute_pipeline
             .as_ref()
             .ok_or_else(|| NodeError::ExecutionFailed("Pipeline not initialized".to_string()))?;
 
-        let bind_group_layout = self.bind_group_layout
-            .as_ref()
-            .ok_or_else(|| NodeError::ExecutionFailed("Bind group layout not initialized".to_string()))?;
+        let bind_group_layout = self.bind_group_layout.as_ref().ok_or_else(|| {
+            NodeError::ExecutionFailed("Bind group layout not initialized".to_string())
+        })?;
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some(&format!("bind_group_{}", self.node.id)),
@@ -113,7 +119,11 @@ impl NodeExecutor for GpuComputeNode {
             });
             compute_pass.set_pipeline(pipeline);
             compute_pass.set_bind_group(0, &bind_group, &[]);
-            compute_pass.dispatch_workgroups(workgroup_count.0, workgroup_count.1, workgroup_count.2);
+            compute_pass.dispatch_workgroups(
+                workgroup_count.0,
+                workgroup_count.1,
+                workgroup_count.2,
+            );
         }
 
         queue.submit(Some(encoder.finish()));

@@ -90,7 +90,8 @@ impl MaskAnimationTrack {
 
     pub fn remove_keyframe(&mut self, time: f64) -> bool {
         let initial_len = self.keyframes.len();
-        self.keyframes.retain(|kf| (kf.time - time).abs() > f64::EPSILON);
+        self.keyframes
+            .retain(|kf| (kf.time - time).abs() > f64::EPSILON);
         self.keyframes.len() < initial_len
     }
 
@@ -99,7 +100,8 @@ impl MaskAnimationTrack {
     }
 
     fn sort_keyframes(&mut self) {
-        self.keyframes.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap());
+        self.keyframes
+            .sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap());
     }
 
     pub fn evaluate(&self, time: f64) -> Option<AnimationValue> {
@@ -119,7 +121,6 @@ impl MaskAnimationTrack {
 
         let mut eval_time = adjusted_time;
 
-
         if self.loop_animation {
             if self.loop_count == 0 {
                 eval_time = adjusted_time % total_duration;
@@ -128,7 +129,6 @@ impl MaskAnimationTrack {
                 if adjusted_time < loop_duration {
                     eval_time = adjusted_time % total_duration;
                 } else {
-
                     if let Some(last_keyframe) = self.keyframes.last() {
                         return Some(last_keyframe.value.clone());
                     }
@@ -136,13 +136,11 @@ impl MaskAnimationTrack {
                 }
             }
         } else if adjusted_time > total_duration {
-
             if let Some(last_keyframe) = self.keyframes.last() {
                 return Some(last_keyframe.value.clone());
             }
             return None;
         }
-
 
         let prev_keyframe = self.get_keyframe_at_or_before(eval_time);
         let next_keyframe = self.get_keyframe_at_or_after(eval_time);
@@ -154,7 +152,8 @@ impl MaskAnimationTrack {
                 }
 
                 let t = (eval_time - prev.time) / (next.time - prev.time);
-                let interpolated_value = self.interpolate_values(&prev.value, &next.value, t, &prev.easing);
+                let interpolated_value =
+                    self.interpolate_values(&prev.value, &next.value, t, &prev.easing);
                 Some(interpolated_value)
             }
             (Some(prev), None) => Some(prev.value.clone()),
@@ -170,14 +169,11 @@ impl MaskAnimationTrack {
     }
 
     fn get_keyframe_at_or_before(&self, time: f64) -> Option<&MaskKeyframe> {
-        self.keyframes.iter()
-            .rev()
-            .find(|kf| kf.time <= time)
+        self.keyframes.iter().rev().find(|kf| kf.time <= time)
     }
 
     fn get_keyframe_at_or_after(&self, time: f64) -> Option<&MaskKeyframe> {
-        self.keyframes.iter()
-            .find(|kf| kf.time >= time)
+        self.keyframes.iter().find(|kf| kf.time >= time)
     }
 
     fn get_duration(&self) -> f64 {
@@ -207,21 +203,23 @@ impl MaskAnimationTrack {
                     from_y + (to_y - from_y) * eased_t,
                 )
             }
-            (AnimationValue::Vector3(from_x, from_y, from_z), AnimationValue::Vector3(to_x, to_y, to_z)) => {
-                AnimationValue::Vector3(
-                    from_x + (to_x - from_x) * eased_t,
-                    from_y + (to_y - from_y) * eased_t,
-                    from_z + (to_z - from_z) * eased_t,
-                )
-            }
-            (AnimationValue::Color(from_r, from_g, from_b, from_a), AnimationValue::Color(to_r, to_g, to_b, to_a)) => {
-                AnimationValue::Color(
-                    from_r + (to_r - from_r) * eased_t,
-                    from_g + (to_g - from_g) * eased_t,
-                    from_b + (to_b - from_b) * eased_t,
-                    from_a + (to_a - from_a) * eased_t,
-                )
-            }
+            (
+                AnimationValue::Vector3(from_x, from_y, from_z),
+                AnimationValue::Vector3(to_x, to_y, to_z),
+            ) => AnimationValue::Vector3(
+                from_x + (to_x - from_x) * eased_t,
+                from_y + (to_y - from_y) * eased_t,
+                from_z + (to_z - from_z) * eased_t,
+            ),
+            (
+                AnimationValue::Color(from_r, from_g, from_b, from_a),
+                AnimationValue::Color(to_r, to_g, to_b, to_a),
+            ) => AnimationValue::Color(
+                from_r + (to_r - from_r) * eased_t,
+                from_g + (to_g - from_g) * eased_t,
+                from_b + (to_b - from_b) * eased_t,
+                from_a + (to_a - from_a) * eased_t,
+            ),
             (AnimationValue::Boolean(_), AnimationValue::Boolean(to_b)) => {
                 if eased_t >= 0.5 {
                     AnimationValue::Boolean(*to_b)
@@ -258,7 +256,6 @@ impl MaskAnimationTrack {
         Ok(())
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaskAnimationSystem {
@@ -392,7 +389,8 @@ impl MaskAnimationSystem {
     }
 
     pub fn get_duration(&self) -> f64 {
-        self.tracks.iter()
+        self.tracks
+            .iter()
             .filter_map(|track| {
                 if track.enabled {
                     Some(track.get_duration())
@@ -477,7 +475,9 @@ impl MaskAnimationSystem {
 
     pub fn validate(&self) -> Result<(), String> {
         for (i, track) in self.tracks.iter().enumerate() {
-            track.validate().map_err(|e| format!("Track {}: {}", i, e))?;
+            track
+                .validate()
+                .map_err(|e| format!("Track {}: {}", i, e))?;
         }
         Ok(())
     }
@@ -544,8 +544,12 @@ mod tests {
             },
         ];
 
-        let track = MaskAnimationTrack::new("track1".to_string(), "Opacity".to_string(), MaskAnimationTarget::Opacity)
-            .with_keyframes(keyframes);
+        let track = MaskAnimationTrack::new(
+            "track1".to_string(),
+            "Opacity".to_string(),
+            MaskAnimationTarget::Opacity,
+        )
+        .with_keyframes(keyframes);
 
         assert_eq!(track.keyframes.len(), 2);
         assert_eq!(track.keyframes[0].time, 0.0);
@@ -571,19 +575,20 @@ mod tests {
             },
         ];
 
-        let track = MaskAnimationTrack::new("track1".to_string(), "Opacity".to_string(), MaskAnimationTarget::Opacity)
-            .with_keyframes(keyframes);
-
+        let track = MaskAnimationTrack::new(
+            "track1".to_string(),
+            "Opacity".to_string(),
+            MaskAnimationTarget::Opacity,
+        )
+        .with_keyframes(keyframes);
 
         let result = track.evaluate(0.0);
         assert!(result.is_some());
         assert_eq!(result.unwrap(), AnimationValue::Float(0.0));
 
-
         let result = track.evaluate(2.0);
         assert!(result.is_some());
         assert_eq!(result.unwrap(), AnimationValue::Float(1.0));
-
 
         let result = track.evaluate(1.0);
         assert!(result.is_some());
@@ -613,10 +618,13 @@ mod tests {
             },
         ];
 
-        let track = MaskAnimationTrack::new("track1".to_string(), "Loop".to_string(), MaskAnimationTarget::Opacity)
-            .with_keyframes(keyframes)
-            .with_loop(true, 0);
-
+        let track = MaskAnimationTrack::new(
+            "track1".to_string(),
+            "Loop".to_string(),
+            MaskAnimationTarget::Opacity,
+        )
+        .with_keyframes(keyframes)
+        .with_loop(true, 0);
 
         let result = track.evaluate(1.5);
         assert!(result.is_some());
@@ -641,7 +649,11 @@ mod tests {
     #[test]
     fn test_animation_system_add_track() {
         let mut system = MaskAnimationSystem::new();
-        let track = MaskAnimationTrack::new("track1".to_string(), "Test".to_string(), MaskAnimationTarget::Position);
+        let track = MaskAnimationTrack::new(
+            "track1".to_string(),
+            "Test".to_string(),
+            MaskAnimationTarget::Position,
+        );
 
         system.add_track(track);
         assert_eq!(system.tracks.len(), 1);
@@ -717,7 +729,11 @@ mod tests {
 
     #[test]
     fn test_animation_track_validation() {
-        let valid_track = MaskAnimationTrack::new("track1".to_string(), "Test".to_string(), MaskAnimationTarget::Opacity);
+        let valid_track = MaskAnimationTrack::new(
+            "track1".to_string(),
+            "Test".to_string(),
+            MaskAnimationTarget::Opacity,
+        );
         assert!(valid_track.validate().is_ok());
 
         let mut invalid_track = valid_track.clone();
@@ -748,8 +764,12 @@ mod tests {
             },
         ];
 
-        let track = MaskAnimationTrack::new("track1".to_string(), "Position".to_string(), MaskAnimationTarget::Position)
-            .with_keyframes(keyframes);
+        let track = MaskAnimationTrack::new(
+            "track1".to_string(),
+            "Position".to_string(),
+            MaskAnimationTarget::Position,
+        )
+        .with_keyframes(keyframes);
 
         let result = track.evaluate(1.0);
         assert!(result.is_some());
@@ -763,30 +783,29 @@ mod tests {
 
     #[test]
     fn test_pre_post_roll() {
-        let keyframes = vec![
-            MaskKeyframe {
-                time: 1.0,
-                target: MaskAnimationTarget::Opacity,
-                value: AnimationValue::Float(0.5),
-                easing: EasingFunction::Linear,
-                interpolation: InterpolationMethod::Linear,
-            },
-        ];
+        let keyframes = vec![MaskKeyframe {
+            time: 1.0,
+            target: MaskAnimationTarget::Opacity,
+            value: AnimationValue::Float(0.5),
+            easing: EasingFunction::Linear,
+            interpolation: InterpolationMethod::Linear,
+        }];
 
-        let track = MaskAnimationTrack::new("track1".to_string(), "Test".to_string(), MaskAnimationTarget::Opacity)
-            .with_keyframes(keyframes)
-            .with_pre_post_roll(0.5, 0.25);
+        let track = MaskAnimationTrack::new(
+            "track1".to_string(),
+            "Test".to_string(),
+            MaskAnimationTarget::Opacity,
+        )
+        .with_keyframes(keyframes)
+        .with_pre_post_roll(0.5, 0.25);
 
         assert_eq!(track.pre_roll, 0.5);
         assert_eq!(track.post_roll, 0.25);
         assert_eq!(track.get_duration(), 1.75);
 
-
         assert!(track.evaluate(0.25).is_none());
 
-
         assert!(track.evaluate(1.0).is_some());
-
 
         assert!(track.evaluate(2.0).is_none());
     }

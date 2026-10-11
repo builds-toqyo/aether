@@ -1,22 +1,21 @@
-use serde::{Serialize};
-use tauri::State;
-use std::collections::HashMap;
 use log::debug;
+use serde::Serialize;
+use std::collections::HashMap;
+use tauri::State;
 
 use crate::state::AppState;
 
-
 #[tauri::command]
-pub async fn get_graph_info(
-    state: State<'_, AppState>,
-) -> Result<GraphInfoResponse, String> {
+pub async fn get_graph_info(state: State<'_, AppState>) -> Result<GraphInfoResponse, String> {
     debug!("Getting graph information");
 
-    let graph = state.graph.lock().map_err(|e| format!("Failed to lock graph: {}", e))?;
+    let graph = state
+        .graph
+        .lock()
+        .map_err(|e| format!("Failed to lock graph: {}", e))?;
 
     let node_count = graph.nodes.len();
     let connection_count = graph.connections.len();
-
 
     let mut node_types = HashMap::new();
     for node in graph.get_nodes() {
@@ -24,15 +23,17 @@ pub async fn get_graph_info(
         *node_types.entry(type_name).or_insert(0) += 1;
     }
 
-
-    let nodes: Vec<NodeInfo> = graph.get_nodes().map(|node| NodeInfo {
-        id: node.id.to_string(),
-        name: node.name.clone(),
-        node_type: format!("{:?}", node.node_type),
-        input_count: node.inputs.len(),
-        output_count: node.outputs.len(),
-        enabled: node.enabled,
-    }).collect();
+    let nodes: Vec<NodeInfo> = graph
+        .get_nodes()
+        .map(|node| NodeInfo {
+            id: node.id.to_string(),
+            name: node.name.clone(),
+            node_type: format!("{:?}", node.node_type),
+            input_count: node.inputs.len(),
+            output_count: node.outputs.len(),
+            enabled: node.enabled,
+        })
+        .collect();
 
     Ok(GraphInfoResponse {
         node_count,
@@ -44,7 +45,6 @@ pub async fn get_graph_info(
     })
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct GraphInfoResponse {
     pub node_count: usize,
@@ -54,7 +54,6 @@ pub struct GraphInfoResponse {
     pub success: bool,
     pub message: String,
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct NodeInfo {
@@ -80,7 +79,6 @@ mod tests {
             output_count: 1,
             enabled: true,
         };
-
 
         assert_eq!(node_info.id, "test-id");
         assert_eq!(node_info.name, "Test Node");

@@ -1,8 +1,8 @@
 pub mod commands;
-pub mod state;
 pub mod engine_proxy;
-pub mod render_proxy;
 pub mod project_registry;
+pub mod render_proxy;
+pub mod state;
 
 pub use commands::*;
 pub use state::*;
@@ -11,7 +11,6 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default()
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
-
             create_node,
             delete_node,
             connect_nodes,
@@ -20,7 +19,6 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             get_node_result,
             connect_node_to_clip,
             get_graph_info,
-
             get_timeline_info,
             timeline_playback_control,
             timeline_seek,
@@ -36,7 +34,6 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             timeline_create_track,
             timeline_delete_track,
             timeline_bind_node_to_effect,
-
             get_preview_info,
             preview_playback_control,
             preview_seek,
@@ -49,7 +46,6 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             preview_clear_cache,
             preview_get_performance_stats,
             preview_export_frame,
-
             project_init,
             project_save,
             project_load,
@@ -62,8 +58,6 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             media_export,
             export_get_status,
             export_cancel,
-
-
             rendering_start_job,
             rendering_cancel_job,
             rendering_pause_job,
@@ -88,7 +82,6 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             rendering_load_template,
             rendering_list_templates,
             rendering_delete_template,
-
             multicam_create,
             multicam_add_angle,
             multicam_remove_angle,
@@ -98,7 +91,6 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             multicam_delete_clip,
             multicam_sync_by_timecode,
             multicam_sync_by_audio,
-
             plugin_load,
             plugin_unload,
             plugin_list,
@@ -109,11 +101,9 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             plugin_install_from_repository,
             plugin_check_updates,
             plugin_update_plugin,
-
             color_analyze_histogram,
             color_analyze_vectorscope,
             color_analyze_waveform,
-
             send_real_time_event,
         ])
 }

@@ -1,8 +1,6 @@
-use anyhow::{Result};
+use anyhow::Result;
 
-use crate::types::{
-    VectorscopeData, VectorscopeTarget, ColorSpace,
-};
+use crate::types::{ColorSpace, VectorscopeData, VectorscopeTarget};
 
 use crate::scopes::ColorConverter;
 
@@ -37,7 +35,6 @@ impl VectorscopeAnalyzer {
         let mut sample_count = 0;
 
         for point in &data.points {
-
             let (r, g, b) = self.uv_to_rgb(point.u, point.v);
             red_sum += r;
             green_sum += g;
@@ -53,7 +50,6 @@ impl VectorscopeAnalyzer {
 
         Ok(distribution)
     }
-
 
     pub fn check_target_compliance(&self, data: &VectorscopeData) -> Result<TargetCompliance> {
         let mut compliance = TargetCompliance::new();
@@ -75,16 +71,13 @@ impl VectorscopeAnalyzer {
         Ok(compliance)
     }
 
-
     fn uv_to_rgb(&self, u: f32, v: f32) -> (f32, f32, f32) {
-
         let r = (v + 0.5).clamp(0.0, 1.0);
         let g = (0.5 - u.abs() * 0.5 - v.abs() * 0.5).clamp(0.0, 1.0);
         let b = (u + 0.5).clamp(0.0, 1.0);
 
         (r, g, b)
     }
-
 
     fn get_target_uv(&self, target: VectorscopeTarget) -> (f32, f32) {
         match target {
@@ -98,7 +91,6 @@ impl VectorscopeAnalyzer {
             VectorscopeTarget::Red => (0.3, -0.4),
         }
     }
-
 
     fn calculate_uv_deviation(&self, target_u: f32, target_v: f32, data: &VectorscopeData) -> f32 {
         let mut total_deviation = 0.0;
@@ -126,7 +118,6 @@ impl Default for VectorscopeAnalyzer {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct ColorDistribution {
     pub max_intensity: u16,
@@ -146,7 +137,6 @@ impl ColorDistribution {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct ColorBalance {
     pub red: f32,
@@ -165,12 +155,11 @@ impl ColorBalance {
 
     pub fn is_balanced(&self, tolerance: f32) -> bool {
         let avg = (self.red + self.green + self.blue) / 3.0;
-        (self.red - avg).abs() < tolerance &&
-        (self.green - avg).abs() < tolerance &&
-        (self.blue - avg).abs() < tolerance
+        (self.red - avg).abs() < tolerance
+            && (self.green - avg).abs() < tolerance
+            && (self.blue - avg).abs() < tolerance
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct TargetCompliance {
@@ -193,7 +182,6 @@ impl TargetCompliance {
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct TargetResult {

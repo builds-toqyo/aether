@@ -49,26 +49,42 @@ impl super::types::ShapePrimitive for Rectangle {
     }
 
     fn bounds(&self) -> super::transform::BoundingBox {
-        super::transform::BoundingBox::new(self.x, self.y, self.x + self.width, self.y + self.height)
+        super::transform::BoundingBox::new(
+            self.x,
+            self.y,
+            self.x + self.width,
+            self.y + self.height,
+        )
     }
 
     fn to_path(&self) -> super::super::paths::Path {
         let mut builder = super::super::paths::PathBuilder::new();
 
         if self.corner_radius > 0.0 {
-
-            let r = self.corner_radius.min(self.width / 2.0).min(self.height / 2.0);
+            let r = self
+                .corner_radius
+                .min(self.width / 2.0)
+                .min(self.height / 2.0);
             builder.move_to(self.x + r, self.y);
             builder.line_to(self.x + self.width - r, self.y);
             builder.quadratic_to(self.x + self.width, self.y, self.x + self.width, self.y + r);
             builder.line_to(self.x + self.width, self.y + self.height - r);
-            builder.quadratic_to(self.x + self.width, self.y + self.height, self.x + self.width - r, self.y + self.height);
+            builder.quadratic_to(
+                self.x + self.width,
+                self.y + self.height,
+                self.x + self.width - r,
+                self.y + self.height,
+            );
             builder.line_to(self.x + r, self.y + self.height);
-            builder.quadratic_to(self.x, self.y + self.height, self.x, self.y + self.height - r);
+            builder.quadratic_to(
+                self.x,
+                self.y + self.height,
+                self.x,
+                self.y + self.height - r,
+            );
             builder.line_to(self.x, self.y + r);
             builder.quadratic_to(self.x, self.y, self.x + r, self.y);
         } else {
-
             builder.move_to(self.x, self.y);
             builder.line_to(self.x + self.width, self.y);
             builder.line_to(self.x + self.width, self.y + self.height);
@@ -80,8 +96,7 @@ impl super::types::ShapePrimitive for Rectangle {
     }
 
     fn contains_point(&self, x: f64, y: f64) -> bool {
-        x >= self.x && x <= self.x + self.width &&
-        y >= self.y && y <= self.y + self.height
+        x >= self.x && x <= self.x + self.width && y >= self.y && y <= self.y + self.height
     }
 
     fn area(&self) -> f64 {
@@ -100,7 +115,6 @@ impl super::types::ShapePrimitive for Rectangle {
         self.y = y1;
         self.width = (x2 - x1).abs();
         self.height = (y2 - y1).abs();
-
 
         let scale = (self.width * self.height).sqrt() / ((self.width * self.height).sqrt());
         self.corner_radius *= scale;
@@ -132,8 +146,8 @@ impl super::types::ShapePrimitive for Rectangle {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::ShapePrimitive;
+    use super::*;
 
     #[test]
     fn test_rectangle_creation() {

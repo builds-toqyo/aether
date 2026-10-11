@@ -1,8 +1,8 @@
-use base64::{Engine, engine::general_purpose::STANDARD};
-use serde::{Serialize, Deserialize};
-use tauri::State;
 use anyhow::Result;
+use base64::{Engine, engine::general_purpose::STANDARD};
 use log::{debug, info};
+use serde::{Deserialize, Serialize};
+use tauri::State;
 
 use crate::state::AppState;
 
@@ -29,7 +29,6 @@ pub enum FrameFormat {
     Yuv420,
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PreviewInfo {
     pub width: u32,
@@ -44,7 +43,6 @@ pub struct PreviewInfo {
     pub format: FrameFormat,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PreviewQuality {
     Low,
@@ -53,13 +51,11 @@ pub enum PreviewQuality {
     Ultra,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct PreviewPlaybackControlRequest {
     pub action: PlaybackAction,
     pub current_time: Option<f64>,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub enum PlaybackAction {
@@ -73,12 +69,10 @@ pub enum PlaybackAction {
     StepBackward,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct PreviewSeekRequest {
     pub time: f64,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct PreviewFrameRequest {
@@ -86,7 +80,6 @@ pub struct PreviewFrameRequest {
     pub quality: Option<PreviewQuality>,
     pub format: Option<FrameFormat>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PreviewSettings {
@@ -99,14 +92,12 @@ pub struct PreviewSettings {
     pub background_color: String,
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct PreviewResponse {
     pub success: bool,
     pub message: String,
     pub data: Option<serde_json::Value>,
 }
-
 
 fn parse_preview_quality(value: &str) -> Result<PreviewQuality, String> {
     match value.to_lowercase().as_str() {
@@ -117,7 +108,6 @@ fn parse_preview_quality(value: &str) -> Result<PreviewQuality, String> {
         other => Err(format!("Unknown preview quality: {}", other)),
     }
 }
-
 
 fn parse_frame_format(value: &str) -> Result<FrameFormat, String> {
     match value.to_lowercase().as_str() {
@@ -132,23 +122,28 @@ fn parse_frame_format(value: &str) -> Result<FrameFormat, String> {
     }
 }
 
-
 #[tauri::command]
-pub async fn get_preview_info(
-    state: State<'_, AppState>,
-) -> Result<PreviewInfo, String> {
+pub async fn get_preview_info(state: State<'_, AppState>) -> Result<PreviewInfo, String> {
     debug!("Getting preview info");
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let engine = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
-    let (width, height) = engine.get_preview_dimensions()
+    let (width, height) = engine
+        .get_preview_dimensions()
         .map_err(|e| format!("Preview dimensions unavailable: {}", e))?;
 
-    let preview_state = engine.get_preview_state()
+    let preview_state = engine
+        .get_preview_state()
         .map_err(|e| format!("Preview state unavailable: {}", e))?;
 
     let fps = 30.0;
-    let duration_secs = preview_state.duration.map(|d| d as f64 / 1_000_000_000.0).unwrap_or(0.0);
+    let duration_secs = preview_state
+        .duration
+        .map(|d| d as f64 / 1_000_000_000.0)
+        .unwrap_or(0.0);
     let current_time = preview_state.position as f64 / 1_000_000_000.0;
     let total_frames = (duration_secs * fps) as u32;
     let current_frame = (current_time * fps) as u32;
@@ -166,8 +161,10 @@ pub async fn get_preview_info(
         format: FrameFormat::Rgba8,
     };
 
-    info!("Preview: {}x{} @ {}fps, {} frames",
-          preview_info.width, preview_info.height, preview_info.fps, preview_info.total_frames);
+    info!(
+        "Preview: {}x{} @ {}fps, {} frames",
+        preview_info.width, preview_info.height, preview_info.fps, preview_info.total_frames
+    );
 
     Ok(preview_info)
 }
@@ -181,7 +178,9 @@ pub async fn preview_playback_control(
 ) -> Result<PreviewResponse, String> {
     debug!("Preview playback control: {}", action);
 
-    let engine = state.editing_engine.lock()
+    let engine = state
+        .editing_engine
+        .lock()
         .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
     let frame_duration_ns = (1_000_000_000.0 / 30.0) as i64;
@@ -189,47 +188,51 @@ pub async fn preview_playback_control(
     let step_to = |direction: i64| -> i64 {
         let position = match current_time {
             Some(t) => (t * 1_000_000_000.0) as i64,
-            None => engine.get_preview_state()
-                .map(|s| s.position)
-                .unwrap_or(0),
+            None => engine.get_preview_state().map(|s| s.position).unwrap_or(0),
         };
         (position + direction * frame_duration_ns).max(0)
     };
 
     let message = match action.to_lowercase().as_str() {
         "play" => {
-            engine.preview_play()
+            engine
+                .preview_play()
                 .map_err(|e| format!("Preview play failed: {}", e))?;
             info!("Starting preview playback");
             "Preview playback started".to_string()
         }
         "pause" => {
-            engine.preview_pause()
+            engine
+                .preview_pause()
                 .map_err(|e| format!("Preview pause failed: {}", e))?;
             info!("Pausing preview playback");
             "Preview playback paused".to_string()
         }
         "stop" => {
-            engine.preview_stop()
+            engine
+                .preview_stop()
                 .map_err(|e| format!("Preview stop failed: {}", e))?;
             info!("Stopping preview playback");
             "Preview playback stopped".to_string()
         }
         "seek" => {
             let time = current_time.unwrap_or(0.0);
-            engine.preview_seek((time * 1_000_000_000.0) as i64)
+            engine
+                .preview_seek((time * 1_000_000_000.0) as i64)
                 .map_err(|e| format!("Preview seek failed: {}", e))?;
             info!("Seeking preview to time: {}", time);
             format!("Preview seeked to {}", time)
         }
         "next" | "stepforward" | "step_forward" => {
-            engine.preview_seek(step_to(1))
+            engine
+                .preview_seek(step_to(1))
                 .map_err(|e| format!("Preview step forward failed: {}", e))?;
             info!("Stepping forward one frame");
             "Stepped forward one frame".to_string()
         }
         "previous" | "stepbackward" | "step_backward" => {
-            engine.preview_seek(step_to(-1))
+            engine
+                .preview_seek(step_to(-1))
                 .map_err(|e| format!("Preview step backward failed: {}", e))?;
             info!("Stepping backward one frame");
             "Stepped backward one frame".to_string()
@@ -246,7 +249,6 @@ pub async fn preview_playback_control(
     })
 }
 
-
 #[tauri::command]
 pub async fn preview_seek(
     time: f64,
@@ -258,9 +260,13 @@ pub async fn preview_seek(
         return Err("Preview seek time cannot be negative".to_string());
     }
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let engine = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
     let position_ns = (time * 1_000_000_000.0) as i64;
-    engine.preview_seek(position_ns)
+    engine
+        .preview_seek(position_ns)
         .map_err(|e| format!("Preview seek failed: {}", e))?;
 
     info!("Preview seek to time: {}", time);
@@ -298,12 +304,17 @@ pub async fn preview_get_frame(
         .transpose()?
         .unwrap_or(FrameFormat::Rgba8);
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let engine = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
-    let frame_data = engine.get_preview_frame()
+    let frame_data = engine
+        .get_preview_frame()
         .map_err(|e| format!("Failed to get preview frame: {}", e))?;
 
-    let (width, height) = engine.get_preview_dimensions()
+    let (width, height) = engine
+        .get_preview_dimensions()
         .map_err(|e| format!("Failed to get preview dimensions: {}", e))?;
 
     let frame_number = (timestamp * 30.0) as u32;
@@ -311,8 +322,10 @@ pub async fn preview_get_frame(
 
     let data_base64 = frame_data.map(|data| STANDARD.encode(&data));
 
-    info!("Retrieved frame: {} at {}s (quality: {:?}, format: {:?})",
-          frame_id, timestamp, quality, format);
+    info!(
+        "Retrieved frame: {} at {}s (quality: {:?}, format: {:?})",
+        frame_id, timestamp, quality, format
+    );
 
     let preview_frame = PreviewFrame {
         id: frame_id.clone(),
@@ -344,7 +357,10 @@ pub async fn preview_generate_thumbnails(
     count: Option<u32>,
     state: State<'_, AppState>,
 ) -> Result<Vec<PreviewFrame>, String> {
-    debug!("Generating thumbnails for: {} interval: {:?} count: {:?}", video_path, interval_seconds, count);
+    debug!(
+        "Generating thumbnails for: {} interval: {:?} count: {:?}",
+        video_path, interval_seconds, count
+    );
 
     if video_path.is_empty() {
         return Err("Video path cannot be empty".to_string());
@@ -358,15 +374,20 @@ pub async fn preview_generate_thumbnails(
     let interval = interval_seconds.unwrap_or(5.0);
     let thumbnail_count = count.unwrap_or(10);
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let engine = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
-    let (width, height) = engine.get_preview_dimensions()
+    let (width, height) = engine
+        .get_preview_dimensions()
         .map_err(|e| format!("Failed to get preview dimensions: {}", e))?;
 
     let mut thumbnails = Vec::new();
     for i in 0..thumbnail_count {
         let timestamp = i as f64 * interval;
-        let frame_data = engine.get_preview_frame()
+        let frame_data = engine
+            .get_preview_frame()
             .map_err(|e| format!("Failed to get preview frame at {}: {}", timestamp, e))?;
 
         let data_base64 = frame_data.map(|data| STANDARD.encode(&data));
@@ -387,7 +408,6 @@ pub async fn preview_generate_thumbnails(
     info!("Generated {} thumbnails", thumbnails.len());
     Ok(thumbnails)
 }
-
 
 #[tauri::command]
 pub async fn preview_get_frame_range(
@@ -417,23 +437,30 @@ pub async fn preview_get_frame_range(
     let end_frame = (end_time * fps) as u32;
     let frame_count = end_frame - start_frame + 1;
 
-    info!("Generating {} frames ({} to {}), quality: {:?}",
-          frame_count, start_frame, end_frame, quality);
+    info!(
+        "Generating {} frames ({} to {}), quality: {:?}",
+        frame_count, start_frame, end_frame, quality
+    );
 
-    let engine = state.editing_engine.lock()
+    let engine = state
+        .editing_engine
+        .lock()
         .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
-    let (width, height) = engine.get_preview_dimensions()
+    let (width, height) = engine
+        .get_preview_dimensions()
         .map_err(|e| format!("Failed to get preview dimensions: {}", e))?;
 
     // Seek to each frame and pull the real decoded frame from the preview engine
     let mut frames = Vec::new();
     for frame_num in start_frame..=end_frame {
         let timestamp = frame_num as f64 / fps;
-        engine.preview_seek((timestamp * 1_000_000_000.0) as i64)
+        engine
+            .preview_seek((timestamp * 1_000_000_000.0) as i64)
             .map_err(|e| format!("Failed to seek to frame {}: {}", frame_num, e))?;
 
-        let frame_data = engine.get_preview_frame()
+        let frame_data = engine
+            .get_preview_frame()
             .map_err(|e| format!("Failed to get frame {}: {}", frame_num, e))?;
 
         frames.push(PreviewFrame {
@@ -463,7 +490,10 @@ pub async fn preview_update_settings(
         return Err("Preview scale must be positive".to_string());
     }
 
-    info!("Updated preview settings: quality={:?}, scale={:.2}", settings.quality, settings.scale);
+    info!(
+        "Updated preview settings: quality={:?}, scale={:.2}",
+        settings.quality, settings.scale
+    );
 
     Ok(PreviewResponse {
         success: true,
@@ -487,9 +517,13 @@ pub async fn preview_set_quality(
         PreviewQuality::Ultra => "Ultra (2x resolution)",
     };
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let engine = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
-    engine.set_preview_quality(format!("{:?}", quality))
+    engine
+        .set_preview_quality(format!("{:?}", quality))
         .map_err(|e| format!("Failed to set preview quality: {}", e))?;
 
     info!("Preview quality set to: {}", quality_desc);
@@ -504,14 +538,14 @@ pub async fn preview_set_quality(
     })
 }
 
-
 #[tauri::command]
-pub async fn preview_get_settings(
-    state: State<'_, AppState>,
-) -> Result<PreviewSettings, String> {
+pub async fn preview_get_settings(state: State<'_, AppState>) -> Result<PreviewSettings, String> {
     debug!("Getting preview settings");
 
-    let (width, height) = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    let (width, height) = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .get_preview_dimensions()
         .unwrap_or((1920, 1080));
 
@@ -525,17 +559,17 @@ pub async fn preview_get_settings(
         background_color: "#000000".to_string(),
     };
 
-    info!("Quality: {:?}, Scale: {}, Size: {}x{}", settings.quality, settings.scale, width, height);
+    info!(
+        "Quality: {:?}, Scale: {}, Size: {}x{}",
+        settings.quality, settings.scale, width, height
+    );
     Ok(settings)
 }
 
 /// Clear preview cache
 #[tauri::command]
-pub async fn preview_clear_cache(
-    _state: State<'_, AppState>,
-) -> Result<PreviewResponse, String> {
+pub async fn preview_clear_cache(_state: State<'_, AppState>) -> Result<PreviewResponse, String> {
     debug!("Clearing preview cache");
-
 
     info!("Preview cache cleared");
 
@@ -546,14 +580,16 @@ pub async fn preview_clear_cache(
     })
 }
 
-
 #[tauri::command]
 pub async fn preview_get_performance_stats(
     state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     debug!("Getting preview performance stats");
 
-    let preview_state = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    let preview_state = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .get_preview_state()
         .unwrap_or(crate::engine_proxy::PreviewState {
             is_playing: false,
@@ -582,7 +618,10 @@ pub async fn preview_get_performance_stats(
         "dropped_frames": 0
     });
 
-    info!("Stats: current_fps={}, Playing: {}", stats["current_fps"], is_playing);
+    info!(
+        "Stats: current_fps={}, Playing: {}",
+        stats["current_fps"], is_playing
+    );
 
     Ok(stats)
 }
@@ -597,7 +636,6 @@ pub async fn preview_export_frame(
 ) -> Result<PreviewResponse, String> {
     debug!("Exporting preview frame at timestamp: {}", timestamp);
 
-
     if timestamp < 0.0 {
         return Err("Timestamp cannot be negative".to_string());
     }
@@ -605,11 +643,13 @@ pub async fn preview_export_frame(
     let export_format = format.unwrap_or("png".to_string());
     let export_quality = quality.unwrap_or(90);
 
-
     let filename = format!("frame_{:.3}.{}", timestamp, export_format);
     let filepath = format!("/exports/{}", filename);
 
-    info!("Exported frame: {} (format: {}, quality: {})", filepath, export_format, export_quality);
+    info!(
+        "Exported frame: {} (format: {}, quality: {})",
+        filepath, export_format, export_quality
+    );
 
     Ok(PreviewResponse {
         success: true,
@@ -630,7 +670,6 @@ mod tests {
 
     #[test]
     fn test_preview_frame_validation() {
-
         let request = PreviewFrameRequest {
             timestamp: -1.0,
             quality: None,
@@ -641,7 +680,6 @@ mod tests {
 
     #[test]
     fn test_frame_range_validation() {
-
         let start_time = 10.0;
         let end_time = 5.0;
         assert!(start_time >= end_time);
@@ -649,7 +687,6 @@ mod tests {
 
     #[test]
     fn test_preview_settings_validation() {
-
         let settings = PreviewSettings {
             quality: PreviewQuality::High,
             format: FrameFormat::Rgba8,

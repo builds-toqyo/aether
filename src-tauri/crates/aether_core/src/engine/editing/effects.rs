@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use anyhow::Result;
-use gstreamer as gst;
-use gst::prelude::*;
-use gstreamer_editing_services as ges;
 use crate::engine::editing::types::EditingError;
+use anyhow::Result;
+use gst::prelude::*;
+use gstreamer as gst;
+use gstreamer_editing_services as ges;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EffectType {
@@ -49,7 +49,6 @@ impl EffectType {
         }
     }
 
-
     pub fn default_parameters(&self) -> HashMap<String, String> {
         let mut params = HashMap::new();
 
@@ -59,26 +58,25 @@ impl EffectType {
                 params.insert("contrast".to_string(), "1.0".to_string());
                 params.insert("saturation".to_string(), "1.0".to_string());
                 params.insert("hue".to_string(), "0.0".to_string());
-            },
+            }
             EffectType::Blur => {
                 params.insert("sigma".to_string(), "1.0".to_string());
-            },
+            }
             EffectType::Volume => {
                 params.insert("volume".to_string(), "1.0".to_string());
-            },
+            }
             EffectType::Text => {
                 params.insert("text".to_string(), "Text".to_string());
                 params.insert("font-desc".to_string(), "Sans 24".to_string());
                 params.insert("valignment".to_string(), "center".to_string());
                 params.insert("halignment".to_string(), "center".to_string());
-            },
+            }
             _ => {}
         }
 
         params
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransitionType {
@@ -93,7 +91,6 @@ pub enum TransitionType {
 }
 
 impl TransitionType {
-
     pub fn to_gst_name(&self) -> &str {
         match self {
             TransitionType::Crossfade => "crossfade",
@@ -193,10 +190,14 @@ impl Transition {
         }
     }
 
-    pub fn create_ges_transition(&mut self, _track_type: ges::TrackType) -> Result<ges::TransitionClip, EditingError> {
+    pub fn create_ges_transition(
+        &mut self,
+        _track_type: ges::TrackType,
+    ) -> Result<ges::TransitionClip, EditingError> {
         let vtype = self.transition_type_to_enum();
-        let transition = ges::TransitionClip::new(vtype)
-            .ok_or_else(|| EditingError::EffectError(format!("Failed to create {:?} transition clip", vtype)))?;
+        let transition = ges::TransitionClip::new(vtype).ok_or_else(|| {
+            EditingError::EffectError(format!("Failed to create {:?} transition clip", vtype))
+        })?;
 
         for (name, value) in &self.parameters {
             transition.set_property_from_str(name, value);

@@ -1,8 +1,7 @@
-use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult};
+use crate::nodes::{ExecutionContext, NodeExecutor, NodeResult};
 use aether_types::{Node, NodeType, ParameterValue};
-use uuid::Uuid;
 use log::debug;
-
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct CoreOutputNode {
@@ -10,16 +9,13 @@ pub struct CoreOutputNode {
 }
 
 impl CoreOutputNode {
-
     pub fn new(node: Node) -> Self {
         Self { node }
     }
 
-
     pub fn get_final_output(&self, context: &ExecutionContext) -> Option<ParameterValue> {
         if let Some(input_pin) = self.node.inputs.first() {
             if let Some(_connection_id) = &input_pin.connection {
-
                 context.get_input(&input_pin.id).cloned()
             } else {
                 None
@@ -29,17 +25,16 @@ impl CoreOutputNode {
         }
     }
 
-
     pub fn has_input_connection(&self) -> bool {
-        self.node.inputs.first()
+        self.node
+            .inputs
+            .first()
             .and_then(|pin| pin.connection)
             .is_some()
     }
 
-
     pub fn get_input_connection(&self) -> Option<Uuid> {
-        self.node.inputs.first()
-            .and_then(|pin| pin.connection)
+        self.node.inputs.first().and_then(|pin| pin.connection)
     }
 }
 
@@ -49,16 +44,17 @@ impl NodeExecutor for CoreOutputNode {
             return Ok(());
         }
 
-
         if let Some(input_pin) = self.node.inputs.first() {
             if let Some(connection_id) = &input_pin.connection {
-                debug!("CoreOutputNode: Getting input from connection {}", connection_id);
+                debug!(
+                    "CoreOutputNode: Getting input from connection {}",
+                    connection_id
+                );
 
-
-                let output_value = context.get_input(&input_pin.id)
+                let output_value = context
+                    .get_input(&input_pin.id)
                     .cloned()
                     .unwrap_or(ParameterValue::None);
-
 
                 if let Some(output_pin) = self.node.outputs.first() {
                     context.set_output(output_pin.id, output_value);
@@ -98,7 +94,6 @@ mod tests {
     fn test_core_output_node_creation() {
         let mut node = Node::new(NodeType::Output, "Test Output".to_string());
 
-
         let input_pin = InputPin {
             id: Uuid::new_v4(),
             name: "input".to_string(),
@@ -109,7 +104,6 @@ mod tests {
             connection: None,
         };
         node.add_input(input_pin);
-
 
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
@@ -130,7 +124,6 @@ mod tests {
     fn test_input_connection_operations() {
         let mut node = Node::new(NodeType::Output, "Test".to_string());
 
-
         let connection_id = Uuid::new_v4();
         let input_pin = InputPin {
             id: Uuid::new_v4(),
@@ -142,7 +135,6 @@ mod tests {
             connection: Some(connection_id),
         };
         node.add_input(input_pin);
-
 
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
@@ -162,7 +154,6 @@ mod tests {
     fn test_get_final_output() {
         let mut node = Node::new(NodeType::Output, "Test".to_string());
 
-
         let input_pin_id = Uuid::new_v4();
         let input_pin = InputPin {
             id: input_pin_id,
@@ -175,7 +166,6 @@ mod tests {
         };
         node.add_input(input_pin);
 
-
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
@@ -186,7 +176,6 @@ mod tests {
 
         let output_node = CoreOutputNode::new(node);
 
-
         let context = ExecutionContext {
             frame: 1,
             inputs: std::collections::HashMap::new(),
@@ -194,7 +183,6 @@ mod tests {
         };
 
         assert_eq!(output_node.get_final_output(&context), None);
-
 
         let mut context = ExecutionContext {
             frame: 1,
@@ -212,7 +200,6 @@ mod tests {
     fn test_node_executor_interface() {
         let mut node = Node::new(NodeType::Output, "Test Output".to_string());
 
-
         let input_pin_id = Uuid::new_v4();
         let input_pin = InputPin {
             id: input_pin_id,
@@ -225,7 +212,6 @@ mod tests {
         };
         node.add_input(input_pin);
 
-
         let output_pin_id = Uuid::new_v4();
         let output_pin = OutputPin {
             id: output_pin_id,
@@ -237,13 +223,10 @@ mod tests {
 
         let mut output_node = CoreOutputNode::new(node);
 
-
         assert_eq!(output_node.node_type(), NodeType::Output);
-
 
         assert_eq!(output_node.get_inputs().len(), 1);
         assert_eq!(output_node.get_outputs().len(), 1);
-
 
         let context = ExecutionContext {
             frame: 1,
@@ -251,7 +234,6 @@ mod tests {
             outputs: std::collections::HashMap::new(),
         };
         assert!(!output_node.can_execute(&context));
-
 
         let mut context = ExecutionContext {
             frame: 1,
@@ -262,13 +244,11 @@ mod tests {
         let result = output_node.execute(&mut context);
         assert!(result.is_ok());
 
-
         let test_value = ParameterValue::Image(Uuid::new_v4());
         context.inputs.insert(input_pin_id, test_value);
 
         let result = output_node.execute(&mut context);
         assert!(result.is_ok());
-
 
         assert_eq!(context.outputs.get(&output_pin_id), Some(&test_value));
     }

@@ -1,14 +1,13 @@
-use serde::{Serialize};
-use tauri::State;
-use std::collections::HashMap;
 use anyhow::Result;
-use log::{debug, info, error};
+use log::{debug, error, info};
+use serde::Serialize;
+use std::collections::HashMap;
+use tauri::State;
 
 use crate::state::AppState;
-use aether_types::{ParameterValue};
-use aether_core::nodes::{NodeExecutor, ExecutionContext};
 use aether_core::nodes::core::CoreNodes;
-
+use aether_core::nodes::{ExecutionContext, NodeExecutor};
+use aether_types::ParameterValue;
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn execute_graph(
@@ -16,24 +15,24 @@ pub async fn execute_graph(
     graph_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<ExecutionResponse, String> {
-    debug!("Executing graph, frame: {:?}, graph_id: {:?}", frame, graph_id);
+    debug!(
+        "Executing graph, frame: {:?}, graph_id: {:?}",
+        frame, graph_id
+    );
 
     let graph = state.graph.lock().map_err(|e| format!("{}", e))?;
 
     // Calculate execution order
-    let execution_order = aether_core::nodes::execution_order::ExecutionOrderCalculator::calculate_order(&graph)
-        .map_err(|e| format!("{}", e))?;
+    let execution_order =
+        aether_core::nodes::execution_order::ExecutionOrderCalculator::calculate_order(&graph)
+            .map_err(|e| format!("{}", e))?;
 
     debug!("Execution order length: {}", execution_order.len());
 
     // Create execution context
     let frame_number = frame.unwrap_or(0);
-    let mut context = ExecutionContext::new(
-        frame_number,
-        frame_number as f64 / 30.0,
-        30.0,
-        (1920, 1080),
-    );
+    let mut context =
+        ExecutionContext::new(frame_number, frame_number as f64 / 30.0, 30.0, (1920, 1080));
 
     // Execute nodes in order
     let mut executed_nodes = Vec::new();
@@ -89,22 +88,28 @@ pub async fn get_node_result(
 ) -> Result<NodeResultResponse, String> {
     debug!("Getting node result: {} (pin: {:?})", node_id, pin_name);
 
-    let node_uuid = uuid::Uuid::parse_str(&node_id)
-        .map_err(|e| format!("Invalid node ID: {}", e))?;
+    let node_uuid =
+        uuid::Uuid::parse_str(&node_id).map_err(|e| format!("Invalid node ID: {}", e))?;
 
-    let graph = state.graph.lock().map_err(|e| format!("Failed to lock graph: {}", e))?;
+    let graph = state
+        .graph
+        .lock()
+        .map_err(|e| format!("Failed to lock graph: {}", e))?;
 
-
-    let node = graph.get_node(&node_uuid)
+    let node = graph
+        .get_node(&node_uuid)
         .ok_or_else(|| format!("Node not found: {}", node_id))?;
 
-    let execution_results = state.execution_results.lock().map_err(|e| format!("Failed to lock execution results: {}", e))?;
+    let execution_results = state
+        .execution_results
+        .lock()
+        .map_err(|e| format!("Failed to lock execution results: {}", e))?;
 
     let mut outputs = HashMap::new();
 
     if let Some(pin_name) = pin_name {
-
-        let output_pin = node.get_output_pin_by_name(&pin_name)
+        let output_pin = node
+            .get_output_pin_by_name(&pin_name)
             .ok_or_else(|| format!("Output pin '{}' not found", pin_name))?;
 
         if let Some(value) = execution_results.get(&output_pin.id) {
@@ -113,9 +118,9 @@ pub async fn get_node_result(
             outputs.insert(pin_name, "null".to_string());
         }
     } else {
-
         for output_pin in &node.outputs {
-            let value = execution_results.get(&output_pin.id)
+            let value = execution_results
+                .get(&output_pin.id)
                 .map(|v| serialize_parameter_value(v))
                 .unwrap_or_else(|| "null".to_string());
             outputs.insert(output_pin.name.clone(), value);
@@ -140,21 +145,32 @@ pub async fn connect_node_to_clip(
     effect_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<NodeClipConnectionResponse, String> {
-    debug!("Connecting node {} output {} to clip {} (effect: {:?})", node_id, output_pin_name, clip_id, effect_id);
+    debug!(
+        "Connecting node {} output {} to clip {} (effect: {:?})",
+        node_id, output_pin_name, clip_id, effect_id
+    );
 
-    let node_uuid = uuid::Uuid::parse_str(&node_id)
-        .map_err(|e| format!("Invalid node ID: {}", e))?;
+    let node_uuid =
+        uuid::Uuid::parse_str(&node_id).map_err(|e| format!("Invalid node ID: {}", e))?;
 
-    let graph = state.graph.lock().map_err(|e| format!("Failed to lock graph: {}", e))?;
+    let graph = state
+        .graph
+        .lock()
+        .map_err(|e| format!("Failed to lock graph: {}", e))?;
 
-    let node = graph.get_node(&node_uuid)
+    let node = graph
+        .get_node(&node_uuid)
         .ok_or_else(|| format!("Node not found: {}", node_id))?;
 
-    let _output_pin = node.get_output_pin_by_name(&output_pin_name)
+    let _output_pin = node
+        .get_output_pin_by_name(&output_pin_name)
         .ok_or_else(|| format!("Output pin '{}' not found", output_pin_name))?;
 
     // Store the connection in execution results for later use
-    let mut execution_results = state.execution_results.lock().map_err(|e| format!("Failed to lock execution results: {}", e))?;
+    let mut execution_results = state
+        .execution_results
+        .lock()
+        .map_err(|e| format!("Failed to lock execution results: {}", e))?;
 
     let _connection_key = format!("{}_{}", node_id, output_pin_name);
     let connection_value = if let Some(ref effect_id) = effect_id {
@@ -164,10 +180,13 @@ pub async fn connect_node_to_clip(
     };
     execution_results.insert(
         uuid::Uuid::new_v4(),
-        ParameterValue::String(connection_value)
+        ParameterValue::String(connection_value),
     );
 
-    info!("Connected node {} output {} to clip {}", node_id, output_pin_name, clip_id);
+    info!(
+        "Connected node {} output {} to clip {}",
+        node_id, output_pin_name, clip_id
+    );
 
     Ok(NodeClipConnectionResponse {
         node_id,
@@ -178,11 +197,12 @@ pub async fn connect_node_to_clip(
     })
 }
 
-fn create_node_executor(node: &aether_types::Node) -> Result<Box<dyn NodeExecutor + Send + Sync>, String> {
+fn create_node_executor(
+    node: &aether_types::Node,
+) -> Result<Box<dyn NodeExecutor + Send + Sync>, String> {
     CoreNodes::create_node_by_type(node.node_type.clone(), node.clone())
         .ok_or_else(|| format!("Unsupported node type: {:?}", node.node_type))
 }
-
 
 pub fn serialize_parameter_value(value: &ParameterValue) -> String {
     match value {
@@ -201,7 +221,6 @@ pub fn serialize_parameter_value(value: &ParameterValue) -> String {
     }
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct ExecutionResponse {
     pub success: bool,
@@ -211,7 +230,6 @@ pub struct ExecutionResponse {
     pub frame_number: u64,
     pub execution_time_ms: u64,
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct NodeResultResponse {
@@ -239,8 +257,17 @@ mod tests {
     #[test]
     fn test_serialize_parameter_value() {
         assert_eq!(serialize_parameter_value(&ParameterValue::None), "null");
-        assert_eq!(serialize_parameter_value(&ParameterValue::Float(3.14)), "3.14");
-        assert_eq!(serialize_parameter_value(&ParameterValue::Boolean(true)), "true");
-        assert_eq!(serialize_parameter_value(&ParameterValue::String("test".to_string())), "\"test\"");
+        assert_eq!(
+            serialize_parameter_value(&ParameterValue::Float(3.14)),
+            "3.14"
+        );
+        assert_eq!(
+            serialize_parameter_value(&ParameterValue::Boolean(true)),
+            "true"
+        );
+        assert_eq!(
+            serialize_parameter_value(&ParameterValue::String("test".to_string())),
+            "\"test\""
+        );
     }
 }

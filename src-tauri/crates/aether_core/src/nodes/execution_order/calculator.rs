@@ -1,16 +1,17 @@
 use crate::nodes::{NodeError, NodeResult};
 use aether_types::Graph;
+use log::debug;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
-use log::debug;
-
 
 pub struct ExecutionOrderCalculator;
 
 impl ExecutionOrderCalculator {
-
     pub fn calculate_order(graph: &Graph) -> NodeResult<Vec<Uuid>> {
-        debug!("Calculating execution order for {} nodes", graph.nodes.len());
+        debug!(
+            "Calculating execution order for {} nodes",
+            graph.nodes.len()
+        );
 
         let adjacency = Self::build_adjacency_list(graph)?;
         let order = Self::topological_sort(&adjacency)?;
@@ -20,9 +21,14 @@ impl ExecutionOrderCalculator {
         Ok(order)
     }
 
-
-    pub fn calculate_order_from_nodes(graph: &Graph, start_nodes: &[Uuid]) -> NodeResult<Vec<Uuid>> {
-        debug!("Calculating execution order from {} start nodes", start_nodes.len());
+    pub fn calculate_order_from_nodes(
+        graph: &Graph,
+        start_nodes: &[Uuid],
+    ) -> NodeResult<Vec<Uuid>> {
+        debug!(
+            "Calculating execution order from {} start nodes",
+            start_nodes.len()
+        );
 
         let adjacency = Self::build_adjacency_list(graph)?;
         let filtered_adjacency = Self::filter_adjacency_list(&adjacency, start_nodes);
@@ -33,15 +39,12 @@ impl ExecutionOrderCalculator {
         Ok(order)
     }
 
-
     fn build_adjacency_list(graph: &Graph) -> NodeResult<HashMap<Uuid, Vec<Uuid>>> {
         let mut adjacency: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
-
 
         for node_id in graph.nodes.keys() {
             adjacency.insert(*node_id, Vec::new());
         }
-
 
         for connection in graph.get_connections() {
             if !connection.enabled {
@@ -49,7 +52,10 @@ impl ExecutionOrderCalculator {
                 continue;
             }
 
-            debug!("Adding dependency: {} -> {}", connection.output_node_id, connection.input_node_id);
+            debug!(
+                "Adding dependency: {} -> {}",
+                connection.output_node_id, connection.input_node_id
+            );
 
             adjacency
                 .entry(connection.input_node_id)
@@ -62,12 +68,14 @@ impl ExecutionOrderCalculator {
         Ok(adjacency)
     }
 
-
     fn filter_adjacency_list(
         adjacency: &HashMap<Uuid, Vec<Uuid>>,
         start_nodes: &[Uuid],
     ) -> HashMap<Uuid, Vec<Uuid>> {
-        debug!("Filtering adjacency list from {} start nodes", start_nodes.len());
+        debug!(
+            "Filtering adjacency list from {} start nodes",
+            start_nodes.len()
+        );
 
         let mut filtered = HashMap::new();
         let mut visited = HashSet::new();
@@ -91,11 +99,13 @@ impl ExecutionOrderCalculator {
             }
         }
 
-        debug!("Filtered adjacency list to {} reachable nodes", filtered.len());
+        debug!(
+            "Filtered adjacency list to {} reachable nodes",
+            filtered.len()
+        );
 
         filtered
     }
-
 
     fn topological_sort(adjacency: &HashMap<Uuid, Vec<Uuid>>) -> NodeResult<Vec<Uuid>> {
         debug!("Performing topological sort on {} nodes", adjacency.len());
@@ -104,11 +114,9 @@ impl ExecutionOrderCalculator {
         let mut result = Vec::new();
         let mut queue: Vec<Uuid> = Vec::new();
 
-
         for node_id in adjacency.keys() {
             in_degree.insert(*node_id, 0);
         }
-
 
         for node_id in adjacency.keys() {
             for neighbor in &adjacency[node_id] {
@@ -116,14 +124,12 @@ impl ExecutionOrderCalculator {
             }
         }
 
-
         for (node_id, degree) in &in_degree {
             if *degree == 0 {
                 queue.push(*node_id);
                 debug!("Node {} has no dependencies", node_id);
             }
         }
-
 
         while let Some(current) = queue.pop() {
             result.push(current);
@@ -140,37 +146,40 @@ impl ExecutionOrderCalculator {
             }
         }
 
-
         if result.len() != adjacency.len() {
-            let remaining_nodes: Vec<Uuid> = adjacency.keys()
+            let remaining_nodes: Vec<Uuid> = adjacency
+                .keys()
                 .filter(|id| !result.contains(id))
                 .copied()
                 .collect();
 
-            debug!("Circular dependency detected involving {} nodes: {:?}",
-                remaining_nodes.len(), remaining_nodes);
+            debug!(
+                "Circular dependency detected involving {} nodes: {:?}",
+                remaining_nodes.len(),
+                remaining_nodes
+            );
 
             return Err(NodeError::CircularDependency);
         }
 
-        debug!("Topological sort completed successfully: {} nodes", result.len());
+        debug!(
+            "Topological sort completed successfully: {} nodes",
+            result.len()
+        );
 
         Ok(result)
     }
-
 
     pub fn validate_order(order: &[Uuid], graph: &Graph) -> NodeResult<()> {
         debug!("Validating execution order for {} nodes", order.len());
 
         let order_set: HashSet<Uuid> = order.iter().cloned().collect();
 
-
         for &node_id in order {
             if !graph.nodes.contains_key(&node_id) {
                 return Err(NodeError::NodeNotFound(node_id));
             }
         }
-
 
         if order.len() == graph.nodes.len() {
             for &node_id in graph.nodes.keys() {
@@ -180,8 +189,8 @@ impl ExecutionOrderCalculator {
             }
         }
 
-
-        let node_positions: HashMap<Uuid, usize> = order.iter()
+        let node_positions: HashMap<Uuid, usize> = order
+            .iter()
             .enumerate()
             .map(|(pos, &id)| (id, pos))
             .collect();
@@ -197,19 +206,21 @@ impl ExecutionOrderCalculator {
             match (output_pos, input_pos) {
                 (Some(out_pos), Some(in_pos)) => {
                     if out_pos >= in_pos {
-                        debug!("Invalid dependency order: {} ({}) should come before {} ({})",
-                            connection.output_node_id, out_pos,
-                            connection.input_node_id, in_pos);
-                        return Err(NodeError::InvalidConnection(
-                            format!("Dependency order violation: {} -> {}",
-                                connection.output_node_id, connection.input_node_id)
-                        ));
+                        debug!(
+                            "Invalid dependency order: {} ({}) should come before {} ({})",
+                            connection.output_node_id, out_pos, connection.input_node_id, in_pos
+                        );
+                        return Err(NodeError::InvalidConnection(format!(
+                            "Dependency order violation: {} -> {}",
+                            connection.output_node_id, connection.input_node_id
+                        )));
                     }
                 }
                 _ => {
-
-                    debug!("Connection involves nodes not in order: {} -> {}",
-                        connection.output_node_id, connection.input_node_id);
+                    debug!(
+                        "Connection involves nodes not in order: {} -> {}",
+                        connection.output_node_id, connection.input_node_id
+                    );
                 }
             }
         }
@@ -219,13 +230,13 @@ impl ExecutionOrderCalculator {
         Ok(())
     }
 
-
     pub fn get_node_dependencies(graph: &Graph, node_id: Uuid) -> NodeResult<Vec<Uuid>> {
         let adjacency = Self::build_adjacency_list(graph)?;
 
         let mut dependencies = Vec::new();
         let mut visited = HashSet::new();
-        let mut to_visit = adjacency.get(&node_id)
+        let mut to_visit = adjacency
+            .get(&node_id)
             .map(|deps| deps.clone())
             .unwrap_or_default();
 
@@ -249,7 +260,6 @@ impl ExecutionOrderCalculator {
         Ok(dependencies)
     }
 
-
     pub fn get_node_dependents(graph: &Graph, node_id: Uuid) -> NodeResult<Vec<Uuid>> {
         let adjacency = Self::build_adjacency_list(graph)?;
 
@@ -268,7 +278,7 @@ impl ExecutionOrderCalculator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aether_types::{Node, NodeType, InputPin, OutputPin, ParameterValue};
+    use aether_types::{InputPin, Node, NodeType, OutputPin, ParameterValue};
 
     fn create_test_graph() -> Graph {
         let mut graph = Graph::new();
@@ -323,7 +333,6 @@ mod tests {
         graph.nodes.insert(node2_id, node2);
         graph.nodes.insert(node3_id, node3);
 
-
         let connection1 = Connection {
             id: Uuid::new_v4(),
             output_node_id: node1_id,
@@ -354,7 +363,6 @@ mod tests {
 
         let order = ExecutionOrderCalculator::calculate_order(&graph).unwrap();
 
-
         assert_eq!(order.len(), 3);
 
         let node_ids: Vec<Uuid> = graph.nodes.keys().copied().collect();
@@ -368,9 +376,8 @@ mod tests {
         let graph = create_test_graph();
         let node_ids: Vec<Uuid> = graph.nodes.keys().copied().collect();
 
-
-        let order = ExecutionOrderCalculator::calculate_order_from_nodes(&graph, &[node_ids[1]]).unwrap();
-
+        let order =
+            ExecutionOrderCalculator::calculate_order_from_nodes(&graph, &[node_ids[1]]).unwrap();
 
         assert_eq!(order.len(), 3);
     }
@@ -481,7 +488,6 @@ mod tests {
     fn test_get_node_dependents() {
         let graph = create_test_graph();
         let node_ids: Vec<Uuid> = graph.nodes.keys().copied().collect();
-
 
         let deps = ExecutionOrderCalculator::get_node_dependents(&graph, node_ids[0]).unwrap();
         assert_eq!(deps.len(), 1);

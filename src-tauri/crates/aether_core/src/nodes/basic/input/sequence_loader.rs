@@ -1,18 +1,16 @@
-use aether_types::{ParameterValue};
-use ffmpeg_next as ffmpeg;
+use aether_types::ParameterValue;
 use ffmpeg::{format, frame, media};
-use uuid::Uuid;
+use ffmpeg_next as ffmpeg;
 use log::{debug, error, warn};
+use uuid::Uuid;
 
 pub struct SequenceLoader {
-
     sequence_pattern: Option<String>,
 
     _frame_cache: std::collections::HashMap<u64, Uuid>,
 }
 
 impl SequenceLoader {
-
     pub fn new() -> Self {
         Self {
             sequence_pattern: None,
@@ -20,23 +18,17 @@ impl SequenceLoader {
         }
     }
 
-
     pub fn set_sequence_pattern(&mut self, pattern: String) {
         self.sequence_pattern = Some(pattern);
     }
-
 
     pub fn get_sequence_pattern(&self) -> Option<&String> {
         self.sequence_pattern.as_ref()
     }
 
-
     pub fn load_sequence_frame(&mut self, frame: u64, media_path: &str) -> ParameterValue {
-
-
         let filename = self.generate_sequence_filename(frame, media_path);
         debug!("Loading sequence frame {} from file: {}", frame, filename);
-
 
         let frame_data = self.decode_sequence_frame_with_ffmpeg(frame, &filename);
 
@@ -44,9 +36,7 @@ impl SequenceLoader {
     }
 
     fn generate_sequence_filename(&self, frame: u64, media_path: &str) -> String {
-
         if let Some(pattern) = &self.sequence_pattern {
-
             let directory = std::path::Path::new(media_path)
                 .parent()
                 .and_then(|p| p.to_str())
@@ -59,7 +49,6 @@ impl SequenceLoader {
 
             format!("{}/{}", directory, filename)
         } else {
-
             let directory = std::path::Path::new(media_path)
                 .parent()
                 .and_then(|p| p.to_str())
@@ -74,12 +63,8 @@ impl SequenceLoader {
         }
     }
 
-
     fn decode_sequence_frame_with_ffmpeg(&mut self, frame: u64, filename: &str) -> Uuid {
-
-
         debug!("Decoding sequence frame {} from {}", frame, filename);
-
 
         if let Err(e) = ffmpeg::init() {
             error!("Failed to initialize FFmpeg for sequence: {}", e);
@@ -103,19 +88,20 @@ impl SequenceLoader {
             }
         };
 
-        let mut decoder = match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
-            Ok(context) => match context.decoder().video() {
-                Ok(decoder) => decoder,
+        let mut decoder =
+            match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
+                Ok(context) => match context.decoder().video() {
+                    Ok(decoder) => decoder,
+                    Err(e) => {
+                        warn!("Failed to create video decoder for sequence: {}", e);
+                        return self.create_default_sequence_frame(frame);
+                    }
+                },
                 Err(e) => {
-                    warn!("Failed to create video decoder for sequence: {}", e);
+                    warn!("Failed to create decoder context for sequence: {}", e);
                     return self.create_default_sequence_frame(frame);
                 }
-            },
-            Err(e) => {
-                warn!("Failed to create decoder context for sequence: {}", e);
-                return self.create_default_sequence_frame(frame);
-            }
-        };
+            };
 
         let width = decoder.width() as usize;
         let height = decoder.height() as usize;
@@ -128,12 +114,18 @@ impl SequenceLoader {
 
         if let Some((_, packet)) = packet_iter.next() {
             if let Err(e) = decoder.send_packet(&packet) {
-                warn!("Failed to send packet for sequence frame {}: {}", filename, e);
+                warn!(
+                    "Failed to send packet for sequence frame {}: {}",
+                    filename, e
+                );
                 return self.create_default_sequence_frame(frame);
             }
 
             if let Err(e) = decoder.receive_frame(&mut image_frame) {
-                warn!("Failed to receive frame for sequence frame {}: {}", filename, e);
+                warn!(
+                    "Failed to receive frame for sequence frame {}: {}",
+                    filename, e
+                );
                 return self.create_default_sequence_frame(frame);
             }
 
@@ -143,21 +135,24 @@ impl SequenceLoader {
                 _ => (3, false),
             };
 
-            let image_data = self.extract_frame_data(&image_frame, channels, &format!("{:?}", pixel_format))
+            let image_data = self
+                .extract_frame_data(&image_frame, channels, &format!("{:?}", pixel_format))
                 .unwrap_or_else(|_| {
                     warn!("Failed to extract data for sequence frame: {}", filename);
                     vec![0u8; width * height * channels]
                 });
 
-            frame_id = self.upload_sequence_frame_to_gpu(&image_data, width, height, channels)
+            frame_id = self
+                .upload_sequence_frame_to_gpu(&image_data, width, height, channels)
                 .unwrap_or_else(|_| {
                     warn!("Failed to upload sequence frame to GPU: {}", filename);
                     Uuid::new_v4()
                 });
 
-            debug!("Sequence frame decoded via FFmpeg: {}x{} {:?} ({} channels)",
-                width, height, pixel_format, channels);
-
+            debug!(
+                "Sequence frame decoded via FFmpeg: {}x{} {:?} ({} channels)",
+                width, height, pixel_format, channels
+            );
         } else {
             warn!("No packet found in sequence frame: {}", filename);
             frame_id = self.create_default_sequence_frame(frame);
@@ -189,7 +184,12 @@ impl SequenceLoader {
             })
     }
 
-    fn extract_frame_data(&self, frame: &frame::Video, channels: usize, _pixel_format: &str) -> Result<Vec<u8>, String> {
+    fn extract_frame_data(
+        &self,
+        frame: &frame::Video,
+        channels: usize,
+        _pixel_format: &str,
+    ) -> Result<Vec<u8>, String> {
         let width = frame.width() as usize;
         let height = frame.height() as usize;
         let line_size = frame.stride(0) as usize;
@@ -197,7 +197,6 @@ impl SequenceLoader {
         let plane_data = frame.data(0);
 
         let mut data = Vec::with_capacity(width * height * channels);
-
 
         for y in 0..height {
             let src_offset = y * line_size;
@@ -214,14 +213,24 @@ impl SequenceLoader {
         Ok(data)
     }
 
-
-    fn upload_sequence_frame_to_gpu(&self, _data: &[u8], width: usize, height: usize, channels: usize) -> Result<Uuid, String> {
-
-        debug!("Uploading sequence frame to GPU: {}x{} ({} channels)", width, height, channels);
+    fn upload_sequence_frame_to_gpu(
+        &self,
+        _data: &[u8],
+        width: usize,
+        height: usize,
+        channels: usize,
+    ) -> Result<Uuid, String> {
+        debug!(
+            "Uploading sequence frame to GPU: {}x{} ({} channels)",
+            width, height, channels
+        );
 
         let texture_id = Uuid::new_v4();
 
-        debug!("Sequence frame uploaded to GPU with texture ID: {}", texture_id);
+        debug!(
+            "Sequence frame uploaded to GPU with texture ID: {}",
+            texture_id
+        );
 
         Ok(texture_id)
     }

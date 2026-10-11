@@ -39,7 +39,6 @@ impl fmt::Display for TextDirection {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextStyle {
-
     pub font_family: String,
     pub font_size: f64,
     pub font_weight: u16,
@@ -55,12 +54,10 @@ pub struct TextStyle {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum FontStyle {
-
     Normal,
     Italic,
     Oblique,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextDecoration {
@@ -82,7 +79,6 @@ pub enum TextDecorationStyle {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TextTransform {
-
     Uppercase,
     Lowercase,
     Capitalize,
@@ -186,12 +182,20 @@ impl TextLayer {
         self.animations.len() < initial_len
     }
 
-    pub fn get_animation(&self, animation_id: &str) -> Option<&crate::text::animation::CharacterAnimation> {
+    pub fn get_animation(
+        &self,
+        animation_id: &str,
+    ) -> Option<&crate::text::animation::CharacterAnimation> {
         self.animations.iter().find(|anim| anim.id == animation_id)
     }
 
-    pub fn get_animation_mut(&mut self, animation_id: &str) -> Option<&mut crate::text::animation::CharacterAnimation> {
-        self.animations.iter_mut().find(|anim| anim.id == animation_id)
+    pub fn get_animation_mut(
+        &mut self,
+        animation_id: &str,
+    ) -> Option<&mut crate::text::animation::CharacterAnimation> {
+        self.animations
+            .iter_mut()
+            .find(|anim| anim.id == animation_id)
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -218,16 +222,13 @@ impl TextLayer {
         Ok(())
     }
 
-
     pub fn character_count(&self) -> usize {
         self.content.text.chars().count()
     }
 
-
     pub fn word_count(&self) -> usize {
         self.content.text.split_whitespace().count()
     }
-
 
     pub fn line_count(&self) -> usize {
         self.content.text.lines().count()
@@ -378,11 +379,8 @@ mod tests {
 
         assert!(valid_layer.validate().is_ok());
 
-        let mut invalid_layer = TextLayer::new(
-            "".to_string(),
-            "Sample".to_string(),
-            "Hello".to_string(),
-        );
+        let mut invalid_layer =
+            TextLayer::new("".to_string(), "Sample".to_string(), "Hello".to_string());
         assert!(invalid_layer.validate().is_err());
 
         invalid_layer.id = "text1".to_string();

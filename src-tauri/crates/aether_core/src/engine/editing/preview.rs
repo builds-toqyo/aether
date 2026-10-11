@@ -1,13 +1,13 @@
-use std::sync::Arc;
-use std::panic;
-use log::{error, warn, debug, info};
+use crate::engine::editing::types::EditingError;
 use anyhow::Result;
-use gstreamer as gst;
 use gst::prelude::*;
+use gstreamer as gst;
 use gstreamer_app as gst_app;
 use gstreamer_editing_services as ges;
 use gstreamer_editing_services::prelude::GESPipelineExt;
-use crate::engine::editing::types::EditingError;
+use log::{debug, error, info, warn};
+use std::panic;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct PreviewFrame {
@@ -125,7 +125,10 @@ impl PreviewEngine {
             }
 
             if pipeline.current_state() != gst::State::Null {
-                warn!("Pipeline did not reach NULL state (current: {:?})", pipeline.current_state());
+                warn!(
+                    "Pipeline did not reach NULL state (current: {:?})",
+                    pipeline.current_state()
+                );
             }
         }
 
@@ -141,7 +144,10 @@ impl PreviewEngine {
         // Detect and use hardware decoder if available
         let hw_decoder = get_hardware_decoder();
         if let Some(decoder_name) = hw_decoder {
-            info!("Configuring preview pipeline with hardware decoder: {}", decoder_name);
+            info!(
+                "Configuring preview pipeline with hardware decoder: {}",
+                decoder_name
+            );
             // Note: GES pipeline handles decoder selection internally
             // We configure the video sink to accept hardware-decoded frames
         }
@@ -152,8 +158,12 @@ impl PreviewEngine {
             .build()
             .map_err(|_| EditingError::PreviewError("Failed to create video sink".to_string()))?;
 
-        let appsink = video_sink.downcast_ref::<gst_app::AppSink>()
-            .ok_or(EditingError::PreviewError("Failed to downcast to AppSink".to_string()))?;
+        let appsink =
+            video_sink
+                .downcast_ref::<gst_app::AppSink>()
+                .ok_or(EditingError::PreviewError(
+                    "Failed to downcast to AppSink".to_string(),
+                ))?;
 
         let (width, height) = self.video_dimensions.unwrap_or((1920, 1080));
         let (scaled_width, scaled_height) = match self.quality {
@@ -165,7 +175,10 @@ impl PreviewEngine {
 
         // Accept both hardware and software decoded formats
         let caps = gst::Caps::builder("video/x-raw")
-            .field("format", &gst::List::new(["RGB", "BGR", "RGBx", "BGRx", "NV12", "I420"]))
+            .field(
+                "format",
+                &gst::List::new(["RGB", "BGR", "RGBx", "BGRx", "NV12", "I420"]),
+            )
             .field("width", &(scaled_width as i32))
             .field("height", &(scaled_height as i32))
             .build();
@@ -183,16 +196,21 @@ impl PreviewEngine {
         let audioresample = gst::ElementFactory::make("audioresample")
             .name("audio_resample")
             .build()
-            .map_err(|_| EditingError::PreviewError("Failed to create audioresample".to_string()))?;
+            .map_err(|_| {
+                EditingError::PreviewError("Failed to create audioresample".to_string())
+            })?;
 
         let autoaudiosink = gst::ElementFactory::make("autoaudiosink")
             .name("audio_sink")
             .build()
-            .map_err(|_| EditingError::PreviewError("Failed to create autoaudiosink".to_string()))?;
+            .map_err(|_| {
+                EditingError::PreviewError("Failed to create autoaudiosink".to_string())
+            })?;
 
         // Link audio elements
-        gst::Element::link_many(&[&audioconvert, &audioresample, &autoaudiosink])
-            .map_err(|e| EditingError::PreviewError(format!("Failed to link audio elements: {}", e)))?;
+        gst::Element::link_many(&[&audioconvert, &audioresample, &autoaudiosink]).map_err(|e| {
+            EditingError::PreviewError(format!("Failed to link audio elements: {}", e))
+        })?;
 
         // Connect audio pipeline to GES pipeline audio pad
         // Note: GES pipeline handles audio routing internally when set as preview
@@ -227,7 +245,7 @@ impl PreviewEngine {
                     }
                     Ok(gst::FlowSuccess::Ok)
                 })
-                .build()
+                .build(),
         );
 
         pipeline.set_video_sink(Some(&video_sink));
@@ -256,16 +274,16 @@ impl PreviewEngine {
     }
 
     pub fn play(&mut self) -> Result<(), EditingError> {
-        let pipeline = self.pipeline.as_ref()
-            .ok_or(EditingError::NotInitialized)?;
-
+        let pipeline = self.pipeline.as_ref().ok_or(EditingError::NotInitialized)?;
 
         pipeline.set_state(gst::State::Playing)?;
 
-
         let (state_change, new_state, _) = pipeline.state(gst::ClockTime::from_seconds(1));
         if state_change.is_err() || new_state != gst::State::Playing {
-            return Err(EditingError::PreviewError(format!("Failed to set pipeline to Playing state, current state: {:?}", new_state)));
+            return Err(EditingError::PreviewError(format!(
+                "Failed to set pipeline to Playing state, current state: {:?}",
+                new_state
+            )));
         }
 
         self.is_playing = true;
@@ -275,15 +293,16 @@ impl PreviewEngine {
     }
 
     pub fn pause(&mut self) -> Result<(), EditingError> {
-        let pipeline = self.pipeline.as_ref()
-            .ok_or(EditingError::NotInitialized)?;
+        let pipeline = self.pipeline.as_ref().ok_or(EditingError::NotInitialized)?;
 
         pipeline.set_state(gst::State::Paused)?;
 
-
         let (state_change, new_state, _) = pipeline.state(gst::ClockTime::from_seconds(1));
         if state_change.is_err() {
-            return Err(EditingError::PreviewError(format!("Failed to set pipeline to Paused state, current state: {:?}", new_state)));
+            return Err(EditingError::PreviewError(format!(
+                "Failed to set pipeline to Paused state, current state: {:?}",
+                new_state
+            )));
         }
 
         self.is_playing = false;
@@ -293,8 +312,7 @@ impl PreviewEngine {
     }
 
     pub fn stop(&mut self) -> Result<(), EditingError> {
-        let pipeline = self.pipeline.as_ref()
-            .ok_or(EditingError::NotInitialized)?;
+        let pipeline = self.pipeline.as_ref().ok_or(EditingError::NotInitialized)?;
 
         pipeline.set_state(gst::State::Ready)?;
         self.is_playing = false;
@@ -304,8 +322,7 @@ impl PreviewEngine {
     }
 
     pub fn seek(&mut self, position: i64) -> Result<(), EditingError> {
-        let pipeline = self.pipeline.as_ref()
-            .ok_or(EditingError::NotInitialized)?;
+        let pipeline = self.pipeline.as_ref().ok_or(EditingError::NotInitialized)?;
 
         let seek_flags = gst::SeekFlags::FLUSH | gst::SeekFlags::ACCURATE;
 
@@ -317,7 +334,8 @@ impl PreviewEngine {
 
     pub fn get_position(&self) -> Result<i64, EditingError> {
         if let Some(pipeline) = &self.pipeline {
-            let position = pipeline.query_position::<gst::ClockTime>()
+            let position = pipeline
+                .query_position::<gst::ClockTime>()
                 .map(|p| p.nseconds() as i64)
                 .unwrap_or_else(|| self.position);
 
@@ -332,28 +350,24 @@ impl PreviewEngine {
     }
 
     pub fn get_frame(&self) -> Result<Option<PreviewFrame>, EditingError> {
-
         if let Ok(latest_frame) = self.latest_frame.lock() {
             return Ok(latest_frame.clone());
         }
 
-
-        Err(EditingError::PreviewError("Failed to access latest frame".to_string()))
+        Err(EditingError::PreviewError(
+            "Failed to access latest frame".to_string(),
+        ))
     }
-
 
     pub fn get_video_dimensions(&self) -> Option<(u32, u32)> {
         self.video_dimensions
     }
 
-
     pub fn get_duration(&self) -> Option<i64> {
         self.video_duration
     }
 
-
     fn update_video_properties(&mut self, pipeline: &ges::Pipeline) -> Result<(), EditingError> {
-
         if let Some(_timeline) = pipeline.timeline() {
             let width = 1920;
             let height = 1080;

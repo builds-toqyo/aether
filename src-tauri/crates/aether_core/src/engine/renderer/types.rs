@@ -15,7 +15,9 @@ impl fmt::Display for RendererError {
             RendererError::InitializationError(msg) => write!(f, "InitializationError: {}", msg),
             RendererError::RenderError(msg) => write!(f, "RenderError: {}", msg),
             RendererError::ResourceError(msg) => write!(f, "ResourceError: {}", msg),
-            RendererError::HardwareAccelerationError(msg) => write!(f, "HardwareAccelerationError: {}", msg),
+            RendererError::HardwareAccelerationError(msg) => {
+                write!(f, "HardwareAccelerationError: {}", msg)
+            }
         }
     }
 }
@@ -42,13 +44,19 @@ pub(super) enum HardwareContext {
     VideoToolbox { session: *mut std::ffi::c_void },
 
     #[cfg(feature = "amf")]
-    Amf { factory: *mut std::ffi::c_void, context: *mut std::ffi::c_void },
+    Amf {
+        factory: *mut std::ffi::c_void,
+        context: *mut std::ffi::c_void,
+    },
 }
 
 /// Shader programs for different hardware backends
 pub(super) enum Shaders {
     #[cfg(feature = "cuda")]
-    Cuda { module: *mut std::ffi::c_void, kernel: *mut std::ffi::c_void },
+    Cuda {
+        module: *mut std::ffi::c_void,
+        kernel: *mut std::ffi::c_void,
+    },
 
     #[cfg(all(feature = "vaapi", target_os = "linux"))]
     Vaapi { config: VaapiConfig },
@@ -57,23 +65,35 @@ pub(super) enum Shaders {
     VideoToolbox { config: VideoToolboxConfig },
 
     #[cfg(feature = "amf")]
-    Amf { components: Vec<*mut std::ffi::c_void> },
+    Amf {
+        components: Vec<*mut std::ffi::c_void>,
+    },
 
-    Software { functions: Vec<Box<dyn Fn(&[u8], &mut [u8], usize, usize) + Send>> },
+    Software {
+        functions: Vec<Box<dyn Fn(&[u8], &mut [u8], usize, usize) + Send>>,
+    },
 }
 
 impl std::fmt::Debug for Shaders {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             #[cfg(feature = "cuda")]
-            Shaders::Cuda { module, kernel } => write!(f, "Cuda {{ module: {:?}, kernel: {:?} }}", module, kernel),
+            Shaders::Cuda { module, kernel } => {
+                write!(f, "Cuda {{ module: {:?}, kernel: {:?} }}", module, kernel)
+            }
             #[cfg(all(feature = "vaapi", target_os = "linux"))]
             Shaders::Vaapi { config } => write!(f, "Vaapi {{ config: {:?} }}", config),
             #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
-            Shaders::VideoToolbox { config } => write!(f, "VideoToolbox {{ config: {:?} }}", config),
+            Shaders::VideoToolbox { config } => {
+                write!(f, "VideoToolbox {{ config: {:?} }}", config)
+            }
             #[cfg(feature = "amf")]
-            Shaders::Amf { components } => write!(f, "Amf {{ components: {:?} }}", components.len()),
-            Shaders::Software { functions } => write!(f, "Software {{ functions: {:?} }}", functions.len()),
+            Shaders::Amf { components } => {
+                write!(f, "Amf {{ components: {:?} }}", components.len())
+            }
+            Shaders::Software { functions } => {
+                write!(f, "Software {{ functions: {:?} }}", functions.len())
+            }
         }
     }
 }
@@ -82,16 +102,26 @@ impl std::fmt::Debug for Shaders {
 #[derive(Debug)]
 pub(super) enum GpuBuffers {
     #[cfg(feature = "cuda")]
-    Cuda { input: *mut std::ffi::c_void, output: *mut std::ffi::c_void, size: usize },
+    Cuda {
+        input: *mut std::ffi::c_void,
+        output: *mut std::ffi::c_void,
+        size: usize,
+    },
 
     #[cfg(all(feature = "vaapi", target_os = "linux"))]
-    Vaapi { surfaces: Vec<*mut std::ffi::c_void> },
+    Vaapi {
+        surfaces: Vec<*mut std::ffi::c_void>,
+    },
 
     #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
-    VideoToolbox { pixel_buffers: Vec<*mut std::ffi::c_void> },
+    VideoToolbox {
+        pixel_buffers: Vec<*mut std::ffi::c_void>,
+    },
 
     #[cfg(feature = "amf")]
-    Amf { surfaces: Vec<*mut std::ffi::c_void> },
+    Amf {
+        surfaces: Vec<*mut std::ffi::c_void>,
+    },
 }
 
 /// CPU buffers for software rendering
@@ -154,7 +184,7 @@ pub(super) struct VideoToolboxConfig {
 impl Default for VideoToolboxConfig {
     fn default() -> Self {
         Self {
-            color_space: 1, // kCVImageBufferColorSpace_ITU_R_709_2
+            color_space: 1,   // kCVImageBufferColorSpace_ITU_R_709_2
             pixel_format: 32, // kCVPixelFormatType_32BGRA
         }
     }

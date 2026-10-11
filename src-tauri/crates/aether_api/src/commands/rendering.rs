@@ -1,16 +1,16 @@
-use serde::{Serialize, Deserialize};
-use tauri::State;
 use anyhow::Result;
 use log::{debug, info, warn};
-use std::sync::{Arc, Mutex};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use tauri::State;
 
 use crate::state::AppState;
-use aether_core::engine::rendering::{
-    RenderingEngine, ExportOptions, ExportProgress,
-    VideoFormat, AudioFormat, ContainerFormat, EncoderPreset
-};
 use aether_core::engine::editing::types::EditingError;
+use aether_core::engine::rendering::{
+    AudioFormat, ContainerFormat, EncoderPreset, ExportOptions, ExportProgress, RenderingEngine,
+    VideoFormat,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RenderingJob {
@@ -140,7 +140,6 @@ pub enum RenderingStatus {
     Paused,
 }
 
-
 #[derive(Debug, Serialize, Clone)]
 pub enum RenderFormat {
     Mp4,
@@ -182,7 +181,6 @@ impl Default for RenderFormat {
     }
 }
 
-
 #[derive(Debug, Serialize, Clone)]
 pub enum RenderQuality {
     Low,
@@ -207,7 +205,10 @@ impl<'de> Deserialize<'de> for RenderQuality {
             "medium" | "normal" => Ok(RenderQuality::Medium),
             "high" => Ok(RenderQuality::High),
             "ultra" | "maximum" => Ok(RenderQuality::Ultra),
-            other => Err(serde::de::Error::custom(format!("Unknown render quality: {}", other))),
+            other => Err(serde::de::Error::custom(format!(
+                "Unknown render quality: {}",
+                other
+            ))),
         }
     }
 }
@@ -217,7 +218,6 @@ impl Default for RenderQuality {
         RenderQuality::High
     }
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum RenderPreset {
@@ -232,7 +232,6 @@ pub enum RenderPreset {
     VerySlow,
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AudioRenderSettings {
     pub codec: AudioCodec,
@@ -245,7 +244,6 @@ pub struct AudioRenderSettings {
     pub fade_out: Option<f64>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum AudioCodec {
     Aac,
@@ -256,7 +254,6 @@ pub enum AudioCodec {
     Ac3,
     Dts,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VideoRenderSettings {
@@ -273,7 +270,6 @@ pub struct VideoRenderSettings {
     pub color_range: Option<String>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum VideoCodec {
     H264,
@@ -285,7 +281,6 @@ pub enum VideoCodec {
     ProRes,
     Dnxhd,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct RenderingRequest {
@@ -317,7 +312,6 @@ pub struct RenderingRequest {
     pub hardware_acceleration: Option<bool>,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct ExportRange {
     pub start_time: f64,
@@ -325,7 +319,6 @@ pub struct ExportRange {
     pub include_markers: bool,
     pub marker_filter: Option<Vec<String>>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RenderMetadata {
@@ -338,14 +331,12 @@ pub struct RenderMetadata {
     pub software: Option<String>,
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct RenderingResponse {
     pub success: bool,
     pub message: String,
     pub data: Option<serde_json::Value>,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct QueuedJob {
@@ -362,7 +353,6 @@ pub struct QueuedJob {
     pub priority: JobPriority,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum JobPriority {
     Low = 1,
@@ -376,7 +366,6 @@ impl Default for JobPriority {
         JobPriority::Normal
     }
 }
-
 
 pub struct RenderingState {
     pub engine: RenderingEngine,
@@ -413,7 +402,9 @@ impl RenderingState {
             self.paused_jobs.insert(job_id.to_string(), active_job);
             Ok(())
         } else {
-            Err(EditingError::ExportError("Job not found in active jobs".to_string()))
+            Err(EditingError::ExportError(
+                "Job not found in active jobs".to_string(),
+            ))
         }
     }
 
@@ -422,7 +413,9 @@ impl RenderingState {
             self.active_jobs.insert(job_id.to_string(), paused_job);
             Ok(())
         } else {
-            Err(EditingError::ExportError("Job not found in paused jobs".to_string()))
+            Err(EditingError::ExportError(
+                "Job not found in paused jobs".to_string(),
+            ))
         }
     }
 }
@@ -432,7 +425,6 @@ impl Default for RenderingState {
         Self::new().expect("Failed to create rendering state")
     }
 }
-
 
 fn convert_render_format(format: &RenderFormat) -> ContainerFormat {
     match format {
@@ -448,7 +440,6 @@ fn convert_render_format(format: &RenderFormat) -> ContainerFormat {
         RenderFormat::Custom(_) => ContainerFormat::Mp4,
     }
 }
-
 
 fn convert_render_quality(quality: &RenderQuality) -> EncoderPreset {
     match quality {
@@ -469,7 +460,6 @@ fn convert_render_quality(quality: &RenderQuality) -> EncoderPreset {
         },
     }
 }
-
 
 fn convert_progress(progress: &ExportProgress) -> RenderingProgress {
     RenderingProgress {
@@ -499,7 +489,6 @@ fn convert_progress(progress: &ExportProgress) -> RenderingProgress {
     }
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct RenderingProgress {
     pub job_id: String,
@@ -515,7 +504,6 @@ pub struct RenderingProgress {
     pub actual_size: Option<u64>,
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct RenderingQueue {
     pub active_jobs: Vec<RenderingJob>,
@@ -525,7 +513,6 @@ pub struct RenderingQueue {
     pub max_concurrent_jobs: usize,
     pub total_capacity: usize,
 }
-
 
 /// Parse a bitrate that may be a number or a string like "192K"/"5M"
 fn parse_bitrate_value(value: &serde_json::Value) -> Option<u32> {
@@ -539,7 +526,7 @@ fn parse_bitrate_value(value: &serde_json::Value) -> Option<u32> {
                 _ => (s, 1u64),
             };
             digits.parse::<u64>().ok().map(|v| (v * mult) as u32)
-        },
+        }
         _ => None,
     }
 }
@@ -591,7 +578,9 @@ pub async fn rendering_start_job(
 ) -> Result<RenderingJob, String> {
     debug!("{:?}", request.name);
 
-    let job_name = request.name.clone()
+    let job_name = request
+        .name
+        .clone()
         .filter(|n| !n.is_empty())
         .unwrap_or_else(|| job_name_from_path(&request.output_path));
 
@@ -616,10 +605,16 @@ pub async fn rendering_start_job(
     let job_id = format!("{}", uuid::Uuid::new_v4());
     let now = chrono::Utc::now().to_rfc3339();
 
-    let video_bitrate = request.video_settings.as_ref().map(|v| v.bitrate)
+    let video_bitrate = request
+        .video_settings
+        .as_ref()
+        .map(|v| v.bitrate)
         .or(request.video_bitrate)
         .unwrap_or(5_000_000);
-    let audio_bitrate = request.audio_bitrate.as_ref().and_then(parse_bitrate_value)
+    let audio_bitrate = request
+        .audio_bitrate
+        .as_ref()
+        .and_then(parse_bitrate_value)
         .unwrap_or(192_000);
 
     // Create export options for the rendering engine
@@ -627,8 +622,16 @@ pub async fn rendering_start_job(
         input_path: std::path::PathBuf::from("/timeline/current"), // Input path derived from active timeline
         output_path: std::path::PathBuf::from(&request.output_path),
         container_format: convert_render_format(&request.format),
-        video_format: request.video_codec.as_deref().map(parse_video_codec).unwrap_or(VideoFormat::H264),
-        audio_format: request.audio_codec.as_deref().map(parse_audio_codec).unwrap_or(AudioFormat::Aac),
+        video_format: request
+            .video_codec
+            .as_deref()
+            .map(parse_video_codec)
+            .unwrap_or(VideoFormat::H264),
+        audio_format: request
+            .audio_codec
+            .as_deref()
+            .map(parse_audio_codec)
+            .unwrap_or(AudioFormat::Aac),
         video_bitrate,
         audio_bitrate,
         frame_rate: request.fps.unwrap_or(30.0),
@@ -641,7 +644,9 @@ pub async fn rendering_start_job(
     };
 
     // Query timeline duration from engine for realistic frame/size estimates
-    let timeline_duration_ns = state.editing_engine.lock()
+    let timeline_duration_ns = state
+        .editing_engine
+        .lock()
         .map_err(|e| format!("{}", e))?
         .get_timeline_info()
         .map(|t| t.duration)
@@ -653,7 +658,11 @@ pub async fn rendering_start_job(
     } else {
         0
     };
-    let bitrate = request.video_settings.as_ref().map(|v| v.bitrate).unwrap_or(5_000_000u32);
+    let bitrate = request
+        .video_settings
+        .as_ref()
+        .map(|v| v.bitrate)
+        .unwrap_or(5_000_000u32);
     let estimated_size = if duration_seconds > 0.0 {
         (bitrate as u64 * duration_seconds as u64) / 8
     } else {
@@ -661,8 +670,7 @@ pub async fn rendering_start_job(
     };
 
     // Get rendering state
-    let mut rendering_state = state.rendering_state.lock()
-        .map_err(|e| format!("{}", e))?;
+    let mut rendering_state = state.rendering_state.lock().map_err(|e| format!("{}", e))?;
 
     // Create exporter directly (bypassing aether_core::ActiveExporter which required unsafe Send/Sync)
     let exporter: Box<dyn ExporterTrait> = {
@@ -708,7 +716,9 @@ pub async fn rendering_start_job(
     };
 
     // Add to active jobs
-    rendering_state.active_jobs.insert(job_id.clone(), active_job);
+    rendering_state
+        .active_jobs
+        .insert(job_id.clone(), active_job);
 
     info!("Started job: {} ({})", job_name, job_id);
 
@@ -735,21 +745,25 @@ pub async fn rendering_cancel_job(
         return Err("Job ID cannot be empty".to_string());
     }
 
-
-    let mut rendering_state = state.rendering_state.lock()
+    let mut rendering_state = state
+        .rendering_state
+        .lock()
         .map_err(|e| format!("Failed to lock rendering state: {}", e))?;
 
-    let active_job = rendering_state.active_jobs.get_mut(&job_id)
+    let active_job = rendering_state
+        .active_jobs
+        .get_mut(&job_id)
         .ok_or_else(|| format!("Job not found: {}", job_id))?;
 
-
     {
-        let mut exporter = active_job.exporter.lock()
+        let mut exporter = active_job
+            .exporter
+            .lock()
             .map_err(|e| format!("Failed to lock exporter: {}", e))?;
-        exporter.cancel()
+        exporter
+            .cancel()
             .map_err(|e| format!("Failed to cancel job: {}", e))?;
     }
-
 
     active_job.job.status = RenderingStatus::Cancelled;
     active_job.job.end_time = Some(chrono::Utc::now().to_rfc3339());
@@ -776,11 +790,12 @@ pub async fn rendering_pause_job(
     }
 
     // Get rendering state and find the job
-    let mut rendering_state = state.rendering_state.lock()
-        .map_err(|e| format!("{}", e))?;
+    let mut rendering_state = state.rendering_state.lock().map_err(|e| format!("{}", e))?;
 
     {
-        let active_job = rendering_state.active_jobs.get_mut(&job_id)
+        let active_job = rendering_state
+            .active_jobs
+            .get_mut(&job_id)
             .ok_or_else(|| format!("Job not found in active jobs: {}", job_id))?;
 
         match active_job.exporter.lock().unwrap().pause() {
@@ -825,12 +840,15 @@ pub async fn rendering_resume_job(
         return Err("Job ID cannot be empty".to_string());
     }
 
-
-    let mut rendering_state = state.rendering_state.lock()
+    let mut rendering_state = state
+        .rendering_state
+        .lock()
         .map_err(|e| format!("Failed to lock rendering state: {}", e))?;
 
     {
-        let paused_job = rendering_state.paused_jobs.get_mut(&job_id)
+        let paused_job = rendering_state
+            .paused_jobs
+            .get_mut(&job_id)
             .ok_or_else(|| format!("Job not found in paused jobs: {}", job_id))?;
 
         match paused_job.exporter.lock().unwrap().resume() {
@@ -862,7 +880,6 @@ pub async fn rendering_resume_job(
     Ok(response)
 }
 
-
 #[tauri::command]
 pub async fn rendering_get_job_status(
     job_id: String,
@@ -875,14 +892,12 @@ pub async fn rendering_get_job_status(
     }
 
     // Get rendering state and find the job
-    let rendering_state = state.rendering_state.lock()
-        .map_err(|e| format!("{}", e))?;
+    let rendering_state = state.rendering_state.lock().map_err(|e| format!("{}", e))?;
 
     if let Some(active_job) = rendering_state.active_jobs.get(&job_id) {
         // Get current progress from exporter
         let progress = {
-            let exporter = active_job.exporter.lock()
-                .map_err(|e| format!("{}", e))?;
+            let exporter = active_job.exporter.lock().map_err(|e| format!("{}", e))?;
             exporter.get_progress()
         };
 
@@ -936,28 +951,33 @@ pub async fn rendering_get_job_progress(
         return Err("Job ID cannot be empty".to_string());
     }
 
-
-    let rendering_state = state.rendering_state.lock()
+    let rendering_state = state
+        .rendering_state
+        .lock()
         .map_err(|e| format!("Failed to lock rendering state: {}", e))?;
 
-    let active_job = rendering_state.active_jobs.get(&job_id)
+    let active_job = rendering_state
+        .active_jobs
+        .get(&job_id)
         .ok_or_else(|| format!("Job not found: {}", job_id))?;
 
-
     let progress = {
-        let exporter = active_job.exporter.lock()
+        let exporter = active_job
+            .exporter
+            .lock()
             .map_err(|e| format!("Failed to lock exporter: {}", e))?;
         exporter.get_progress()
     };
 
-
     let mut api_progress = convert_progress(&progress);
     api_progress.job_id = job_id.clone();
 
-    info!("Retrieved rendering progress: {} - {:.1}%", job_id, api_progress.progress);
+    info!(
+        "Retrieved rendering progress: {} - {:.1}%",
+        job_id, api_progress.progress
+    );
     Ok(api_progress)
 }
-
 
 #[tauri::command]
 pub async fn rendering_get_all_jobs(
@@ -966,16 +986,14 @@ pub async fn rendering_get_all_jobs(
     debug!("Getting all rendering jobs");
 
     // Get rendering state
-    let rendering_state = state.rendering_state.lock()
-        .map_err(|e| format!("{}", e))?;
+    let rendering_state = state.rendering_state.lock().map_err(|e| format!("{}", e))?;
 
     // Collect all active jobs with updated status
     let mut jobs = Vec::new();
     for (_job_id, active_job) in &rendering_state.active_jobs {
         // Get current progress from exporter
         let progress = {
-            let exporter = active_job.exporter.lock()
-                .map_err(|e| format!("{}", e))?;
+            let exporter = active_job.exporter.lock().map_err(|e| format!("{}", e))?;
             exporter.get_progress()
         };
 
@@ -1014,15 +1032,13 @@ pub async fn rendering_get_all_jobs(
 
 /// Get rendering queue information
 #[tauri::command]
-pub async fn rendering_get_queue(
-    state: State<'_, AppState>,
-) -> Result<RenderingQueue, String> {
+pub async fn rendering_get_queue(state: State<'_, AppState>) -> Result<RenderingQueue, String> {
     debug!("Getting rendering queue information");
 
-
-    let rendering_state = state.rendering_state.lock()
+    let rendering_state = state
+        .rendering_state
+        .lock()
         .map_err(|e| format!("Failed to lock rendering state: {}", e))?;
-
 
     let mut active_jobs = Vec::new();
     let mut queued_jobs = Vec::new();
@@ -1030,13 +1046,13 @@ pub async fn rendering_get_queue(
     let mut failed_jobs = Vec::new();
 
     for (_job_id, active_job) in &rendering_state.active_jobs {
-
         let progress = {
-            let exporter = active_job.exporter.lock()
+            let exporter = active_job
+                .exporter
+                .lock()
                 .map_err(|e| format!("Failed to lock exporter: {}", e))?;
             exporter.get_progress()
         };
-
 
         let mut job = active_job.job.clone();
         job.progress = progress.percent;
@@ -1060,7 +1076,6 @@ pub async fn rendering_get_queue(
         }
     }
 
-
     for queued_job in &rendering_state.job_queue {
         queued_jobs.push(RenderingJob {
             id: queued_job.id.clone(),
@@ -1083,7 +1098,6 @@ pub async fn rendering_get_queue(
         });
     }
 
-
     for (_job_id, paused_job) in &rendering_state.paused_jobs {
         let mut job = paused_job.job.clone();
         job.status = RenderingStatus::Paused;
@@ -1099,11 +1113,14 @@ pub async fn rendering_get_queue(
         total_capacity: rendering_state.max_concurrent_jobs * 2,
     };
 
-    info!("Retrieved rendering queue: {} active, {} queued, {} completed",
-          queue.active_jobs.len(), queue.queued_jobs.len(), queue.completed_jobs.len());
+    info!(
+        "Retrieved rendering queue: {} active, {} queued, {} completed",
+        queue.active_jobs.len(),
+        queue.queued_jobs.len(),
+        queue.completed_jobs.len()
+    );
     Ok(queue)
 }
-
 
 #[tauri::command]
 pub async fn rendering_get_formats(
@@ -1113,34 +1130,46 @@ pub async fn rendering_get_formats(
 
     let core_formats = aether_core::engine::rendering::get_available_formats();
 
-    let formats: Vec<RenderFormatInfo> = core_formats.into_iter().map(|fi| {
-        let (max_res, max_fps, max_bitrate) = match fi.container {
-            aether_core::engine::rendering::ContainerFormat::Mp4 => (Some((7680, 4320)), Some(120.0), Some(50000000)),
-            aether_core::engine::rendering::ContainerFormat::Mov => (Some((7680, 4320)), Some(120.0), Some(100000000)),
-            aether_core::engine::rendering::ContainerFormat::Webm => (Some((3840, 2160)), Some(60.0), Some(20000000)),
-            aether_core::engine::rendering::ContainerFormat::Gif => (Some((1280, 720)), Some(30.0), None),
-            _ => (Some((3840, 2160)), Some(60.0), Some(50000000)),
-        };
+    let formats: Vec<RenderFormatInfo> = core_formats
+        .into_iter()
+        .map(|fi| {
+            let (max_res, max_fps, max_bitrate) = match fi.container {
+                aether_core::engine::rendering::ContainerFormat::Mp4 => {
+                    (Some((7680, 4320)), Some(120.0), Some(50000000))
+                }
+                aether_core::engine::rendering::ContainerFormat::Mov => {
+                    (Some((7680, 4320)), Some(120.0), Some(100000000))
+                }
+                aether_core::engine::rendering::ContainerFormat::Webm => {
+                    (Some((3840, 2160)), Some(60.0), Some(20000000))
+                }
+                aether_core::engine::rendering::ContainerFormat::Gif => {
+                    (Some((1280, 720)), Some(30.0), None)
+                }
+                _ => (Some((3840, 2160)), Some(60.0), Some(50000000)),
+            };
 
-        RenderFormatInfo {
-            format: map_container_format(fi.container),
-            name: fi.container.display_name().to_string(),
-            description: fi.use_case.clone(),
-            extensions: vec![fi.container.extension().to_string()],
-            supports_video: !fi.video_formats.is_empty(),
-            supports_audio: !fi.audio_formats.is_empty() && fi.container != aether_core::engine::rendering::ContainerFormat::Gif,
-            recommended_for: if fi.web_friendly {
-                vec!["web".to_string(), "streaming".to_string()]
-            } else if fi.container == aether_core::engine::rendering::ContainerFormat::Mov {
-                vec!["editing".to_string(), "mastering".to_string()]
-            } else {
-                vec!["general".to_string()]
-            },
-            max_resolution: max_res,
-            max_fps,
-            max_bitrate,
-        }
-    }).collect();
+            RenderFormatInfo {
+                format: map_container_format(fi.container),
+                name: fi.container.display_name().to_string(),
+                description: fi.use_case.clone(),
+                extensions: vec![fi.container.extension().to_string()],
+                supports_video: !fi.video_formats.is_empty(),
+                supports_audio: !fi.audio_formats.is_empty()
+                    && fi.container != aether_core::engine::rendering::ContainerFormat::Gif,
+                recommended_for: if fi.web_friendly {
+                    vec!["web".to_string(), "streaming".to_string()]
+                } else if fi.container == aether_core::engine::rendering::ContainerFormat::Mov {
+                    vec!["editing".to_string(), "mastering".to_string()]
+                } else {
+                    vec!["general".to_string()]
+                },
+                max_resolution: max_res,
+                max_fps,
+                max_bitrate,
+            }
+        })
+        .collect();
 
     info!("{}", formats.len());
     Ok(formats)
@@ -1176,7 +1205,10 @@ pub async fn rendering_get_presets(
     let presets_file = presets_dir.join("presets.json");
 
     let presets = if presets_file.exists() {
-        debug!("Loading presets from config file: {}", presets_file.display());
+        debug!(
+            "Loading presets from config file: {}",
+            presets_file.display()
+        );
         let content = std::fs::read_to_string(&presets_file)
             .map_err(|e| format!("Failed to read presets file: {}", e))?;
         serde_json::from_str::<Vec<RenderPresetInfo>>(&content)
@@ -1274,8 +1306,11 @@ pub async fn rendering_save_preset(
     presets.retain(|p| p.name != preset.name);
     presets.push(preset.clone());
 
-    std::fs::write(&presets_file, serde_json::to_string_pretty(&presets).unwrap())
-        .map_err(|e| format!("Failed to write presets file: {}", e))?;
+    std::fs::write(
+        &presets_file,
+        serde_json::to_string_pretty(&presets).unwrap(),
+    )
+    .map_err(|e| format!("Failed to write presets file: {}", e))?;
 
     info!("Custom preset saved: {}", preset.name);
     Ok(RenderingResponse {
@@ -1320,8 +1355,11 @@ pub async fn rendering_delete_preset(
         return Err(format!("Preset not found: {}", preset_name));
     }
 
-    std::fs::write(&presets_file, serde_json::to_string_pretty(&presets).unwrap())
-        .map_err(|e| format!("Failed to write presets file: {}", e))?;
+    std::fs::write(
+        &presets_file,
+        serde_json::to_string_pretty(&presets).unwrap(),
+    )
+    .map_err(|e| format!("Failed to write presets file: {}", e))?;
 
     info!("Preset deleted: {}", preset_name);
     Ok(RenderingResponse {
@@ -1349,8 +1387,11 @@ pub async fn rendering_reset_presets(
     std::fs::create_dir_all(&presets_dir)
         .map_err(|e| format!("Failed to create presets directory: {}", e))?;
 
-    std::fs::write(&presets_file, serde_json::to_string_pretty(&defaults).unwrap())
-        .map_err(|e| format!("Failed to write presets file: {}", e))?;
+    std::fs::write(
+        &presets_file,
+        serde_json::to_string_pretty(&defaults).unwrap(),
+    )
+    .map_err(|e| format!("Failed to write presets file: {}", e))?;
 
     info!("Presets reset to defaults");
     Ok(RenderingResponse {
@@ -1362,7 +1403,6 @@ pub async fn rendering_reset_presets(
     })
 }
 
-
 #[tauri::command]
 pub async fn rendering_estimate_time(
     resolution: (u32, u32),
@@ -1372,8 +1412,10 @@ pub async fn rendering_estimate_time(
     format: RenderFormat,
     _state: State<'_, AppState>,
 ) -> Result<RenderingTimeEstimate, String> {
-    debug!("Resolution: {}x{}, FPS: {}, Duration: {}, Quality: {:?}, Format: {:?}",
-           resolution.0, resolution.1, fps, duration, quality, format);
+    debug!(
+        "Resolution: {}x{}, FPS: {}, Duration: {}, Quality: {:?}, Format: {:?}",
+        resolution.0, resolution.1, fps, duration, quality, format
+    );
 
     // Validate inputs
     if resolution.0 == 0 || resolution.1 == 0 {
@@ -1395,10 +1437,10 @@ pub async fn rendering_estimate_time(
 
     // Base rendering benchmarks (frames per second) for different quality levels
     let base_fps = match &quality {
-        RenderQuality::Low => 60.0,      // Fast rendering
-        RenderQuality::Medium => 30.0,   // Balanced
-        RenderQuality::High => 15.0,     // Slower but higher quality
-        RenderQuality::Ultra => 8.0,     // Very slow, highest quality
+        RenderQuality::Low => 60.0,    // Fast rendering
+        RenderQuality::Medium => 30.0, // Balanced
+        RenderQuality::High => 15.0,   // Slower but higher quality
+        RenderQuality::Ultra => 8.0,   // Very slow, highest quality
         RenderQuality::Custom { preset, .. } => match preset {
             RenderPreset::UltraFast => 120.0,
             RenderPreset::SuperFast => 90.0,
@@ -1440,10 +1482,10 @@ pub async fn rendering_estimate_time(
 
     // Calculate estimated file size (rough estimate)
     let bitrate = match &quality {
-        RenderQuality::Low => 2000000,      // 2 Mbps
-        RenderQuality::Medium => 5000000,   // 5 Mbps
-        RenderQuality::High => 10000000,    // 10 Mbps
-        RenderQuality::Ultra => 25000000,   // 25 Mbps
+        RenderQuality::Low => 2000000,    // 2 Mbps
+        RenderQuality::Medium => 5000000, // 5 Mbps
+        RenderQuality::High => 10000000,  // 10 Mbps
+        RenderQuality::Ultra => 25000000, // 25 Mbps
         RenderQuality::Custom { bitrate, .. } => *bitrate as u64,
     };
     let _estimated_size = (bitrate as u64 * duration as u64) / 8; // Convert to bytes
@@ -1470,8 +1512,13 @@ pub async fn rendering_estimate_time(
         ],
     };
 
-    info!("Render: {:.1}s, Encode: {:.1}s, Total: {:.1}s, Confidence: {:.0}%",
-          estimated_render_time, estimated_encode_time, estimated_total_time, confidence * 100.0);
+    info!(
+        "Render: {:.1}s, Encode: {:.1}s, Total: {:.1}s, Confidence: {:.0}%",
+        estimated_render_time,
+        estimated_encode_time,
+        estimated_total_time,
+        confidence * 100.0
+    );
     Ok(estimate)
 }
 
@@ -1482,10 +1529,10 @@ pub async fn rendering_get_performance_stats(
 ) -> Result<serde_json::Value, String> {
     debug!("Getting rendering performance statistics");
 
-
-    let rendering_state = state.rendering_state.lock()
+    let rendering_state = state
+        .rendering_state
+        .lock()
         .map_err(|e| format!("Failed to lock rendering state: {}", e))?;
-
 
     let mut total_frames_rendered = 0u64;
     let mut total_frames = 0u64;
@@ -1494,9 +1541,10 @@ pub async fn rendering_get_performance_stats(
     let mut active_jobs_count = 0;
 
     for (_job_id, active_job) in &rendering_state.active_jobs {
-
         let progress = {
-            let exporter = active_job.exporter.lock()
+            let exporter = active_job
+                .exporter
+                .lock()
                 .map_err(|e| format!("Failed to lock exporter: {}", e))?;
             exporter.get_progress()
         };
@@ -1506,17 +1554,14 @@ pub async fn rendering_get_performance_stats(
             total_frames_rendered += progress.current_frame;
             total_frames += progress.total_frames;
 
-
             if progress.current_time > 0.0 {
                 let fps = progress.current_frame as f64 / progress.current_time;
                 current_fps = current_fps.max(fps);
-
 
                 render_time_per_frame = progress.current_time / progress.current_frame as f64;
             }
         }
     }
-
 
     let average_fps = if active_jobs_count > 0 && total_frames_rendered > 0 {
         current_fps / active_jobs_count as f64
@@ -1541,8 +1586,12 @@ pub async fn rendering_get_performance_stats(
         }
     });
 
-    info!("Rendering performance stats: {:.1} fps, {:.2}ms per frame, {} active jobs",
-          stats["current_fps"], render_time_per_frame * 1000.0, active_jobs_count);
+    info!(
+        "Rendering performance stats: {:.1} fps, {:.2}ms per frame, {} active jobs",
+        stats["current_fps"],
+        render_time_per_frame * 1000.0,
+        active_jobs_count
+    );
     Ok(stats)
 }
 
@@ -1572,10 +1621,13 @@ pub async fn rendering_apply_lut(
         _ => return Err(format!("Unsupported LUT format: {}", format)),
     };
 
-    let mut color_engine = state.color_grading_engine.lock()
+    let mut color_engine = state
+        .color_grading_engine
+        .lock()
         .map_err(|e| format!("Failed to lock color grading engine: {}", e))?;
 
-    color_engine.load_lut(&path, lut_format)
+    color_engine
+        .load_lut(&path, lut_format)
         .map_err(|e| format!("Failed to load LUT: {}", e))?;
 
     info!("LUT applied successfully: {}", lut_path);
@@ -1590,15 +1642,16 @@ pub async fn rendering_apply_lut(
 }
 
 #[tauri::command]
-pub async fn rendering_remove_lut(
-    state: State<'_, AppState>,
-) -> Result<RenderingResponse, String> {
+pub async fn rendering_remove_lut(state: State<'_, AppState>) -> Result<RenderingResponse, String> {
     debug!("Removing LUT from color grading pipeline");
 
-    let mut color_engine = state.color_grading_engine.lock()
+    let mut color_engine = state
+        .color_grading_engine
+        .lock()
         .map_err(|e| format!("Failed to lock color grading engine: {}", e))?;
 
-    color_engine.clear_lut()
+    color_engine
+        .clear_lut()
         .map_err(|e| format!("Failed to clear LUT: {}", e))?;
 
     info!("LUT removed successfully");
@@ -1620,7 +1673,9 @@ pub async fn rendering_start_batch_job(
         return Err("Batch request cannot be empty".to_string());
     }
 
-    let mut rendering_state = state.rendering_state.lock()
+    let mut rendering_state = state
+        .rendering_state
+        .lock()
         .map_err(|e| format!("Failed to lock rendering state: {}", e))?;
 
     let mut job_ids = Vec::new();
@@ -1629,7 +1684,9 @@ pub async fn rendering_start_batch_job(
     for request in requests {
         let job_id = format!("render_{}", uuid::Uuid::new_v4());
         let now = chrono::Utc::now().to_rfc3339();
-        let job_name = request.name.clone()
+        let job_name = request
+            .name
+            .clone()
             .filter(|n| !n.is_empty())
             .unwrap_or_else(|| job_name_from_path(&request.output_path));
 
@@ -1637,11 +1694,27 @@ pub async fn rendering_start_batch_job(
             input_path: std::path::PathBuf::from("/timeline/current"),
             output_path: std::path::PathBuf::from(&request.output_path),
             container_format: convert_render_format(&request.format),
-            video_format: request.video_codec.as_deref().map(parse_video_codec).unwrap_or(VideoFormat::H264),
-            audio_format: request.audio_codec.as_deref().map(parse_audio_codec).unwrap_or(AudioFormat::Aac),
-            video_bitrate: request.video_settings.as_ref().map(|v| v.bitrate)
-                .or(request.video_bitrate).unwrap_or(5000000),
-            audio_bitrate: request.audio_bitrate.as_ref().and_then(parse_bitrate_value).unwrap_or(192_000),
+            video_format: request
+                .video_codec
+                .as_deref()
+                .map(parse_video_codec)
+                .unwrap_or(VideoFormat::H264),
+            audio_format: request
+                .audio_codec
+                .as_deref()
+                .map(parse_audio_codec)
+                .unwrap_or(AudioFormat::Aac),
+            video_bitrate: request
+                .video_settings
+                .as_ref()
+                .map(|v| v.bitrate)
+                .or(request.video_bitrate)
+                .unwrap_or(5000000),
+            audio_bitrate: request
+                .audio_bitrate
+                .as_ref()
+                .and_then(parse_bitrate_value)
+                .unwrap_or(192_000),
             frame_rate: request.fps.unwrap_or(30.0),
             width: request.resolution.unwrap_or((1920, 1080)).0,
             height: request.resolution.unwrap_or((1920, 1080)).1,
@@ -1682,7 +1755,11 @@ pub async fn rendering_start_batch_job(
                 quality: request.quality.clone(),
                 resolution: request.resolution.unwrap_or((1920, 1080)),
                 fps: request.fps.unwrap_or(30.0),
-                bitrate: request.video_settings.as_ref().map(|v| v.bitrate).unwrap_or(5000000),
+                bitrate: request
+                    .video_settings
+                    .as_ref()
+                    .map(|v| v.bitrate)
+                    .unwrap_or(5000000),
                 estimated_size: 1024 * 1024 * 250,
                 actual_size: None,
                 error_message: None,
@@ -1699,7 +1776,11 @@ pub async fn rendering_start_batch_job(
             quality: request.quality.clone(),
             resolution: request.resolution.unwrap_or((1920, 1080)),
             fps: request.fps.unwrap_or(30.0),
-            bitrate: request.video_settings.as_ref().map(|v| v.bitrate).unwrap_or(5000000),
+            bitrate: request
+                .video_settings
+                .as_ref()
+                .map(|v| v.bitrate)
+                .unwrap_or(5000000),
             estimated_size: 1024 * 1024 * 250,
             created_at: now.clone(),
             priority: JobPriority::Normal,
@@ -1728,7 +1809,10 @@ pub async fn rendering_detect_scenes(
     threshold: Option<f64>,
     _state: State<'_, AppState>,
 ) -> Result<RenderingResponse, String> {
-    debug!("Detecting scenes in: {} threshold: {:?}", video_path, threshold);
+    debug!(
+        "Detecting scenes in: {} threshold: {:?}",
+        video_path, threshold
+    );
 
     if video_path.is_empty() {
         return Err("Video path cannot be empty".to_string());
@@ -1750,9 +1834,12 @@ pub async fn rendering_detect_scenes(
     let mut decoder = VideoDecoder::new(decoder_config);
 
     let (duration, fps) = {
-        let media_info = decoder.open(&path)
+        let media_info = decoder
+            .open(&path)
             .map_err(|e| format!("Failed to open video: {}", e))?;
-        let fps = media_info.video_streams.first()
+        let fps = media_info
+            .video_streams
+            .first()
             .map(|s| s.frame_rate)
             .filter(|f| *f > 0.0)
             .unwrap_or(30.0);
@@ -1800,9 +1887,12 @@ pub async fn rendering_detect_scenes(
                 if let Some(prev) = &prev_lums {
                     let n = lums.len().min(prev.len());
                     if n > 0 {
-                        let mean_diff = lums[..n].iter().zip(&prev[..n])
+                        let mean_diff = lums[..n]
+                            .iter()
+                            .zip(&prev[..n])
                             .map(|(a, b)| (*a as i32 - *b as i32).unsigned_abs() as f64)
-                            .sum::<f64>() / n as f64;
+                            .sum::<f64>()
+                            / n as f64;
                         let score = mean_diff / 255.0;
                         if score >= scene_threshold {
                             boundaries.push((t, score.min(1.0)));
@@ -1810,8 +1900,8 @@ pub async fn rendering_detect_scenes(
                     }
                 }
                 prev_lums = Some(lums);
-            },
-            Err(_) => {},
+            }
+            Err(_) => {}
         }
         t += interval;
     }
@@ -1866,8 +1956,11 @@ pub async fn rendering_save_template(
         .map_err(|e| format!("Failed to create templates directory: {}", e))?;
 
     let template_path = templates_dir.join(format!("{}.json", template_name));
-    std::fs::write(&template_path, serde_json::to_string_pretty(&template_data).unwrap())
-        .map_err(|e| format!("Failed to write template file: {}", e))?;
+    std::fs::write(
+        &template_path,
+        serde_json::to_string_pretty(&template_data).unwrap(),
+    )
+    .map_err(|e| format!("Failed to write template file: {}", e))?;
 
     info!("Render template saved: {}", template_path.display());
     Ok(RenderingResponse {
@@ -1911,9 +2004,7 @@ pub async fn rendering_load_template(
 
 /// List all saved render templates
 #[tauri::command]
-pub async fn rendering_list_templates(
-    _state: State<'_, AppState>,
-) -> Result<Vec<String>, String> {
+pub async fn rendering_list_templates(_state: State<'_, AppState>) -> Result<Vec<String>, String> {
     debug!("Listing render templates");
 
     let templates_dir = std::env::temp_dir().join("aether_render_templates");
@@ -1982,7 +2073,9 @@ pub async fn rendering_cleanup_completed(
     let keep = keep_count.unwrap_or(10);
     let cutoff = chrono::Utc::now() - chrono::Duration::hours(older_than as i64);
 
-    let mut rendering_state = state.rendering_state.lock()
+    let mut rendering_state = state
+        .rendering_state
+        .lock()
         .map_err(|e| format!("Failed to lock rendering state: {}", e))?;
 
     let mut removed = 0;
@@ -1992,13 +2085,18 @@ pub async fn rendering_cleanup_completed(
     for job_id in job_ids {
         if let Some(job) = rendering_state.active_jobs.get(&job_id) {
             let is_complete = {
-                let exporter = job.exporter.lock()
+                let exporter = job
+                    .exporter
+                    .lock()
                     .map_err(|e| format!("Failed to lock exporter: {}", e))?;
                 exporter.is_complete()
             };
 
             if is_complete {
-                let end_time = job.job.end_time.as_ref()
+                let end_time = job
+                    .job
+                    .end_time
+                    .as_ref()
                     .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
                     .map(|dt| dt.with_timezone(&chrono::Utc));
 
@@ -2013,8 +2111,10 @@ pub async fn rendering_cleanup_completed(
         }
     }
 
-    info!("Cleaned up {} completed rendering jobs older than {} hours, kept {}",
-          removed, older_than, kept);
+    info!(
+        "Cleaned up {} completed rendering jobs older than {} hours, kept {}",
+        removed, older_than, kept
+    );
 
     Ok(RenderingResponse {
         success: true,
@@ -2027,7 +2127,6 @@ pub async fn rendering_cleanup_completed(
         })),
     })
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct RenderFormatInfo {
@@ -2043,7 +2142,6 @@ pub struct RenderFormatInfo {
     pub max_bitrate: Option<u32>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RenderPresetInfo {
     pub name: String,
@@ -2057,7 +2155,6 @@ pub struct RenderPresetInfo {
     pub video_codec: VideoCodec,
     pub audio_codec: AudioCodec,
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct RenderingTimeEstimate {
@@ -2074,7 +2171,6 @@ mod tests {
 
     #[test]
     fn test_rendering_request_validation() {
-
         let request = RenderingRequest {
             name: Some("".to_string()),
             output_path: "/exports/video.mp4".to_string(),

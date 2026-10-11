@@ -1,11 +1,10 @@
-use serde::{Serialize};
+use log::{debug, info};
+use serde::Serialize;
 use tauri::State;
 use uuid::Uuid;
-use log::{debug, info};
 
 use crate::state::AppState;
 use aether_types::{Connection, PinDataType};
-
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn connect_nodes(
@@ -20,32 +19,38 @@ pub async fn connect_nodes(
     let input_node_id = target_node_id;
     let input_pin_name = target_port_id;
 
-    debug!("Connecting {}.{} -> {}.{}",
-        output_node_id, output_pin_name, input_node_id, input_pin_name);
+    debug!(
+        "Connecting {}.{} -> {}.{}",
+        output_node_id, output_pin_name, input_node_id, input_pin_name
+    );
 
     // Parse UUIDs
-    let output_id = Uuid::parse_str(&output_node_id)
-        .map_err(|e| format!("{}", e))?;
-    let input_id = Uuid::parse_str(&input_node_id)
-        .map_err(|e| format!("{}", e))?;
+    let output_id = Uuid::parse_str(&output_node_id).map_err(|e| format!("{}", e))?;
+    let input_id = Uuid::parse_str(&input_node_id).map_err(|e| format!("{}", e))?;
 
     let mut graph = state.graph.lock().map_err(|e| format!("{}", e))?;
 
     // Get pin IDs and validate
     let (output_pin_id, input_pin_id) = {
-        let output_node = graph.get_node(&output_id)
+        let output_node = graph
+            .get_node(&output_id)
             .ok_or_else(|| format!("Node not found: {}", output_id))?;
-        let input_node = graph.get_node(&input_id)
+        let input_node = graph
+            .get_node(&input_id)
             .ok_or_else(|| format!("Node not found: {}", input_id))?;
 
-        let output_pin = output_node.get_output_pin_by_name(&output_pin_name)
+        let output_pin = output_node
+            .get_output_pin_by_name(&output_pin_name)
             .ok_or_else(|| format!("Output pin not found: {}", output_pin_name))?;
-        let input_pin = input_node.get_input_pin_by_name(&input_pin_name)
+        let input_pin = input_node
+            .get_input_pin_by_name(&input_pin_name)
             .ok_or_else(|| format!("Input pin not found: {}", input_pin_name))?;
 
         if !are_pin_types_compatible(&output_pin.data_type, &input_pin.data_type) {
-            return Err(format!("Incompatible pin types: {:?} and {:?}",
-                output_pin.data_type, input_pin.data_type));
+            return Err(format!(
+                "Incompatible pin types: {:?} and {:?}",
+                output_pin.data_type, input_pin.data_type
+            ));
         }
 
         if input_pin.connection.is_some() {
@@ -78,8 +83,10 @@ pub async fn connect_nodes(
         }
     }
 
-    info!("Connected {}.{} -> {}.{}",
-        output_node_id, output_pin_name, input_node_id, input_pin_name);
+    info!(
+        "Connected {}.{} -> {}.{}",
+        output_node_id, output_pin_name, input_node_id, input_pin_name
+    );
 
     Ok(ConnectionResponse {
         id: connection.id.to_string(),
@@ -100,14 +107,18 @@ pub async fn disconnect_nodes(
 ) -> Result<ConnectionResponse, String> {
     debug!("Disconnecting connection: {}", connection_id);
 
-    let connection_uuid = Uuid::parse_str(&connection_id)
-        .map_err(|e| format!("Invalid connection ID: {}", e))?;
+    let connection_uuid =
+        Uuid::parse_str(&connection_id).map_err(|e| format!("Invalid connection ID: {}", e))?;
 
-    let mut graph = state.graph.lock().map_err(|e| format!("Failed to lock graph: {}", e))?;
-
+    let mut graph = state
+        .graph
+        .lock()
+        .map_err(|e| format!("Failed to lock graph: {}", e))?;
 
     let (output_node_id, input_node_id, output_pin_name, input_pin_name, input_node_uuid) = {
-        let connection = graph.connections.values()
+        let connection = graph
+            .connections
+            .values()
             .find(|conn| conn.id == connection_uuid)
             .ok_or_else(|| format!("Connection not found: {}", connection_id))?;
 
@@ -120,7 +131,9 @@ pub async fn disconnect_nodes(
         )
     };
 
-    graph.connections.retain(|_, conn| conn.id != connection_uuid);
+    graph
+        .connections
+        .retain(|_, conn| conn.id != connection_uuid);
 
     if let Some(input_node) = graph.nodes.get_mut(&input_node_uuid) {
         for pin in &mut input_node.inputs {
@@ -144,9 +157,7 @@ pub async fn disconnect_nodes(
     })
 }
 
-
 pub fn are_pin_types_compatible(output_type: &PinDataType, input_type: &PinDataType) -> bool {
-
     match (output_type, input_type) {
         (PinDataType::Image, PinDataType::Image) => true,
         (PinDataType::Float, PinDataType::Float) => true,
@@ -163,7 +174,6 @@ pub fn are_pin_types_compatible(output_type: &PinDataType, input_type: &PinDataT
         _ => false,
     }
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct ConnectionResponse {
@@ -182,8 +192,17 @@ mod tests {
 
     #[test]
     fn test_pin_type_compatibility() {
-        assert!(are_pin_types_compatible(&PinDataType::Image, &PinDataType::Image));
-        assert!(are_pin_types_compatible(&PinDataType::Float, &PinDataType::Vector2));
-        assert!(!are_pin_types_compatible(&PinDataType::Image, &PinDataType::Float));
+        assert!(are_pin_types_compatible(
+            &PinDataType::Image,
+            &PinDataType::Image
+        ));
+        assert!(are_pin_types_compatible(
+            &PinDataType::Float,
+            &PinDataType::Vector2
+        ));
+        assert!(!are_pin_types_compatible(
+            &PinDataType::Image,
+            &PinDataType::Float
+        ));
     }
 }

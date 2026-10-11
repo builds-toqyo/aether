@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use crate::commands::editing::ProjectInfo;
 use log::{info, warn};
 use rusqlite::{Connection, params};
-use crate::commands::editing::ProjectInfo;
+use std::path::PathBuf;
 
 const DB_FILE_NAME: &str = ".aether/aether.db";
 
@@ -17,8 +17,8 @@ impl ProjectRegistry {
             std::fs::create_dir_all(parent)
                 .map_err(|e| format!("Failed to create database directory: {}", e))?;
         }
-        let conn = Connection::open(&db_path)
-            .map_err(|e| format!("Failed to open database: {}", e))?;
+        let conn =
+            Connection::open(&db_path).map_err(|e| format!("Failed to open database: {}", e))?;
         let registry = Self { conn };
         registry.init_schema()?;
         info!("Project registry SQLite db opened at {:?}", db_path);
@@ -32,8 +32,9 @@ impl ProjectRegistry {
     }
 
     fn init_schema(&self) -> Result<(), String> {
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS projects (
+        self.conn
+            .execute(
+                "CREATE TABLE IF NOT EXISTS projects (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 description TEXT,
@@ -49,11 +50,13 @@ impl ProjectRegistry {
                 file_path TEXT NOT NULL,
                 timeline_data TEXT
             )",
-            [],
-        ).map_err(|e| format!("Failed to create projects table: {}", e))?;
+                [],
+            )
+            .map_err(|e| format!("Failed to create projects table: {}", e))?;
 
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS tracks (
+        self.conn
+            .execute(
+                "CREATE TABLE IF NOT EXISTS tracks (
                 id TEXT PRIMARY KEY,
                 project_id TEXT NOT NULL,
                 track_type TEXT NOT NULL,
@@ -61,11 +64,13 @@ impl ProjectRegistry {
                 position INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
             )",
-            [],
-        ).map_err(|e| format!("Failed to create tracks table: {}", e))?;
+                [],
+            )
+            .map_err(|e| format!("Failed to create tracks table: {}", e))?;
 
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS clips (
+        self.conn
+            .execute(
+                "CREATE TABLE IF NOT EXISTS clips (
                 id TEXT PRIMARY KEY,
                 track_id TEXT NOT NULL,
                 media_id TEXT,
@@ -77,11 +82,13 @@ impl ProjectRegistry {
                 layer INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
             )",
-            [],
-        ).map_err(|e| format!("Failed to create clips table: {}", e))?;
+                [],
+            )
+            .map_err(|e| format!("Failed to create clips table: {}", e))?;
 
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS effects (
+        self.conn
+            .execute(
+                "CREATE TABLE IF NOT EXISTS effects (
                 id TEXT PRIMARY KEY,
                 clip_id TEXT NOT NULL,
                 effect_type TEXT NOT NULL,
@@ -89,11 +96,13 @@ impl ProjectRegistry {
                 parameters TEXT,
                 FOREIGN KEY (clip_id) REFERENCES clips(id) ON DELETE CASCADE
             )",
-            [],
-        ).map_err(|e| format!("Failed to create effects table: {}", e))?;
+                [],
+            )
+            .map_err(|e| format!("Failed to create effects table: {}", e))?;
 
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS media (
+        self.conn
+            .execute(
+                "CREATE TABLE IF NOT EXISTS media (
                 id TEXT PRIMARY KEY,
                 project_id TEXT NOT NULL,
                 file_path TEXT NOT NULL,
@@ -104,8 +113,9 @@ impl ProjectRegistry {
                 fps REAL NOT NULL DEFAULT 30,
                 FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
             )",
-            [],
-        ).map_err(|e| format!("Failed to create media table: {}", e))?;
+                [],
+            )
+            .map_err(|e| format!("Failed to create media table: {}", e))?;
 
         Ok(())
     }
@@ -137,10 +147,10 @@ impl ProjectRegistry {
     }
 
     pub fn remove(&self, project_id: &str) -> Result<bool, String> {
-        let rows = self.conn.execute(
-            "DELETE FROM projects WHERE id = ?1",
-            [project_id],
-        ).map_err(|e| format!("Failed to remove project: {}", e))?;
+        let rows = self
+            .conn
+            .execute("DELETE FROM projects WHERE id = ?1", [project_id])
+            .map_err(|e| format!("Failed to remove project: {}", e))?;
         Ok(rows > 0)
     }
 
@@ -150,12 +160,18 @@ impl ProjectRegistry {
              FROM projects WHERE id = ?1"
         ).map_err(|e| format!("Failed to prepare query: {}", e))?;
 
-        let mut rows = stmt.query([project_id])
+        let mut rows = stmt
+            .query([project_id])
             .map_err(|e| format!("Failed to query project: {}", e))?;
 
-        if let Some(row) = rows.next()
-            .map_err(|e| format!("Failed to read row: {}", e))? {
-            Ok(Some(Self::row_to_project_with_timeline(row).map_err(|e| format!("Row parse error: {}", e))?))
+        if let Some(row) = rows
+            .next()
+            .map_err(|e| format!("Failed to read row: {}", e))?
+        {
+            Ok(Some(
+                Self::row_to_project_with_timeline(row)
+                    .map_err(|e| format!("Row parse error: {}", e))?,
+            ))
         } else {
             Ok(None)
         }
@@ -167,7 +183,8 @@ impl ProjectRegistry {
              FROM projects ORDER BY modified_at DESC"
         ).map_err(|e| format!("Failed to prepare query: {}", e))?;
 
-        let rows = stmt.query_map([], |row| Self::row_to_project(row))
+        let rows = stmt
+            .query_map([], |row| Self::row_to_project(row))
             .map_err(|e| format!("Failed to query projects: {}", e))?;
 
         let mut projects = Vec::new();
@@ -186,7 +203,8 @@ impl ProjectRegistry {
              FROM projects ORDER BY modified_at DESC LIMIT ?1"
         ).map_err(|e| format!("Failed to prepare query: {}", e))?;
 
-        let rows = stmt.query_map([limit as i64], |row| Self::row_to_project(row))
+        let rows = stmt
+            .query_map([limit as i64], |row| Self::row_to_project(row))
             .map_err(|e| format!("Failed to query recent projects: {}", e))?;
 
         let mut projects = Vec::new();
@@ -216,7 +234,9 @@ impl ProjectRegistry {
         })
     }
 
-    fn row_to_project_with_timeline(row: &rusqlite::Row) -> Result<(ProjectInfo, Option<String>), rusqlite::Error> {
+    fn row_to_project_with_timeline(
+        row: &rusqlite::Row,
+    ) -> Result<(ProjectInfo, Option<String>), rusqlite::Error> {
         Ok((
             ProjectInfo {
                 id: row.get(0)?,

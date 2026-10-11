@@ -1,14 +1,14 @@
-mod types;
-mod shader;
 mod gpu;
-mod post_process;
 mod hardware;
+mod post_process;
+mod shader;
+mod types;
 
 pub use types::{Frame, RendererConfig, RendererError};
 
+use gpu::WgpuComputeState;
 use std::sync::{Arc, Mutex};
 use types::*;
-use gpu::WgpuComputeState;
 
 /// Hardware-accelerated video renderer with wgpu compute fallback
 pub struct Renderer {
@@ -54,7 +54,11 @@ impl Renderer {
             return Ok(());
         }
 
-        log::debug!("Initializing renderer with resolution: {}x{}", self.config.width, self.config.height);
+        log::debug!(
+            "Initializing renderer with resolution: {}x{}",
+            self.config.width,
+            self.config.height
+        );
 
         if self.config.use_hardware_acceleration {
             hardware::initialize_hardware_acceleration(&mut self.config, &mut self.hw_context)?;
@@ -92,7 +96,9 @@ impl Renderer {
 
     pub fn render(&mut self, input_data: &[u8], timestamp: f64) -> Result<&Frame, RendererError> {
         if !self.is_initialized {
-            return Err(RendererError::InitializationError("Renderer not initialized".to_string()));
+            return Err(RendererError::InitializationError(
+                "Renderer not initialized".to_string(),
+            ));
         }
 
         let mut state = self.state.lock().unwrap();
@@ -113,7 +119,11 @@ impl Renderer {
         self.frame_count += 1;
         state.is_rendering = false;
 
-        self.current_frame.as_ref().ok_or(RendererError::RenderError("Failed to create frame".to_string()))
+        self.current_frame
+            .as_ref()
+            .ok_or(RendererError::RenderError(
+                "Failed to create frame".to_string(),
+            ))
     }
 
     pub fn current_frame(&self) -> Option<&Frame> {
@@ -133,10 +143,12 @@ impl Renderer {
         let height = self.config.height as usize;
 
         if frame_data.len() < width * height * 4 {
-            return Err(RendererError::RenderError(
-                format!("Frame data too small: {} bytes for {}x{} RGBA frame",
-                        frame_data.len(), width, height)
-            ));
+            return Err(RendererError::RenderError(format!(
+                "Frame data too small: {} bytes for {}x{} RGBA frame",
+                frame_data.len(),
+                width,
+                height
+            )));
         }
 
         if let Some(ref wgpu) = self.wgpu_compute {

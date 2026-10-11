@@ -1,16 +1,14 @@
-use std::sync::{Arc, Mutex};
-use std::path::PathBuf;
 use anyhow::Result;
-use gstreamer as gst;
-use gst::prelude::*;
 use glib;
+use gst::prelude::*;
+use gstreamer as gst;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use crate::engine::editing::types::EditingError;
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlaybackState {
-
     Stopped,
 
     Playing,
@@ -18,10 +16,8 @@ pub enum PlaybackState {
     Paused,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AudioSourceType {
-
     File(PathBuf),
 
     Uri(String),
@@ -29,19 +25,15 @@ pub enum AudioSourceType {
     Raw(Vec<u8>, String),
 }
 
-
 #[derive(Debug, Clone)]
 pub enum AudioEffectType {
-
     Equalizer {
-
         bands: Vec<f64>,
 
         gains: Vec<f64>,
     },
 
     Reverb {
-
         room_size: f64,
 
         damping: f64,
@@ -52,7 +44,6 @@ pub enum AudioEffectType {
     },
 
     Delay {
-
         time_ms: u64,
 
         feedback: f64,
@@ -61,7 +52,6 @@ pub enum AudioEffectType {
     },
 
     Compressor {
-
         threshold: f64,
 
         ratio: f64,
@@ -85,9 +75,7 @@ pub struct AudioDevice {
     pub sample_rate: u32,
 }
 
-
 pub struct AudioTrack {
-
     id: String,
 
     _source: AudioSourceType,
@@ -132,7 +120,6 @@ pub struct AudioTrack {
 }
 
 impl AudioTrack {
-
     pub fn new(id: &str, source: AudioSourceType) -> Self {
         Self {
             id: id.to_string(),
@@ -171,8 +158,9 @@ impl AudioTrack {
         }
 
         if let Some(pipeline) = &self.pipeline {
-            pipeline.set_state(gst::State::Playing)
-                .map_err(|_| EditingError::AudioError("Failed to set pipeline to playing state".to_string()))?;
+            pipeline.set_state(gst::State::Playing).map_err(|_| {
+                EditingError::AudioError("Failed to set pipeline to playing state".to_string())
+            })?;
 
             self.playback_state = PlaybackState::Playing;
         }
@@ -182,8 +170,9 @@ impl AudioTrack {
 
     pub fn pause(&mut self) -> Result<(), EditingError> {
         if let Some(pipeline) = &self.pipeline {
-            pipeline.set_state(gst::State::Paused)
-                .map_err(|_| EditingError::AudioError("Failed to set pipeline to paused state".to_string()))?;
+            pipeline.set_state(gst::State::Paused).map_err(|_| {
+                EditingError::AudioError("Failed to set pipeline to paused state".to_string())
+            })?;
 
             self.playback_state = PlaybackState::Paused;
         }
@@ -193,8 +182,9 @@ impl AudioTrack {
 
     pub fn stop(&mut self) -> Result<(), EditingError> {
         if let Some(pipeline) = &self.pipeline {
-            pipeline.set_state(gst::State::Ready)
-                .map_err(|_| EditingError::AudioError("Failed to set pipeline to ready state".to_string()))?;
+            pipeline.set_state(gst::State::Ready).map_err(|_| {
+                EditingError::AudioError("Failed to set pipeline to ready state".to_string())
+            })?;
 
             self.playback_state = PlaybackState::Stopped;
         }
@@ -234,17 +224,16 @@ impl AudioTrack {
         Ok(())
     }
 
-
     pub fn set_solo(&mut self, solo: bool) -> Result<(), EditingError> {
         self.soloed = solo;
 
         Ok(())
     }
 
-
     pub fn position(&self) -> Result<f64, EditingError> {
         if let Some(pipeline) = &self.pipeline {
-            let position = pipeline.query_position::<gst::ClockTime>()
+            let position = pipeline
+                .query_position::<gst::ClockTime>()
                 .map(|pos| pos.seconds() as f64 / 1_000_000_000.0)
                 .unwrap_or(0.0);
 
@@ -254,10 +243,10 @@ impl AudioTrack {
         }
     }
 
-
     pub fn duration(&self) -> Result<f64, EditingError> {
         if let Some(pipeline) = &self.pipeline {
-            let duration = pipeline.query_duration::<gst::ClockTime>()
+            let duration = pipeline
+                .query_duration::<gst::ClockTime>()
                 .map(|dur| dur.seconds() as f64 / 1_000_000_000.0)
                 .unwrap_or(0.0);
 
@@ -267,22 +256,24 @@ impl AudioTrack {
         }
     }
 
-
     pub fn seek(&self, position: f64) -> Result<(), EditingError> {
         if let Some(pipeline) = &self.pipeline {
             let position_ns = (position * 1_000_000_000.0) as u64;
 
-            pipeline.seek_simple(
-                gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
-                position_ns.nseconds(),
-            ).map_err(|_| EditingError::AudioError("Failed to seek".to_string()))?;
+            pipeline
+                .seek_simple(
+                    gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT,
+                    position_ns.nseconds(),
+                )
+                .map_err(|_| EditingError::AudioError("Failed to seek".to_string()))?;
 
             Ok(())
         } else {
-            Err(EditingError::AudioError("Pipeline not initialized".to_string()))
+            Err(EditingError::AudioError(
+                "Pipeline not initialized".to_string(),
+            ))
         }
     }
-
 
     pub fn add_effect(&mut self, effect_type: AudioEffectType) -> Result<(), EditingError> {
         if self.audio_bin.is_none() {
@@ -291,20 +282,21 @@ impl AudioTrack {
 
         let audio_bin = self.audio_bin.as_ref().unwrap();
 
-
         let effect_element = match &effect_type {
             AudioEffectType::Equalizer { bands, gains } => {
                 if bands.len() != gains.len() {
-                    return Err(EditingError::AudioError("Number of bands must match number of gains".to_string()));
+                    return Err(EditingError::AudioError(
+                        "Number of bands must match number of gains".to_string(),
+                    ));
                 }
-
 
                 let equalizer = gst::ElementFactory::make("equalizer-nbands")
                     .name(&format!("eq-{}-{}", self.id, self.effects.len()))
                     .property("num-bands", bands.len() as i32)
                     .build()
-                    .map_err(|_| EditingError::AudioError("Failed to create equalizer element".to_string()))?;
-
+                    .map_err(|_| {
+                        EditingError::AudioError("Failed to create equalizer element".to_string())
+                    })?;
 
                 for (i, (freq, gain)) in bands.iter().zip(gains.iter()).enumerate() {
                     equalizer.set_property(&format!("band{}-freq", i), freq);
@@ -312,9 +304,13 @@ impl AudioTrack {
                 }
 
                 equalizer
-            },
-            AudioEffectType::Reverb { room_size, damping, wet_level, dry_level } => {
-
+            }
+            AudioEffectType::Reverb {
+                room_size,
+                damping,
+                wet_level,
+                dry_level,
+            } => {
                 let reverb = gst::ElementFactory::make("freeverb")
                     .name(&format!("reverb-{}-{}", self.id, self.effects.len()))
                     .property("room-size", room_size)
@@ -322,17 +318,23 @@ impl AudioTrack {
                     .property("level", wet_level)
                     .property("dry", dry_level)
                     .build()
-                    .map_err(|_| EditingError::AudioError("Failed to create reverb element".to_string()))?;
+                    .map_err(|_| {
+                        EditingError::AudioError("Failed to create reverb element".to_string())
+                    })?;
 
                 reverb
-            },
-            AudioEffectType::Delay { time_ms, feedback, mix } => {
-
+            }
+            AudioEffectType::Delay {
+                time_ms,
+                feedback,
+                mix,
+            } => {
                 let delay = gst::ElementFactory::make("ladspa-delay")
                     .name(&format!("delay-{}-{}", self.id, self.effects.len()))
                     .build()
-                    .map_err(|_| EditingError::AudioError("Failed to create delay element".to_string()))?;
-
+                    .map_err(|_| {
+                        EditingError::AudioError("Failed to create delay element".to_string())
+                    })?;
 
                 let delay_seconds = *time_ms as f64 / 1000.0;
                 delay.set_property("delay-time", delay_seconds);
@@ -340,9 +342,14 @@ impl AudioTrack {
                 delay.set_property("dry-wet", mix);
 
                 delay
-            },
-            AudioEffectType::Compressor { threshold, ratio, attack, release, makeup } => {
-
+            }
+            AudioEffectType::Compressor {
+                threshold,
+                ratio,
+                attack,
+                release,
+                makeup,
+            } => {
                 let compressor = gst::ElementFactory::make("audiodynamic")
                     .name(&format!("comp-{}-{}", self.id, self.effects.len()))
                     .property("mode", 1)
@@ -352,12 +359,13 @@ impl AudioTrack {
                     .property("release", release / 1000.0)
                     .property("makeup", *makeup > 0.0)
                     .build()
-                    .map_err(|_| EditingError::AudioError("Failed to create compressor element".to_string()))?;
+                    .map_err(|_| {
+                        EditingError::AudioError("Failed to create compressor element".to_string())
+                    })?;
 
                 compressor
-            },
+            }
         };
-
 
         let last_effect = if !self.effects.is_empty() {
             &self.effects[self.effects.len() - 1]
@@ -365,49 +373,48 @@ impl AudioTrack {
             self.pan.as_ref().unwrap()
         };
 
-
         let resample = audio_bin.by_name(&format!("resample-{}", self.id)).unwrap();
-
 
         last_effect.unlink(&resample);
 
-
-        audio_bin.add(&effect_element)
+        audio_bin
+            .add(&effect_element)
             .map_err(|_| EditingError::AudioError("Failed to add effect to bin".to_string()))?;
 
+        last_effect.link(&effect_element).map_err(|_| {
+            EditingError::AudioError("Failed to link last effect to new effect".to_string())
+        })?;
 
-        last_effect.link(&effect_element)
-            .map_err(|_| EditingError::AudioError("Failed to link last effect to new effect".to_string()))?;
+        effect_element.link(&resample).map_err(|_| {
+            EditingError::AudioError("Failed to link new effect to resample".to_string())
+        })?;
 
-
-        effect_element.link(&resample)
-            .map_err(|_| EditingError::AudioError("Failed to link new effect to resample".to_string()))?;
-
-
-        effect_element.sync_state_with_parent()
-            .map_err(|_| EditingError::AudioError("Failed to sync effect state with parent".to_string()))?;
-
+        effect_element.sync_state_with_parent().map_err(|_| {
+            EditingError::AudioError("Failed to sync effect state with parent".to_string())
+        })?;
 
         self.effects.push(effect_element);
 
         Ok(())
     }
 
-
     pub fn remove_effect(&mut self, index: usize) -> Result<(), EditingError> {
         if index >= self.effects.len() {
-            return Err(EditingError::AudioError(format!("Effect index {} out of bounds", index)));
+            return Err(EditingError::AudioError(format!(
+                "Effect index {} out of bounds",
+                index
+            )));
         }
 
         if self.audio_bin.is_none() {
-            return Err(EditingError::AudioError("Track not initialized".to_string()));
+            return Err(EditingError::AudioError(
+                "Track not initialized".to_string(),
+            ));
         }
 
         let audio_bin = self.audio_bin.as_ref().unwrap();
 
-
         let effect = &self.effects[index];
-
 
         let prev_element = if index > 0 {
             &self.effects[index - 1]
@@ -415,37 +422,32 @@ impl AudioTrack {
             self.pan.as_ref().unwrap()
         };
 
-
         let next_element = if index < self.effects.len() - 1 {
             &self.effects[index + 1]
         } else {
             &audio_bin.by_name(&format!("resample-{}", self.id)).unwrap()
         };
 
-
         prev_element.unlink(effect);
         effect.unlink(next_element);
 
+        prev_element.link(next_element).map_err(|_| {
+            EditingError::AudioError("Failed to link elements after removing effect".to_string())
+        })?;
 
-        prev_element.link(next_element)
-            .map_err(|_| EditingError::AudioError("Failed to link elements after removing effect".to_string()))?;
-
-
-        audio_bin.remove(effect)
-            .map_err(|_| EditingError::AudioError("Failed to remove effect from bin".to_string()))?;
-
+        audio_bin.remove(effect).map_err(|_| {
+            EditingError::AudioError("Failed to remove effect from bin".to_string())
+        })?;
 
         self.effects.remove(index);
 
         Ok(())
     }
 
-
     pub fn clear_effects(&mut self) -> Result<(), EditingError> {
         if self.audio_bin.is_none() {
             return Ok(());
         }
-
 
         while !self.effects.is_empty() {
             self.remove_effect(self.effects.len() - 1)?;
@@ -454,16 +456,13 @@ impl AudioTrack {
         Ok(())
     }
 
-
     pub fn get_effects(&self) -> &[gst::Element] {
         &self.effects
     }
 
-
     pub fn get_peak_levels(&self) -> (f64, f64) {
         self.peak_levels
     }
-
 
     pub fn update_peak_levels(&mut self) -> Result<(f64, f64), EditingError> {
         if self.level.is_none() {
@@ -478,8 +477,8 @@ impl AudioTrack {
                         if let Some(structure) = element.structure() {
                             if structure.name() == "level" {
                                 if let Ok(peak) = structure.get::<gst::List>("peak") {
-                                    let mut peaks = peak.as_slice().iter()
-                                        .filter_map(|v| v.get::<f64>().ok());
+                                    let mut peaks =
+                                        peak.as_slice().iter().filter_map(|v| v.get::<f64>().ok());
                                     let left = peaks.next().unwrap_or(0.0);
                                     let right = peaks.next().unwrap_or(left);
                                     self.peak_levels = (left, right);
@@ -494,109 +493,94 @@ impl AudioTrack {
         Ok(self.peak_levels)
     }
 
-
     pub fn get_track(&self, id: &str) -> Option<Arc<Mutex<AudioTrack>>> {
         self.tracks.get(id).cloned()
     }
 
-
     pub fn get_tracks(&self) -> Vec<Arc<Mutex<AudioTrack>>> {
         self.tracks.values().cloned().collect()
     }
-
 
     pub fn play_engine(&mut self) -> Result<(), EditingError> {
         if !self.initialized {
             self.initialize()?;
         }
 
-
         if let Some(pipeline) = &self.pipeline {
-            pipeline.set_state(gst::State::Playing)
-                .map_err(|_| EditingError::AudioError("Failed to set pipeline to playing state".to_string()))?;
+            pipeline.set_state(gst::State::Playing).map_err(|_| {
+                EditingError::AudioError("Failed to set pipeline to playing state".to_string())
+            })?;
         }
 
         Ok(())
     }
-
 
     pub fn pause_engine(&mut self) -> Result<(), EditingError> {
         if let Some(pipeline) = &self.pipeline {
-            pipeline.set_state(gst::State::Paused)
-                .map_err(|_| EditingError::AudioError("Failed to set pipeline to paused state".to_string()))?;
+            pipeline.set_state(gst::State::Paused).map_err(|_| {
+                EditingError::AudioError("Failed to set pipeline to paused state".to_string())
+            })?;
         }
 
         Ok(())
     }
-
 
     pub fn stop_engine(&mut self) -> Result<(), EditingError> {
         if let Some(pipeline) = &self.pipeline {
-            pipeline.set_state(gst::State::Ready)
-                .map_err(|_| EditingError::AudioError("Failed to set pipeline to ready state".to_string()))?;
+            pipeline.set_state(gst::State::Ready).map_err(|_| {
+                EditingError::AudioError("Failed to set pipeline to ready state".to_string())
+            })?;
         }
 
         Ok(())
     }
 
-
     pub fn refresh_devices(&mut self) -> Result<(), EditingError> {
-
         let monitor = gst::DeviceMonitor::new();
-
 
         monitor.add_filter(Some("Audio/Source"), None);
         monitor.add_filter(Some("Audio/Sink"), None);
 
-
         if monitor.start().is_err() {
-            return Err(EditingError::AudioError("Failed to start device monitor".to_string()));
+            return Err(EditingError::AudioError(
+                "Failed to start device monitor".to_string(),
+            ));
         }
-
 
         let devices = monitor.devices();
 
-
         monitor.stop();
 
-
         self.devices.clear();
-
 
         for device in devices {
             let props = device.properties().unwrap();
 
-
-            let name = props.get::<String>("device.description")
+            let name = props
+                .get::<String>("device.description")
                 .unwrap_or_else(|_| device.display_name().to_string());
 
-            let device_class = props.get::<String>("device.class")
-                .unwrap_or_default();
+            let device_class = props.get::<String>("device.class").unwrap_or_default();
 
             let is_input = device_class.contains("source");
-            let is_default = props.get::<bool>("device.is_default")
-                .unwrap_or(false);
+            let is_default = props.get::<bool>("device.is_default").unwrap_or(false);
 
-
-            let id = props.get::<String>("device.path")
+            let id = props
+                .get::<String>("device.path")
                 .or_else(|_| props.get::<String>("device.id"))
                 .unwrap_or_else(|_| format!("device-{}", self.devices.len()));
-
 
             let caps = device.caps().unwrap();
             let mut channels = 2;
             let mut sample_rate = 48000;
 
-
             for i in 0..caps.size() {
                 let structure = caps.structure(i).unwrap();
 
                 if structure.name().starts_with("audio/") {
-
                     if let Ok(ch) = structure.get::<i32>("channels") {
                         channels = ch as u32;
                     }
-
 
                     if let Ok(rate) = structure.get::<i32>("rate") {
                         sample_rate = rate as u32;
@@ -605,7 +589,6 @@ impl AudioTrack {
                     break;
                 }
             }
-
 
             let audio_device = AudioDevice {
                 name,
@@ -617,10 +600,8 @@ impl AudioTrack {
                 sample_rate,
             };
 
-
             self.devices.push(audio_device);
         }
-
 
         if self.devices.is_empty() {
             self.devices = vec![
@@ -648,11 +629,9 @@ impl AudioTrack {
         Ok(())
     }
 
-
     pub fn get_devices(&self) -> &[AudioDevice] {
         &self.devices
     }
-
 
     pub fn set_master_volume(&mut self, volume: f64) -> Result<(), EditingError> {
         let volume = volume.max(0.0).min(1.0);
@@ -665,37 +644,30 @@ impl AudioTrack {
         Ok(())
     }
 
-
     pub fn master_volume(&self) -> f64 {
         self.master_volume
     }
-
 
     pub fn shutdown(&mut self) -> Result<(), EditingError> {
         if !self.initialized {
             return Ok(());
         }
 
-
         for (_, track) in &self.tracks {
             let mut track = track.lock().unwrap();
-
 
             if let Some(watch_id) = track.level_watch_id.take() {
                 watch_id.remove();
             }
-
 
             if let Some(pipeline) = &track.pipeline {
                 let _ = pipeline.set_state(gst::State::Null);
             }
         }
 
-
         if let Some(pipeline) = &self.pipeline {
             let _ = pipeline.set_state(gst::State::Null);
         }
-
 
         if let Some(watch_id) = self.bus_watch_id.take() {
             let _ = watch_id.remove();
@@ -706,76 +678,67 @@ impl AudioTrack {
         Ok(())
     }
 
-
     pub fn set_output_device(&mut self, device_id: &str) -> Result<(), EditingError> {
-
         self.output_device = Some(device_id.to_string());
-
 
         if self.initialized {
             if let Some(pipeline) = &self.pipeline {
-
                 let old_sink = pipeline.by_name("audio-sink").unwrap();
-
 
                 let new_sink = gst::ElementFactory::make("autoaudiosink")
                     .name("audio-sink")
                     .property("device", device_id)
                     .build()
-                    .map_err(|_| EditingError::AudioError("Failed to create audio sink".to_string()))?;
-
+                    .map_err(|_| {
+                        EditingError::AudioError("Failed to create audio sink".to_string())
+                    })?;
 
                 let volume = self.master_volume_element.as_ref().unwrap();
 
-
                 volume.unlink(&old_sink);
 
+                pipeline.add(&new_sink).map_err(|_| {
+                    EditingError::AudioError("Failed to add new sink to pipeline".to_string())
+                })?;
 
-                pipeline.add(&new_sink)
-                    .map_err(|_| EditingError::AudioError("Failed to add new sink to pipeline".to_string()))?;
+                volume.link(&new_sink).map_err(|_| {
+                    EditingError::AudioError("Failed to link volume to new sink".to_string())
+                })?;
 
+                new_sink.sync_state_with_parent().map_err(|_| {
+                    EditingError::AudioError(
+                        "Failed to sync new sink state with parent".to_string(),
+                    )
+                })?;
 
-                volume.link(&new_sink)
-                    .map_err(|_| EditingError::AudioError("Failed to link volume to new sink".to_string()))?;
-
-
-                new_sink.sync_state_with_parent()
-                    .map_err(|_| EditingError::AudioError("Failed to sync new sink state with parent".to_string()))?;
-
-
-                pipeline.remove(&old_sink)
-                    .map_err(|_| EditingError::AudioError("Failed to remove old sink from pipeline".to_string()))?;
+                pipeline.remove(&old_sink).map_err(|_| {
+                    EditingError::AudioError("Failed to remove old sink from pipeline".to_string())
+                })?;
             }
         }
 
         Ok(())
     }
 
-
     pub fn get_output_device(&self) -> Option<&str> {
         self.output_device.as_deref()
     }
-
 
     pub fn get_device_by_id(&self, id: &str) -> Option<&AudioDevice> {
         self.devices.iter().find(|d| d.id == id)
     }
 
-
     pub fn get_default_output_device(&self) -> Option<&AudioDevice> {
         self.devices.iter().find(|d| !d.is_input && d.is_default)
     }
-
 
     pub fn get_default_input_device(&self) -> Option<&AudioDevice> {
         self.devices.iter().find(|d| d.is_input && d.is_default)
     }
 
-
     pub fn get_output_devices(&self) -> Vec<&AudioDevice> {
         self.devices.iter().filter(|d| !d.is_input).collect()
     }
-
 
     pub fn get_input_devices(&self) -> Vec<&AudioDevice> {
         self.devices.iter().filter(|d| d.is_input).collect()

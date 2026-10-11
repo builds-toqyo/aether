@@ -1,54 +1,37 @@
+use crate::engine::editing::types::EditingError;
+use crate::engine::editing::{
+    EditingEngine, ExportOptions as GstExportOptions, ExportProgress as GstExportProgress,
+};
+use crate::engine::rendering::{ExportOptions as FfmpegExportOptions, RenderingEngine};
+use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use anyhow::Result;
-use crate::engine::editing::{
-    EditingEngine,
-    ExportOptions as GstExportOptions,
-    ExportProgress as GstExportProgress
-};
-use crate::engine::rendering::{
-    RenderingEngine,
-    ExportOptions as FfmpegExportOptions
-};
-use crate::engine::editing::types::EditingError;
-
 
 #[derive(Debug, Clone)]
 pub struct ExportProgress {
-
     pub stage: ExportStage,
-
 
     pub percent: f64,
 
-
     pub stage_progress: Option<String>,
 
-
     pub complete: bool,
-
 
     pub error: Option<String>,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportStage {
-
     Preparing,
-
 
     IntermediateExport,
 
-
     FinalRendering,
-
 
     Cleanup,
 }
 
 impl ExportStage {
-
     pub fn display_name(&self) -> &'static str {
         match self {
             ExportStage::Preparing => "Preparing",
@@ -84,8 +67,10 @@ impl ExportOptions {
         let output_path = output_path.as_ref().to_path_buf();
 
         // Create a temporary path for the intermediate file
-        let intermediate_path = std::env::temp_dir()
-            .join(format!("aether_intermediate_{}", chrono::Utc::now().timestamp()));
+        let intermediate_path = std::env::temp_dir().join(format!(
+            "aether_intermediate_{}",
+            chrono::Utc::now().timestamp()
+        ));
 
         // Create GStreamer export options
         let mut gst_options = GstExportOptions::default();
@@ -152,13 +137,21 @@ impl IntegratedExporter {
     pub fn start_export(&mut self) -> Result<(), EditingError> {
         self.update_progress(ExportStage::Preparing, 0.0, None);
 
-        let _timeline = self.editing_engine.lock().unwrap()
-            .timeline().lock().unwrap()
+        let _timeline = self
+            .editing_engine
+            .lock()
+            .unwrap()
+            .timeline()
+            .lock()
+            .unwrap()
             .get_ges_timeline()
             .ok_or(EditingError::NotInitialized)?
             .clone();
 
-        let intermediate_exporter = self.editing_engine.lock().unwrap()
+        let intermediate_exporter = self
+            .editing_engine
+            .lock()
+            .unwrap()
             .create_intermediate_export(self.options.gst_options.clone())?;
 
         self.intermediate_exporter = Some(intermediate_exporter);
@@ -209,18 +202,14 @@ impl IntegratedExporter {
         }
     }
 
-
     pub fn cancel_export(&mut self) -> Result<(), EditingError> {
-
         if let Some(ref mut exporter) = self.intermediate_exporter {
             exporter.cancel_export()?;
         }
 
-
         if let Some(ref exporter) = self.final_exporter {
             exporter.lock().unwrap().cancel()?;
         }
-
 
         let mut progress = self.progress.lock().unwrap();
         progress.error = Some("Export cancelled".to_string());
@@ -233,17 +222,19 @@ impl IntegratedExporter {
         Ok(())
     }
 
-
     pub fn get_progress(&self) -> ExportProgress {
         self.progress.lock().unwrap().clone()
     }
 }
-
 
 pub fn create_integrated_exporter(
     editing_engine: Arc<Mutex<EditingEngine>>,
     rendering_engine: Arc<Mutex<RenderingEngine>>,
     options: ExportOptions,
 ) -> Result<IntegratedExporter, EditingError> {
-    Ok(IntegratedExporter::new(editing_engine, rendering_engine, options))
+    Ok(IntegratedExporter::new(
+        editing_engine,
+        rendering_engine,
+        options,
+    ))
 }

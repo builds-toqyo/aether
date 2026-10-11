@@ -1,13 +1,10 @@
-use serde::{Serialize, Deserialize};
-use tauri::State;
 use anyhow::Result;
 use log::{debug, info, warn};
+use serde::{Deserialize, Serialize};
+use tauri::State;
 
 use crate::state::AppState;
-use aether_core::engine::editing::{
-    ImportOptions,
-    types::TrackType
-};
+use aether_core::engine::editing::{ImportOptions, types::TrackType};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ProjectInfo {
@@ -72,7 +69,6 @@ pub struct MediaExportRequest {
     pub audio_settings: Option<AudioExportSettings>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ExportFormat {
     Mp4,
@@ -86,19 +82,14 @@ pub enum ExportFormat {
     AudioOnly,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ExportQuality {
     Low,
     Medium,
     High,
     Ultra,
-    Custom {
-        bitrate: u32,
-        preset: String,
-    },
+    Custom { bitrate: u32, preset: String },
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AudioExportSettings {
@@ -107,7 +98,6 @@ pub struct AudioExportSettings {
     pub sample_rate: u32,
     pub channels: u8,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum AudioCodec {
@@ -183,7 +173,10 @@ pub async fn project_init(
     let project_path = format!("{}", project_id);
 
     // Initialize project in the editing engine
-    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .init_project(Some(project_path.clone()))
         .map_err(|e| format!("{}", e))?;
 
@@ -223,13 +216,18 @@ pub async fn project_save(
         return Err("Project ID cannot be empty".to_string());
     }
 
-
-    let timeline_info = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    let timeline_info = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .get_timeline_info()
         .map_err(|e| format!("Failed to get timeline info: {}", e))?;
 
     // Preserve the original creation timestamp if this project was saved before
-    let existing_created_at = state.project_registry.lock().ok()
+    let existing_created_at = state
+        .project_registry
+        .lock()
+        .ok()
         .and_then(|registry| registry.get(&request.project_id).ok().flatten())
         .map(|(info, _)| info.created_at);
 
@@ -299,8 +297,8 @@ pub async fn project_save(
     };
 
     if let Ok(registry) = state.project_registry.lock() {
-        let timeline_json = serde_json::to_string(&timeline_info)
-            .unwrap_or_else(|_| "{}".to_string());
+        let timeline_json =
+            serde_json::to_string(&timeline_info).unwrap_or_else(|_| "{}".to_string());
         let _ = registry.add(&project_info, Some(&timeline_json));
     }
 
@@ -308,7 +306,7 @@ pub async fn project_save(
         use crate::commands::plugin::PluginHook;
         plugin_registry.invoke_hook(
             PluginHook::OnProjectSave,
-            &serde_json::json!({"project_id": project_info.id, "file_path": file_path})
+            &serde_json::json!({"project_id": project_info.id, "file_path": file_path}),
         );
     }
 
@@ -331,40 +329,60 @@ struct RestoreClip {
 fn load_project_file(file_path: &str) -> Result<(ProjectInfo, Vec<RestoreClip>), String> {
     let contents = std::fs::read_to_string(file_path)
         .map_err(|e| format!("Failed to read project file: {}", e))?;
-    let data: serde_json::Value = serde_json::from_str(&contents)
-        .map_err(|e| format!("Invalid project file: {}", e))?;
+    let data: serde_json::Value =
+        serde_json::from_str(&contents).map_err(|e| format!("Invalid project file: {}", e))?;
 
     let version = data.get("version").and_then(|v| v.as_u64()).unwrap_or(1);
     if version > 1 {
         return Err(format!("Unsupported project file version: {}", version));
     }
 
-    let restore_clips: Vec<RestoreClip> = data.get("clips")
+    let restore_clips: Vec<RestoreClip> = data
+        .get("clips")
         .and_then(|c| c.as_array())
-        .map(|arr| arr.iter().filter_map(|c| {
-            Some(RestoreClip {
-                source_file: c.get("source_path")?.as_str()?.to_string(),
-                is_video: c.get("track_type").and_then(|t| t.as_str()) != Some("Audio"),
-                start_time: c.get("start_time")?.as_f64()?,
-                duration: c.get("duration")?.as_f64()?,
-                in_point: c.get("in_point").and_then(|v| v.as_f64()).unwrap_or(0.0),
-            })
-        }).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|c| {
+                    Some(RestoreClip {
+                        source_file: c.get("source_path")?.as_str()?.to_string(),
+                        is_video: c.get("track_type").and_then(|t| t.as_str()) != Some("Audio"),
+                        start_time: c.get("start_time")?.as_f64()?,
+                        duration: c.get("duration")?.as_f64()?,
+                        in_point: c.get("in_point").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                    })
+                })
+                .collect()
+        })
         .unwrap_or_default();
 
     let now = chrono::Utc::now().to_rfc3339();
     let project_info = ProjectInfo {
-        id: data.get("project_id").and_then(|v| v.as_str()).map(String::from)
+        id: data
+            .get("project_id")
+            .and_then(|v| v.as_str())
+            .map(String::from)
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-        name: data.get("name").and_then(|v| v.as_str()).map(String::from)
+        name: data
+            .get("name")
+            .and_then(|v| v.as_str())
+            .map(String::from)
             .unwrap_or_else(|| "Untitled".to_string()),
         description: None,
-        created_at: data.get("created_at").and_then(|v| v.as_str()).map(String::from)
+        created_at: data
+            .get("created_at")
+            .and_then(|v| v.as_str())
+            .map(String::from)
             .unwrap_or_else(|| now.clone()),
-        modified_at: data.get("modified_at").and_then(|v| v.as_str()).map(String::from)
+        modified_at: data
+            .get("modified_at")
+            .and_then(|v| v.as_str())
+            .map(String::from)
             .unwrap_or(now),
         duration: data.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0) / 1_000_000_000.0,
-        fps: data.pointer("/timeline_settings/fps").and_then(|v| v.as_f64()).unwrap_or(30.0),
+        fps: data
+            .pointer("/timeline_settings/fps")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(30.0),
         resolution: (1920, 1080),
         timeline_count: 1,
         media_count: restore_clips.len(),
@@ -390,18 +408,24 @@ pub async fn project_load(
     // Resolve from the registry by project id, then by file path
     let mut resolved: Option<(ProjectInfo, Option<String>)> = None;
     {
-        let registry = state.project_registry.lock()
+        let registry = state
+            .project_registry
+            .lock()
             .map_err(|e| format!("Failed to lock project registry: {}", e))?;
         if let Some(pid) = &request.project_id {
-            resolved = registry.get(pid)
+            resolved = registry
+                .get(pid)
                 .map_err(|e| format!("Failed to query project from registry: {}", e))?;
         }
         if resolved.is_none() {
-            if let Some(found) = registry.get_all()
+            if let Some(found) = registry
+                .get_all()
                 .map_err(|e| format!("Failed to query project registry: {}", e))?
                 .into_iter()
-                .find(|p| p.file_path == request.file_path) {
-                resolved = registry.get(&found.id)
+                .find(|p| p.file_path == request.file_path)
+            {
+                resolved = registry
+                    .get(&found.id)
                     .map_err(|e| format!("Failed to query project from registry: {}", e))?;
             }
         }
@@ -411,12 +435,17 @@ pub async fn project_load(
         Some((info, timeline_data)) => {
             let mut clips = Vec::new();
             if let Some(timeline_json) = timeline_data {
-                if let Ok(timeline_info) = serde_json::from_str::<crate::commands::timeline::TimelineInfo>(&timeline_json) {
+                if let Ok(timeline_info) =
+                    serde_json::from_str::<crate::commands::timeline::TimelineInfo>(&timeline_json)
+                {
                     for clip_data in &timeline_info.clips {
                         if let Some(source_file) = &clip_data.source_file {
                             clips.push(RestoreClip {
                                 source_file: source_file.clone(),
-                                is_video: !matches!(clip_data.clip_type, crate::commands::timeline::ClipType::Audio),
+                                is_video: !matches!(
+                                    clip_data.clip_type,
+                                    crate::commands::timeline::ClipType::Audio
+                                ),
                                 start_time: clip_data.start_time,
                                 duration: clip_data.duration,
                                 in_point: clip_data.in_point,
@@ -430,7 +459,10 @@ pub async fn project_load(
         None => load_project_file(&request.file_path)?,
     };
 
-    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .init_project(Some(request.file_path.clone()))
         .map_err(|e| format!("Failed to initialize project: {}", e))?;
 
@@ -443,21 +475,32 @@ pub async fn project_load(
                 format!("file://{}", clip.source_file)
             };
 
-            let track_type = if clip.is_video { TrackType::Video } else { TrackType::Audio };
+            let track_type = if clip.is_video {
+                TrackType::Video
+            } else {
+                TrackType::Audio
+            };
             let start_time = (clip.start_time * 1_000_000_000.0) as i64;
             let duration = (clip.duration * 1_000_000_000.0) as i64;
             let in_point = (clip.in_point * 1_000_000_000.0) as i64;
 
-            debug!("Restoring clip {} (start: {}, duration: {}, in_point: {})",
-                uri, start_time, duration, in_point);
+            debug!(
+                "Restoring clip {} (start: {}, duration: {}, in_point: {})",
+                uri, start_time, duration, in_point
+            );
 
-            if let Err(e) = editing_engine.timeline_add_clip(uri, track_type, start_time, duration, in_point) {
+            if let Err(e) =
+                editing_engine.timeline_add_clip(uri, track_type, start_time, duration, in_point)
+            {
                 warn!("Failed to restore clip {}: {}", clip.source_file, e);
             }
         }
     }
 
-    info!("Loaded project: {} ({} clips, {:.2}s duration)", project_info.name, project_info.media_count, project_info.duration);
+    info!(
+        "Loaded project: {} ({} clips, {:.2}s duration)",
+        project_info.name, project_info.media_count, project_info.duration
+    );
 
     if let Ok(plugin_registry) = state.plugin_registry.lock() {
         use crate::commands::plugin::PluginHook;
@@ -479,10 +522,13 @@ pub async fn project_get_recent(
 
     let limit = limit.unwrap_or(10);
 
-    let registry = state.project_registry.lock()
+    let registry = state
+        .project_registry
+        .lock()
         .map_err(|e| format!("Failed to lock project registry: {}", e))?;
 
-    let projects = registry.get_recent(limit)
+    let projects = registry
+        .get_recent(limit)
         .map_err(|e| format!("Failed to query recent projects: {}", e))?;
 
     info!("Returning {} recent projects", projects.len());
@@ -523,8 +569,12 @@ pub async fn media_import(
             proxy_format: None,
         };
 
-        match state.editing_engine.lock().map_err(|e| format!("{}", e))?
-            .import_media(file_path.clone(), import_options) {
+        match state
+            .editing_engine
+            .lock()
+            .map_err(|e| format!("{}", e))?
+            .import_media(file_path.clone(), import_options)
+        {
             Ok(core_media_info) => {
                 let media_id = format!("media_{}", uuid::Uuid::new_v4());
                 let file_name = std::path::Path::new(file_path)
@@ -541,8 +591,12 @@ pub async fn media_import(
                     file_name: file_name.to_string(),
                     file_size: core_media_info.file_size.unwrap_or(0),
                     duration: core_media_info.duration as f64 / 1_000_000_000.0,
-                    format: core_media_info.container_format.unwrap_or_else(|| "unknown".to_string()),
-                    codec: video_info.map(|v| v.codec_name.clone()).unwrap_or_else(|| "unknown".to_string()),
+                    format: core_media_info
+                        .container_format
+                        .unwrap_or_else(|| "unknown".to_string()),
+                    codec: video_info
+                        .map(|v| v.codec_name.clone())
+                        .unwrap_or_else(|| "unknown".to_string()),
                     resolution: video_info.map(|v| (v.width as u32, v.height as u32)),
                     fps: video_info.map(|v| v.frame_rate),
                     audio_channels: audio_info.map(|a| a.channels as u8),
@@ -569,7 +623,6 @@ pub async fn media_import(
     Ok(imported_media)
 }
 
-
 #[tauri::command]
 pub async fn media_get_info(
     media_id: String,
@@ -581,10 +634,13 @@ pub async fn media_get_info(
         return Err("Media ID cannot be empty".to_string());
     }
 
-    let registry = state.media_registry.lock()
+    let registry = state
+        .media_registry
+        .lock()
         .map_err(|e| format!("Failed to lock media registry: {}", e))?;
 
-    let media_info = registry.get(&media_id)
+    let media_info = registry
+        .get(&media_id)
         .cloned()
         .ok_or_else(|| format!("Media not found: {}", media_id))?;
 
@@ -593,12 +649,12 @@ pub async fn media_get_info(
 }
 
 #[tauri::command]
-pub async fn media_get_all(
-    state: State<'_, AppState>,
-) -> Result<Vec<MediaInfo>, String> {
+pub async fn media_get_all(state: State<'_, AppState>) -> Result<Vec<MediaInfo>, String> {
     debug!("Getting all media");
 
-    let registry = state.media_registry.lock()
+    let registry = state
+        .media_registry
+        .lock()
         .map_err(|e| format!("Failed to lock media registry: {}", e))?;
 
     let all_media: Vec<MediaInfo> = registry.values().cloned().collect();
@@ -618,7 +674,9 @@ pub async fn media_remove(
         return Err("Media ID cannot be empty".to_string());
     }
 
-    let mut registry = state.media_registry.lock()
+    let mut registry = state
+        .media_registry
+        .lock()
         .map_err(|e| format!("Failed to lock media registry: {}", e))?;
 
     if registry.remove(&media_id).is_none() {
@@ -636,13 +694,15 @@ pub async fn media_remove(
     })
 }
 
-
 #[tauri::command]
 pub async fn media_export(
     request: MediaExportRequest,
     state: State<'_, AppState>,
 ) -> Result<EditingResponse, String> {
-    debug!("Exporting project to: {} format: {:?}", request.output_path, request.format);
+    debug!(
+        "Exporting project to: {} format: {:?}",
+        request.output_path, request.format
+    );
 
     if request.output_path.is_empty() {
         return Err("Output path cannot be empty".to_string());
@@ -672,7 +732,10 @@ pub async fn media_export(
         exports.insert(export_id.clone(), job);
     }
 
-    info!("Export {} created (pending): {}", export_id, request.output_path);
+    info!(
+        "Export {} created (pending): {}",
+        export_id, request.output_path
+    );
     Ok(EditingResponse {
         success: true,
         message: format!("Export {} created successfully", export_id),
@@ -682,7 +745,6 @@ pub async fn media_export(
         })),
     })
 }
-
 
 #[tauri::command]
 pub async fn export_get_status(
@@ -695,7 +757,9 @@ pub async fn export_get_status(
         return Err("Export ID cannot be empty".to_string());
     }
 
-    let exports = state.active_exports.lock()
+    let exports = state
+        .active_exports
+        .lock()
         .map_err(|e| format!("Failed to lock export registry: {}", e))?;
 
     if let Some(job) = exports.get(&export_id) {
@@ -716,7 +780,6 @@ pub async fn export_get_status(
     }
 }
 
-
 #[tauri::command]
 pub async fn export_cancel(
     export_id: String,
@@ -728,7 +791,9 @@ pub async fn export_cancel(
         return Err("Export ID cannot be empty".to_string());
     }
 
-    let mut exports = state.active_exports.lock()
+    let mut exports = state
+        .active_exports
+        .lock()
         .map_err(|e| format!("Failed to lock export registry: {}", e))?;
 
     if let Some(job) = exports.get_mut(&export_id) {
@@ -748,7 +813,6 @@ pub async fn export_cancel(
     }
 }
 
-
 #[tauri::command]
 pub async fn project_auto_save(
     project_id: String,
@@ -760,7 +824,10 @@ pub async fn project_auto_save(
         return Err("Project ID cannot be empty".to_string());
     }
 
-    let timeline_info = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    let timeline_info = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .get_timeline_info()
         .map_err(|e| format!("Failed to get timeline info: {}", e))?;
 
@@ -785,7 +852,11 @@ pub async fn project_auto_save(
         return Err(format!("Failed to write auto-save file: {}", e));
     }
 
-    info!("Auto-saved project: {} to {}", project_id, auto_save_path.display());
+    info!(
+        "Auto-saved project: {} to {}",
+        project_id,
+        auto_save_path.display()
+    );
 
     Ok(EditingResponse {
         success: true,
@@ -804,7 +875,6 @@ mod tests {
 
     #[test]
     fn test_project_create_validation() {
-
         let request = ProjectCreateRequest {
             name: "".to_string(),
             description: None,
@@ -817,7 +887,6 @@ mod tests {
 
     #[test]
     fn test_media_import_validation() {
-
         let request = MediaImportRequest {
             path: None,
             file_paths: vec![],

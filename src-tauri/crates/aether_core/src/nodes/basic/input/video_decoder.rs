@@ -1,15 +1,13 @@
-use ffmpeg_next as ffmpeg;
 use ffmpeg::{format, frame, media};
-use uuid::Uuid;
+use ffmpeg_next as ffmpeg;
 use log::{debug, error, warn};
+use uuid::Uuid;
 
 pub struct VideoDecoder {
-
     _frame_cache: std::collections::HashMap<u64, Uuid>,
 }
 
 impl VideoDecoder {
-
     pub fn new() -> Self {
         Self {
             _frame_cache: std::collections::HashMap::new(),
@@ -17,7 +15,6 @@ impl VideoDecoder {
     }
 
     pub fn decode_video_frame_with_ffmpeg(&mut self, frame: u64, media_path: &str) -> Uuid {
-
         debug!("Decoding video frame {} from {}", frame, media_path);
 
         if let Err(e) = ffmpeg::init() {
@@ -33,7 +30,6 @@ impl VideoDecoder {
             }
         };
 
-
         let input_stream = match input_format_context.streams().best(media::Type::Video) {
             Some(stream) => stream,
             None => {
@@ -42,19 +38,20 @@ impl VideoDecoder {
             }
         };
 
-        let mut decoder = match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
-            Ok(context) => match context.decoder().video() {
-                Ok(decoder) => decoder,
+        let mut decoder =
+            match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
+                Ok(context) => match context.decoder().video() {
+                    Ok(decoder) => decoder,
+                    Err(e) => {
+                        error!("Failed to create video decoder: {}", e);
+                        return Uuid::new_v4();
+                    }
+                },
                 Err(e) => {
-                    error!("Failed to create video decoder: {}", e);
+                    error!("Failed to create decoder context: {}", e);
                     return Uuid::new_v4();
                 }
-            },
-            Err(e) => {
-                error!("Failed to create decoder context: {}", e);
-                return Uuid::new_v4();
-            }
-        };
+            };
 
         let width = decoder.width() as usize;
         let height = decoder.height() as usize;
@@ -84,13 +81,15 @@ impl VideoDecoder {
                 _ => (3, false),
             };
 
-            let image_data = self.extract_frame_data(&video_frame, channels, &format!("{:?}", pixel_format))
+            let image_data = self
+                .extract_frame_data(&video_frame, channels, &format!("{:?}", pixel_format))
                 .unwrap_or_else(|_| {
                     warn!("Failed to extract data for video frame: {}", frame);
                     vec![0u8; width * height * channels]
                 });
 
-            frame_id = self.upload_video_frame_to_gpu(&image_data, width, height, channels)
+            frame_id = self
+                .upload_video_frame_to_gpu(&image_data, width, height, channels)
                 .unwrap_or_else(|_| {
                     warn!("Failed to upload video frame to GPU: {}", frame);
                     Uuid::new_v4()
@@ -105,11 +104,12 @@ impl VideoDecoder {
                 frame_id,
             };
 
-            debug!("Video frame decoded via FFmpeg: {}x{} {:?} ({} channels)",
-                width, height, pixel_format, channels);
+            debug!(
+                "Video frame decoded via FFmpeg: {}x{} {:?} ({} channels)",
+                width, height, pixel_format, channels
+            );
 
             debug!("Video metadata: {:?}", frame_metadata);
-
         } else {
             warn!("No packet found for video frame: {}", frame);
         }
@@ -117,7 +117,12 @@ impl VideoDecoder {
         frame_id
     }
 
-    fn extract_frame_data(&self, frame: &frame::Video, channels: usize, _pixel_format: &str) -> Result<Vec<u8>, String> {
+    fn extract_frame_data(
+        &self,
+        frame: &frame::Video,
+        channels: usize,
+        _pixel_format: &str,
+    ) -> Result<Vec<u8>, String> {
         let width = frame.width() as usize;
         let height = frame.height() as usize;
         let line_size = frame.stride(0) as usize;
@@ -125,7 +130,6 @@ impl VideoDecoder {
         let plane_data = frame.data(0);
 
         let mut data = Vec::with_capacity(width * height * channels);
-
 
         for y in 0..height {
             let src_offset = y * line_size;
@@ -142,13 +146,24 @@ impl VideoDecoder {
         Ok(data)
     }
 
-    fn upload_video_frame_to_gpu(&self, _data: &[u8], width: usize, height: usize, channels: usize) -> Result<Uuid, String> {
-
-        debug!("Uploading video frame to GPU: {}x{} ({} channels)", width, height, channels);
+    fn upload_video_frame_to_gpu(
+        &self,
+        _data: &[u8],
+        width: usize,
+        height: usize,
+        channels: usize,
+    ) -> Result<Uuid, String> {
+        debug!(
+            "Uploading video frame to GPU: {}x{} ({} channels)",
+            width, height, channels
+        );
 
         let texture_id = Uuid::new_v4();
 
-        debug!("Video frame uploaded to GPU with texture ID: {}", texture_id);
+        debug!(
+            "Video frame uploaded to GPU with texture ID: {}",
+            texture_id
+        );
 
         Ok(texture_id)
     }

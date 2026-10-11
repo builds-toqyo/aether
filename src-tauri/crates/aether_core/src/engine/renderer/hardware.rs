@@ -11,19 +11,19 @@ pub(super) fn initialize_hardware_acceleration(
         "cuda" => {
             log::debug!("Initializing CUDA acceleration");
             initialize_cuda_acceleration(hw_context)
-        },
+        }
         "vaapi" => {
             log::debug!("Initializing VAAPI acceleration");
             initialize_vaapi_acceleration()
-        },
+        }
         "videotoolbox" => {
             log::debug!("Initializing VideoToolbox acceleration");
             initialize_videotoolbox_acceleration()
-        },
+        }
         "amf" => {
             log::debug!("Initializing AMF acceleration");
             initialize_amf_acceleration()
-        },
+        }
         _ => {
             log::debug!("Auto-detecting hardware acceleration");
             auto_detect_acceleration(config, hw_context)
@@ -32,12 +32,14 @@ pub(super) fn initialize_hardware_acceleration(
 }
 
 /// Initialize CUDA acceleration for NVIDIA GPUs
-fn initialize_cuda_acceleration(_hw_context: &mut Option<HardwareContext>) -> Result<(), RendererError> {
+fn initialize_cuda_acceleration(
+    _hw_context: &mut Option<HardwareContext>,
+) -> Result<(), RendererError> {
     #[cfg(feature = "cuda")]
     {
         if !has_nvidia_gpu() {
             return Err(RendererError::HardwareAccelerationError(
-                "No NVIDIA GPU found".to_string()
+                "No NVIDIA GPU found".to_string(),
             ));
         }
         cuda::initialize_cuda()?;
@@ -48,7 +50,7 @@ fn initialize_cuda_acceleration(_hw_context: &mut Option<HardwareContext>) -> Re
     #[cfg(not(feature = "cuda"))]
     {
         Err(RendererError::HardwareAccelerationError(
-            "CUDA feature not enabled".to_string()
+            "CUDA feature not enabled".to_string(),
         ))
     }
 }
@@ -64,7 +66,9 @@ fn initialize_vaapi_acceleration() -> Result<(), RendererError> {
         }
         // VAAPI requires libva integration for hardware-accelerated video encoding/decoding
         // For now, use wgpu compute which provides cross-platform GPU acceleration
-        log::warn!("VAAPI hardware acceleration not fully implemented. Using wgpu compute as fallback.");
+        log::warn!(
+            "VAAPI hardware acceleration not fully implemented. Using wgpu compute as fallback."
+        );
         Err(RendererError::HardwareAccelerationError(
             "VAAPI requires libva integration. Use wgpu compute for cross-platform GPU acceleration.".to_string()
         ))
@@ -72,7 +76,7 @@ fn initialize_vaapi_acceleration() -> Result<(), RendererError> {
     #[cfg(not(all(feature = "vaapi", target_os = "linux")))]
     {
         Err(RendererError::HardwareAccelerationError(
-            "VAAPI is only available on Linux with the 'vaapi' feature enabled".to_string()
+            "VAAPI is only available on Linux with the 'vaapi' feature enabled".to_string(),
         ))
     }
 }
@@ -83,7 +87,9 @@ fn initialize_videotoolbox_acceleration() -> Result<(), RendererError> {
     {
         // VideoToolbox requires Metal framework integration for hardware-accelerated video encoding/decoding
         // For now, use wgpu compute which provides cross-platform GPU acceleration including Metal backend on macOS
-        log::warn!("VideoToolbox hardware acceleration not fully implemented. Using wgpu compute as fallback.");
+        log::warn!(
+            "VideoToolbox hardware acceleration not fully implemented. Using wgpu compute as fallback."
+        );
         Err(RendererError::HardwareAccelerationError(
             "VideoToolbox requires Metal framework integration. Use wgpu compute for cross-platform GPU acceleration.".to_string()
         ))
@@ -91,7 +97,8 @@ fn initialize_videotoolbox_acceleration() -> Result<(), RendererError> {
     #[cfg(not(all(feature = "videotoolbox", target_os = "macos")))]
     {
         Err(RendererError::HardwareAccelerationError(
-            "VideoToolbox is only available on macOS with the 'videotoolbox' feature enabled".to_string()
+            "VideoToolbox is only available on macOS with the 'videotoolbox' feature enabled"
+                .to_string(),
         ))
     }
 }
@@ -102,12 +109,14 @@ fn initialize_amf_acceleration() -> Result<(), RendererError> {
     {
         if !has_amd_gpu() {
             return Err(RendererError::HardwareAccelerationError(
-                "No AMD GPU found. Ensure you have an AMD GPU with AMF support.".to_string()
+                "No AMD GPU found. Ensure you have an AMD GPU with AMF support.".to_string(),
             ));
         }
         // AMF requires AMD SDK integration for hardware-accelerated video encoding/decoding
         // For now, use wgpu compute which provides cross-platform GPU acceleration
-        log::warn!("AMF hardware acceleration not fully implemented. Using wgpu compute as fallback.");
+        log::warn!(
+            "AMF hardware acceleration not fully implemented. Using wgpu compute as fallback."
+        );
         Err(RendererError::HardwareAccelerationError(
             "AMF requires AMD SDK integration. Use wgpu compute for cross-platform GPU acceleration.".to_string()
         ))
@@ -115,7 +124,7 @@ fn initialize_amf_acceleration() -> Result<(), RendererError> {
     #[cfg(not(feature = "amf"))]
     {
         Err(RendererError::HardwareAccelerationError(
-            "AMF is only available with the 'amf' feature enabled".to_string()
+            "AMF is only available with the 'amf' feature enabled".to_string(),
         ))
     }
 }
@@ -132,7 +141,10 @@ fn auto_detect_acceleration(
             log::debug!("NVIDIA GPU detected, trying CUDA acceleration");
             match initialize_cuda_acceleration(hw_context) {
                 Ok(_) => return Ok(()),
-                Err(e) => log::warn!("CUDA initialization failed: {}, falling back to wgpu compute", e),
+                Err(e) => log::warn!(
+                    "CUDA initialization failed: {}, falling back to wgpu compute",
+                    e
+                ),
             }
         }
     }
@@ -144,7 +156,10 @@ fn auto_detect_acceleration(
             log::debug!("VAAPI support detected, trying VAAPI acceleration");
             match initialize_vaapi_acceleration() {
                 Ok(_) => return Ok(()),
-                Err(e) => log::warn!("VAAPI initialization failed: {}, falling back to wgpu compute", e),
+                Err(e) => log::warn!(
+                    "VAAPI initialization failed: {}, falling back to wgpu compute",
+                    e
+                ),
             }
         }
     }
@@ -155,7 +170,10 @@ fn auto_detect_acceleration(
         log::debug!("macOS detected, trying VideoToolbox acceleration");
         match initialize_videotoolbox_acceleration() {
             Ok(_) => return Ok(()),
-            Err(e) => log::warn!("VideoToolbox initialization failed: {}, falling back to wgpu compute", e),
+            Err(e) => log::warn!(
+                "VideoToolbox initialization failed: {}, falling back to wgpu compute",
+                e
+            ),
         }
     }
 
@@ -166,7 +184,10 @@ fn auto_detect_acceleration(
             log::debug!("AMD GPU detected, trying AMF acceleration");
             match initialize_amf_acceleration() {
                 Ok(_) => return Ok(()),
-                Err(e) => log::warn!("AMF initialization failed: {}, falling back to wgpu compute", e),
+                Err(e) => log::warn!(
+                    "AMF initialization failed: {}, falling back to wgpu compute",
+                    e
+                ),
             }
         }
     }
@@ -215,16 +236,16 @@ fn initialize_shader_programs(
             #[cfg(feature = "cuda")]
             HardwareContext::Cuda { .. } => {
                 // CUDA kernels will be loaded here when implemented
-            },
+            }
 
             #[cfg(all(feature = "vaapi", target_os = "linux"))]
-            HardwareContext::Vaapi { .. } => {},
+            HardwareContext::Vaapi { .. } => {}
 
             #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
-            HardwareContext::VideoToolbox { .. } => {},
+            HardwareContext::VideoToolbox { .. } => {}
 
             #[cfg(feature = "amf")]
-            HardwareContext::Amf { .. } => {},
+            HardwareContext::Amf { .. } => {}
 
             _ => {}
         }
@@ -232,7 +253,9 @@ fn initialize_shader_programs(
         log::info!("No hardware context available, using software shaders");
     }
 
-    *shaders = Some(Shaders::Software { functions: Vec::new() });
+    *shaders = Some(Shaders::Software {
+        functions: Vec::new(),
+    });
     log::debug!("Shader programs initialized");
     Ok(())
 }
@@ -244,11 +267,13 @@ fn initialize_lookup_tables(
     log::debug!("Initializing lookup tables");
 
     let gamma = config.gamma as f32;
-    let gamma_lut = (0..256).map(|i| {
-        let normalized = i as f32 / 255.0;
-        let corrected = normalized.powf(1.0 / gamma);
-        (corrected * 255.0).round() as u8
-    }).collect::<Vec<u8>>();
+    let gamma_lut = (0..256)
+        .map(|i| {
+            let normalized = i as f32 / 255.0;
+            let corrected = normalized.powf(1.0 / gamma);
+            (corrected * 255.0).round() as u8
+        })
+        .collect::<Vec<u8>>();
 
     let width = config.width as usize;
     let height = config.height as usize;
@@ -293,16 +318,16 @@ fn allocate_gpu_resources(
                 #[cfg(feature = "cuda")]
                 HardwareContext::Cuda { .. } => {
                     // CUDA device memory allocation would go here
-                },
+                }
 
                 #[cfg(all(feature = "vaapi", target_os = "linux"))]
-                HardwareContext::Vaapi { .. } => {},
+                HardwareContext::Vaapi { .. } => {}
 
                 #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
-                HardwareContext::VideoToolbox { .. } => {},
+                HardwareContext::VideoToolbox { .. } => {}
 
                 #[cfg(feature = "amf")]
-                HardwareContext::Amf { .. } => {},
+                HardwareContext::Amf { .. } => {}
 
                 _ => {
                     log::warn!("Unknown hardware context type, falling back to CPU buffers");
@@ -321,7 +346,11 @@ fn allocate_gpu_resources(
     Ok(())
 }
 
-fn allocate_cpu_buffers(width: usize, height: usize, cpu_buffers: &mut Option<CpuBuffers>) -> Result<(), RendererError> {
+fn allocate_cpu_buffers(
+    width: usize,
+    height: usize,
+    cpu_buffers: &mut Option<CpuBuffers>,
+) -> Result<(), RendererError> {
     let buffer_size = width * height * 4;
     let input_buffer = vec![0u8; buffer_size];
     let output_buffer = vec![0u8; buffer_size];
@@ -358,27 +387,33 @@ fn initialize_post_processing(
     let stage_count = stages.len();
     *post_process_pipeline = Some(PostProcessPipeline { _stages: stages });
 
-    log::debug!("Post-processing pipeline initialized with {} stages", stage_count);
+    log::debug!(
+        "Post-processing pipeline initialized with {} stages",
+        stage_count
+    );
     Ok(())
 }
 
 pub(super) fn cleanup_hardware_acceleration(hw_device: &Option<String>) {
     if let Some(device) = hw_device {
-        log::debug!("Cleaning up hardware acceleration resources for device: {}", device);
+        log::debug!(
+            "Cleaning up hardware acceleration resources for device: {}",
+            device
+        );
 
         match device.as_str() {
             "cuda" => {
                 log::debug!("Releasing CUDA resources");
-            },
+            }
             "vaapi" => {
                 log::debug!("Releasing VAAPI resources");
-            },
+            }
             "videotoolbox" => {
                 log::debug!("Releasing VideoToolbox resources");
-            },
+            }
             "amf" => {
                 log::debug!("Releasing AMD AMF resources");
-            },
+            }
             _ => {
                 log::debug!("Releasing auto-detected hardware acceleration resources");
             }

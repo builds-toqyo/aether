@@ -1,27 +1,30 @@
-
-
-use std::io::Write;
 use anyhow::Result;
 use log::debug;
+use std::io::Write;
 
 use super::types::{LutData, LutFormat};
-
 
 pub struct LutSaver {
     _config: crate::color::luts::config::LutConfig,
 }
 
 impl LutSaver {
-
     pub fn new() -> Self {
         Self {
             _config: crate::color::luts::config::LutConfig::default(),
         }
     }
 
-
-    pub fn save_lut(&self, lut_data: &LutData, file_path: &std::path::Path, format: LutFormat) -> Result<()> {
-        debug!("Saving LUT '{}' to: {:?} ({:?})", lut_data.name, file_path, format);
+    pub fn save_lut(
+        &self,
+        lut_data: &LutData,
+        file_path: &std::path::Path,
+        format: LutFormat,
+    ) -> Result<()> {
+        debug!(
+            "Saving LUT '{}' to: {:?} ({:?})",
+            lut_data.name, file_path, format
+        );
 
         match format {
             LutFormat::Cube => self.save_cube_file(lut_data, file_path)?,
@@ -33,7 +36,6 @@ impl LutSaver {
 
         Ok(())
     }
-
 
     fn save_cube_file(&self, lut_data: &LutData, file_path: &std::path::Path) -> Result<()> {
         let mut file = std::fs::File::create(file_path)?;
@@ -49,7 +51,6 @@ impl LutSaver {
         Ok(())
     }
 
-
     fn save_3dl_file(&self, lut_data: &LutData, file_path: &std::path::Path) -> Result<()> {
         let mut file = std::fs::File::create(file_path)?;
 
@@ -63,8 +64,11 @@ impl LutSaver {
                         let g_in = g as f32 / (lut_data.size - 1) as f32;
                         let b_in = b as f32 / (lut_data.size - 1) as f32;
 
-                        writeln!(file, "{} {} {} {} {} {}",
-                            r_in, g_in, b_in, rgb[0], rgb[1], rgb[2])?;
+                        writeln!(
+                            file,
+                            "{} {} {} {} {} {}",
+                            r_in, g_in, b_in, rgb[0], rgb[1], rgb[2]
+                        )?;
                         index += 1;
                     }
                 }
@@ -73,7 +77,6 @@ impl LutSaver {
 
         Ok(())
     }
-
 
     fn save_look_file(&self, lut_data: &LutData, file_path: &std::path::Path) -> Result<()> {
         let mut file = std::fs::File::create(file_path)?;
@@ -93,7 +96,6 @@ impl LutSaver {
         Ok(())
     }
 
-
     pub fn save_lut_to_memory(&self, lut_data: &LutData, format: LutFormat) -> Result<Vec<u8>> {
         debug!("Saving LUT '{}' to memory ({:?})", lut_data.name, format);
 
@@ -105,7 +107,6 @@ impl LutSaver {
 
         Ok(content.into_bytes())
     }
-
 
     fn save_cube_to_string(&self, lut_data: &LutData) -> Result<String> {
         let mut content = String::new();
@@ -120,7 +121,6 @@ impl LutSaver {
         Ok(content)
     }
 
-
     fn save_3dl_to_string(&self, lut_data: &LutData) -> Result<String> {
         let mut content = String::new();
 
@@ -134,8 +134,10 @@ impl LutSaver {
                         let g_in = g as f32 / (lut_data.size - 1) as f32;
                         let b_in = b as f32 / (lut_data.size - 1) as f32;
 
-                        content.push_str(&format!("{} {} {} {} {} {}\n",
-                            r_in, g_in, b_in, rgb[0], rgb[1], rgb[2]));
+                        content.push_str(&format!(
+                            "{} {} {} {} {} {}\n",
+                            r_in, g_in, b_in, rgb[0], rgb[1], rgb[2]
+                        ));
                         index += 1;
                     }
                 }
@@ -144,7 +146,6 @@ impl LutSaver {
 
         Ok(content)
     }
-
 
     fn save_look_to_string(&self, lut_data: &LutData) -> Result<String> {
         let mut content = String::new();
@@ -164,9 +165,17 @@ impl LutSaver {
         Ok(content)
     }
 
-
-    pub fn export_lut_with_metadata(&self, lut_data: &LutData, file_path: &std::path::Path, format: LutFormat, metadata: &LutMetadata) -> Result<()> {
-        debug!("Exporting LUT with metadata: {} -> {:?}", lut_data.name, file_path);
+    pub fn export_lut_with_metadata(
+        &self,
+        lut_data: &LutData,
+        file_path: &std::path::Path,
+        format: LutFormat,
+        metadata: &LutMetadata,
+    ) -> Result<()> {
+        debug!(
+            "Exporting LUT with metadata: {} -> {:?}",
+            lut_data.name, file_path
+        );
 
         match format {
             LutFormat::Cube => self.export_cube_with_metadata(lut_data, file_path, metadata)?,
@@ -179,10 +188,13 @@ impl LutSaver {
         Ok(())
     }
 
-
-    fn export_cube_with_metadata(&self, lut_data: &LutData, file_path: &std::path::Path, metadata: &LutMetadata) -> Result<()> {
+    fn export_cube_with_metadata(
+        &self,
+        lut_data: &LutData,
+        file_path: &std::path::Path,
+        metadata: &LutMetadata,
+    ) -> Result<()> {
         let mut file = std::fs::File::create(file_path)?;
-
 
         writeln!(file, "# LUT exported by Aether")?;
         writeln!(file, "# Created: {}", metadata.created_at)?;
@@ -192,10 +204,17 @@ impl LutSaver {
         if !metadata.description.is_empty() {
             writeln!(file, "# Description: {}", metadata.description)?;
         }
-        writeln!(file, "# Input Color Space: {:?}", metadata.input_color_space)?;
-        writeln!(file, "# Output Color Space: {:?}", metadata.output_color_space)?;
+        writeln!(
+            file,
+            "# Input Color Space: {:?}",
+            metadata.input_color_space
+        )?;
+        writeln!(
+            file,
+            "# Output Color Space: {:?}",
+            metadata.output_color_space
+        )?;
         writeln!(file)?;
-
 
         writeln!(file, "TITLE {}", lut_data.name)?;
         writeln!(file, "LUT_3D_SIZE {}", lut_data.size)?;
@@ -208,10 +227,13 @@ impl LutSaver {
         Ok(())
     }
 
-
-    fn export_3dl_with_metadata(&self, lut_data: &LutData, file_path: &std::path::Path, metadata: &LutMetadata) -> Result<()> {
+    fn export_3dl_with_metadata(
+        &self,
+        lut_data: &LutData,
+        file_path: &std::path::Path,
+        metadata: &LutMetadata,
+    ) -> Result<()> {
         let mut file = std::fs::File::create(file_path)?;
-
 
         writeln!(file, "# 3DL LUT exported by Aether")?;
         writeln!(file, "# Created: {}", metadata.created_at)?;
@@ -219,7 +241,6 @@ impl LutSaver {
             writeln!(file, "# Author: {}", metadata.author)?;
         }
         writeln!(file)?;
-
 
         let mut index = 0;
         for b in 0..lut_data.size {
@@ -231,8 +252,11 @@ impl LutSaver {
                         let g_in = g as f32 / (lut_data.size - 1) as f32;
                         let b_in = b as f32 / (lut_data.size - 1) as f32;
 
-                        writeln!(file, "{} {} {} {} {} {}",
-                            r_in, g_in, b_in, rgb[0], rgb[1], rgb[2])?;
+                        writeln!(
+                            file,
+                            "{} {} {} {} {} {}",
+                            r_in, g_in, b_in, rgb[0], rgb[1], rgb[2]
+                        )?;
                         index += 1;
                     }
                 }
@@ -242,15 +266,17 @@ impl LutSaver {
         Ok(())
     }
 
-
-    fn export_look_with_metadata(&self, lut_data: &LutData, file_path: &std::path::Path, metadata: &LutMetadata) -> Result<()> {
+    fn export_look_with_metadata(
+        &self,
+        lut_data: &LutData,
+        file_path: &std::path::Path,
+        metadata: &LutMetadata,
+    ) -> Result<()> {
         let mut file = std::fs::File::create(file_path)?;
-
 
         writeln!(file, "<Look>")?;
         writeln!(file, "  <Name>{}</Name>", lut_data.name)?;
         writeln!(file, "  <Size>{}</Size>", lut_data.size)?;
-
 
         writeln!(file, "  <!--")?;
         writeln!(file, "    Exported by Aether")?;
@@ -261,8 +287,16 @@ impl LutSaver {
         if !metadata.description.is_empty() {
             writeln!(file, "    Description: {}", metadata.description)?;
         }
-        writeln!(file, "    Input Color Space: {:?}", metadata.input_color_space)?;
-        writeln!(file, "    Output Color Space: {:?}", metadata.output_color_space)?;
+        writeln!(
+            file,
+            "    Input Color Space: {:?}",
+            metadata.input_color_space
+        )?;
+        writeln!(
+            file,
+            "    Output Color Space: {:?}",
+            metadata.output_color_space
+        )?;
         writeln!(file, "  -->")?;
 
         writeln!(file, "  <Data>")?;
@@ -277,9 +311,18 @@ impl LutSaver {
         Ok(())
     }
 
-
-    pub fn batch_export(&self, luts: &[(&LutData, &str)], output_dir: &std::path::Path, format: LutFormat) -> Result<Vec<std::path::PathBuf>> {
-        debug!("Batch exporting {} LUTs to {:?} ({:?})", luts.len(), output_dir, format);
+    pub fn batch_export(
+        &self,
+        luts: &[(&LutData, &str)],
+        output_dir: &std::path::Path,
+        format: LutFormat,
+    ) -> Result<Vec<std::path::PathBuf>> {
+        debug!(
+            "Batch exporting {} LUTs to {:?} ({:?})",
+            luts.len(),
+            output_dir,
+            format
+        );
 
         std::fs::create_dir_all(output_dir)?;
 
@@ -291,7 +334,10 @@ impl LutSaver {
             exported_files.push(file_path);
         }
 
-        debug!("Batch export completed: {} files exported", exported_files.len());
+        debug!(
+            "Batch export completed: {} files exported",
+            exported_files.len()
+        );
 
         Ok(exported_files)
     }
@@ -303,7 +349,6 @@ impl Default for LutSaver {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct LutMetadata {
     pub created_at: String,
@@ -314,25 +359,25 @@ pub struct LutMetadata {
 }
 
 impl LutMetadata {
-
     pub fn new() -> Self {
         Self::default()
     }
-
 
     pub fn with_author(mut self, author: String) -> Self {
         self.author = author;
         self
     }
 
-
     pub fn with_description(mut self, description: String) -> Self {
         self.description = description;
         self
     }
 
-
-    pub fn with_color_spaces(mut self, input: crate::types::ColorSpace, output: crate::types::ColorSpace) -> Self {
+    pub fn with_color_spaces(
+        mut self,
+        input: crate::types::ColorSpace,
+        output: crate::types::ColorSpace,
+    ) -> Self {
         self.input_color_space = input;
         self.output_color_space = output;
         self
@@ -374,7 +419,9 @@ mod tests {
         let file_path = dir.path().join("test.cube");
 
         let saver = LutSaver::new();
-        saver.save_lut(&lut_data, &file_path, LutFormat::Cube).unwrap();
+        saver
+            .save_lut(&lut_data, &file_path, LutFormat::Cube)
+            .unwrap();
 
         assert!(file_path.exists());
 
@@ -397,7 +444,9 @@ mod tests {
         let file_path = dir.path().join("test.3dl");
 
         let saver = LutSaver::new();
-        saver.save_lut(&lut_data, &file_path, LutFormat::ThreeDL).unwrap();
+        saver
+            .save_lut(&lut_data, &file_path, LutFormat::ThreeDL)
+            .unwrap();
 
         assert!(file_path.exists());
 
@@ -414,16 +463,15 @@ mod tests {
     #[test]
     fn test_look_file_saving() {
         let mut lut_data = LutData::new("Test LOOK".to_string(), 2, LutFormat::Look);
-        lut_data.data = vec![
-            [0.0, 0.0, 0.0],
-            [1.0, 1.0, 1.0],
-        ];
+        lut_data.data = vec![[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]];
 
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test.look");
 
         let saver = LutSaver::new();
-        saver.save_lut(&lut_data, &file_path, LutFormat::Look).unwrap();
+        saver
+            .save_lut(&lut_data, &file_path, LutFormat::Look)
+            .unwrap();
 
         assert!(file_path.exists());
 
@@ -440,7 +488,9 @@ mod tests {
         lut_data.data = vec![[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]];
 
         let saver = LutSaver::new();
-        let bytes = saver.save_lut_to_memory(&lut_data, LutFormat::Cube).unwrap();
+        let bytes = saver
+            .save_lut_to_memory(&lut_data, LutFormat::Cube)
+            .unwrap();
 
         let content = String::from_utf8(bytes).unwrap();
         assert!(content.contains("TITLE Memory Test"));
@@ -459,7 +509,9 @@ mod tests {
 
         let dir = tempdir().unwrap();
         let saver = LutSaver::new();
-        let exported_files = saver.batch_export(&luts, dir.path(), LutFormat::Cube).unwrap();
+        let exported_files = saver
+            .batch_export(&luts, dir.path(), LutFormat::Cube)
+            .unwrap();
 
         assert_eq!(exported_files.len(), 2);
         assert!(exported_files[0].exists());
@@ -479,7 +531,9 @@ mod tests {
         let file_path = dir.path().join("meta_test.cube");
 
         let saver = LutSaver::new();
-        saver.export_lut_with_metadata(&lut_data, &file_path, LutFormat::Cube, &metadata).unwrap();
+        saver
+            .export_lut_with_metadata(&lut_data, &file_path, LutFormat::Cube, &metadata)
+            .unwrap();
 
         let content = std::fs::read_to_string(&file_path).unwrap();
         assert!(content.contains("# Author: Test Author"));

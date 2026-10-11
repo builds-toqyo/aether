@@ -1,9 +1,7 @@
 use uuid::Uuid;
 
-
 #[derive(Debug, Clone)]
 pub struct BlurResult {
-
     pub original_id: Uuid,
 
     pub blurred_id: Uuid,
@@ -19,10 +17,8 @@ pub struct BlurResult {
     pub iterations: u32,
 }
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlurType {
-
     Gaussian,
 
     Box,
@@ -34,10 +30,8 @@ pub enum BlurType {
     Zoom,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct BlurParams {
-
     pub radius: f32,
 
     pub blur_type: BlurType,
@@ -62,11 +56,9 @@ impl Default for BlurParams {
 }
 
 impl BlurParams {
-
     pub fn new() -> Self {
         Self::default()
     }
-
 
     pub fn validate(&mut self) {
         self.radius = self.radius.clamp(0.0, 100.0);
@@ -74,12 +66,10 @@ impl BlurParams {
         self.angle = self.angle.rem_euclid(360.0);
     }
 
-
     pub fn is_active(&self) -> bool {
         self.radius > 0.0
     }
 }
-
 
 pub trait NextOdd {
     fn next_odd(self) -> usize;
@@ -87,10 +77,6 @@ pub trait NextOdd {
 
 impl NextOdd for usize {
     fn next_odd(self) -> usize {
-        if self % 2 == 0 {
-            self + 1
-        } else {
-            self
-        }
+        if self % 2 == 0 { self + 1 } else { self }
     }
 }

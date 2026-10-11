@@ -1,15 +1,15 @@
+use crate::engine::editing::types::EditingError;
+use anyhow::Result;
+use ges::prelude::*;
+use glib::{ControlFlow, filename_to_uri};
+use gst::prelude::*;
+use gstreamer as gst;
+use gstreamer_editing_services as ges;
+use gstreamer_pbutils as gst_pbutils;
+use gstreamer_pbutils::prelude::EncodingProfileBuilder;
+use log::{debug, info};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use anyhow::Result;
-use log::{info, debug};
-use gstreamer as gst;
-use gst::prelude::*;
-use gstreamer_pbutils as gst_pbutils;
-use gstreamer_editing_services as ges;
-use ges::prelude::*;
-use gstreamer_pbutils::prelude::EncodingProfileBuilder;
-use glib::{filename_to_uri, ControlFlow};
-use crate::engine::editing::types::EditingError;
 
 fn get_hardware_encoder_for_export() -> Option<&'static str> {
     #[cfg(target_os = "linux")]
@@ -155,38 +155,47 @@ impl IntermediateExporter {
 
         // Create GES pipeline with the timeline
         let ges_pipeline = ges::Pipeline::new();
-        ges_pipeline.set_timeline(&self.timeline)
+        ges_pipeline
+            .set_timeline(&self.timeline)
             .map_err(|e| EditingError::ExportError(format!("Failed to set timeline: {}", e)))?;
 
         // Set the encoding profile on the GES pipeline
-        ges_pipeline.set_render_settings(output_uri.as_str(), &profile)
-            .map_err(|e| EditingError::ExportError(format!("Failed to set render settings: {}", e)))?;
+        ges_pipeline
+            .set_render_settings(output_uri.as_str(), &profile)
+            .map_err(|e| {
+                EditingError::ExportError(format!("Failed to set render settings: {}", e))
+            })?;
 
         let progress = self.progress.clone();
 
         let bus = ges_pipeline.bus().unwrap();
-        let _watch_id = bus.add_watch(move |_, msg| {
-            match msg.view() {
-                gst::MessageView::Eos(..) => {
-                    let mut progress = progress.lock().unwrap();
-                    progress.complete = true;
-                    progress.percent = 100.0;
-                },
-                gst::MessageView::Error(err) => {
-                    let mut progress = progress.lock().unwrap();
-                    progress.error = Some(format!("{}: {}", err.error(), err.debug().unwrap_or_default()));
-                },
-                gst::MessageView::StateChanged(state_changed) => {
-                    if state_changed.current() == gst::State::Playing {
-                        debug!("Export pipeline started playing");
+        let _watch_id = bus
+            .add_watch(move |_, msg| {
+                match msg.view() {
+                    gst::MessageView::Eos(..) => {
+                        let mut progress = progress.lock().unwrap();
+                        progress.complete = true;
+                        progress.percent = 100.0;
                     }
-                },
-                _ => (),
-            }
+                    gst::MessageView::Error(err) => {
+                        let mut progress = progress.lock().unwrap();
+                        progress.error = Some(format!(
+                            "{}: {}",
+                            err.error(),
+                            err.debug().unwrap_or_default()
+                        ));
+                    }
+                    gst::MessageView::StateChanged(state_changed) => {
+                        if state_changed.current() == gst::State::Playing {
+                            debug!("Export pipeline started playing");
+                        }
+                    }
+                    _ => (),
+                }
 
-            ControlFlow::Continue
-        })
-        .expect("Failed to add bus watch");
+                ControlFlow::Continue
+            })
+            .expect("Failed to add bus watch");
 
         let _progress = self.progress.clone();
         let _timeline_duration = self.timeline.duration().nseconds() as i64;
@@ -204,28 +213,28 @@ impl IntermediateExporter {
         Ok(())
     }
 
-    fn create_encoding_profile(&self) -> Result<gst_pbutils::EncodingContainerProfile, EditingError> {
-        let container_caps = gst::Caps::new_empty_simple(
-            Self::container_to_caps(&self.options.container)
-        );
+    fn create_encoding_profile(
+        &self,
+    ) -> Result<gst_pbutils::EncodingContainerProfile, EditingError> {
+        let container_caps =
+            gst::Caps::new_empty_simple(Self::container_to_caps(&self.options.container));
 
         let video_codec = if self.options.hardware_acceleration {
             if let Some(hw_encoder) = get_hardware_encoder_for_export() {
                 hw_encoder
             } else {
-                info!("Hardware acceleration requested but no hardware encoder found, using software encoder");
+                info!(
+                    "Hardware acceleration requested but no hardware encoder found, using software encoder"
+                );
                 &self.options.video_codec
             }
         } else {
             &self.options.video_codec
         };
 
-        let video_caps = gst::Caps::new_empty_simple(
-            Self::codec_to_video_caps(video_codec)
-        );
-        let audio_caps = gst::Caps::new_empty_simple(
-            Self::codec_to_audio_caps(&self.options.audio_codec)
-        );
+        let video_caps = gst::Caps::new_empty_simple(Self::codec_to_video_caps(video_codec));
+        let audio_caps =
+            gst::Caps::new_empty_simple(Self::codec_to_audio_caps(&self.options.audio_codec));
 
         let video_profile = gst_pbutils::EncodingVideoProfile::builder(&video_caps)
             .presence(1)
@@ -266,8 +275,10 @@ impl IntermediateExporter {
             "av1" => "video/x-av1",
             "prores" => "video/x-prores",
             // Hardware encoders
-            "nvh264enc" | "nvenc" | "vaapiencode_h264" | "vtenc_h264" | "d3d11h264enc" | "amfh264enc" => "video/x-h264",
-            "nvh265enc" | "nvenc_hevc" | "vaapiencode_h265" | "vtenc_hevc" | "d3d11h265enc" | "amfh265enc" => "video/x-h265",
+            "nvh264enc" | "nvenc" | "vaapiencode_h264" | "vtenc_h264" | "d3d11h264enc"
+            | "amfh264enc" => "video/x-h264",
+            "nvh265enc" | "nvenc_hevc" | "vaapiencode_h265" | "vtenc_hevc" | "d3d11h265enc"
+            | "amfh265enc" => "video/x-h265",
             _ => "video/x-h264",
         }
     }

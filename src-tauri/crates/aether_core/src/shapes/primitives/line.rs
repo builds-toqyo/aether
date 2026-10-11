@@ -1,7 +1,4 @@
-
-
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Line {
@@ -13,7 +10,6 @@ pub struct Line {
 }
 
 impl Line {
-
     pub fn new(x1: f64, y1: f64, x2: f64, y2: f64) -> Self {
         Self {
             x1,
@@ -23,7 +19,6 @@ impl Line {
             thickness: 1.0,
         }
     }
-
 
     pub fn with_thickness(x1: f64, y1: f64, x2: f64, y2: f64, thickness: f64) -> Self {
         Self {
@@ -35,23 +30,19 @@ impl Line {
         }
     }
 
-
     pub fn length(&self) -> f64 {
         let dx = self.x2 - self.x1;
         let dy = self.y2 - self.y1;
         (dx * dx + dy * dy).sqrt()
     }
 
-
     pub fn angle(&self) -> f64 {
         (self.y2 - self.y1).atan2(self.x2 - self.x1)
     }
 
-
     pub fn is_point(&self) -> bool {
         (self.x1 - self.x2).abs() < f64::EPSILON && (self.y1 - self.y2).abs() < f64::EPSILON
     }
-
 
     pub fn midpoint(&self) -> (f64, f64) {
         ((self.x1 + self.x2) / 2.0, (self.y1 + self.y2) / 2.0)
@@ -77,7 +68,6 @@ impl super::types::ShapePrimitive for Line {
         let mut builder = super::super::paths::PathBuilder::new();
 
         if self.thickness > 0.0 {
-
             let dx = self.x2 - self.x1;
             let dy = self.y2 - self.y1;
             let length = (dx * dx + dy * dy).sqrt();
@@ -87,7 +77,6 @@ impl super::types::ShapePrimitive for Line {
                 let ny = dx / length;
 
                 let half_thickness = self.thickness / 2.0;
-
 
                 let x1 = self.x1 + nx * half_thickness;
                 let y1 = self.y1 + ny * half_thickness;
@@ -105,7 +94,6 @@ impl super::types::ShapePrimitive for Line {
                 builder.close();
             }
         } else {
-
             builder.move_to(self.x1, self.y1);
             builder.line_to(self.x2, self.y2);
         }
@@ -118,25 +106,20 @@ impl super::types::ShapePrimitive for Line {
             return false;
         }
 
-
         let dx = self.x2 - self.x1;
         let dy = self.y2 - self.y1;
         let length_sq = dx * dx + dy * dy;
 
         if length_sq == 0.0 {
-
             let dist_sq = (x - self.x1) * (x - self.x1) + (y - self.y1) * (y - self.y1);
             return dist_sq <= (self.thickness / 2.0).powi(2);
         }
 
-
         let t = ((x - self.x1) * dx + (y - self.y1) * dy) / length_sq;
         let t_clamped = t.clamp(0.0, 1.0);
 
-
         let closest_x = self.x1 + t_clamped * dx;
         let closest_y = self.y1 + t_clamped * dy;
-
 
         let dist_sq = (x - closest_x) * (x - closest_x) + (y - closest_y) * (y - closest_y);
         dist_sq <= (self.thickness / 2.0).powi(2)
@@ -167,7 +150,6 @@ impl super::types::ShapePrimitive for Line {
         self.x2 = x2;
         self.y2 = y2;
 
-
         self.thickness *= (transform.sx * transform.sy).sqrt() / 2.0;
     }
 
@@ -191,8 +173,8 @@ impl super::types::ShapePrimitive for Line {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::ShapePrimitive;
+    use super::*;
 
     #[test]
     fn test_line_creation() {
@@ -304,7 +286,6 @@ mod tests {
     fn test_point_line() {
         let point_line = Line::new(50.0, 50.0, 50.0, 50.0);
         assert!(point_line.is_point());
-
 
         let thick_point = Line::with_thickness(50.0, 50.0, 50.0, 50.0, 10.0);
         assert!(thick_point.contains_point(55.0, 50.0));

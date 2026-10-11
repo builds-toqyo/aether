@@ -1,8 +1,6 @@
 // Re-export common types from aether_types
 pub use aether_types::color::scopes::{
-    ColorSpace, VideoRange, ScopeResolution, ScopeStats,
-    HistogramData, HistogramChannel, HistogramConfig, HistogramMode,
-    VectorscopeData, VectorscopeConfig, VectorscopeTarget,
-    WaveformData, WaveformChannel, WaveformConfig,
+    ColorSpace, HistogramChannel, HistogramConfig, HistogramData, HistogramMode, ScopeResolution,
+    ScopeStats, VectorscopeConfig, VectorscopeData, VectorscopeTarget, VideoRange, WaveformChannel,
+    WaveformConfig, WaveformData,
 };
-

@@ -1,7 +1,7 @@
-use serde::{Serialize, Deserialize};
-use tauri::State;
 use anyhow::Result;
 use log::{debug, info, warn};
+use serde::{Deserialize, Serialize};
+use tauri::State;
 
 use crate::state::AppState;
 use aether_core::engine::editing::TrackType as CoreTrackType;
@@ -36,7 +36,6 @@ pub enum TrackType {
     Subtitle,
     Effects,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClipInfo {
@@ -127,23 +126,29 @@ pub struct TimelineResponse {
 }
 
 #[tauri::command]
-pub async fn get_timeline_info(
-    state: State<'_, AppState>,
-) -> Result<TimelineInfo, String> {
+pub async fn get_timeline_info(state: State<'_, AppState>) -> Result<TimelineInfo, String> {
     debug!("Getting timeline info");
 
-    let proxy_timeline = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    let proxy_timeline = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .get_timeline_info()
         .map_err(|e| format!("{}", e))?;
-    let preview_state = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    let preview_state = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .get_preview_state()
         .map_err(|e| format!("{}", e))?;
 
     let duration = proxy_timeline.duration as f64 / 1_000_000_000.0;
     let current_time = preview_state.position as f64 / 1_000_000_000.0;
 
-    let clips: Vec<ClipInfo> = proxy_timeline.clips.iter().map(|c| {
-        ClipInfo {
+    let clips: Vec<ClipInfo> = proxy_timeline
+        .clips
+        .iter()
+        .map(|c| ClipInfo {
             id: c.id.clone(),
             name: c.name.clone(),
             clip_type: match c.track_type {
@@ -154,16 +159,21 @@ pub async fn get_timeline_info(
             start_time: c.start_time as f64 / 1_000_000_000.0,
             end_time: (c.start_time + c.duration) as f64 / 1_000_000_000.0,
             duration: c.duration as f64 / 1_000_000_000.0,
-            source_file: c.source_path.as_ref().map(|p| p.to_string_lossy().to_string()),
+            source_file: c
+                .source_path
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string()),
             in_point: c.in_point as f64 / 1_000_000_000.0,
             out_point: c.out_point as f64 / 1_000_000_000.0,
             position: c.start_time as f64 / 1_000_000_000.0,
             layer: 0,
-        }
-    }).collect();
+        })
+        .collect();
 
-    let tracks: Vec<TrackInfo> = proxy_timeline.tracks.iter().map(|t| {
-        TrackInfo {
+    let tracks: Vec<TrackInfo> = proxy_timeline
+        .tracks
+        .iter()
+        .map(|t| TrackInfo {
             id: t.id.clone(),
             name: t.id.clone(),
             track_type: match t.track_type {
@@ -173,10 +183,14 @@ pub async fn get_timeline_info(
             muted: false,
             solo: false,
             volume: 1.0,
-            height: if matches!(t.track_type, CoreTrackType::Video) { 100.0 } else { 60.0 },
+            height: if matches!(t.track_type, CoreTrackType::Video) {
+                100.0
+            } else {
+                60.0
+            },
             clips: t.clips.clone(),
-        }
-    }).collect();
+        })
+        .collect();
 
     let timeline_info = TimelineInfo {
         duration,
@@ -188,7 +202,11 @@ pub async fn get_timeline_info(
         clips,
     };
 
-    info!("Tracks: {}, Clips: {}", timeline_info.tracks.len(), timeline_info.clips.len());
+    info!(
+        "Tracks: {}, Clips: {}",
+        timeline_info.tracks.len(),
+        timeline_info.clips.len()
+    );
     Ok(timeline_info)
 }
 
@@ -201,7 +219,10 @@ pub async fn timeline_playback_control(
 ) -> Result<TimelineResponse, String> {
     debug!("Timeline playback control: {}", action);
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let engine = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
     let frame_duration_ns = (1_000_000_000.0 / 30.0) as i64;
 
     let step_to = |direction: i64| -> i64 {
@@ -214,19 +235,22 @@ pub async fn timeline_playback_control(
 
     let message = match action.to_lowercase().as_str() {
         "play" => {
-            engine.preview_play()
+            engine
+                .preview_play()
                 .map_err(|e| format!("Failed to start playback: {}", e))?;
             info!("Starting timeline playback");
             "Playback started".to_string()
         }
         "pause" => {
-            engine.preview_pause()
+            engine
+                .preview_pause()
                 .map_err(|e| format!("Failed to pause playback: {}", e))?;
             info!("Pausing timeline playback");
             "Playback paused".to_string()
         }
         "stop" => {
-            engine.preview_stop()
+            engine
+                .preview_stop()
                 .map_err(|e| format!("Failed to stop playback: {}", e))?;
             info!("Stopping timeline playback");
             "Playback stopped".to_string()
@@ -234,19 +258,22 @@ pub async fn timeline_playback_control(
         "seek" => {
             let time = current_time.unwrap_or(0.0);
             let position_ns = (time * 1_000_000_000.0) as i64;
-            engine.preview_seek(position_ns)
+            engine
+                .preview_seek(position_ns)
                 .map_err(|e| format!("Failed to seek: {}", e))?;
             info!("Seeking timeline to time: {}", time);
             format!("Seeked to {}", time)
         }
         "next" | "stepforward" | "step_forward" => {
-            engine.preview_seek(step_to(1))
+            engine
+                .preview_seek(step_to(1))
                 .map_err(|e| format!("Failed to step forward: {}", e))?;
             info!("Stepping forward one frame");
             "Moved to next".to_string()
         }
         "previous" | "stepbackward" | "step_backward" => {
-            engine.preview_seek(step_to(-1))
+            engine
+                .preview_seek(step_to(-1))
                 .map_err(|e| format!("Failed to step backward: {}", e))?;
             info!("Stepping backward one frame");
             "Moved to previous".to_string()
@@ -263,7 +290,6 @@ pub async fn timeline_playback_control(
     })
 }
 
-
 #[tauri::command]
 pub async fn timeline_seek(
     time: f64,
@@ -276,7 +302,10 @@ pub async fn timeline_seek(
         return Err("Seek time cannot be negative".to_string());
     }
 
-    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .timeline_seek(time)
         .map_err(|e| format!("{}", e))?;
 
@@ -297,19 +326,27 @@ pub async fn timeline_move_clip(
     new_track_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
-    debug!("Moving clip {} to time {} on track {:?}", clip_id, new_time, new_track_id);
-
+    debug!(
+        "Moving clip {} to time {} on track {:?}",
+        clip_id, new_time, new_track_id
+    );
 
     if new_time < 0.0 {
         return Err("Clip position cannot be negative".to_string());
     }
 
     let new_start_ns = (new_time * 1_000_000_000.0) as i64;
-    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .timeline_move_clip(clip_id.clone(), new_start_ns)
         .map_err(|e| format!("{}", e))?;
 
-    info!("Moving clip: {} -> {}s on track {:?}", clip_id, new_time, new_track_id);
+    info!(
+        "Moving clip: {} -> {}s on track {:?}",
+        clip_id, new_time, new_track_id
+    );
 
     Ok(TimelineResponse {
         success: true,
@@ -321,7 +358,6 @@ pub async fn timeline_move_clip(
         })),
     })
 }
-
 
 #[tauri::command(rename_all = "camelCase")]
 pub async fn timeline_trim_clip(
@@ -344,11 +380,17 @@ pub async fn timeline_trim_clip(
     }
 
     let new_duration_ns = (new_time * 1_000_000_000.0) as i64;
-    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .timeline_trim_clip(clip_id.clone(), new_duration_ns)
         .map_err(|e| format!("{}", e))?;
 
-    info!("Trimmed clip: {}, Edge: {:?}, New time: {}", clip_id, edge_parsed, new_time);
+    info!(
+        "Trimmed clip: {}, Edge: {:?}, New time: {}",
+        clip_id, edge_parsed, new_time
+    );
 
     Ok(TimelineResponse {
         success: true,
@@ -367,9 +409,10 @@ pub async fn timeline_add_clip(
     request: TimelineClipAddRequest,
     state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
-    debug!("Adding clip from {} to track {} at position {}",
-           request.source_file, request.track_id, request.position);
-
+    debug!(
+        "Adding clip from {} to track {} at position {}",
+        request.source_file, request.track_id, request.position
+    );
 
     if request.position < 0.0 {
         return Err("Clip position cannot be negative".to_string());
@@ -382,9 +425,10 @@ pub async fn timeline_add_clip(
     let engine = state.editing_engine.lock().map_err(|e| format!("{}", e))?;
 
     // Resolve the target track's type from the live timeline
-    let timeline_info = engine.get_timeline_info()
-        .map_err(|e| format!("{}", e))?;
-    let core_track_type = timeline_info.tracks.iter()
+    let timeline_info = engine.get_timeline_info().map_err(|e| format!("{}", e))?;
+    let core_track_type = timeline_info
+        .tracks
+        .iter()
         .find(|t| t.id == request.track_id)
         .map(|t| t.track_type)
         .unwrap_or(CoreTrackType::Video);
@@ -399,10 +443,14 @@ pub async fn timeline_add_clip(
     let duration_ns = (request.duration.unwrap_or(0.0) * 1_000_000_000.0) as i64;
     let in_point_ns = (request.in_point.unwrap_or(0.0) * 1_000_000_000.0) as i64;
 
-    let clip = engine.timeline_add_clip(uri, core_track_type, start_ns, duration_ns, in_point_ns)
+    let clip = engine
+        .timeline_add_clip(uri, core_track_type, start_ns, duration_ns, in_point_ns)
         .map_err(|e| format!("Failed to add clip: {}", e))?;
 
-    info!("Added clip: {} from {} at {}s", clip.id, request.source_file, request.position);
+    info!(
+        "Added clip: {} from {} at {}s",
+        clip.id, request.source_file, request.position
+    );
 
     Ok(TimelineResponse {
         success: true,
@@ -416,7 +464,6 @@ pub async fn timeline_add_clip(
     })
 }
 
-
 #[tauri::command]
 pub async fn timeline_remove_clip(
     request: TimelineClipRemoveRequest,
@@ -428,7 +475,10 @@ pub async fn timeline_remove_clip(
         return Err("Clip ID cannot be empty".to_string());
     }
 
-    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .timeline_remove_clip(request.clip_id.clone())
         .map_err(|e| format!("{}", e))?;
 
@@ -456,15 +506,21 @@ pub async fn timeline_split_clip(
         return Err("Clip ID cannot be empty".to_string());
     }
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let engine = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
     // Default to the clip's midpoint when no split time is provided
     let split_time = match split_time {
         Some(t) => t,
         None => {
-            let timeline_info = engine.get_timeline_info()
+            let timeline_info = engine
+                .get_timeline_info()
                 .map_err(|e| format!("Failed to get timeline info: {}", e))?;
-            let clip = timeline_info.clips.iter()
+            let clip = timeline_info
+                .clips
+                .iter()
                 .find(|c| c.id == clip_id)
                 .ok_or_else(|| format!("Clip {} not found", clip_id))?;
             clip.start_time as f64 / 1_000_000_000.0 + clip.duration as f64 / 2_000_000_000.0
@@ -476,10 +532,14 @@ pub async fn timeline_split_clip(
     }
 
     let position_ns = (split_time * 1_000_000_000.0) as i64;
-    let new_clip_id = engine.timeline_split_clip(clip_id.clone(), position_ns)
+    let new_clip_id = engine
+        .timeline_split_clip(clip_id.clone(), position_ns)
         .map_err(|e| format!("Failed to split clip: {}", e))?;
 
-    info!("Split clip: {} at {}s -> new clip {}", clip_id, split_time, new_clip_id);
+    info!(
+        "Split clip: {} at {}s -> new clip {}",
+        clip_id, split_time, new_clip_id
+    );
 
     Ok(TimelineResponse {
         success: true,
@@ -501,8 +561,10 @@ pub async fn timeline_add_transition(
     transition_type: String,
     state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
-    debug!("Adding transition from {} to {} with duration {} and type {}",
-           from_clip_id, to_clip_id, duration, transition_type);
+    debug!(
+        "Adding transition from {} to {} with duration {} and type {}",
+        from_clip_id, to_clip_id, duration, transition_type
+    );
 
     if from_clip_id.is_empty() || to_clip_id.is_empty() {
         return Err("Clip IDs cannot be empty".to_string());
@@ -512,13 +574,20 @@ pub async fn timeline_add_transition(
         return Err("Transition duration must be positive".to_string());
     }
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let engine = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
     // Apply the transition as a GES effect on the outgoing clip
-    let effect_id = engine.timeline_add_effect(from_clip_id.clone(), transition_type.clone())
+    let effect_id = engine
+        .timeline_add_effect(from_clip_id.clone(), transition_type.clone())
         .map_err(|e| format!("Failed to add transition effect: {}", e))?;
 
-    info!("Adding transition: {} -> {} ({}s, type: {})", from_clip_id, to_clip_id, duration, transition_type);
+    info!(
+        "Adding transition: {} -> {} ({}s, type: {})",
+        from_clip_id, to_clip_id, duration, transition_type
+    );
 
     Ok(TimelineResponse {
         success: true,
@@ -545,12 +614,18 @@ pub async fn timeline_ripple_delete(
         return Err("Clip ID cannot be empty".to_string());
     }
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let engine = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
     // Find the clip being removed to know its span and track
-    let timeline_info = engine.get_timeline_info()
+    let timeline_info = engine
+        .get_timeline_info()
         .map_err(|e| format!("Failed to get timeline info: {}", e))?;
-    let target = timeline_info.clips.iter()
+    let target = timeline_info
+        .clips
+        .iter()
         .find(|c| c.id == clip_id)
         .cloned()
         .ok_or_else(|| format!("Clip {} not found", clip_id))?;
@@ -558,23 +633,33 @@ pub async fn timeline_ripple_delete(
     let removed_duration = target.duration;
 
     // Shift subsequent clips on the same track type left by the removed duration
-    let clips_to_shift: Vec<(String, i64)> = timeline_info.clips.iter()
-        .filter(|c| c.id != clip_id
-            && c.track_type == target.track_type
-            && c.start_time >= removed_end)
+    let clips_to_shift: Vec<(String, i64)> = timeline_info
+        .clips
+        .iter()
+        .filter(|c| {
+            c.id != clip_id && c.track_type == target.track_type && c.start_time >= removed_end
+        })
         .map(|c| (c.id.clone(), c.start_time - removed_duration))
         .collect();
 
-    engine.timeline_remove_clip(clip_id.clone())
+    engine
+        .timeline_remove_clip(clip_id.clone())
         .map_err(|e| format!("Failed to remove clip: {}", e))?;
 
     for (shift_clip_id, new_start) in &clips_to_shift {
         if let Err(e) = engine.timeline_move_clip(shift_clip_id.clone(), *new_start) {
-            warn!("Failed to shift clip {} during ripple delete: {}", shift_clip_id, e);
+            warn!(
+                "Failed to shift clip {} during ripple delete: {}",
+                shift_clip_id, e
+            );
         }
     }
 
-    info!("Ripple deleted clip: {} (shifted {} clips)", clip_id, clips_to_shift.len());
+    info!(
+        "Ripple deleted clip: {} (shifted {} clips)",
+        clip_id,
+        clips_to_shift.len()
+    );
 
     Ok(TimelineResponse {
         success: true,
@@ -594,7 +679,10 @@ pub async fn timeline_rolling_edit(
     new_time: f64,
     state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
-    debug!("Rolling edit clip {} at edge {:?} to time {}", clip_id, edge, new_time);
+    debug!(
+        "Rolling edit clip {} at edge {:?} to time {}",
+        clip_id, edge, new_time
+    );
 
     if clip_id.is_empty() {
         return Err("Clip ID cannot be empty".to_string());
@@ -604,12 +692,18 @@ pub async fn timeline_rolling_edit(
         return Err("Edit time cannot be negative".to_string());
     }
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let engine = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
     let new_time_ns = (new_time * 1_000_000_000.0) as i64;
 
-    let timeline_info = engine.get_timeline_info()
+    let timeline_info = engine
+        .get_timeline_info()
         .map_err(|e| format!("Failed to get timeline info: {}", e))?;
-    let clip = timeline_info.clips.iter()
+    let clip = timeline_info
+        .clips
+        .iter()
         .find(|c| c.id == clip_id)
         .ok_or_else(|| format!("Clip {} not found", clip_id))?;
 
@@ -620,7 +714,8 @@ pub async fn timeline_rolling_edit(
             if new_duration <= 0 {
                 return Err("Rolling edit would produce non-positive duration".to_string());
             }
-            engine.timeline_trim_clip(clip_id.clone(), new_duration)
+            engine
+                .timeline_trim_clip(clip_id.clone(), new_duration)
                 .map_err(|e| format!("Rolling edit failed: {}", e))?;
         }
         ClipEdge::Start => {
@@ -630,9 +725,11 @@ pub async fn timeline_rolling_edit(
             if new_duration <= 0 {
                 return Err("Rolling edit would produce non-positive duration".to_string());
             }
-            engine.timeline_move_clip(clip_id.clone(), new_time_ns)
+            engine
+                .timeline_move_clip(clip_id.clone(), new_time_ns)
                 .map_err(|e| format!("Rolling edit failed: {}", e))?;
-            engine.timeline_trim_clip(clip_id.clone(), new_duration)
+            engine
+                .timeline_trim_clip(clip_id.clone(), new_duration)
                 .map_err(|e| format!("Rolling edit failed: {}", e))?;
         }
     }
@@ -652,19 +749,25 @@ pub async fn timeline_rolling_edit(
 
 /// Sync timeline changes to GES
 #[tauri::command]
-pub async fn timeline_sync_to_ges(
-    state: State<'_, AppState>,
-) -> Result<TimelineResponse, String> {
+pub async fn timeline_sync_to_ges(state: State<'_, AppState>) -> Result<TimelineResponse, String> {
     debug!("Syncing timeline changes to GES");
 
-    let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+    let engine = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
     // Get current timeline state and sync to GES pipeline
     // This ensures all Rust-side changes are reflected in GES
-    let timeline_info = engine.get_timeline_info()
+    let timeline_info = engine
+        .get_timeline_info()
         .map_err(|e| format!("Failed to get timeline info: {}", e))?;
 
-    info!("Synced timeline to GES: {} tracks, {} clips", timeline_info.tracks.len(), timeline_info.clips.len());
+    info!(
+        "Synced timeline to GES: {} tracks, {} clips",
+        timeline_info.tracks.len(),
+        timeline_info.clips.len()
+    );
 
     Ok(TimelineResponse {
         success: true,
@@ -693,7 +796,10 @@ pub async fn timeline_create_track(
 
     let track_name = name.unwrap_or_else(|| format!("New {} Track", track_type));
 
-    let track = state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    let track = state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .timeline_create_track(core_track_type)
         .map_err(|e| format!("Failed to create track: {}", e))?;
 
@@ -710,7 +816,6 @@ pub async fn timeline_create_track(
     })
 }
 
-
 #[tauri::command]
 pub async fn timeline_delete_track(
     track_id: String,
@@ -722,7 +827,10 @@ pub async fn timeline_delete_track(
         return Err("Track ID cannot be empty".to_string());
     }
 
-    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .timeline_delete_track(track_id.clone())
         .map_err(|e| format!("Failed to delete track: {}", e))?;
 
@@ -750,9 +858,15 @@ pub async fn timeline_bind_node_to_effect(
     request: BindNodeToEffectRequest,
     state: State<'_, AppState>,
 ) -> Result<TimelineResponse, String> {
-    debug!("Binding node {} to effect {} on clip {}", request.node_id, request.effect_id, request.clip_id);
+    debug!(
+        "Binding node {} to effect {} on clip {}",
+        request.node_id, request.effect_id, request.clip_id
+    );
 
-    state.editing_engine.lock().map_err(|e| format!("{}", e))?
+    state
+        .editing_engine
+        .lock()
+        .map_err(|e| format!("{}", e))?
         .timeline_bind_node_to_effect(
             request.clip_id.clone(),
             request.effect_id.clone(),
@@ -761,11 +875,17 @@ pub async fn timeline_bind_node_to_effect(
         )
         .map_err(|e| format!("Failed to bind node to effect: {}", e))?;
 
-    info!("Bound node {} to effect {} on clip {}", request.node_id, request.effect_id, request.clip_id);
+    info!(
+        "Bound node {} to effect {} on clip {}",
+        request.node_id, request.effect_id, request.clip_id
+    );
 
     Ok(TimelineResponse {
         success: true,
-        message: format!("Node {} bound to effect {}", request.node_id, request.effect_id),
+        message: format!(
+            "Node {} bound to effect {}",
+            request.node_id, request.effect_id
+        ),
         data: Some(serde_json::json!({
             "clip_id": request.clip_id,
             "effect_id": request.effect_id,
@@ -781,7 +901,6 @@ mod tests {
 
     #[test]
     fn test_timeline_seek_validation() {
-
         let request = TimelineSeekRequest { time: -1.0 };
 
         assert!(request.time < 0.0);
@@ -789,7 +908,6 @@ mod tests {
 
     #[test]
     fn test_clip_move_validation() {
-
         let request = TimelineClipMoveRequest {
             clip_id: "test_clip".to_string(),
             new_time: -1.0,

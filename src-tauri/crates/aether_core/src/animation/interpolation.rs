@@ -1,9 +1,7 @@
-use aether_types::animation::{
-    TrackValue, KeyframeData, KeyframeCollection
-};
-use crate::animation::{InterpolationMethod, EasingFunction};
-use std::collections::HashMap;
+use crate::animation::{EasingFunction, InterpolationMethod};
+use aether_types::animation::{KeyframeCollection, KeyframeData, TrackValue};
 use anyhow::Result;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct InterpolationResult {
@@ -15,7 +13,12 @@ pub struct InterpolationResult {
 }
 
 impl InterpolationResult {
-    pub fn success(value: TrackValue, time: f64, method: InterpolationMethod, easing: EasingFunction) -> Self {
+    pub fn success(
+        value: TrackValue,
+        time: f64,
+        method: InterpolationMethod,
+        easing: EasingFunction,
+    ) -> Self {
         Self {
             value,
             time,
@@ -90,7 +93,6 @@ impl AnimationInterpolator {
         let result = if keyframes.is_empty() {
             InterpolationResult::failure(time)
         } else if keyframes.len() == 1 {
-
             let keyframe = &keyframes[0];
             InterpolationResult::success(
                 self.keyframe_to_track_value(keyframe),
@@ -99,14 +101,12 @@ impl AnimationInterpolator {
                 keyframe.easing(),
             )
         } else {
-
             let (prev_keyframe, next_keyframe) =
                 KeyframeCollection::find_surrounding_keyframes_data(keyframes, time);
 
             match (prev_keyframe, next_keyframe) {
                 (Some(prev), Some(next)) => {
                     if prev.time() == next.time() {
-
                         InterpolationResult::success(
                             self.keyframe_to_track_value(prev),
                             time,
@@ -114,35 +114,29 @@ impl AnimationInterpolator {
                             prev.easing(),
                         )
                     } else {
-
                         self.interpolate_between_keyframes(prev, next, time)
                     }
                 }
-                (Some(prev), None) => {
-
-                    InterpolationResult::success(
-                        self.keyframe_to_track_value(prev),
-                        time,
-                        prev.interpolation(),
-                        prev.easing(),
-                    )
-                }
-                (None, Some(next)) => {
-
-                    InterpolationResult::success(
-                        self.keyframe_to_track_value(next),
-                        time,
-                        next.interpolation(),
-                        next.easing(),
-                    )
-                }
+                (Some(prev), None) => InterpolationResult::success(
+                    self.keyframe_to_track_value(prev),
+                    time,
+                    prev.interpolation(),
+                    prev.easing(),
+                ),
+                (None, Some(next)) => InterpolationResult::success(
+                    self.keyframe_to_track_value(next),
+                    time,
+                    next.interpolation(),
+                    next.easing(),
+                ),
                 (None, None) => InterpolationResult::failure(time),
             }
         };
 
         if self.cache.len() >= self.max_cache_size {
-
-            let keys_to_remove: Vec<String> = self.cache.keys()
+            let keys_to_remove: Vec<String> = self
+                .cache
+                .keys()
                 .take(self.max_cache_size / 10)
                 .cloned()
                 .collect();
@@ -168,7 +162,8 @@ impl AnimationInterpolator {
         let t = ((time - prev_time) / (next_time - prev_time)).clamp(0.0, 1.0);
         let curve_t = self.apply_easing(t, easing_function);
 
-        let result = self.linear_interpolate(prev_keyframe, next_keyframe, curve_t)
+        let result = self
+            .linear_interpolate(prev_keyframe, next_keyframe, curve_t)
             .unwrap_or_else(|_| InterpolationResult::failure(time));
 
         result
@@ -178,7 +173,6 @@ impl AnimationInterpolator {
         self.cache.clear();
         self.stats.cache_cleared += 1;
     }
-
 
     pub fn get_stats(&self) -> &InterpolationStats {
         &self.stats
@@ -202,41 +196,35 @@ impl AnimationInterpolator {
             (KeyframeData::Float(p), KeyframeData::Float(n)) => {
                 TrackValue::Float(p.value + (n.value - p.value) * t)
             }
-            (KeyframeData::Vector2(p), KeyframeData::Vector2(n)) => {
-                TrackValue::Vector2([
-                    p.value[0] + (n.value[0] - p.value[0]) * t,
-                    p.value[1] + (n.value[1] - p.value[1]) * t,
-                ])
-            }
-            (KeyframeData::Vector3(p), KeyframeData::Vector3(n)) => {
-                TrackValue::Vector3([
-                    p.value[0] + (n.value[0] - p.value[0]) * t,
-                    p.value[1] + (n.value[1] - p.value[1]) * t,
-                    p.value[2] + (n.value[2] - p.value[2]) * t,
-                ])
-            }
-            (KeyframeData::Vector4(p), KeyframeData::Vector4(n)) => {
-                TrackValue::Vector4([
-                    p.value[0] + (n.value[0] - p.value[0]) * t,
-                    p.value[1] + (n.value[1] - p.value[1]) * t,
-                    p.value[2] + (n.value[2] - p.value[2]) * t,
-                    p.value[3] + (n.value[3] - p.value[3]) * t,
-                ])
-            }
-            (KeyframeData::Color(p), KeyframeData::Color(n)) => {
-                TrackValue::Color([
-                    p.value[0] + (n.value[0] - p.value[0]) * t,
-                    p.value[1] + (n.value[1] - p.value[1]) * t,
-                    p.value[2] + (n.value[2] - p.value[2]) * t,
-                    p.value[3] + (n.value[3] - p.value[3]) * t,
-                ])
-            }
+            (KeyframeData::Vector2(p), KeyframeData::Vector2(n)) => TrackValue::Vector2([
+                p.value[0] + (n.value[0] - p.value[0]) * t,
+                p.value[1] + (n.value[1] - p.value[1]) * t,
+            ]),
+            (KeyframeData::Vector3(p), KeyframeData::Vector3(n)) => TrackValue::Vector3([
+                p.value[0] + (n.value[0] - p.value[0]) * t,
+                p.value[1] + (n.value[1] - p.value[1]) * t,
+                p.value[2] + (n.value[2] - p.value[2]) * t,
+            ]),
+            (KeyframeData::Vector4(p), KeyframeData::Vector4(n)) => TrackValue::Vector4([
+                p.value[0] + (n.value[0] - p.value[0]) * t,
+                p.value[1] + (n.value[1] - p.value[1]) * t,
+                p.value[2] + (n.value[2] - p.value[2]) * t,
+                p.value[3] + (n.value[3] - p.value[3]) * t,
+            ]),
+            (KeyframeData::Color(p), KeyframeData::Color(n)) => TrackValue::Color([
+                p.value[0] + (n.value[0] - p.value[0]) * t,
+                p.value[1] + (n.value[1] - p.value[1]) * t,
+                p.value[2] + (n.value[2] - p.value[2]) * t,
+                p.value[3] + (n.value[3] - p.value[3]) * t,
+            ]),
             (KeyframeData::Boolean(p), KeyframeData::Boolean(n)) => {
                 TrackValue::Boolean(if t < 0.5 { p.value } else { n.value })
             }
-            (KeyframeData::String(p), KeyframeData::String(n)) => {
-                TrackValue::String(if t < 0.5 { p.value.clone() } else { n.value.clone() })
-            }
+            (KeyframeData::String(p), KeyframeData::String(n)) => TrackValue::String(if t < 0.5 {
+                p.value.clone()
+            } else {
+                n.value.clone()
+            }),
             _ => {
                 return Ok(InterpolationResult::failure(0.0));
             }
@@ -256,10 +244,8 @@ impl Default for AnimationInterpolator {
     }
 }
 
-
 #[derive(Debug, Clone, Default)]
 pub struct InterpolationStats {
-
     pub total_interpolations: u64,
 
     pub cache_hits: u64,
@@ -270,7 +256,6 @@ pub struct InterpolationStats {
 }
 
 impl InterpolationStats {
-
     pub fn cache_hit_ratio(&self) -> f64 {
         if self.total_interpolations == 0 {
             0.0
@@ -291,7 +276,6 @@ impl InterpolationStats {
 pub struct BatchInterpolator;
 
 impl BatchInterpolator {
-
     pub fn interpolate_tracks_at_time(
         interpolator: &mut AnimationInterpolator,
         tracks: &[(String, &[KeyframeData])],
@@ -312,7 +296,8 @@ impl BatchInterpolator {
         keyframes: &[KeyframeData],
         times: &[f64],
     ) -> Vec<InterpolationResult> {
-        times.iter()
+        times
+            .iter()
             .map(|&time| interpolator.interpolate_at_time(keyframes, time))
             .collect()
     }
@@ -325,7 +310,8 @@ impl BatchInterpolator {
         let mut results = HashMap::new();
 
         for (track_id, keyframes) in tracks {
-            let track_results = times.iter()
+            let track_results = times
+                .iter()
                 .map(|&time| interpolator.interpolate_at_time(keyframes, time))
                 .collect();
             results.insert(track_id.clone(), track_results);
@@ -338,8 +324,8 @@ impl BatchInterpolator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aether_types::animation::{Keyframe};
-    use crate::animation::{InterpolationMethod, EasingFunction};
+    use crate::animation::{EasingFunction, InterpolationMethod};
+    use aether_types::animation::Keyframe;
 
     #[test]
     fn test_linear_interpolation() {
@@ -372,7 +358,7 @@ mod tests {
                 0.0,
                 0.0,
                 InterpolationMethod::Linear,
-                EasingFunction::QuadIn
+                EasingFunction::QuadIn,
             )),
             KeyframeData::Float(Keyframe::new(1.0, 10.0)),
         ];
@@ -397,7 +383,7 @@ mod tests {
             KeyframeData::Float(Keyframe::with_interpolation(
                 0.0,
                 0.0,
-                InterpolationMethod::Step
+                InterpolationMethod::Step,
             )),
             KeyframeData::Float(Keyframe::new(1.0, 10.0)),
         ];
@@ -423,10 +409,8 @@ mod tests {
             KeyframeData::Float(Keyframe::new(1.0, 10.0)),
         ];
 
-
         let result1 = interpolator.interpolate_at_time(&keyframes, 0.5);
         assert!(result1.success);
-
 
         let result2 = interpolator.interpolate_at_time(&keyframes, 0.5);
         assert!(result2.success);
@@ -442,17 +426,24 @@ mod tests {
         let mut interpolator = AnimationInterpolator::new();
 
         let tracks = vec![
-            ("track1".to_string(), &[
-                KeyframeData::Float(Keyframe::new(0.0, 0.0)),
-                KeyframeData::Float(Keyframe::new(1.0, 10.0)),
-            ][..]),
-            ("track2".to_string(), &[
-                KeyframeData::Vector3(Keyframe::new(0.0, [0.0, 0.0, 0.0])),
-                KeyframeData::Vector3(Keyframe::new(1.0, [1.0, 1.0, 1.0])),
-            ][..]),
+            (
+                "track1".to_string(),
+                &[
+                    KeyframeData::Float(Keyframe::new(0.0, 0.0)),
+                    KeyframeData::Float(Keyframe::new(1.0, 10.0)),
+                ][..],
+            ),
+            (
+                "track2".to_string(),
+                &[
+                    KeyframeData::Vector3(Keyframe::new(0.0, [0.0, 0.0, 0.0])),
+                    KeyframeData::Vector3(Keyframe::new(1.0, [1.0, 1.0, 1.0])),
+                ][..],
+            ),
         ];
 
-        let results = BatchInterpolator::interpolate_tracks_at_time(&mut interpolator, &tracks, 0.5);
+        let results =
+            BatchInterpolator::interpolate_tracks_at_time(&mut interpolator, &tracks, 0.5);
 
         assert_eq!(results.len(), 2);
         assert!(results.contains_key("track1"));

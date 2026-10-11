@@ -1,10 +1,10 @@
+use crate::state::AppState;
+use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use uuid::Uuid;
-use log::{debug, info, warn};
 use tauri::State;
-use crate::state::AppState;
+use uuid::Uuid;
 
 /// Represents a single camera angle within a multicam group
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,7 +77,8 @@ impl MulticamClip {
     }
 
     pub fn get_active_angle(&self) -> Option<&CameraAngle> {
-        self.active_angle_id.as_ref()
+        self.active_angle_id
+            .as_ref()
             .and_then(|id| self.angles.iter().find(|a| a.id == *id))
     }
 }
@@ -124,11 +125,17 @@ pub async fn multicam_create(
     }
 
     let clip_id = clip.id.clone();
-    let mut registry = state.multicam_registry.lock()
+    let mut registry = state
+        .multicam_registry
+        .lock()
         .map_err(|e| format!("Failed to lock multicam registry: {}", e))?;
     registry.clips.insert(clip_id.clone(), clip.clone());
 
-    info!("Created multicam clip '{}' with {} angles", name, angle_media_ids.len());
+    info!(
+        "Created multicam clip '{}' with {} angles",
+        name,
+        angle_media_ids.len()
+    );
 
     Ok(MulticamResponse {
         success: true,
@@ -144,10 +151,14 @@ pub async fn multicam_add_angle(
     media_id: String,
     state: State<'_, AppState>,
 ) -> Result<MulticamResponse, String> {
-    let mut registry = state.multicam_registry.lock()
+    let mut registry = state
+        .multicam_registry
+        .lock()
         .map_err(|e| format!("Failed to lock multicam registry: {}", e))?;
 
-    let clip = registry.clips.get_mut(&clip_id)
+    let clip = registry
+        .clips
+        .get_mut(&clip_id)
         .ok_or_else(|| format!("Multicam clip '{}' not found", clip_id))?;
 
     let angle = CameraAngle::new(name, media_id);
@@ -166,10 +177,14 @@ pub async fn multicam_remove_angle(
     angle_id: String,
     state: State<'_, AppState>,
 ) -> Result<MulticamResponse, String> {
-    let mut registry = state.multicam_registry.lock()
+    let mut registry = state
+        .multicam_registry
+        .lock()
         .map_err(|e| format!("Failed to lock multicam registry: {}", e))?;
 
-    let clip = registry.clips.get_mut(&clip_id)
+    let clip = registry
+        .clips
+        .get_mut(&clip_id)
         .ok_or_else(|| format!("Multicam clip '{}' not found", clip_id))?;
 
     clip.remove_angle(&angle_id);
@@ -187,10 +202,14 @@ pub async fn multicam_set_active_angle(
     angle_id: String,
     state: State<'_, AppState>,
 ) -> Result<MulticamResponse, String> {
-    let mut registry = state.multicam_registry.lock()
+    let mut registry = state
+        .multicam_registry
+        .lock()
         .map_err(|e| format!("Failed to lock multicam registry: {}", e))?;
 
-    let clip = registry.clips.get_mut(&clip_id)
+    let clip = registry
+        .clips
+        .get_mut(&clip_id)
         .ok_or_else(|| format!("Multicam clip '{}' not found", clip_id))?;
 
     clip.set_active_angle(&angle_id)?;
@@ -207,19 +226,23 @@ pub async fn multicam_get_clip(
     clip_id: String,
     state: State<'_, AppState>,
 ) -> Result<MulticamClip, String> {
-    let registry = state.multicam_registry.lock()
+    let registry = state
+        .multicam_registry
+        .lock()
         .map_err(|e| format!("Failed to lock multicam registry: {}", e))?;
 
-    registry.clips.get(&clip_id)
+    registry
+        .clips
+        .get(&clip_id)
         .cloned()
         .ok_or_else(|| format!("Multicam clip '{}' not found", clip_id))
 }
 
 #[tauri::command]
-pub async fn multicam_list_clips(
-    state: State<'_, AppState>,
-) -> Result<Vec<MulticamClip>, String> {
-    let registry = state.multicam_registry.lock()
+pub async fn multicam_list_clips(state: State<'_, AppState>) -> Result<Vec<MulticamClip>, String> {
+    let registry = state
+        .multicam_registry
+        .lock()
         .map_err(|e| format!("Failed to lock multicam registry: {}", e))?;
 
     Ok(registry.clips.values().cloned().collect())
@@ -230,7 +253,9 @@ pub async fn multicam_delete_clip(
     clip_id: String,
     state: State<'_, AppState>,
 ) -> Result<MulticamResponse, String> {
-    let mut registry = state.multicam_registry.lock()
+    let mut registry = state
+        .multicam_registry
+        .lock()
         .map_err(|e| format!("Failed to lock multicam registry: {}", e))?;
 
     registry.clips.remove(&clip_id);
@@ -255,16 +280,23 @@ impl Timecode {
     pub fn from_string(tc_str: &str, frame_rate: f64) -> Result<Self, String> {
         let parts: Vec<&str> = tc_str.split(':').collect();
         if parts.len() != 4 {
-            return Err(format!("Invalid timecode format: {}. Expected HH:MM:SS:FF", tc_str));
+            return Err(format!(
+                "Invalid timecode format: {}. Expected HH:MM:SS:FF",
+                tc_str
+            ));
         }
 
-        let hours = parts[0].parse::<u32>()
+        let hours = parts[0]
+            .parse::<u32>()
             .map_err(|e| format!("Invalid hours: {}", e))?;
-        let minutes = parts[1].parse::<u32>()
+        let minutes = parts[1]
+            .parse::<u32>()
             .map_err(|e| format!("Invalid minutes: {}", e))?;
-        let seconds = parts[2].parse::<u32>()
+        let seconds = parts[2]
+            .parse::<u32>()
             .map_err(|e| format!("Invalid seconds: {}", e))?;
-        let frames = parts[3].parse::<u32>()
+        let frames = parts[3]
+            .parse::<u32>()
             .map_err(|e| format!("Invalid frames: {}", e))?;
 
         if hours > 23 || minutes > 59 || seconds > 59 {
@@ -281,12 +313,16 @@ impl Timecode {
     }
 
     pub fn to_milliseconds(&self) -> i64 {
-        let total_seconds = self.hours as i64 * 3600 + self.minutes as i64 * 60 + self.seconds as i64;
+        let total_seconds =
+            self.hours as i64 * 3600 + self.minutes as i64 * 60 + self.seconds as i64;
         let frame_duration_ms = 1000.0 / self.frame_rate;
         total_seconds * 1000 + (self.frames as f64 * frame_duration_ms) as i64
     }
 
-    pub fn parse_from_metadata(metadata: &HashMap<String, String>, frame_rate: f64) -> Option<Self> {
+    pub fn parse_from_metadata(
+        metadata: &HashMap<String, String>,
+        frame_rate: f64,
+    ) -> Option<Self> {
         // Try common timecode metadata keys
         let tc_keys = [
             "timecode",
@@ -313,10 +349,14 @@ pub async fn multicam_sync_by_timecode(
     clip_id: String,
     state: State<'_, AppState>,
 ) -> Result<MulticamResponse, String> {
-    let mut registry = state.multicam_registry.lock()
+    let mut registry = state
+        .multicam_registry
+        .lock()
         .map_err(|e| format!("Failed to lock multicam registry: {}", e))?;
 
-    let clip = registry.clips.get_mut(&clip_id)
+    let clip = registry
+        .clips
+        .get_mut(&clip_id)
         .ok_or_else(|| format!("Multicam clip '{}' not found", clip_id))?;
 
     if clip.angles.is_empty() {
@@ -324,7 +364,9 @@ pub async fn multicam_sync_by_timecode(
     }
 
     // Get file manager to extract media info with timecode metadata
-    let file_manager = state.file_manager.lock()
+    let file_manager = state
+        .file_manager
+        .lock()
         .map_err(|e| format!("Failed to lock file manager: {}", e))?;
 
     // Extract timecodes from all angles
@@ -346,7 +388,8 @@ pub async fn multicam_sync_by_timecode(
     }
 
     // Find the first angle with a valid timecode as reference
-    let reference_timecode = timecodes.iter()
+    let reference_timecode = timecodes
+        .iter()
         .enumerate()
         .find(|(_, tc)| tc.is_some())
         .map(|(idx, tc)| (idx, tc.as_ref().unwrap()));
@@ -369,7 +412,10 @@ pub async fn multicam_sync_by_timecode(
 
         Ok(MulticamResponse {
             success: true,
-            message: format!("Angles synchronized by timecode (reference: angle {})", ref_idx),
+            message: format!(
+                "Angles synchronized by timecode (reference: angle {})",
+                ref_idx
+            ),
             clip: Some(clip.clone()),
         })
     } else {
@@ -378,7 +424,9 @@ pub async fn multicam_sync_by_timecode(
             angle.offset_ms = 0;
         }
 
-        warn!("multicam_sync_by_timecode: no timecode metadata found in any angle, using zero-offset sync");
+        warn!(
+            "multicam_sync_by_timecode: no timecode metadata found in any angle, using zero-offset sync"
+        );
 
         Ok(MulticamResponse {
             success: true,
@@ -405,7 +453,7 @@ impl AudioWaveform {
     pub fn new(sample_rate: u32, duration: f64) -> Self {
         let num_samples = (sample_rate as f64 * duration) as usize;
         let samples = Vec::with_capacity(num_samples);
-        
+
         AudioWaveform {
             samples,
             sample_rate,
@@ -414,8 +462,8 @@ impl AudioWaveform {
     }
 
     pub fn extract_from_audio(audio_path: &PathBuf, sample_rate: u32) -> Result<Self, String> {
-        use gstreamer as gst;
         use gst::prelude::*;
+        use gstreamer as gst;
 
         gst::init().map_err(|e| format!("Failed to initialize GStreamer: {}", e))?;
 
@@ -429,7 +477,8 @@ impl AudioWaveform {
             .map_err(|e| format!("Failed to create pipeline: {}", e))?;
 
         let bus = pipeline.bus().ok_or("Pipeline has no bus")?;
-        pipeline.set_state(gst::State::Playing)
+        pipeline
+            .set_state(gst::State::Playing)
             .map_err(|e| format!("Failed to start pipeline: {}", e))?;
 
         let mut waveform = AudioWaveform::new(sample_rate, 0.0);
@@ -437,13 +486,22 @@ impl AudioWaveform {
         let sample_duration = 1.0 / sample_rate as f64;
 
         let timeout = gst::ClockTime::from_seconds(60);
-        while let Some(msg) = bus.timed_pop_filtered(timeout, &[gst::MessageType::Element, gst::MessageType::Eos, gst::MessageType::Error]) {
+        while let Some(msg) = bus.timed_pop_filtered(
+            timeout,
+            &[
+                gst::MessageType::Element,
+                gst::MessageType::Eos,
+                gst::MessageType::Error,
+            ],
+        ) {
             match msg.view() {
                 gst::MessageView::Element(element) => {
                     if let Some(structure) = element.structure() {
                         if structure.name() == "level" {
                             if let Ok(rms) = structure.get::<gst::List>("rms") {
-                                if let Some(rms_value) = rms.as_slice().first().and_then(|v| v.get::<f64>().ok()) {
+                                if let Some(rms_value) =
+                                    rms.as_slice().first().and_then(|v| v.get::<f64>().ok())
+                                {
                                     let amplitude = rms_value.abs();
                                     waveform.samples.push(WaveformSample {
                                         timestamp: current_time,
@@ -466,20 +524,26 @@ impl AudioWaveform {
             }
         }
 
-        pipeline.set_state(gst::State::Null)
+        pipeline
+            .set_state(gst::State::Null)
             .map_err(|e| format!("Failed to stop pipeline: {}", e))?;
 
         waveform.duration = current_time;
         Ok(waveform)
     }
 
-    pub fn compute_cross_correlation(&self, other: &AudioWaveform, max_offset_ms: f64) -> Option<i64> {
+    pub fn compute_cross_correlation(
+        &self,
+        other: &AudioWaveform,
+        max_offset_ms: f64,
+    ) -> Option<i64> {
         if self.samples.is_empty() || other.samples.is_empty() {
             return None;
         }
 
         let max_offset_samples = (max_offset_ms / 1000.0 * self.sample_rate as f64) as usize;
-        let max_offset_samples = max_offset_samples.min(self.samples.len().min(other.samples.len()));
+        let max_offset_samples =
+            max_offset_samples.min(self.samples.len().min(other.samples.len()));
 
         let mut best_offset = 0i64;
         let mut best_correlation = 0.0;
@@ -519,10 +583,14 @@ pub async fn multicam_sync_by_audio(
 ) -> Result<MulticamResponse, String> {
     let max_offset_ms = max_offset_ms.unwrap_or(5000.0); // Default 5 seconds
 
-    let mut registry = state.multicam_registry.lock()
+    let mut registry = state
+        .multicam_registry
+        .lock()
         .map_err(|e| format!("Failed to lock multicam registry: {}", e))?;
 
-    let clip = registry.clips.get_mut(&clip_id)
+    let clip = registry
+        .clips
+        .get_mut(&clip_id)
         .ok_or_else(|| format!("Multicam clip '{}' not found", clip_id))?;
 
     if clip.angles.len() < 2 {
@@ -539,25 +607,36 @@ pub async fn multicam_sync_by_audio(
             let sample_rate = 48000; // Use standard sample rate
             match AudioWaveform::extract_from_audio(&media_path, sample_rate) {
                 Ok(waveform) => {
-                    info!("Extracted waveform from angle {} ({} samples)", angle.name, waveform.samples.len());
+                    info!(
+                        "Extracted waveform from angle {} ({} samples)",
+                        angle.name,
+                        waveform.samples.len()
+                    );
                     waveforms.push(Some(waveform));
                     sample_rates.push(sample_rate);
                 }
                 Err(e) => {
-                    warn!("Failed to extract waveform from angle {}: {}", angle.name, e);
+                    warn!(
+                        "Failed to extract waveform from angle {}: {}",
+                        angle.name, e
+                    );
                     waveforms.push(None);
                     sample_rates.push(sample_rate);
                 }
             }
         } else {
-            warn!("Media file not found for angle {}: {:?}", angle.name, media_path);
+            warn!(
+                "Media file not found for angle {}: {:?}",
+                angle.name, media_path
+            );
             waveforms.push(None);
             sample_rates.push(48000);
         }
     }
 
     // Find the first angle with a valid waveform as reference
-    let reference_waveform = waveforms.iter()
+    let reference_waveform = waveforms
+        .iter()
         .enumerate()
         .find(|(_, wf)| wf.is_some())
         .map(|(idx, wf)| (idx, wf.as_ref().unwrap()));
@@ -588,7 +667,10 @@ pub async fn multicam_sync_by_audio(
 
         Ok(MulticamResponse {
             success: true,
-            message: format!("Angles synchronized by audio waveform (reference: angle {})", ref_idx),
+            message: format!(
+                "Angles synchronized by audio waveform (reference: angle {})",
+                ref_idx
+            ),
             clip: Some(clip.clone()),
         })
     } else {
@@ -597,7 +679,9 @@ pub async fn multicam_sync_by_audio(
             angle.offset_ms = 0;
         }
 
-        warn!("multicam_sync_by_audio: no audio waveforms extracted from any angle, using zero-offset sync");
+        warn!(
+            "multicam_sync_by_audio: no audio waveforms extracted from any angle, using zero-offset sync"
+        );
 
         Ok(MulticamResponse {
             success: true,

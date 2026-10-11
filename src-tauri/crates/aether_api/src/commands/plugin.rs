@@ -1,11 +1,11 @@
+use crate::state::AppState;
+use log::{debug, info, warn};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::fs;
-use log::{debug, info, warn};
+use std::path::PathBuf;
 use tauri::State;
-use crate::state::AppState;
-use reqwest::Client;
 
 /// Metadata describing a loaded plugin
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,10 +109,9 @@ impl PluginRegistry {
     }
 
     pub fn plugins_for_hook(&self, hook: PluginHook) -> Vec<&PluginInfo> {
-        self.hooks.get(&hook)
-            .map(|ids| ids.iter()
-                .filter_map(|id| self.plugins.get(id))
-                .collect())
+        self.hooks
+            .get(&hook)
+            .map(|ids| ids.iter().filter_map(|id| self.plugins.get(id)).collect())
             .unwrap_or_default()
     }
 
@@ -168,36 +167,66 @@ pub async fn plugin_load(
             .map_err(|e| format!("Failed to parse plugin manifest: {}", e))?;
 
         PluginInfo {
-            id: manifest.get("id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-            name: manifest.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown Plugin").to_string(),
-            version: manifest.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string(),
-            author: manifest.get("author").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            description: manifest.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            id: manifest
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            name: manifest
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown Plugin")
+                .to_string(),
+            version: manifest
+                .get("version")
+                .and_then(|v| v.as_str())
+                .unwrap_or("0.0.0")
+                .to_string(),
+            author: manifest
+                .get("author")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            description: manifest
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             path: path.to_string_lossy().to_string(),
             loaded: true,
-            hooks: manifest.get("hooks")
+            hooks: manifest
+                .get("hooks")
                 .and_then(|v| v.as_array())
-                .map(|arr| arr.iter()
-                    .filter_map(|v| v.as_str())
-                    .filter_map(|s| match s {
-                        "on_project_load" => Some(PluginHook::OnProjectLoad),
-                        "on_project_save" => Some(PluginHook::OnProjectSave),
-                        "on_render_start" => Some(PluginHook::OnRenderStart),
-                        "on_render_complete" => Some(PluginHook::OnRenderComplete),
-                        "process_frame" => Some(PluginHook::ProcessFrame),
-                        "process_audio" => Some(PluginHook::ProcessAudio),
-                        "custom_effect" => Some(PluginHook::CustomEffect),
-                        _ => None,
-                    })
-                    .collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str())
+                        .filter_map(|s| match s {
+                            "on_project_load" => Some(PluginHook::OnProjectLoad),
+                            "on_project_save" => Some(PluginHook::OnProjectSave),
+                            "on_render_start" => Some(PluginHook::OnRenderStart),
+                            "on_render_complete" => Some(PluginHook::OnRenderComplete),
+                            "process_frame" => Some(PluginHook::ProcessFrame),
+                            "process_audio" => Some(PluginHook::ProcessAudio),
+                            "custom_effect" => Some(PluginHook::CustomEffect),
+                            _ => None,
+                        })
+                        .collect()
+                })
                 .unwrap_or_default(),
-            installed_version: Some(manifest.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string()),
+            installed_version: Some(
+                manifest
+                    .get("version")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0.0.0")
+                    .to_string(),
+            ),
             latest_version: None,
             update_available: false,
         }
     } else {
         // No manifest: infer from filename
-        let name = path.file_stem()
+        let name = path
+            .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("unknown")
             .to_string();
@@ -216,7 +245,9 @@ pub async fn plugin_load(
         }
     };
 
-    let mut registry = state.plugin_registry.lock()
+    let mut registry = state
+        .plugin_registry
+        .lock()
         .map_err(|e| format!("Failed to lock plugin registry: {}", e))?;
 
     if registry.plugins.contains_key(&info.id) {
@@ -225,7 +256,12 @@ pub async fn plugin_load(
     }
 
     registry.register(info.clone());
-    info!("Loaded plugin '{}' v{} from {}", info.name, info.version, path.display());
+    info!(
+        "Loaded plugin '{}' v{} from {}",
+        info.name,
+        info.version,
+        path.display()
+    );
 
     Ok(PluginResponse {
         success: true,
@@ -239,7 +275,9 @@ pub async fn plugin_unload(
     plugin_id: String,
     state: State<'_, AppState>,
 ) -> Result<PluginResponse, String> {
-    let mut registry = state.plugin_registry.lock()
+    let mut registry = state
+        .plugin_registry
+        .lock()
         .map_err(|e| format!("Failed to lock plugin registry: {}", e))?;
 
     let info = registry.plugins.get(&plugin_id).cloned();
@@ -255,10 +293,10 @@ pub async fn plugin_unload(
 }
 
 #[tauri::command]
-pub async fn plugin_list(
-    state: State<'_, AppState>,
-) -> Result<Vec<PluginInfo>, String> {
-    let registry = state.plugin_registry.lock()
+pub async fn plugin_list(state: State<'_, AppState>) -> Result<Vec<PluginInfo>, String> {
+    let registry = state
+        .plugin_registry
+        .lock()
         .map_err(|e| format!("Failed to lock plugin registry: {}", e))?;
 
     Ok(registry.plugins.values().cloned().collect())
@@ -269,10 +307,14 @@ pub async fn plugin_get_info(
     plugin_id: String,
     state: State<'_, AppState>,
 ) -> Result<PluginInfo, String> {
-    let registry = state.plugin_registry.lock()
+    let registry = state
+        .plugin_registry
+        .lock()
         .map_err(|e| format!("Failed to lock plugin registry: {}", e))?;
 
-    registry.plugins.get(&plugin_id)
+    registry
+        .plugins
+        .get(&plugin_id)
         .cloned()
         .ok_or_else(|| format!("Plugin '{}' not found", plugin_id))
 }
@@ -289,7 +331,9 @@ pub async fn plugin_scan_directory(
     }
 
     let mut loaded = Vec::new();
-    let mut registry = state.plugin_registry.lock()
+    let mut registry = state
+        .plugin_registry
+        .lock()
         .map_err(|e| format!("Failed to lock plugin registry: {}", e))?;
 
     let extensions = ["dylib", "so", "dll"];
@@ -301,32 +345,77 @@ pub async fn plugin_scan_directory(
                     let manifest_path = path.with_extension("json");
                     let info = if manifest_path.exists() {
                         if let Ok(manifest_json) = fs::read_to_string(&manifest_path) {
-                            if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&manifest_json) {
+                            if let Ok(manifest) =
+                                serde_json::from_str::<serde_json::Value>(&manifest_json)
+                            {
                                 PluginInfo {
-                                    id: manifest.get("id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                                    name: manifest.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown").to_string(),
-                                    version: manifest.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string(),
-                                    author: manifest.get("author").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                                    description: manifest.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                                    id: manifest
+                                        .get("id")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("unknown")
+                                        .to_string(),
+                                    name: manifest
+                                        .get("name")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("Unknown")
+                                        .to_string(),
+                                    version: manifest
+                                        .get("version")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("0.0.0")
+                                        .to_string(),
+                                    author: manifest
+                                        .get("author")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    description: manifest
+                                        .get("description")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string(),
                                     path: path.to_string_lossy().to_string(),
                                     loaded: true,
-                                    hooks: manifest.get("hooks")
+                                    hooks: manifest
+                                        .get("hooks")
                                         .and_then(|v| v.as_array())
-                                        .map(|arr| arr.iter()
-                                            .filter_map(|v| v.as_str())
-                                            .filter_map(|s| match s {
-                                                "on_project_load" => Some(PluginHook::OnProjectLoad),
-                                                "on_project_save" => Some(PluginHook::OnProjectSave),
-                                                "on_render_start" => Some(PluginHook::OnRenderStart),
-                                                "on_render_complete" => Some(PluginHook::OnRenderComplete),
-                                                "process_frame" => Some(PluginHook::ProcessFrame),
-                                                "process_audio" => Some(PluginHook::ProcessAudio),
-                                                "custom_effect" => Some(PluginHook::CustomEffect),
-                                                _ => None,
-                                            })
-                                            .collect())
+                                        .map(|arr| {
+                                            arr.iter()
+                                                .filter_map(|v| v.as_str())
+                                                .filter_map(|s| match s {
+                                                    "on_project_load" => {
+                                                        Some(PluginHook::OnProjectLoad)
+                                                    }
+                                                    "on_project_save" => {
+                                                        Some(PluginHook::OnProjectSave)
+                                                    }
+                                                    "on_render_start" => {
+                                                        Some(PluginHook::OnRenderStart)
+                                                    }
+                                                    "on_render_complete" => {
+                                                        Some(PluginHook::OnRenderComplete)
+                                                    }
+                                                    "process_frame" => {
+                                                        Some(PluginHook::ProcessFrame)
+                                                    }
+                                                    "process_audio" => {
+                                                        Some(PluginHook::ProcessAudio)
+                                                    }
+                                                    "custom_effect" => {
+                                                        Some(PluginHook::CustomEffect)
+                                                    }
+                                                    _ => None,
+                                                })
+                                                .collect()
+                                        })
                                         .unwrap_or_default(),
-                                    installed_version: Some(manifest.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string()),
+                                    installed_version: Some(
+                                        manifest
+                                            .get("version")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("0.0.0")
+                                            .to_string(),
+                                    ),
                                     latest_version: None,
                                     update_available: false,
                                 }
@@ -349,7 +438,11 @@ pub async fn plugin_scan_directory(
         }
     }
 
-    info!("Scanned '{}': loaded {} new plugin(s)", directory, loaded.len());
+    info!(
+        "Scanned '{}': loaded {} new plugin(s)",
+        directory,
+        loaded.len()
+    );
     Ok(loaded)
 }
 
@@ -366,30 +459,41 @@ pub struct FetchRepositoryRequest {
 }
 
 #[tauri::command]
-pub async fn plugin_fetch_repository(
-    url: String,
-) -> Result<PluginRepositoryResponse, String> {
+pub async fn plugin_fetch_repository(url: String) -> Result<PluginRepositoryResponse, String> {
     debug!("Fetching plugin repository from: {}", url);
 
     let client = Client::new();
-    let response = client.get(&url)
+    let response = client
+        .get(&url)
         .send()
         .await
         .map_err(|e| format!("Failed to fetch repository: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("Repository request failed with status: {}", response.status()));
+        return Err(format!(
+            "Repository request failed with status: {}",
+            response.status()
+        ));
     }
 
-    let repository: PluginRepository = response.json()
+    let repository: PluginRepository = response
+        .json()
         .await
         .map_err(|e| format!("Failed to parse repository data: {}", e))?;
 
-    info!("Fetched repository '{}' with {} plugins", repository.name, repository.plugins.len());
+    info!(
+        "Fetched repository '{}' with {} plugins",
+        repository.name,
+        repository.plugins.len()
+    );
 
     Ok(PluginRepositoryResponse {
         success: true,
-        message: format!("Fetched repository '{}' with {} plugins", repository.name, repository.plugins.len()),
+        message: format!(
+            "Fetched repository '{}' with {} plugins",
+            repository.name,
+            repository.plugins.len()
+        ),
         repository: Some(repository),
     })
 }
@@ -409,16 +513,21 @@ pub async fn plugin_search_repository(
     debug!("Searching repository: {}", repository_url);
 
     let client = Client::new();
-    let response = client.get(&repository_url)
+    let response = client
+        .get(&repository_url)
         .send()
         .await
         .map_err(|e| format!("Failed to fetch repository: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("Repository request failed with status: {}", response.status()));
+        return Err(format!(
+            "Repository request failed with status: {}",
+            response.status()
+        ));
     }
 
-    let repository: PluginRepository = response.json()
+    let repository: PluginRepository = response
+        .json()
         .await
         .map_err(|e| format!("Failed to parse repository data: {}", e))?;
 
@@ -440,7 +549,8 @@ pub async fn plugin_search_repository(
         if let Some(tags) = filter.tags {
             if !tags.is_empty() {
                 plugins.retain(|p| {
-                    tags.iter().any(|tag| p.tags.iter().any(|pt| pt.eq_ignore_ascii_case(tag)))
+                    tags.iter()
+                        .any(|tag| p.tags.iter().any(|pt| pt.eq_ignore_ascii_case(tag)))
                 });
             }
         }
@@ -463,7 +573,11 @@ pub async fn plugin_search_repository(
         match sort_by {
             "name" => plugins.sort_by(|a, b| a.name.cmp(&b.name)),
             "downloads" => plugins.sort_by(|a, b| a.downloads.cmp(&b.downloads)),
-            "rating" => plugins.sort_by(|a, b| a.rating.partial_cmp(&b.rating).unwrap_or(std::cmp::Ordering::Equal)),
+            "rating" => plugins.sort_by(|a, b| {
+                a.rating
+                    .partial_cmp(&b.rating)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            }),
             "updated" => plugins.sort_by(|a, b| a.updated_at.cmp(&b.updated_at)),
             _ => plugins.sort_by(|a, b| a.name.cmp(&b.name)),
         }
@@ -507,46 +621,61 @@ pub async fn plugin_install_from_repository(
 
     // Fetch repository
     let client = Client::new();
-    let response = client.get(&repository_url)
+    let response = client
+        .get(&repository_url)
         .send()
         .await
         .map_err(|e| format!("Failed to fetch repository: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("Repository request failed with status: {}", response.status()));
+        return Err(format!(
+            "Repository request failed with status: {}",
+            response.status()
+        ));
     }
 
-    let repository: PluginRepository = response.json()
+    let repository: PluginRepository = response
+        .json()
         .await
         .map_err(|e| format!("Failed to parse repository data: {}", e))?;
 
     // Find plugin in repository
-    let remote_plugin = repository.plugins.iter()
+    let remote_plugin = repository
+        .plugins
+        .iter()
         .find(|p| p.id == plugin_id)
         .ok_or_else(|| format!("Plugin '{}' not found in repository", plugin_id))?;
 
     // Download plugin
-    let download_response = client.get(&remote_plugin.download_url)
+    let download_response = client
+        .get(&remote_plugin.download_url)
         .send()
         .await
         .map_err(|e| format!("Failed to download plugin: {}", e))?;
 
     if !download_response.status().is_success() {
-        return Err(format!("Plugin download failed with status: {}", download_response.status()));
+        return Err(format!(
+            "Plugin download failed with status: {}",
+            download_response.status()
+        ));
     }
 
-    let plugin_bytes = download_response.bytes()
+    let plugin_bytes = download_response
+        .bytes()
         .await
         .map_err(|e| format!("Failed to read plugin bytes: {}", e))?;
 
     // Verify checksum
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(&plugin_bytes);
     let checksum = format!("{:x}", hasher.finalize());
 
     if checksum != remote_plugin.checksum {
-        return Err(format!("Checksum mismatch: expected {}, got {}", remote_plugin.checksum, checksum));
+        return Err(format!(
+            "Checksum mismatch: expected {}, got {}",
+            remote_plugin.checksum, checksum
+        ));
     }
 
     // Create install directory if needed
@@ -575,17 +704,26 @@ pub async fn plugin_install_from_repository(
     });
 
     let manifest_path = install_path_buf.join(format!("{}.json", remote_plugin.id));
-    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap())
-        .map_err(|e| format!("Failed to write manifest: {}", e))?;
+    fs::write(
+        &manifest_path,
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .map_err(|e| format!("Failed to write manifest: {}", e))?;
 
     // Load the plugin
     let load_response = plugin_load(plugin_path.to_string_lossy().to_string(), state).await?;
 
-    info!("Successfully installed plugin '{}' v{}", remote_plugin.name, remote_plugin.version);
+    info!(
+        "Successfully installed plugin '{}' v{}",
+        remote_plugin.name, remote_plugin.version
+    );
 
     Ok(PluginInstallResponse {
         success: true,
-        message: format!("Installed plugin '{}' v{}", remote_plugin.name, remote_plugin.version),
+        message: format!(
+            "Installed plugin '{}' v{}",
+            remote_plugin.name, remote_plugin.version
+        ),
         plugin: load_response.plugin,
     })
 }
@@ -605,25 +743,34 @@ pub async fn plugin_check_updates(
     debug!("Checking for plugin updates from: {}", repository_url);
 
     let local_versions: Vec<(String, String)> = {
-        let registry = state.plugin_registry.lock()
+        let registry = state
+            .plugin_registry
+            .lock()
             .map_err(|e| format!("Failed to lock plugin registry: {}", e))?;
-        registry.plugins.iter()
+        registry
+            .plugins
+            .iter()
             .map(|(id, p)| (id.clone(), p.version.clone()))
             .collect()
     };
 
     // Fetch repository
     let client = Client::new();
-    let response = client.get(&repository_url)
+    let response = client
+        .get(&repository_url)
         .send()
         .await
         .map_err(|e| format!("Failed to fetch repository: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("Repository request failed with status: {}", response.status()));
+        return Err(format!(
+            "Repository request failed with status: {}",
+            response.status()
+        ));
     }
 
-    let repository: PluginRepository = response.json()
+    let repository: PluginRepository = response
+        .json()
         .await
         .map_err(|e| format!("Failed to parse repository data: {}", e))?;
 
@@ -634,16 +781,25 @@ pub async fn plugin_check_updates(
             // Compare versions (simple string comparison for now)
             if *local_version != remote_plugin.version {
                 updated_plugins.push(plugin_id.clone());
-                info!("Update available for '{}': {} -> {}", plugin_id, local_version, remote_plugin.version);
+                info!(
+                    "Update available for '{}': {} -> {}",
+                    plugin_id, local_version, remote_plugin.version
+                );
             }
         }
     }
 
-    info!("Found {} plugins with updates available", updated_plugins.len());
+    info!(
+        "Found {} plugins with updates available",
+        updated_plugins.len()
+    );
 
     Ok(PluginUpdateResponse {
         success: true,
-        message: format!("Found {} plugins with updates available", updated_plugins.len()),
+        message: format!(
+            "Found {} plugins with updates available",
+            updated_plugins.len()
+        ),
         updated_plugins,
     })
 }

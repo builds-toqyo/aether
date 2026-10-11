@@ -1,9 +1,9 @@
 use anyhow::Result;
-use log::{debug, info, warn};
 use image::{Rgb, RgbImage};
+use log::{debug, info, warn};
 
+use super::{config::AcesConfig, looks::LookManager, transforms::TransformManager};
 use crate::types::{ColorSpace, VideoRange};
-use super::{transforms::TransformManager, looks::LookManager, config::AcesConfig};
 
 pub struct AcesProcessor {
     config: AcesConfig,
@@ -45,7 +45,10 @@ impl AcesProcessor {
         match super::ocio::OcioPipeline::new(&self.config.ocio_config_path) {
             Some(pipeline) => {
                 self.ocio_pipeline = Some(pipeline);
-                info!("OpenColorIO pipeline initialized from: {}", self.config.ocio_config_path);
+                info!(
+                    "OpenColorIO pipeline initialized from: {}",
+                    self.config.ocio_config_path
+                );
             }
             None => {
                 warn!(
@@ -58,8 +61,15 @@ impl AcesProcessor {
         Ok(())
     }
 
-    pub fn to_aces(&self, image: &RgbImage, input_transform: super::InputTransform) -> Result<RgbImage> {
-        debug!("Converting image to ACES with transform: {:?}", input_transform);
+    pub fn to_aces(
+        &self,
+        image: &RgbImage,
+        input_transform: super::InputTransform,
+    ) -> Result<RgbImage> {
+        debug!(
+            "Converting image to ACES with transform: {:?}",
+            input_transform
+        );
 
         let (width, height) = image.dimensions();
         let mut aces_image = RgbImage::new(width, height);
@@ -75,15 +85,24 @@ impl AcesProcessor {
                         pixel.0[1] as f32 / 255.0,
                         pixel.0[2] as f32 / 255.0,
                     ];
-                    if pipeline.transform_pixel(&src_space, "ACES2065-1", &mut rgb).is_ok() {
-                        aces_image.put_pixel(x, y, Rgb([
-                            (rgb[0] * 255.0).clamp(0.0, 255.0) as u8,
-                            (rgb[1] * 255.0).clamp(0.0, 255.0) as u8,
-                            (rgb[2] * 255.0).clamp(0.0, 255.0) as u8,
-                        ]));
+                    if pipeline
+                        .transform_pixel(&src_space, "ACES2065-1", &mut rgb)
+                        .is_ok()
+                    {
+                        aces_image.put_pixel(
+                            x,
+                            y,
+                            Rgb([
+                                (rgb[0] * 255.0).clamp(0.0, 255.0) as u8,
+                                (rgb[1] * 255.0).clamp(0.0, 255.0) as u8,
+                                (rgb[2] * 255.0).clamp(0.0, 255.0) as u8,
+                            ]),
+                        );
                     } else {
                         // Fallback for this pixel if OCIO color space not found
-                        let aces_rgb = self.transform_manager.apply_input_transform(pixel.0, input_transform)?;
+                        let aces_rgb = self
+                            .transform_manager
+                            .apply_input_transform(pixel.0, input_transform)?;
                         aces_image.put_pixel(x, y, Rgb(aces_rgb));
                     }
                 }
@@ -99,7 +118,9 @@ impl AcesProcessor {
 
                 let _linear_rgb = self.gamma_decode([r, g, b], self.color_space);
 
-                let aces_rgb = self.transform_manager.apply_input_transform([r, g, b], input_transform)?;
+                let aces_rgb = self
+                    .transform_manager
+                    .apply_input_transform([r, g, b], input_transform)?;
 
                 aces_image.put_pixel(x, y, Rgb(aces_rgb));
             }
@@ -110,8 +131,15 @@ impl AcesProcessor {
         Ok(aces_image)
     }
 
-    pub fn from_aces(&self, aces_image: &RgbImage, output_transform: super::OutputTransform) -> Result<RgbImage> {
-        debug!("Converting ACES image with transform: {:?}", output_transform);
+    pub fn from_aces(
+        &self,
+        aces_image: &RgbImage,
+        output_transform: super::OutputTransform,
+    ) -> Result<RgbImage> {
+        debug!(
+            "Converting ACES image with transform: {:?}",
+            output_transform
+        );
 
         let (width, height) = aces_image.dimensions();
         let mut output_image = RgbImage::new(width, height);
@@ -127,20 +155,33 @@ impl AcesProcessor {
                         pixel.0[1] as f32 / 255.0,
                         pixel.0[2] as f32 / 255.0,
                     ];
-                    if pipeline.transform_pixel("ACES2065-1", &dst_space, &mut rgb).is_ok() {
-                        output_image.put_pixel(x, y, Rgb([
-                            (rgb[0] * 255.0).clamp(0.0, 255.0) as u8,
-                            (rgb[1] * 255.0).clamp(0.0, 255.0) as u8,
-                            (rgb[2] * 255.0).clamp(0.0, 255.0) as u8,
-                        ]));
+                    if pipeline
+                        .transform_pixel("ACES2065-1", &dst_space, &mut rgb)
+                        .is_ok()
+                    {
+                        output_image.put_pixel(
+                            x,
+                            y,
+                            Rgb([
+                                (rgb[0] * 255.0).clamp(0.0, 255.0) as u8,
+                                (rgb[1] * 255.0).clamp(0.0, 255.0) as u8,
+                                (rgb[2] * 255.0).clamp(0.0, 255.0) as u8,
+                            ]),
+                        );
                     } else {
-                        let output_rgb = self.transform_manager.apply_output_transform(pixel.0, output_transform)?;
+                        let output_rgb = self
+                            .transform_manager
+                            .apply_output_transform(pixel.0, output_transform)?;
                         let gamma_rgb = self.gamma_encode(output_rgb, self.color_space);
-                        output_image.put_pixel(x, y, Rgb([
-                            gamma_rgb[0].clamp(0.0, 255.0) as u8,
-                            gamma_rgb[1].clamp(0.0, 255.0) as u8,
-                            gamma_rgb[2].clamp(0.0, 255.0) as u8,
-                        ]));
+                        output_image.put_pixel(
+                            x,
+                            y,
+                            Rgb([
+                                gamma_rgb[0].clamp(0.0, 255.0) as u8,
+                                gamma_rgb[1].clamp(0.0, 255.0) as u8,
+                                gamma_rgb[2].clamp(0.0, 255.0) as u8,
+                            ]),
+                        );
                     }
                 }
             }
@@ -153,7 +194,9 @@ impl AcesProcessor {
                 let pixel = aces_image.get_pixel(x, y);
                 let [r, g, b] = pixel.0;
 
-                let output_rgb = self.transform_manager.apply_output_transform([r, g, b], output_transform)?;
+                let output_rgb = self
+                    .transform_manager
+                    .apply_output_transform([r, g, b], output_transform)?;
 
                 let gamma_rgb = self.gamma_encode(output_rgb, self.color_space);
 
@@ -183,7 +226,6 @@ impl AcesProcessor {
             for x in 0..width {
                 let pixel = aces_image.get_pixel(x, y);
                 let [r, g, b] = pixel.0;
-
 
                 let modified_rgb = look.apply([r, g, b]);
 
@@ -220,54 +262,46 @@ impl AcesProcessor {
 
     fn gamma_decode(&self, rgb: [u8; 3], color_space: ColorSpace) -> [f32; 3] {
         match color_space {
-            ColorSpace::Rec709 => {
-                [
-                    super::gamma::rec709_gamma_decode(rgb[0] as f32 / 255.0),
-                    super::gamma::rec709_gamma_decode(rgb[1] as f32 / 255.0),
-                    super::gamma::rec709_gamma_decode(rgb[2] as f32 / 255.0),
-                ]
-            }
-            ColorSpace::Rec2020 => {
-                [
-                    super::gamma::rec2020_gamma_decode(rgb[0] as f32 / 255.0),
-                    super::gamma::rec2020_gamma_decode(rgb[1] as f32 / 255.0),
-                    super::gamma::rec2020_gamma_decode(rgb[2] as f32 / 255.0),
-                ]
-            }
-            ColorSpace::SRGB => {
-                [
-                    super::gamma::srgb_gamma_decode(rgb[0] as f32 / 255.0),
-                    super::gamma::srgb_gamma_decode(rgb[1] as f32 / 255.0),
-                    super::gamma::srgb_gamma_decode(rgb[2] as f32 / 255.0),
-                ]
-            }
-            _ => [rgb[0] as f32 / 255.0, rgb[1] as f32 / 255.0, rgb[2] as f32 / 255.0],
+            ColorSpace::Rec709 => [
+                super::gamma::rec709_gamma_decode(rgb[0] as f32 / 255.0),
+                super::gamma::rec709_gamma_decode(rgb[1] as f32 / 255.0),
+                super::gamma::rec709_gamma_decode(rgb[2] as f32 / 255.0),
+            ],
+            ColorSpace::Rec2020 => [
+                super::gamma::rec2020_gamma_decode(rgb[0] as f32 / 255.0),
+                super::gamma::rec2020_gamma_decode(rgb[1] as f32 / 255.0),
+                super::gamma::rec2020_gamma_decode(rgb[2] as f32 / 255.0),
+            ],
+            ColorSpace::SRGB => [
+                super::gamma::srgb_gamma_decode(rgb[0] as f32 / 255.0),
+                super::gamma::srgb_gamma_decode(rgb[1] as f32 / 255.0),
+                super::gamma::srgb_gamma_decode(rgb[2] as f32 / 255.0),
+            ],
+            _ => [
+                rgb[0] as f32 / 255.0,
+                rgb[1] as f32 / 255.0,
+                rgb[2] as f32 / 255.0,
+            ],
         }
     }
 
     fn gamma_encode(&self, rgb: [u8; 3], color_space: ColorSpace) -> [f32; 3] {
         match color_space {
-            ColorSpace::Rec709 => {
-                [
-                    super::gamma::rec709_gamma_encode(rgb[0] as f32 / 255.0),
-                    super::gamma::rec709_gamma_encode(rgb[1] as f32 / 255.0),
-                    super::gamma::rec709_gamma_encode(rgb[2] as f32 / 255.0),
-                ]
-            }
-            ColorSpace::Rec2020 => {
-                [
-                    super::gamma::rec2020_gamma_encode(rgb[0] as f32 / 255.0),
-                    super::gamma::rec2020_gamma_encode(rgb[1] as f32 / 255.0),
-                    super::gamma::rec2020_gamma_encode(rgb[2] as f32 / 255.0),
-                ]
-            }
-            ColorSpace::SRGB => {
-                [
-                    super::gamma::srgb_gamma_encode(rgb[0] as f32 / 255.0),
-                    super::gamma::srgb_gamma_encode(rgb[1] as f32 / 255.0),
-                    super::gamma::srgb_gamma_encode(rgb[2] as f32 / 255.0),
-                ]
-            }
+            ColorSpace::Rec709 => [
+                super::gamma::rec709_gamma_encode(rgb[0] as f32 / 255.0),
+                super::gamma::rec709_gamma_encode(rgb[1] as f32 / 255.0),
+                super::gamma::rec709_gamma_encode(rgb[2] as f32 / 255.0),
+            ],
+            ColorSpace::Rec2020 => [
+                super::gamma::rec2020_gamma_encode(rgb[0] as f32 / 255.0),
+                super::gamma::rec2020_gamma_encode(rgb[1] as f32 / 255.0),
+                super::gamma::rec2020_gamma_encode(rgb[2] as f32 / 255.0),
+            ],
+            ColorSpace::SRGB => [
+                super::gamma::srgb_gamma_encode(rgb[0] as f32 / 255.0),
+                super::gamma::srgb_gamma_encode(rgb[1] as f32 / 255.0),
+                super::gamma::srgb_gamma_encode(rgb[2] as f32 / 255.0),
+            ],
             _ => [rgb[0] as f32, rgb[1] as f32, rgb[2] as f32],
         }
     }

@@ -1,27 +1,28 @@
-pub mod input;
-pub mod output;
-pub mod merge;
-pub mod transform;
-pub mod color_correction;
 pub mod blur;
+pub mod color_correction;
+pub mod input;
+pub mod merge;
+pub mod output;
+pub mod transform;
 
-pub use input::*;
-pub use output::{OutputNode};
-pub use merge::*;
-pub use transform::{TransformNode, TransformOperations};
+pub use blur::BlurNode;
 pub use color_correction::*;
-pub use blur::{BlurNode};
+pub use input::*;
+pub use merge::*;
+pub use output::OutputNode;
+pub use transform::{TransformNode, TransformOperations};
 
 use crate::nodes::NodeExecutor;
 use aether_types::{Node, NodeType};
 use uuid::Uuid;
 
-
 pub struct BasicNodeFactory;
 
 impl BasicNodeFactory {
-
-    pub fn create_basic_node(node_type: NodeType, node: Node) -> crate::nodes::NodeResult<Box<dyn NodeExecutor + Send + Sync>> {
+    pub fn create_basic_node(
+        node_type: NodeType,
+        node: Node,
+    ) -> crate::nodes::NodeResult<Box<dyn NodeExecutor + Send + Sync>> {
         match node_type {
             NodeType::Input => Ok(Box::new(InputNode::new(node))),
             NodeType::Output => Ok(Box::new(OutputNode::new(node))),
@@ -29,10 +30,12 @@ impl BasicNodeFactory {
             NodeType::Transform => Ok(Box::new(TransformNode::new(node))),
             NodeType::ColorCorrection => Ok(Box::new(ColorCorrectionNode::new(node))),
             NodeType::Blur => Ok(Box::new(BlurNode::new(node))),
-            _ => Err(crate::nodes::NodeError::ExecutionFailed(format!("Unsupported basic node type: {:?}", node_type))),
+            _ => Err(crate::nodes::NodeError::ExecutionFailed(format!(
+                "Unsupported basic node type: {:?}",
+                node_type
+            ))),
         }
     }
-
 
     pub fn register_basic_nodes(registry: &mut crate::nodes::NodeRegistry) {
         registry.register_node_type(NodeType::Input, || {
@@ -56,7 +59,8 @@ impl BasicNodeFactory {
         });
 
         registry.register_node_type(NodeType::ColorCorrection, || {
-            let node = aether_types::Node::new(NodeType::ColorCorrection, "Color Correction".to_string());
+            let node =
+                aether_types::Node::new(NodeType::ColorCorrection, "Color Correction".to_string());
             Self::create_basic_node(NodeType::ColorCorrection, node).unwrap()
         });
 
@@ -65,7 +69,6 @@ impl BasicNodeFactory {
             Self::create_basic_node(NodeType::Blur, node).unwrap()
         });
     }
-
 
     pub fn get_supported_types() -> Vec<NodeType> {
         vec![
@@ -79,7 +82,6 @@ impl BasicNodeFactory {
     }
 }
 
-
 pub fn create_basic_node_with_pins(
     node_type: NodeType,
     name: String,
@@ -87,7 +89,6 @@ pub fn create_basic_node_with_pins(
     output_count: usize,
 ) -> Node {
     let mut node = Node::new(node_type, name);
-
 
     for i in 0..input_count {
         let input_pin = aether_types::InputPin {
@@ -101,7 +102,6 @@ pub fn create_basic_node_with_pins(
         };
         node.add_input(input_pin);
     }
-
 
     for i in 0..output_count {
         let output_pin = aether_types::OutputPin {
@@ -126,7 +126,6 @@ mod tests {
         let mut registry = NodeRegistry::new();
         BasicNodeFactory::register_basic_nodes(&mut registry);
 
-
         let supported_types = BasicNodeFactory::get_supported_types();
         for node_type in supported_types {
             assert!(registry.create_node(&node_type).is_ok());
@@ -135,12 +134,8 @@ mod tests {
 
     #[test]
     fn test_create_basic_node_with_pins() {
-        let node = create_basic_node_with_pins(
-            NodeType::Transform,
-            "Test Transform".to_string(),
-            1,
-            1,
-        );
+        let node =
+            create_basic_node_with_pins(NodeType::Transform, "Test Transform".to_string(), 1, 1);
 
         assert_eq!(node.node_type, NodeType::Transform);
         assert_eq!(node.name, "Test Transform");

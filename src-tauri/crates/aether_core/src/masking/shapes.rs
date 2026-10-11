@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
-use crate::shapes::primitives::{BoundingBox, Point};
-use crate::shapes::paths::Path;
 use super::types::*;
-
+use crate::shapes::paths::Path;
+use crate::shapes::primitives::{BoundingBox, Point};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ShapeMaskType {
@@ -114,15 +113,12 @@ impl ShapeMask {
         let (x, y) = self.properties.position;
         let (width, height) = self.size;
 
-
         let cos_r = self.properties.rotation.to_radians().cos();
         let sin_r = self.properties.rotation.to_radians().sin();
         let (sx, sy) = self.properties.scale;
 
-
         let local_x = (px - x) / sx;
         let local_y = (py - y) / sy;
-
 
         let rotated_x = local_x * cos_r + local_y * sin_r;
         let rotated_y = -local_x * sin_r + local_y * cos_r;
@@ -133,13 +129,11 @@ impl ShapeMask {
                 let half_height = height / 2.0;
 
                 if self.corner_radius > 0.0 {
-
                     let r = self.corner_radius.min(half_width).min(half_height);
                     let center_x = rotated_x.abs();
                     let center_y = rotated_y.abs();
 
                     if center_x >= half_width - r && center_y >= half_height - r {
-
                         let corner_center_x = half_width - r;
                         let corner_center_y = half_height - r;
                         let dx = center_x - corner_center_x;
@@ -149,7 +143,6 @@ impl ShapeMask {
                         center_x <= half_width && center_y <= half_height
                     }
                 } else {
-
                     rotated_x.abs() <= half_width && rotated_y.abs() <= half_height
                 }
             }
@@ -168,12 +161,8 @@ impl ShapeMask {
                 }
                 point_in_polygon(rotated_x, rotated_y, &self.points)
             }
-            ShapeMaskType::Star => {
-                contains_star(rotated_x, rotated_y, width, height, 5)
-            }
-            ShapeMaskType::Heart => {
-                contains_heart(rotated_x, rotated_y, width, height)
-            }
+            ShapeMaskType::Star => contains_star(rotated_x, rotated_y, width, height, 5),
+            ShapeMaskType::Heart => contains_heart(rotated_x, rotated_y, width, height),
             ShapeMaskType::Custom => {
                 if let Some(ref path) = self.path {
                     path.contains_point(rotated_x, rotated_y)
@@ -193,7 +182,6 @@ impl ShapeMask {
         if self.properties.enabled {
             if self.contains_point(x, y) {
                 value = 1.0;
-
 
                 if self.properties.feather > 0.0 && self.feather_edges {
                     edge_distance = Some(self.calculate_edge_distance(x, y));
@@ -225,13 +213,10 @@ impl ShapeMask {
                 let dy = (y - py).abs() - half_height;
 
                 if dx <= 0.0 && dy <= 0.0 {
-
                     dx.min(dy).max(0.0)
                 } else if dx > 0.0 && dy > 0.0 {
-
                     (dx * dx + dy * dy).sqrt()
                 } else {
-
                     dx.max(dy)
                 }
             }
@@ -249,7 +234,6 @@ impl ShapeMask {
                 dist - radius
             }
             _ => {
-
                 let bounds = self.get_bounds().unwrap();
                 let center_x = (bounds.min_x + bounds.max_x) / 2.0;
                 let center_y = (bounds.min_y + bounds.max_y) / 2.0;
@@ -260,13 +244,27 @@ impl ShapeMask {
         }
     }
 
-    pub fn create_rectangle_mask(id: String, name: String, x: f64, y: f64, width: f64, height: f64) -> Self {
+    pub fn create_rectangle_mask(
+        id: String,
+        name: String,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Self {
         Self::new(id, name, ShapeMaskType::Rectangle)
             .with_size(width, height)
             .with_position(x, y)
     }
 
-    pub fn create_ellipse_mask(id: String, name: String, x: f64, y: f64, width: f64, height: f64) -> Self {
+    pub fn create_ellipse_mask(
+        id: String,
+        name: String,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> Self {
         Self::new(id, name, ShapeMaskType::Ellipse)
             .with_size(width, height)
             .with_position(x, y)
@@ -291,7 +289,15 @@ impl ShapeMask {
             .with_position(center_x, center_y)
     }
 
-    pub fn create_star_mask(id: String, name: String, x: f64, y: f64, outer_radius: f64, inner_radius: f64, points: usize) -> Self {
+    pub fn create_star_mask(
+        id: String,
+        name: String,
+        x: f64,
+        y: f64,
+        outer_radius: f64,
+        inner_radius: f64,
+        points: usize,
+    ) -> Self {
         let star_points = generate_star_points(outer_radius, inner_radius, points);
         Self::new(id, name, ShapeMaskType::Star)
             .with_points(star_points)
@@ -316,14 +322,14 @@ impl ShapeMask {
             return Err("Polygon mask must have at least 3 points".to_string());
         }
 
-        if self.shape_type == ShapeMaskType::Custom && self.points.is_empty() && self.path.is_none() {
+        if self.shape_type == ShapeMaskType::Custom && self.points.is_empty() && self.path.is_none()
+        {
             return Err("Custom mask must have points or a path".to_string());
         }
 
         Ok(())
     }
 }
-
 
 fn point_in_polygon(x: f64, y: f64, points: &[Point]) -> bool {
     if points.len() < 3 {
@@ -348,7 +354,6 @@ fn point_in_polygon(x: f64, y: f64, points: &[Point]) -> bool {
     inside
 }
 
-
 fn contains_star(x: f64, y: f64, width: f64, height: f64, points: usize) -> bool {
     let outer_radius = width.min(height) / 2.0;
     let inner_radius = outer_radius * 0.4;
@@ -356,18 +361,14 @@ fn contains_star(x: f64, y: f64, width: f64, height: f64, points: usize) -> bool
     point_in_polygon(x, y, &star_points)
 }
 
-
 fn contains_heart(x: f64, y: f64, width: f64, height: f64) -> bool {
-
     let scale = width.min(height) / 2.0;
     let nx = x / scale;
     let ny = y / scale;
 
-
     let equation = (nx * nx + ny * ny - 1.0).powi(3) - nx * nx * ny.powi(3);
     equation <= 0.0 && ny > -0.5
 }
-
 
 fn generate_star_points(outer_radius: f64, inner_radius: f64, points: usize) -> Vec<Point> {
     let mut star_points = Vec::new();
@@ -375,7 +376,11 @@ fn generate_star_points(outer_radius: f64, inner_radius: f64, points: usize) -> 
 
     for i in 0..points * 2 {
         let angle = i as f64 * angle_step - std::f64::consts::PI / 2.0;
-        let radius = if i % 2 == 0 { outer_radius } else { inner_radius };
+        let radius = if i % 2 == 0 {
+            outer_radius
+        } else {
+            inner_radius
+        };
 
         let x = radius * angle.cos();
         let y = radius * angle.sin();
@@ -384,7 +389,6 @@ fn generate_star_points(outer_radius: f64, inner_radius: f64, points: usize) -> 
 
     star_points
 }
-
 
 fn calculate_polygon_bounds(points: &[Point]) -> BoundingBox {
     if points.is_empty() {
@@ -412,7 +416,11 @@ mod tests {
 
     #[test]
     fn test_shape_mask_creation() {
-        let mask = ShapeMask::new("mask1".to_string(), "Test Mask".to_string(), ShapeMaskType::Rectangle);
+        let mask = ShapeMask::new(
+            "mask1".to_string(),
+            "Test Mask".to_string(),
+            ShapeMaskType::Rectangle,
+        );
 
         assert_eq!(mask.properties.id, "mask1");
         assert_eq!(mask.properties.name, "Test Mask");
@@ -424,11 +432,15 @@ mod tests {
 
     #[test]
     fn test_shape_mask_builder() {
-        let mask = ShapeMask::new("mask1".to_string(), "Test".to_string(), ShapeMaskType::Ellipse)
-            .with_size(200.0, 150.0)
-            .with_corner_radius(10.0)
-            .with_feather_edges(false)
-            .with_anti_aliasing(false);
+        let mask = ShapeMask::new(
+            "mask1".to_string(),
+            "Test".to_string(),
+            ShapeMaskType::Ellipse,
+        )
+        .with_size(200.0, 150.0)
+        .with_corner_radius(10.0)
+        .with_feather_edges(false)
+        .with_anti_aliasing(false);
 
         assert_eq!(mask.size, (200.0, 150.0));
         assert_eq!(mask.corner_radius, 10.0);
@@ -438,7 +450,14 @@ mod tests {
 
     #[test]
     fn test_rectangle_mask_contains_point() {
-        let mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
+        let mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
 
         assert!(mask.contains_point(0.0, 0.0));
         assert!(mask.contains_point(25.0, 25.0));
@@ -452,7 +471,13 @@ mod tests {
 
     #[test]
     fn test_circle_mask_contains_point() {
-        let mask = ShapeMask::create_circle_mask("circle".to_string(), "Circle".to_string(), 0.0, 0.0, 50.0);
+        let mask = ShapeMask::create_circle_mask(
+            "circle".to_string(),
+            "Circle".to_string(),
+            0.0,
+            0.0,
+            50.0,
+        );
 
         assert!(mask.contains_point(0.0, 0.0));
         assert!(mask.contains_point(25.0, 25.0));
@@ -465,7 +490,14 @@ mod tests {
 
     #[test]
     fn test_ellipse_mask_contains_point() {
-        let mask = ShapeMask::create_ellipse_mask("ellipse".to_string(), "Ellipse".to_string(), 0.0, 0.0, 100.0, 50.0);
+        let mask = ShapeMask::create_ellipse_mask(
+            "ellipse".to_string(),
+            "Ellipse".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
 
         assert!(mask.contains_point(0.0, 0.0));
         assert!(mask.contains_point(49.0, 0.0));
@@ -485,7 +517,8 @@ mod tests {
             Point::new(-50.0, 0.0),
         ];
 
-        let mask = ShapeMask::create_polygon_mask("polygon".to_string(), "Polygon".to_string(), points);
+        let mask =
+            ShapeMask::create_polygon_mask("polygon".to_string(), "Polygon".to_string(), points);
 
         assert!(mask.contains_point(0.0, 0.0));
         assert!(mask.contains_point(25.0, 0.0));
@@ -497,7 +530,15 @@ mod tests {
 
     #[test]
     fn test_star_mask_contains_point() {
-        let mask = ShapeMask::create_star_mask("star".to_string(), "Star".to_string(), 0.0, 0.0, 50.0, 20.0, 5);
+        let mask = ShapeMask::create_star_mask(
+            "star".to_string(),
+            "Star".to_string(),
+            0.0,
+            0.0,
+            50.0,
+            20.0,
+            5,
+        );
 
         assert!(mask.contains_point(0.0, 0.0));
         assert!(mask.contains_point(25.0, 0.0));
@@ -508,7 +549,14 @@ mod tests {
 
     #[test]
     fn test_mask_evaluation() {
-        let mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
+        let mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
 
         let eval_inside = mask.evaluate_at(0.0, 0.0);
         assert_eq!(eval_inside.value, 1.0);
@@ -518,7 +566,6 @@ mod tests {
         assert_eq!(eval_outside.value, 0.0);
         assert!(!eval_outside.is_inside);
 
-
         mask.properties.set_opacity(0.5);
         let eval_half = mask.evaluate_at(0.0, 0.0);
         assert_eq!(eval_half.value, 0.5);
@@ -526,7 +573,14 @@ mod tests {
 
     #[test]
     fn test_mask_validation() {
-        let valid_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
+        let valid_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
         assert!(valid_mask.validate().is_ok());
 
         let mut invalid_mask = valid_mask.clone();
@@ -545,7 +599,14 @@ mod tests {
 
     #[test]
     fn test_rounded_rectangle() {
-        let mask = ShapeMask::create_rectangle_mask("rounded".to_string(), "Rounded".to_string(), 0.0, 0.0, 100.0, 50.0);
+        let mask = ShapeMask::create_rectangle_mask(
+            "rounded".to_string(),
+            "Rounded".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
         mask.set_corner_radius(10.0);
 
         assert!(mask.contains_point(40.0, 20.0));
@@ -573,7 +634,14 @@ mod tests {
 
     #[test]
     fn test_edge_distance_calculation() {
-        let mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
+        let mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
 
         let distance = mask.calculate_edge_distance(60.0, 0.0);
         assert!((distance - 10.0).abs() < 0.001);
@@ -584,7 +652,11 @@ mod tests {
 
     impl Default for ShapeMask {
         fn default() -> Self {
-            Self::new("default".to_string(), "Default Mask".to_string(), ShapeMaskType::Rectangle)
+            Self::new(
+                "default".to_string(),
+                "Default Mask".to_string(),
+                ShapeMaskType::Rectangle,
+            )
         }
     }
 }

@@ -32,7 +32,9 @@ pub trait ShapePrimitive {
     fn area(&self) -> f64;
     fn perimeter(&self) -> f64;
     fn transform(&mut self, transform: &super::transform::Transform);
-    fn transformed(&self, transform: &super::transform::Transform) -> Self where Self: Sized;
+    fn transformed(&self, transform: &super::transform::Transform) -> Self
+    where
+        Self: Sized;
     fn clone_box(&self) -> Box<dyn ShapePrimitive>;
     fn validate(&self) -> Result<(), String>;
 }
