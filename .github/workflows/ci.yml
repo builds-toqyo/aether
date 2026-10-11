@@ -211,8 +211,10 @@ jobs:
           ${{ runner.os }}-cargo-
 
     - name: Install system dependencies
+      # ffmpeg@8 (keg-only) pinned: ffmpeg-next 8.1.0 doesn't cover FFmpeg 9.x enums
       run: |
-        brew install ffmpeg gstreamer gst-plugins-base gst-plugins-good
+        brew install ffmpeg@8 gstreamer gst-plugins-base gst-plugins-good
+        echo "PKG_CONFIG_PATH=$(brew --prefix ffmpeg@8)/lib/pkgconfig:${PKG_CONFIG_PATH:-}" >> "$GITHUB_ENV"
 
     - name: Install frontend dependencies
       run: npm ci
