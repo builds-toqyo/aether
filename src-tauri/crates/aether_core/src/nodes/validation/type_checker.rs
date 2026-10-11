@@ -54,18 +54,29 @@ impl TypeChecker {
     }
 
     pub fn are_values_compatible(value1: &ParameterValue, value2: &ParameterValue) -> bool {
-        matches!((value1, value2),
+        matches!(
+            (value1, value2),
             (ParameterValue::Float(_), ParameterValue::Float(_))
-            | (ParameterValue::Integer(_), ParameterValue::Integer(_))
-            | (ParameterValue::Boolean(_), ParameterValue::Boolean(_))
-            | (ParameterValue::String(_), ParameterValue::String(_))
-            | (ParameterValue::Vector2(_, _), ParameterValue::Vector2(_, _))
-            | (ParameterValue::Vector3(_, _, _), ParameterValue::Vector3(_, _, _))
-            | (ParameterValue::Vector4(_, _, _, _), ParameterValue::Vector4(_, _, _, _))
-            | (ParameterValue::Color(_, _, _, _), ParameterValue::Color(_, _, _, _))
-            | (ParameterValue::Array(_), ParameterValue::Array(_))
-            | (ParameterValue::Image(_), ParameterValue::Image(_))
-            | (ParameterValue::None, ParameterValue::None))
+                | (ParameterValue::Integer(_), ParameterValue::Integer(_))
+                | (ParameterValue::Boolean(_), ParameterValue::Boolean(_))
+                | (ParameterValue::String(_), ParameterValue::String(_))
+                | (ParameterValue::Vector2(_, _), ParameterValue::Vector2(_, _))
+                | (
+                    ParameterValue::Vector3(_, _, _),
+                    ParameterValue::Vector3(_, _, _)
+                )
+                | (
+                    ParameterValue::Vector4(_, _, _, _),
+                    ParameterValue::Vector4(_, _, _, _)
+                )
+                | (
+                    ParameterValue::Color(_, _, _, _),
+                    ParameterValue::Color(_, _, _, _)
+                )
+                | (ParameterValue::Array(_), ParameterValue::Array(_))
+                | (ParameterValue::Image(_), ParameterValue::Image(_))
+                | (ParameterValue::None, ParameterValue::None)
+        )
     }
 
     pub fn is_value_in_bounds(

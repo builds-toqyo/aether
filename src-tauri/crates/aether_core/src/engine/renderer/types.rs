@@ -59,17 +59,23 @@ pub(super) enum Shaders {
     },
 
     #[cfg(all(feature = "vaapi", target_os = "linux"))]
-    Vaapi { config: VaapiConfig },
+    Vaapi {
+        config: VaapiConfig,
+    },
 
     #[cfg(all(feature = "videotoolbox", target_os = "macos"))]
-    VideoToolbox { config: VideoToolboxConfig },
+    VideoToolbox {
+        config: VideoToolboxConfig,
+    },
 
     #[cfg(feature = "amf")]
     Amf {
         components: Vec<*mut std::ffi::c_void>,
     },
 
-    Software { functions: Vec<SoftwareFunction> },
+    Software {
+        functions: Vec<SoftwareFunction>,
+    },
 }
 
 pub type SoftwareFunction = Box<dyn Fn(&[u8], &mut [u8], usize, usize) + Send>;

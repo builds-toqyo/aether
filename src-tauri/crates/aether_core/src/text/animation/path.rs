@@ -208,9 +208,10 @@ impl TextPath {
         }
 
         if let PathSpacing::Fixed(spacing) = self.spacing
-            && spacing <= 0.0 {
-                return Err("Fixed spacing must be positive".to_string());
-            }
+            && spacing <= 0.0
+        {
+            return Err("Fixed spacing must be positive".to_string());
+        }
 
         Ok(())
     }

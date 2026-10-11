@@ -101,8 +101,7 @@ impl Default for LutData {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LutFormat {
     #[default]
     Cube,
@@ -137,7 +136,6 @@ impl LutFormat {
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct LutConfig {
@@ -177,8 +175,7 @@ impl Default for LutConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum InterpolationQuality {
     Nearest,
     Linear,
@@ -205,7 +202,6 @@ impl InterpolationQuality {
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct ColorCorrection {

@@ -42,15 +42,13 @@ impl fmt::Display for LayerBlendMode {
 }
 
 /// Layer visibility state
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum LayerVisibility {
     #[default]
     Visible,
     Hidden,
     Locked,
 }
-
 
 /// Shape layer
 #[derive(Serialize)]

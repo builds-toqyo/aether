@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum InterpolationMethod {
     #[default]
     Linear,
@@ -57,7 +56,6 @@ impl fmt::Display for InterpolationMethod {
         write!(f, "{}", self.name())
     }
 }
-
 
 pub struct BasicInterpolation;
 

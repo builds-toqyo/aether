@@ -162,10 +162,7 @@ impl AnimationInterpolator {
         let t = ((time - prev_time) / (next_time - prev_time)).clamp(0.0, 1.0);
         let curve_t = self.apply_easing(t, easing_function);
 
-        
-
-        self
-            .linear_interpolate(prev_keyframe, next_keyframe, curve_t)
+        self.linear_interpolate(prev_keyframe, next_keyframe, curve_t)
             .unwrap_or_else(|_| InterpolationResult::failure(time))
     }
 

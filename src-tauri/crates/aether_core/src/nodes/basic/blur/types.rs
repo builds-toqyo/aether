@@ -77,6 +77,10 @@ pub trait NextOdd {
 
 impl NextOdd for usize {
     fn next_odd(self) -> usize {
-        if self.is_multiple_of(2) { self + 1 } else { self }
+        if self.is_multiple_of(2) {
+            self + 1
+        } else {
+            self
+        }
     }
 }

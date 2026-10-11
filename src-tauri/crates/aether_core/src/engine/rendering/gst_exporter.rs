@@ -255,18 +255,19 @@ impl GstExporter {
                     gst::MessageView::Application(app) => {
                         let structure = app.structure();
                         if let Some(structure) = structure
-                            && structure.name() == "export-cancelled" {
-                                let error_msg = "Export cancelled";
-                                let mut progress = progress_clone.lock().unwrap();
-                                progress.error = Some(error_msg.to_string());
-                                progress.complete = true;
+                            && structure.name() == "export-cancelled"
+                        {
+                            let error_msg = "Export cancelled";
+                            let mut progress = progress_clone.lock().unwrap();
+                            progress.error = Some(error_msg.to_string());
+                            progress.complete = true;
 
-                                if let Some(callback) = &callback_clone {
-                                    callback(progress.clone());
-                                }
-
-                                main_loop_clone.quit();
+                            if let Some(callback) = &callback_clone {
+                                callback(progress.clone());
                             }
+
+                            main_loop_clone.quit();
+                        }
                     }
                     _ => (),
                 }
@@ -377,12 +378,13 @@ impl GstExporter {
         std::thread::sleep(Duration::from_millis(100));
 
         if let Some(pipeline) = &self.pipeline
-            && let Some(bus) = pipeline.bus() {
-                let structure = gst::Structure::builder("export-cancelled").build();
-                let message = gst::message::Application::new(structure);
-                bus.post(message)
-                    .expect("Failed to post cancellation message");
-            }
+            && let Some(bus) = pipeline.bus()
+        {
+            let structure = gst::Structure::builder("export-cancelled").build();
+            let message = gst::message::Application::new(structure);
+            bus.post(message)
+                .expect("Failed to post cancellation message");
+        }
 
         Ok(())
     }
@@ -443,9 +445,10 @@ impl Drop for GstExporter {
         }
 
         if let Some(main_loop) = &self.main_loop
-            && main_loop.is_running() {
-                main_loop.quit();
-            }
+            && main_loop.is_running()
+        {
+            main_loop.quit();
+        }
     }
 }
 

@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum CurveType {
     #[default]
     Linear,
@@ -27,7 +26,6 @@ impl CurveType {
         }
     }
 }
-
 
 impl fmt::Display for CurveType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

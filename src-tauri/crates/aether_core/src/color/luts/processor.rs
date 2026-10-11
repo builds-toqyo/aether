@@ -84,9 +84,10 @@ impl LutProcessor {
 
     pub fn set_active_lut(&mut self, lut_name: Option<&str>) -> Result<()> {
         if let Some(name) = lut_name
-            && !self.luts.contains_key(name) {
-                return Err(anyhow!("LUT not found: {}", name));
-            }
+            && !self.luts.contains_key(name)
+        {
+            return Err(anyhow!("LUT not found: {}", name));
+        }
 
         self.active_lut = lut_name.map(String::from);
 
@@ -206,9 +207,10 @@ impl LutProcessor {
         }
 
         if let Some(ref active) = self.active_lut
-            && active == lut_name {
-                self.active_lut = None;
-            }
+            && active == lut_name
+        {
+            self.active_lut = None;
+        }
 
         info!("LUT removed: {}", lut_name);
 

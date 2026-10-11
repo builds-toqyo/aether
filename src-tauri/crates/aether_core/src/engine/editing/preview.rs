@@ -179,8 +179,8 @@ impl PreviewEngine {
                 "format",
                 gst::List::new(["RGB", "BGR", "RGBx", "BGRx", "NV12", "I420"]),
             )
-            .field("width", scaled_width as i32 )
-            .field("height", scaled_height as i32 )
+            .field("width", scaled_width as i32)
+            .field("height", scaled_height as i32)
             .build();
 
         appsink.set_caps(Some(&caps));
@@ -226,22 +226,23 @@ impl PreviewEngine {
             gst_app::AppSinkCallbacks::builder()
                 .new_sample(move |appsink| {
                     if let Some(callback) = &callback
-                        && let Ok(sample) = appsink.pull_sample() {
-                            if let Some(frame) = extract_frame_from_sample(&sample) {
-                                if let Ok(mut latest_frame) = latest_frame.lock() {
-                                    *latest_frame = Some(frame.clone());
-                                }
-
-                                // Call the callback
-                                if let Err(e) = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-                                    callback(frame);
-                                })) {
-                                    error!("Error in frame callback: {:?}", e);
-                                }
-                            } else {
-                                warn!("No frame callback registered");
+                        && let Ok(sample) = appsink.pull_sample()
+                    {
+                        if let Some(frame) = extract_frame_from_sample(&sample) {
+                            if let Ok(mut latest_frame) = latest_frame.lock() {
+                                *latest_frame = Some(frame.clone());
                             }
+
+                            // Call the callback
+                            if let Err(e) = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+                                callback(frame);
+                            })) {
+                                error!("Error in frame callback: {:?}", e);
+                            }
+                        } else {
+                            warn!("No frame callback registered");
                         }
+                    }
                     Ok(gst::FlowSuccess::Ok)
                 })
                 .build(),

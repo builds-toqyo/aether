@@ -214,9 +214,10 @@ impl NodeValidator {
             }
 
             if let Some(_connection_id) = &input_pin.connection
-                && context.get_input(&input_pin.id).is_none() {
-                    return Ok(false);
-                }
+                && context.get_input(&input_pin.id).is_none()
+            {
+                return Ok(false);
+            }
         }
 
         Ok(true)

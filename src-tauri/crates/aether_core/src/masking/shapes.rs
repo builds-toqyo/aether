@@ -179,14 +179,13 @@ impl ShapeMask {
         let mut value = 0.0;
         let mut edge_distance = None;
 
-        if self.properties.enabled
-            && self.contains_point(x, y) {
-                value = 1.0;
+        if self.properties.enabled && self.contains_point(x, y) {
+            value = 1.0;
 
-                if self.properties.feather > 0.0 && self.feather_edges {
-                    edge_distance = Some(self.calculate_edge_distance(x, y));
-                }
+            if self.properties.feather > 0.0 && self.feather_edges {
+                edge_distance = Some(self.calculate_edge_distance(x, y));
             }
+        }
 
         let mut eval = MaskEvaluation::new(self.properties.id.clone(), value, (x, y));
 

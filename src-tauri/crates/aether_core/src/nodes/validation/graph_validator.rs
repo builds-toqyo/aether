@@ -51,9 +51,10 @@ impl GraphValidator {
 
         for node_id in graph.nodes.keys() {
             if !visited.contains(node_id)
-                && Self::has_cycle_util(node_id, &adjacency, &mut visited, &mut rec_stack)? {
-                    return Err(NodeError::CircularDependency);
-                }
+                && Self::has_cycle_util(node_id, &adjacency, &mut visited, &mut rec_stack)?
+            {
+                return Err(NodeError::CircularDependency);
+            }
         }
 
         debug!("No circular dependencies found");

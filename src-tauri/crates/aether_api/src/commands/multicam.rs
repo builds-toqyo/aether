@@ -334,9 +334,10 @@ impl Timecode {
 
         for key in &tc_keys {
             if let Some(tc_str) = metadata.get(*key)
-                && let Ok(tc) = Self::from_string(tc_str, frame_rate) {
-                    return Some(tc);
-                }
+                && let Ok(tc) = Self::from_string(tc_str, frame_rate)
+            {
+                return Some(tc);
+            }
         }
 
         None
@@ -460,7 +461,10 @@ impl AudioWaveform {
         }
     }
 
-    pub fn extract_from_audio(audio_path: &std::path::Path, sample_rate: u32) -> Result<Self, String> {
+    pub fn extract_from_audio(
+        audio_path: &std::path::Path,
+        sample_rate: u32,
+    ) -> Result<Self, String> {
         use gst::prelude::*;
         use gstreamer as gst;
 
@@ -497,17 +501,17 @@ impl AudioWaveform {
                 gst::MessageView::Element(element) => {
                     if let Some(structure) = element.structure()
                         && structure.name() == "level"
-                            && let Ok(rms) = structure.get::<gst::List>("rms")
-                                && let Some(rms_value) =
-                                    rms.as_slice().first().and_then(|v| v.get::<f64>().ok())
-                                {
-                                    let amplitude = rms_value.abs();
-                                    waveform.samples.push(WaveformSample {
-                                        timestamp: current_time,
-                                        amplitude,
-                                    });
-                                    current_time += sample_duration;
-                                }
+                        && let Ok(rms) = structure.get::<gst::List>("rms")
+                        && let Some(rms_value) =
+                            rms.as_slice().first().and_then(|v| v.get::<f64>().ok())
+                    {
+                        let amplitude = rms_value.abs();
+                        waveform.samples.push(WaveformSample {
+                            timestamp: current_time,
+                            amplitude,
+                        });
+                        current_time += sample_duration;
+                    }
                 }
                 gst::MessageView::Eos(_) => {
                     break;

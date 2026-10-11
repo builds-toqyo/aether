@@ -49,8 +49,7 @@ pub struct Parameter {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum ParameterValue {
     #[default]
     None,
@@ -66,7 +65,6 @@ pub enum ParameterValue {
     Array(Vec<ParameterValue>),
     Binary(Vec<u8>),
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum NodeType {

@@ -202,16 +202,18 @@ impl TextLayer {
                 AnimationType::PathPosition => {
                     if let Some(ref path) = self.path
                         && let AnimationValue::Float(distance) = value
-                            && let Some(pos) = path.get_point_at_distance(distance) {
-                                transform.position = pos;
-                            }
+                        && let Some(pos) = path.get_point_at_distance(distance)
+                    {
+                        transform.position = pos;
+                    }
                 }
                 AnimationType::PathRotation => {
                     if let Some(ref path) = self.path
                         && let AnimationValue::Float(distance) = value
-                            && let Some((tx, ty)) = path.get_tangent_at_distance(distance) {
-                                transform.rotation = ty.atan2(tx);
-                            }
+                        && let Some((tx, ty)) = path.get_tangent_at_distance(distance)
+                    {
+                        transform.rotation = ty.atan2(tx);
+                    }
                 }
                 _ => {}
             }
@@ -355,10 +357,7 @@ impl TextLayer {
         to_offset: (f64, f64),
         duration: f64,
     ) -> String {
-        let animation_id = format!(
-            "slide_{}",
-            &uuid::Uuid::new_v4().to_string()[..8]
-        );
+        let animation_id = format!("slide_{}", &uuid::Uuid::new_v4().to_string()[..8]);
         let mut animation = CharacterAnimation::new(
             animation_id.clone(),
             "Slide".to_string(),

@@ -235,9 +235,7 @@ impl ExecutionOrderCalculator {
 
         let mut dependencies = Vec::new();
         let mut visited = HashSet::new();
-        let mut to_visit = adjacency
-            .get(&node_id).cloned()
-            .unwrap_or_default();
+        let mut to_visit = adjacency.get(&node_id).cloned().unwrap_or_default();
 
         while let Some(current) = to_visit.pop() {
             if visited.contains(&current) {

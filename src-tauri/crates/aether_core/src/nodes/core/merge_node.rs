@@ -15,17 +15,19 @@ impl CoreMergeNode {
 
     fn get_blend_mode(&self) -> String {
         if let Some(param) = self.node.parameters.get("blend_mode")
-            && let ParameterValue::String(mode) = &param.value {
-                return mode.clone();
-            }
+            && let ParameterValue::String(mode) = &param.value
+        {
+            return mode.clone();
+        }
         "normal".to_string()
     }
 
     fn get_opacity(&self) -> f32 {
         if let Some(param) = self.node.parameters.get("opacity")
-            && let ParameterValue::Float(opacity) = param.value {
-                return opacity.clamp(0.0, 1.0);
-            }
+            && let ParameterValue::Float(opacity) = param.value
+        {
+            return opacity.clamp(0.0, 1.0);
+        }
         1.0
     }
 

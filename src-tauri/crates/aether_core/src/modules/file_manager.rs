@@ -127,9 +127,10 @@ impl FileManager {
 
         let cache_key = path.to_path_buf();
         if let Some(thumbnail_path) = self.thumbnail_cache.lock().unwrap().get(&cache_key)
-            && thumbnail_path.exists() {
-                return Ok(thumbnail_path.clone());
-            }
+            && thumbnail_path.exists()
+        {
+            return Ok(thumbnail_path.clone());
+        }
 
         let media_type = self.determine_media_type(path);
 
@@ -273,9 +274,10 @@ impl FileManager {
                 if let Some(caps) = caps {
                     let s = caps.structure(0);
                     if let Some(s) = s
-                        && s.name().starts_with("video/") {
-                            let _ = src_pad.link(&sink_pad);
-                        }
+                        && s.name().starts_with("video/")
+                    {
+                        let _ = src_pad.link(&sink_pad);
+                    }
                 }
             }
         });
@@ -381,9 +383,10 @@ impl FileManager {
             info.frame_rate = Some(framerate.numer() as f64 / framerate.denom() as f64);
 
             if let Some(caps) = video_info.caps()
-                && let Some(s) = caps.structure(0) {
-                    info.codec = s.name().to_string().into();
-                }
+                && let Some(s) = caps.structure(0)
+            {
+                info.codec = s.name().to_string().into();
+            }
         }
 
         if let Some(audio_info) = discover_info.audio_streams().first() {
@@ -392,9 +395,10 @@ impl FileManager {
 
             if info.codec.is_none()
                 && let Some(caps) = audio_info.caps()
-                    && let Some(s) = caps.structure(0) {
-                        info.codec = s.name().to_string().into();
-                    }
+                && let Some(s) = caps.structure(0)
+            {
+                info.codec = s.name().to_string().into();
+            }
         }
 
         if let Some(tag_list) = discover_info.tags() {
@@ -436,11 +440,12 @@ impl FileManager {
         decodebin.connect_pad_added(move |_, src_pad| {
             if let Some(sink) = imagefreeze_ref.static_pad("sink")
                 && !sink.is_linked()
-                    && let Some(caps) = src_pad.current_caps()
-                        && let Some(s) = caps.structure(0)
-                            && (s.name().starts_with("image/") || s.name().starts_with("video/")) {
-                                let _ = src_pad.link(&sink);
-                            }
+                && let Some(caps) = src_pad.current_caps()
+                && let Some(s) = caps.structure(0)
+                && (s.name().starts_with("image/") || s.name().starts_with("video/"))
+            {
+                let _ = src_pad.link(&sink);
+            }
         });
         imagefreeze
             .link(&fakesink)
@@ -531,11 +536,12 @@ impl FileManager {
         decodebin.connect_pad_added(move |_, src_pad| {
             if let Some(sink) = videoconvert_ref.static_pad("sink")
                 && !sink.is_linked()
-                    && let Some(caps) = src_pad.current_caps()
-                        && let Some(s) = caps.structure(0)
-                            && s.name().starts_with("video/") {
-                                let _ = src_pad.link(&sink);
-                            }
+                && let Some(caps) = src_pad.current_caps()
+                && let Some(s) = caps.structure(0)
+                && s.name().starts_with("video/")
+            {
+                let _ = src_pad.link(&sink);
+            }
         });
         gst::Element::link_many([&videoconvert, &videoscale, &capsfilter, &jpegenc, &filesink])
             .map_err(|e| anyhow!("downstream: {}", e))?;
@@ -632,11 +638,12 @@ impl FileManager {
         decodebin.connect_pad_added(move |_, src_pad| {
             if let Some(sink) = videoconvert_ref.static_pad("sink")
                 && !sink.is_linked()
-                    && let Some(caps) = src_pad.current_caps()
-                        && let Some(s) = caps.structure(0)
-                            && (s.name().starts_with("image/") || s.name().starts_with("video/")) {
-                                let _ = src_pad.link(&sink);
-                            }
+                && let Some(caps) = src_pad.current_caps()
+                && let Some(s) = caps.structure(0)
+                && (s.name().starts_with("image/") || s.name().starts_with("video/"))
+            {
+                let _ = src_pad.link(&sink);
+            }
         });
         gst::Element::link_many([&videoconvert, &videoscale, &capsfilter, &pngenc, &filesink])
             .map_err(|e| anyhow!("downstream: {}", e))?;
@@ -718,11 +725,12 @@ impl FileManager {
         decodebin.connect_pad_added(move |_, src_pad| {
             if let Some(sink) = audioconvert_ref.static_pad("sink")
                 && !sink.is_linked()
-                    && let Some(caps) = src_pad.current_caps()
-                        && let Some(s) = caps.structure(0)
-                            && s.name().starts_with("audio/") {
-                                let _ = src_pad.link(&sink);
-                            }
+                && let Some(caps) = src_pad.current_caps()
+                && let Some(s) = caps.structure(0)
+                && s.name().starts_with("audio/")
+            {
+                let _ = src_pad.link(&sink);
+            }
         });
 
         gst::Element::link_many([&audioconvert, &audiowaveform, &pngenc, &filesink])

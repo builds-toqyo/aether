@@ -61,9 +61,6 @@ impl HdrAnalyzer {
         let mut max_luma: f32 = 0.0;
         let mut highlight_pixels = 0u64;
         let mut shadow_pixels = 0u64;
-        
-        
-        
 
         for pixel in &hdr_image.data {
             let luma = pixel.luminance();

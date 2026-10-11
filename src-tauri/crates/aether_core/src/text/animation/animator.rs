@@ -338,9 +338,10 @@ impl TextAnimator {
 
         for animation in &mut self.animations {
             if animation.affects_character(char_index)
-                && let Some(value) = animation.evaluate(self.global_time, char_index) {
-                    values.insert(animation.animation_type.clone(), value);
-                }
+                && let Some(value) = animation.evaluate(self.global_time, char_index)
+            {
+                values.insert(animation.animation_type.clone(), value);
+            }
         }
 
         values

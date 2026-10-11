@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub enum EasingFunction {
     #[default]
     Linear,
@@ -411,7 +410,6 @@ impl fmt::Display for EasingFunction {
         write!(f, "EasingFunction({})", self.name())
     }
 }
-
 
 /// Easing function categories
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

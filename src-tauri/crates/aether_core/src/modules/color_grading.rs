@@ -313,14 +313,14 @@ impl ColorGradingEngine {
                     if state_changed
                         .src()
                         .map(|s| s == pipeline.upcast_ref::<gst::Object>())
-                        .unwrap_or(false)
-                    => {
-                        debug!(
-                            "Pipeline state changed from {:?} to {:?}",
-                            state_changed.old(),
-                            state_changed.current()
-                        );
-                    }
+                        .unwrap_or(false) =>
+                {
+                    debug!(
+                        "Pipeline state changed from {:?} to {:?}",
+                        state_changed.old(),
+                        state_changed.current()
+                    );
+                }
                 _ => (),
             }
 
@@ -436,13 +436,14 @@ impl ColorGradingEngine {
                     }
                     gst::MessageView::StateChanged(state) => {
                         if let Some(element) = msg.src()
-                            && element.name().starts_with("pipeline") {
-                                debug!(
-                                    "Pipeline state changed from {:?} to {:?}",
-                                    state.old(),
-                                    state.current()
-                                );
-                            }
+                            && element.name().starts_with("pipeline")
+                        {
+                            debug!(
+                                "Pipeline state changed from {:?} to {:?}",
+                                state.old(),
+                                state.current()
+                            );
+                        }
                     }
                     _ => (),
                 }
@@ -591,13 +592,12 @@ impl ColorGradingEngine {
 
                         if let Some(arc_self) = weak_self.upgrade()
                             && let Ok(this) = arc_self.lock()
-                                && let Some(config) = this.scopes.get(&scope_type_clone)
-                                    && !config.continuous_update
-                                        && let Err(e) =
-                                            this.process_scope_sample(scope_type_clone, &sample)
-                                        {
-                                            error!("Error processing scope sample: {}", e);
-                                        }
+                            && let Some(config) = this.scopes.get(&scope_type_clone)
+                            && !config.continuous_update
+                            && let Err(e) = this.process_scope_sample(scope_type_clone, &sample)
+                        {
+                            error!("Error processing scope sample: {}", e);
+                        }
 
                         Ok(gst::FlowSuccess::Ok)
                     })
@@ -671,45 +671,50 @@ impl ColorGradingEngine {
     pub fn set_brightness(&mut self, value: f32) -> Result<()> {
         self.adjustments.brightness = value.clamp(-1.0, 1.0);
         if self.initialized
-            && let Some(videobalance) = self.elements.get("videobalance") {
-                videobalance.set_property("brightness", self.adjustments.brightness);
-            }
+            && let Some(videobalance) = self.elements.get("videobalance")
+        {
+            videobalance.set_property("brightness", self.adjustments.brightness);
+        }
         Ok(())
     }
 
     pub fn set_contrast(&mut self, value: f32) -> Result<()> {
         self.adjustments.contrast = value.clamp(0.0, 2.0);
         if self.initialized
-            && let Some(videobalance) = self.elements.get("videobalance") {
-                videobalance.set_property("contrast", self.adjustments.contrast);
-            }
+            && let Some(videobalance) = self.elements.get("videobalance")
+        {
+            videobalance.set_property("contrast", self.adjustments.contrast);
+        }
         Ok(())
     }
 
     pub fn set_saturation(&mut self, value: f32) -> Result<()> {
         self.adjustments.saturation = value.clamp(0.0, 2.0);
         if self.initialized
-            && let Some(saturation) = self.elements.get("saturation") {
-                saturation.set_property("saturation", self.adjustments.saturation);
-            }
+            && let Some(saturation) = self.elements.get("saturation")
+        {
+            saturation.set_property("saturation", self.adjustments.saturation);
+        }
         Ok(())
     }
 
     pub fn set_gamma(&mut self, value: f32) -> Result<()> {
         self.adjustments.gamma = value.clamp(0.1, 10.0);
         if self.initialized
-            && let Some(gamma) = self.elements.get("gamma") {
-                gamma.set_property("gamma", self.adjustments.gamma);
-            }
+            && let Some(gamma) = self.elements.get("gamma")
+        {
+            gamma.set_property("gamma", self.adjustments.gamma);
+        }
         Ok(())
     }
 
     pub fn set_hue(&mut self, value: f32) -> Result<()> {
         self.adjustments.hue = value.clamp(-180.0, 180.0);
         if self.initialized
-            && let Some(videobalance) = self.elements.get("videobalance") {
-                videobalance.set_property("hue", self.adjustments.hue);
-            }
+            && let Some(videobalance) = self.elements.get("videobalance")
+        {
+            videobalance.set_property("hue", self.adjustments.hue);
+        }
         Ok(())
     }
 

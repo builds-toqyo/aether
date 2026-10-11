@@ -187,9 +187,10 @@ impl IntermediateExporter {
                         ));
                     }
                     gst::MessageView::StateChanged(state_changed)
-                        if state_changed.current() == gst::State::Playing => {
-                            debug!("Export pipeline started playing");
-                        }
+                        if state_changed.current() == gst::State::Playing =>
+                    {
+                        debug!("Export pipeline started playing");
+                    }
                     _ => (),
                 }
 

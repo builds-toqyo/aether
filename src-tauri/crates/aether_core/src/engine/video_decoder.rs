@@ -270,9 +270,10 @@ impl VideoDecoder {
         debug!("Opening media file: {}", path_str);
 
         let input_ctx = input(&path_str).map_err(|e| {
-            VideoDecoderError::IOError(std::io::Error::other(
-                format!("Failed to open input file: {}", e),
-            ))
+            VideoDecoderError::IOError(std::io::Error::other(format!(
+                "Failed to open input file: {}",
+                e
+            )))
         })?;
 
         self.format_context = Some(input_ctx);
@@ -765,20 +766,21 @@ impl VideoDecoder {
         if let (Some(format_ctx), video_stream_index) =
             (&mut self.format_context, self.current_video_stream)
             && video_stream_index >= 0
-                && let Some(stream) = format_ctx.streams().nth(video_stream_index as usize) {
-                    let time_base = stream.time_base();
-                    let target_pts = (time * time_base.1 as f64 / time_base.0 as f64) as i64;
+            && let Some(stream) = format_ctx.streams().nth(video_stream_index as usize)
+        {
+            let time_base = stream.time_base();
+            let target_pts = (time * time_base.1 as f64 / time_base.0 as f64) as i64;
 
-                    // Seek to the target position
-                    format_ctx.seek(target_pts, ..)?;
-                    self.current_position = time;
+            // Seek to the target position
+            format_ctx.seek(target_pts, ..)?;
+            self.current_position = time;
 
-                    // Reset frame cache
-                    let mut state = self.state.lock().unwrap();
-                    state.last_decoded_frame_pts = target_pts;
+            // Reset frame cache
+            let mut state = self.state.lock().unwrap();
+            state.last_decoded_frame_pts = target_pts;
 
-                    return Ok(());
-                }
+            return Ok(());
+        }
 
         Err(VideoDecoderError::DecodingError(
             "No video stream available for seeking".to_string(),

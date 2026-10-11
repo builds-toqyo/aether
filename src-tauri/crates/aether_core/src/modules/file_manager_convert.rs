@@ -241,24 +241,26 @@ impl MediaConverter {
             if let Some(name) = name {
                 if name.starts_with("video/") {
                     if let Some(sink) = v_queue.static_pad("sink")
-                        && !sink.is_linked() {
-                            let _ = src_pad.link(&sink);
-                            let src = video_enc.static_pad("src");
-                            let mux_sink = muxer.request_pad_simple("video_%u");
-                            if let (Some(src), Some(mux_sink)) = (src, mux_sink) {
-                                let _ = src.link(&mux_sink);
-                            }
+                        && !sink.is_linked()
+                    {
+                        let _ = src_pad.link(&sink);
+                        let src = video_enc.static_pad("src");
+                        let mux_sink = muxer.request_pad_simple("video_%u");
+                        if let (Some(src), Some(mux_sink)) = (src, mux_sink) {
+                            let _ = src.link(&mux_sink);
                         }
+                    }
                 } else if name.starts_with("audio/")
                     && let Some(sink) = a_queue.static_pad("sink")
-                        && !sink.is_linked() {
-                            let _ = src_pad.link(&sink);
-                            let src = audio_enc.static_pad("src");
-                            let mux_sink = muxer.request_pad_simple("audio_%u");
-                            if let (Some(src), Some(mux_sink)) = (src, mux_sink) {
-                                let _ = src.link(&mux_sink);
-                            }
-                        }
+                    && !sink.is_linked()
+                {
+                    let _ = src_pad.link(&sink);
+                    let src = audio_enc.static_pad("src");
+                    let mux_sink = muxer.request_pad_simple("audio_%u");
+                    if let (Some(src), Some(mux_sink)) = (src, mux_sink) {
+                        let _ = src.link(&mux_sink);
+                    }
+                }
             }
         });
 
@@ -352,11 +354,12 @@ impl MediaConverter {
         decodebin.connect_pad_added(move |_, src_pad| {
             if let Some(sink) = queue.static_pad("sink")
                 && !sink.is_linked()
-                    && let Some(caps) = src_pad.current_caps()
-                        && let Some(s) = caps.structure(0)
-                            && s.name().starts_with("audio/") {
-                                let _ = src_pad.link(&sink);
-                            }
+                && let Some(caps) = src_pad.current_caps()
+                && let Some(s) = caps.structure(0)
+                && s.name().starts_with("audio/")
+            {
+                let _ = src_pad.link(&sink);
+            }
         });
 
         let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;

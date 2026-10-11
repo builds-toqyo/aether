@@ -341,99 +341,94 @@ pub async fn plugin_scan_directory(
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
             if let Some(ext) = path.extension().and_then(|e| e.to_str())
-                && extensions.contains(&ext) {
-                    let manifest_path = path.with_extension("json");
-                    let info = if manifest_path.exists() {
-                        if let Ok(manifest_json) = fs::read_to_string(&manifest_path) {
-                            if let Ok(manifest) =
-                                serde_json::from_str::<serde_json::Value>(&manifest_json)
-                            {
-                                PluginInfo {
-                                    id: manifest
-                                        .get("id")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or("unknown")
-                                        .to_string(),
-                                    name: manifest
-                                        .get("name")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or("Unknown")
-                                        .to_string(),
-                                    version: manifest
+                && extensions.contains(&ext)
+            {
+                let manifest_path = path.with_extension("json");
+                let info = if manifest_path.exists() {
+                    if let Ok(manifest_json) = fs::read_to_string(&manifest_path) {
+                        if let Ok(manifest) =
+                            serde_json::from_str::<serde_json::Value>(&manifest_json)
+                        {
+                            PluginInfo {
+                                id: manifest
+                                    .get("id")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("unknown")
+                                    .to_string(),
+                                name: manifest
+                                    .get("name")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("Unknown")
+                                    .to_string(),
+                                version: manifest
+                                    .get("version")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("0.0.0")
+                                    .to_string(),
+                                author: manifest
+                                    .get("author")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                description: manifest
+                                    .get("description")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                                path: path.to_string_lossy().to_string(),
+                                loaded: true,
+                                hooks: manifest
+                                    .get("hooks")
+                                    .and_then(|v| v.as_array())
+                                    .map(|arr| {
+                                        arr.iter()
+                                            .filter_map(|v| v.as_str())
+                                            .filter_map(|s| match s {
+                                                "on_project_load" => {
+                                                    Some(PluginHook::OnProjectLoad)
+                                                }
+                                                "on_project_save" => {
+                                                    Some(PluginHook::OnProjectSave)
+                                                }
+                                                "on_render_start" => {
+                                                    Some(PluginHook::OnRenderStart)
+                                                }
+                                                "on_render_complete" => {
+                                                    Some(PluginHook::OnRenderComplete)
+                                                }
+                                                "process_frame" => Some(PluginHook::ProcessFrame),
+                                                "process_audio" => Some(PluginHook::ProcessAudio),
+                                                "custom_effect" => Some(PluginHook::CustomEffect),
+                                                _ => None,
+                                            })
+                                            .collect()
+                                    })
+                                    .unwrap_or_default(),
+                                installed_version: Some(
+                                    manifest
                                         .get("version")
                                         .and_then(|v| v.as_str())
                                         .unwrap_or("0.0.0")
                                         .to_string(),
-                                    author: manifest
-                                        .get("author")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    description: manifest
-                                        .get("description")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    path: path.to_string_lossy().to_string(),
-                                    loaded: true,
-                                    hooks: manifest
-                                        .get("hooks")
-                                        .and_then(|v| v.as_array())
-                                        .map(|arr| {
-                                            arr.iter()
-                                                .filter_map(|v| v.as_str())
-                                                .filter_map(|s| match s {
-                                                    "on_project_load" => {
-                                                        Some(PluginHook::OnProjectLoad)
-                                                    }
-                                                    "on_project_save" => {
-                                                        Some(PluginHook::OnProjectSave)
-                                                    }
-                                                    "on_render_start" => {
-                                                        Some(PluginHook::OnRenderStart)
-                                                    }
-                                                    "on_render_complete" => {
-                                                        Some(PluginHook::OnRenderComplete)
-                                                    }
-                                                    "process_frame" => {
-                                                        Some(PluginHook::ProcessFrame)
-                                                    }
-                                                    "process_audio" => {
-                                                        Some(PluginHook::ProcessAudio)
-                                                    }
-                                                    "custom_effect" => {
-                                                        Some(PluginHook::CustomEffect)
-                                                    }
-                                                    _ => None,
-                                                })
-                                                .collect()
-                                        })
-                                        .unwrap_or_default(),
-                                    installed_version: Some(
-                                        manifest
-                                            .get("version")
-                                            .and_then(|v| v.as_str())
-                                            .unwrap_or("0.0.0")
-                                            .to_string(),
-                                    ),
-                                    latest_version: None,
-                                    update_available: false,
-                                }
-                            } else {
-                                continue;
+                                ),
+                                latest_version: None,
+                                update_available: false,
                             }
                         } else {
                             continue;
                         }
                     } else {
-                        continue; // skip plugins without manifests for now
-                    };
-
-                    if !registry.plugins.contains_key(&info.id) {
-                        registry.register(info.clone());
-                        loaded.push(info);
+                        continue;
                     }
+                } else {
+                    continue; // skip plugins without manifests for now
+                };
+
+                if !registry.plugins.contains_key(&info.id) {
+                    registry.register(info.clone());
+                    loaded.push(info);
                 }
+            }
         }
     }
 
@@ -546,12 +541,13 @@ pub async fn plugin_search_repository(
 
         // Filter by tags
         if let Some(tags) = filter.tags
-            && !tags.is_empty() {
-                plugins.retain(|p| {
-                    tags.iter()
-                        .any(|tag| p.tags.iter().any(|pt| pt.eq_ignore_ascii_case(tag)))
-                });
-            }
+            && !tags.is_empty()
+        {
+            plugins.retain(|p| {
+                tags.iter()
+                    .any(|tag| p.tags.iter().any(|pt| pt.eq_ignore_ascii_case(tag)))
+            });
+        }
 
         // Filter by author
         if let Some(author) = filter.author {

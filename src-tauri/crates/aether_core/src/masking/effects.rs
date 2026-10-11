@@ -463,9 +463,10 @@ impl MaskEffectProcessor {
 
         if self.cache_enabled
             && let Some(cached_value) = self.cache_data.get(&cache_key)
-                && !cached_value.is_empty() {
-                    return cached_value[0];
-                }
+            && !cached_value.is_empty()
+        {
+            return cached_value[0];
+        }
 
         let mut result = value;
 

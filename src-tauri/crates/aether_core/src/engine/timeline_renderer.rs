@@ -203,25 +203,26 @@ impl TimelineRenderer {
         for track in timeline.tracks().values() {
             for clip in &track.clips {
                 if clip.clip_type == ClipType::Video
-                    && let Some(source_path) = &clip.source_path {
-                        let in_point = clip
-                            .properties
-                            .get("in-point")
-                            .and_then(|s| s.parse::<f64>().ok())
-                            .unwrap_or(0.0);
+                    && let Some(source_path) = &clip.source_path
+                {
+                    let in_point = clip
+                        .properties
+                        .get("in-point")
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .unwrap_or(0.0);
 
-                        let out_point = in_point + clip.duration;
+                    let out_point = in_point + clip.duration;
 
-                        let mut clip_renderer = ClipRenderer::new(
-                            clip.id.clone(),
-                            source_path.clone(),
-                            in_point,
-                            out_point,
-                        )?;
+                    let mut clip_renderer = ClipRenderer::new(
+                        clip.id.clone(),
+                        source_path.clone(),
+                        in_point,
+                        out_point,
+                    )?;
 
-                        clip_renderer.initialize()?;
-                        self.clip_renderers.insert(clip.id.clone(), clip_renderer);
-                    }
+                    clip_renderer.initialize()?;
+                    self.clip_renderers.insert(clip.id.clone(), clip_renderer);
+                }
             }
         }
 
@@ -257,20 +258,21 @@ impl TimelineRenderer {
         for (_track_id, clips) in active_clips {
             for clip in clips {
                 if clip.clip_type == ClipType::Video
-                    && let Some(clip_renderer) = self.clip_renderers.get_mut(&clip.id) {
-                        // Seek to the correct time in the clip
-                        clip_renderer.seek_to_time(time, clip.start_time)?;
+                    && let Some(clip_renderer) = self.clip_renderers.get_mut(&clip.id)
+                {
+                    // Seek to the correct time in the clip
+                    clip_renderer.seek_to_time(time, clip.start_time)?;
 
-                        // Decode a frame (owned clone so the renderer borrow is released)
-                        let video_frame = clip_renderer.decode_frame()?.clone();
+                    // Decode a frame (owned clone so the renderer borrow is released)
+                    let video_frame = clip_renderer.decode_frame()?.clone();
 
-                        Self::composite_frame(
-                            &mut frame_data,
-                            &video_frame,
-                            self.config.width,
-                            self.config.height,
-                        )?;
-                    }
+                    Self::composite_frame(
+                        &mut frame_data,
+                        &video_frame,
+                        self.config.width,
+                        self.config.height,
+                    )?;
+                }
             }
         }
 

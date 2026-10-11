@@ -264,15 +264,16 @@ impl MaskCompositor {
 
         if self.cache_enabled
             && let Some(cached_value) = self.cache_data.get(&cache_key)
-                && !cached_value.is_empty() {
-                    return MaskCompositionResult {
-                        value: cached_value[0],
-                        position: (x, y),
-                        layers_used: vec![],
-                        composition_mode: MaskCompositionMode::Add,
-                        final_blend_mode: MaskBlendMode::Normal,
-                    };
-                }
+            && !cached_value.is_empty()
+        {
+            return MaskCompositionResult {
+                value: cached_value[0],
+                position: (x, y),
+                layers_used: vec![],
+                composition_mode: MaskCompositionMode::Add,
+                final_blend_mode: MaskBlendMode::Normal,
+            };
+        }
 
         let mut final_value = 0.0;
         let mut layers_used = Vec::new();
@@ -280,20 +281,18 @@ impl MaskCompositor {
 
         for layer in &self.layers {
             if let Some(evaluation) = layer.evaluate_at(x, y)
-                && evaluation.value > 0.0 {
-                    layers_used.push(layer.id.clone());
+                && evaluation.value > 0.0
+            {
+                layers_used.push(layer.id.clone());
 
-                    if layers_used.len() == 1 {
-                        final_value = evaluation.value;
-                        current_composition_mode = layer.composition_mode;
-                    } else {
-                        final_value = self.compose_values(
-                            final_value,
-                            evaluation.value,
-                            layer.composition_mode,
-                        );
-                    }
+                if layers_used.len() == 1 {
+                    final_value = evaluation.value;
+                    current_composition_mode = layer.composition_mode;
+                } else {
+                    final_value =
+                        self.compose_values(final_value, evaluation.value, layer.composition_mode);
                 }
+            }
         }
 
         final_value *= self.global_opacity;

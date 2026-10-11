@@ -140,8 +140,7 @@ pub enum RenderingStatus {
     Paused,
 }
 
-#[derive(Debug, Serialize, Clone)]
-#[derive(Default)]
+#[derive(Debug, Serialize, Clone, Default)]
 pub enum RenderFormat {
     #[default]
     Mp4,
@@ -177,9 +176,7 @@ impl<'de> Deserialize<'de> for RenderFormat {
     }
 }
 
-
-#[derive(Debug, Serialize, Clone)]
-#[derive(Default)]
+#[derive(Debug, Serialize, Clone, Default)]
 pub enum RenderQuality {
     Low,
     Medium,
@@ -211,7 +208,6 @@ impl<'de> Deserialize<'de> for RenderQuality {
         }
     }
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum RenderPreset {
@@ -347,8 +343,7 @@ pub struct QueuedJob {
     pub priority: JobPriority,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum JobPriority {
     Low = 1,
     #[default]
@@ -356,7 +351,6 @@ pub enum JobPriority {
     High = 3,
     Urgent = 4,
 }
-
 
 pub struct RenderingState {
     pub engine: RenderingEngine,
@@ -581,14 +575,16 @@ pub async fn rendering_start_job(
     }
 
     if let Some((width, height)) = request.resolution
-        && (width == 0 || height == 0) {
-            return Err("Resolution cannot be zero".to_string());
-        }
+        && (width == 0 || height == 0)
+    {
+        return Err("Resolution cannot be zero".to_string());
+    }
 
     if let Some(fps) = request.fps
-        && fps <= 0.0 {
-            return Err("FPS must be greater than 0".to_string());
-        }
+        && fps <= 0.0
+    {
+        return Err("FPS must be greater than 0".to_string());
+    }
 
     // Generate job ID
     let job_id = format!("{}", uuid::Uuid::new_v4());
@@ -2008,9 +2004,10 @@ pub async fn rendering_list_templates(_state: State<'_, AppState>) -> Result<Vec
     for entry in entries {
         if let Ok(entry) = entry
             && let Some(name) = entry.file_name().to_str()
-                && name.ends_with(".json") {
-                    templates.push(name.strip_suffix(".json").unwrap_or(name).to_string());
-                }
+            && name.ends_with(".json")
+        {
+            templates.push(name.strip_suffix(".json").unwrap_or(name).to_string());
+        }
     }
 
     info!("Found {} render templates", templates.len());

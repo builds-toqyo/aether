@@ -116,17 +116,19 @@ impl MediaImporter {
             }
         }
 
-        if options.create_proxy && media_info.media_type == MediaType::Video
-            && let Some(format) = &options.proxy_format {
-                debug!(
-                    "Creating proxy with format {} for {}",
-                    format,
-                    path_canon.display()
-                );
-                if let Err(e) = self.create_proxy_media(&path_canon, format) {
-                    warn!("Failed to create proxy: {}", e);
-                }
+        if options.create_proxy
+            && media_info.media_type == MediaType::Video
+            && let Some(format) = &options.proxy_format
+        {
+            debug!(
+                "Creating proxy with format {} for {}",
+                format,
+                path_canon.display()
+            );
+            if let Err(e) = self.create_proxy_media(&path_canon, format) {
+                warn!("Failed to create proxy: {}", e);
             }
+        }
 
         if let Some(_project) = &self.ges_project {
             debug!("Registering media with GES project: {}", uri);

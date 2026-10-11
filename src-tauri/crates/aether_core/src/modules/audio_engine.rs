@@ -310,20 +310,16 @@ impl AudioTrack {
                 damping,
                 wet_level,
                 dry_level,
-            } => {
-                
-
-                gst::ElementFactory::make("freeverb")
-                    .name(format!("reverb-{}-{}", self.id, self.effects.len()))
-                    .property("room-size", room_size)
-                    .property("damping", damping)
-                    .property("level", wet_level)
-                    .property("dry", dry_level)
-                    .build()
-                    .map_err(|_| {
-                        EditingError::AudioError("Failed to create reverb element".to_string())
-                    })?
-            }
+            } => gst::ElementFactory::make("freeverb")
+                .name(format!("reverb-{}-{}", self.id, self.effects.len()))
+                .property("room-size", room_size)
+                .property("damping", damping)
+                .property("level", wet_level)
+                .property("dry", dry_level)
+                .build()
+                .map_err(|_| {
+                    EditingError::AudioError("Failed to create reverb element".to_string())
+                })?,
             AudioEffectType::Delay {
                 time_ms,
                 feedback,
@@ -349,22 +345,18 @@ impl AudioTrack {
                 attack,
                 release,
                 makeup,
-            } => {
-                
-
-                gst::ElementFactory::make("audiodynamic")
-                    .name(format!("comp-{}-{}", self.id, self.effects.len()))
-                    .property("mode", 1)
-                    .property("threshold", threshold)
-                    .property("ratio", ratio)
-                    .property("attack", attack / 1000.0)
-                    .property("release", release / 1000.0)
-                    .property("makeup", *makeup > 0.0)
-                    .build()
-                    .map_err(|_| {
-                        EditingError::AudioError("Failed to create compressor element".to_string())
-                    })?
-            }
+            } => gst::ElementFactory::make("audiodynamic")
+                .name(format!("comp-{}-{}", self.id, self.effects.len()))
+                .property("mode", 1)
+                .property("threshold", threshold)
+                .property("ratio", ratio)
+                .property("attack", attack / 1000.0)
+                .property("release", release / 1000.0)
+                .property("makeup", *makeup > 0.0)
+                .build()
+                .map_err(|_| {
+                    EditingError::AudioError("Failed to create compressor element".to_string())
+                })?,
         };
 
         let last_effect = if !self.effects.is_empty() {
@@ -470,21 +462,22 @@ impl AudioTrack {
         }
 
         if let Some(pipeline) = &self.pipeline
-            && let Some(bus) = pipeline.bus() {
-                // Drain pending level element messages and keep the latest peaks
-                while let Some(msg) = bus.pop_filtered(&[gst::MessageType::Element]) {
-                    if let gst::MessageView::Element(element) = msg.view()
-                        && let Some(structure) = element.structure()
-                            && structure.name() == "level"
-                                && let Ok(peak) = structure.get::<gst::List>("peak") {
-                                    let mut peaks =
-                                        peak.as_slice().iter().filter_map(|v| v.get::<f64>().ok());
-                                    let left = peaks.next().unwrap_or(0.0);
-                                    let right = peaks.next().unwrap_or(left);
-                                    self.peak_levels = (left, right);
-                                }
+            && let Some(bus) = pipeline.bus()
+        {
+            // Drain pending level element messages and keep the latest peaks
+            while let Some(msg) = bus.pop_filtered(&[gst::MessageType::Element]) {
+                if let gst::MessageView::Element(element) = msg.view()
+                    && let Some(structure) = element.structure()
+                    && structure.name() == "level"
+                    && let Ok(peak) = structure.get::<gst::List>("peak")
+                {
+                    let mut peaks = peak.as_slice().iter().filter_map(|v| v.get::<f64>().ok());
+                    let left = peaks.next().unwrap_or(0.0);
+                    let right = peaks.next().unwrap_or(left);
+                    self.peak_levels = (left, right);
                 }
             }
+        }
 
         Ok(self.peak_levels)
     }
@@ -678,39 +671,36 @@ impl AudioTrack {
         self.output_device = Some(device_id.to_string());
 
         if self.initialized
-            && let Some(pipeline) = &self.pipeline {
-                let old_sink = pipeline.by_name("audio-sink").unwrap();
+            && let Some(pipeline) = &self.pipeline
+        {
+            let old_sink = pipeline.by_name("audio-sink").unwrap();
 
-                let new_sink = gst::ElementFactory::make("autoaudiosink")
-                    .name("audio-sink")
-                    .property("device", device_id)
-                    .build()
-                    .map_err(|_| {
-                        EditingError::AudioError("Failed to create audio sink".to_string())
-                    })?;
+            let new_sink = gst::ElementFactory::make("autoaudiosink")
+                .name("audio-sink")
+                .property("device", device_id)
+                .build()
+                .map_err(|_| EditingError::AudioError("Failed to create audio sink".to_string()))?;
 
-                let volume = self.master_volume_element.as_ref().unwrap();
+            let volume = self.master_volume_element.as_ref().unwrap();
 
-                volume.unlink(&old_sink);
+            volume.unlink(&old_sink);
 
-                pipeline.add(&new_sink).map_err(|_| {
-                    EditingError::AudioError("Failed to add new sink to pipeline".to_string())
-                })?;
+            pipeline.add(&new_sink).map_err(|_| {
+                EditingError::AudioError("Failed to add new sink to pipeline".to_string())
+            })?;
 
-                volume.link(&new_sink).map_err(|_| {
-                    EditingError::AudioError("Failed to link volume to new sink".to_string())
-                })?;
+            volume.link(&new_sink).map_err(|_| {
+                EditingError::AudioError("Failed to link volume to new sink".to_string())
+            })?;
 
-                new_sink.sync_state_with_parent().map_err(|_| {
-                    EditingError::AudioError(
-                        "Failed to sync new sink state with parent".to_string(),
-                    )
-                })?;
+            new_sink.sync_state_with_parent().map_err(|_| {
+                EditingError::AudioError("Failed to sync new sink state with parent".to_string())
+            })?;
 
-                pipeline.remove(&old_sink).map_err(|_| {
-                    EditingError::AudioError("Failed to remove old sink from pipeline".to_string())
-                })?;
-            }
+            pipeline.remove(&old_sink).map_err(|_| {
+                EditingError::AudioError("Failed to remove old sink from pipeline".to_string())
+            })?;
+        }
 
         Ok(())
     }

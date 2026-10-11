@@ -423,11 +423,11 @@ pub async fn project_load(
                 .map_err(|e| format!("Failed to query project registry: {}", e))?
                 .into_iter()
                 .find(|p| p.file_path == request.file_path)
-            {
-                resolved = registry
-                    .get(&found.id)
-                    .map_err(|e| format!("Failed to query project from registry: {}", e))?;
-            }
+        {
+            resolved = registry
+                .get(&found.id)
+                .map_err(|e| format!("Failed to query project from registry: {}", e))?;
+        }
     }
 
     let (project_info, restore_clips) = match resolved {
@@ -436,22 +436,22 @@ pub async fn project_load(
             if let Some(timeline_json) = timeline_data
                 && let Ok(timeline_info) =
                     serde_json::from_str::<crate::commands::timeline::TimelineInfo>(&timeline_json)
-                {
-                    for clip_data in &timeline_info.clips {
-                        if let Some(source_file) = &clip_data.source_file {
-                            clips.push(RestoreClip {
-                                source_file: source_file.clone(),
-                                is_video: !matches!(
-                                    clip_data.clip_type,
-                                    crate::commands::timeline::ClipType::Audio
-                                ),
-                                start_time: clip_data.start_time,
-                                duration: clip_data.duration,
-                                in_point: clip_data.in_point,
-                            });
-                        }
+            {
+                for clip_data in &timeline_info.clips {
+                    if let Some(source_file) = &clip_data.source_file {
+                        clips.push(RestoreClip {
+                            source_file: source_file.clone(),
+                            is_video: !matches!(
+                                clip_data.clip_type,
+                                crate::commands::timeline::ClipType::Audio
+                            ),
+                            start_time: clip_data.start_time,
+                            duration: clip_data.duration,
+                            in_point: clip_data.in_point,
+                        });
                     }
                 }
+            }
             (info, clips)
         }
         None => load_project_file(&request.file_path)?,
@@ -541,9 +541,11 @@ pub async fn media_import(
     // Accept both single `path` and multi `file_paths` payloads
     let mut file_paths = request.file_paths.clone();
     if let Some(path) = &request.path
-        && !path.is_empty() && !file_paths.contains(path) {
-            file_paths.push(path.clone());
-        }
+        && !path.is_empty()
+        && !file_paths.contains(path)
+    {
+        file_paths.push(path.clone());
+    }
 
     debug!("Importing {} media files", file_paths.len());
 
@@ -706,9 +708,10 @@ pub async fn media_export(
     }
 
     if let Some((width, height)) = request.resolution
-        && (width == 0 || height == 0) {
-            return Err("Resolution dimensions cannot be zero".to_string());
-        }
+        && (width == 0 || height == 0)
+    {
+        return Err("Resolution dimensions cannot be zero".to_string());
+    }
 
     let export_id = format!("export_{}", uuid::Uuid::new_v4());
     let started_at = chrono::Utc::now().to_rfc3339();

@@ -439,8 +439,6 @@ impl TextRenderer {
         _text_layer: &crate::text::types::TextLayer,
         _time: f64,
     ) -> Vec<GlyphRenderInfo> {
-        
-
         Vec::new()
     }
 
@@ -469,12 +467,13 @@ impl TextRenderer {
 
     fn parse_color(&self, color_str: &str) -> (f64, f64, f64, f64) {
         if let Some(hex) = color_str.strip_prefix('#')
-            && hex.len() == 6 {
-                let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(0) as f64 / 255.0;
-                let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(0) as f64 / 255.0;
-                let b = u8::from_str_radix(&hex[4..6], 16).unwrap_or(0) as f64 / 255.0;
-                return (r, g, b, 1.0);
-            }
+            && hex.len() == 6
+        {
+            let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(0) as f64 / 255.0;
+            let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(0) as f64 / 255.0;
+            let b = u8::from_str_radix(&hex[4..6], 16).unwrap_or(0) as f64 / 255.0;
+            return (r, g, b, 1.0);
+        }
 
         (0.0, 0.0, 0.0, 1.0)
     }

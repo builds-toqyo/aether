@@ -201,15 +201,13 @@ impl ConnectionValidator {
             if let (Some(output_node), Some(input_node)) = (
                 graph.get_node(&connection.output_node_id),
                 graph.get_node(&connection.input_node_id),
-            )
-                && let (Some(output_pin), Some(input_pin)) = (
-                    output_node.get_output_pin(&connection.output_pin_id),
-                    input_node.get_input_pin(&connection.input_pin_id),
-                ) {
-                    let type_key =
-                        format!("{:?} -> {:?}", output_pin.data_type, input_pin.data_type);
-                    *type_counts.entry(type_key).or_insert(0) += 1;
-                }
+            ) && let (Some(output_pin), Some(input_pin)) = (
+                output_node.get_output_pin(&connection.output_pin_id),
+                input_node.get_input_pin(&connection.input_pin_id),
+            ) {
+                let type_key = format!("{:?} -> {:?}", output_pin.data_type, input_pin.data_type);
+                *type_counts.entry(type_key).or_insert(0) += 1;
+            }
         }
 
         ConnectionStats {

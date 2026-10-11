@@ -1,11 +1,9 @@
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct HdrConfig {
     pub display_config: HdrDisplayConfig,
     pub tone_mapping_config: ToneMappingConfig,
     pub gamut_mapping_config: GamutMappingConfig,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct HdrDisplayConfig {

@@ -15,8 +15,7 @@ pub struct HdrPixel {
     pub b: f32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum HdrDisplayType {
     #[default]
     Sdr,
@@ -26,8 +25,7 @@ pub enum HdrDisplayType {
     Hlg,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ColorPrimaries {
     #[default]
     Rec709,
@@ -36,8 +34,7 @@ pub enum ColorPrimaries {
     DciP3,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TransferFunction {
     Srgb,
     #[default]
@@ -111,9 +108,6 @@ impl HdrPixel {
         ]
     }
 }
-
-
-
 
 #[cfg(test)]
 mod tests {

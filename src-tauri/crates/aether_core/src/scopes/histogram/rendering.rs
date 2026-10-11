@@ -49,9 +49,9 @@ impl HistogramRenderer {
         for x in 0..width.min(256) {
             let bin = x as usize;
 
-            let red_height = red_norm[bin] as u32 * height / 256 ;
-            let green_height = green_norm[bin] as u32 * height / 256 ;
-            let blue_height = blue_norm[bin] as u32 * height / 256 ;
+            let red_height = red_norm[bin] as u32 * height / 256;
+            let green_height = green_norm[bin] as u32 * height / 256;
+            let blue_height = blue_norm[bin] as u32 * height / 256;
 
             for y in (height - red_height)..height {
                 {
@@ -88,7 +88,7 @@ impl HistogramRenderer {
 
         for x in 0..width.min(256) {
             let bin = x as usize;
-            let luma_height = luma_norm[bin] as u32 * height / 256 ;
+            let luma_height = luma_norm[bin] as u32 * height / 256;
 
             for y in (height - luma_height)..height {
                 {
@@ -112,12 +112,12 @@ impl HistogramRenderer {
         ];
 
         for (channel, color, index) in channels {
-            let x_offset = index as u32 * channel_width ;
+            let x_offset = index as u32 * channel_width;
             let channel_data = data.normalize(channel);
 
             for x in 0..channel_width.min(256) {
                 let bin = x as usize;
-                let bin_height = channel_data[bin] as u32 * height / 256 ;
+                let bin_height = channel_data[bin] as u32 * height / 256;
 
                 for y in (height - bin_height)..height {
                     let img_x = x_offset + x;
@@ -143,12 +143,12 @@ impl HistogramRenderer {
         ];
 
         for (channel, color, index) in channels {
-            let y_offset = index as u32 * channel_height ;
+            let y_offset = index as u32 * channel_height;
             let channel_data = data.normalize(channel);
 
             for x in 0..width.min(256) {
                 let bin = x as usize;
-                let bin_height = channel_data[bin] as u32 * channel_height / 256 ;
+                let bin_height = channel_data[bin] as u32 * channel_height / 256;
 
                 for y in 0..bin_height {
                     let img_y = y_offset + (channel_height - y);
