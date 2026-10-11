@@ -10,58 +10,32 @@ on:
     - cron: '0 2 * * 1'
 
 jobs:
+  # NOTE: gstreamer-rs 0.25 requires GStreamer >= 1.26, so the matrix is
+  # limited to distros shipping it (debian:trixie 1.26.x, ubuntu:questing 1.26.x).
+  # bookworm/bullseye/jammy/noble and derived distros ship GStreamer <= 1.24.
   debian-builds:
     name: Debian-based Builds
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          # Debian stable
           - distro: debian
-            version: bookworm
+            version: trixie
             arch: amd64
             target: x86_64-unknown-linux-gnu
           - distro: debian
-            version: bookworm
+            version: trixie
             arch: arm64
             target: aarch64-unknown-linux-gnu
-          
-          # Debian oldstable
-          - distro: debian
-            version: bullseye
-            arch: amd64
-            target: x86_64-unknown-linux-gnu
-          
-          # Ubuntu LTS
+
           - distro: ubuntu
-            version: jammy
+            version: questing
             arch: amd64
             target: x86_64-unknown-linux-gnu
           - distro: ubuntu
-            version: jammy
+            version: questing
             arch: arm64
             target: aarch64-unknown-linux-gnu
-          
-          - distro: ubuntu
-            version: noble
-            arch: amd64
-            target: x86_64-unknown-linux-gnu
-          - distro: ubuntu
-            version: noble
-            arch: arm64
-            target: aarch64-unknown-linux-gnu
-          
-          # Mint LTS
-          - distro: linuxmint
-            version: vanessa
-            arch: amd64
-            target: x86_64-unknown-linux-gnu
-          
-          # Pop! OS
-          - distro: pop
-            version: 22.04
-            arch: amd64
-            target: x86_64-unknown-linux-gnu
 
     steps:
     - name: Checkout repository
@@ -75,34 +49,12 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: ${{ matrix.target }}
-
-    - name: Cache Rust dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ matrix.distro }}-${{ matrix.version }}-${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ matrix.distro }}-${{ matrix.version }}-${{ matrix.arch }}-cargo-
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-        cache: 'npm'
-
-    - name: Build Docker image for ${{ matrix.distro }} ${{ matrix.version }}
+    - name: Build toolchain image for ${{ matrix.distro }} ${{ matrix.version }}
       run: |
         cat > Dockerfile.${{ matrix.distro }}-${{ matrix.version }} << 'EOF'
         FROM ${{ matrix.distro }}:${{ matrix.version }}
-        
-        # Install system dependencies
+
+        # Install system dependencies (Tauri 2 + ffmpeg + gstreamer >= 1.26)
         RUN apt-get update && apt-get install -y \
             build-essential \
             pkg-config \
@@ -114,48 +66,42 @@ jobs:
             libswresample-dev \
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
-            libgstreamer-editing-services1.0-dev \
+            libges-1.0-dev \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            librsvg2-dev \
             libgtk-3-dev \
-            libx11-dev \
-            libxrandr-dev \
-            libxinerama-dev \
-            libxcursor-dev \
-            libxtst-dev \
-            libxi-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            file \
+            patchelf \
+            desktop-file-utils \
             nodejs \
             npm \
             curl \
+            ca-certificates \
             git \
             && rm -rf /var/lib/apt/lists/*
-        
+
         # Install Rust
         RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         ENV PATH="/root/.cargo/bin:${PATH}"
         RUN rustup target add ${{ matrix.target }}
-        
-        # Install Tauri CLI
-        RUN cargo install tauri-cli --version ^2.0
-        
-        WORKDIR /app
-        
-        # Copy source code
-        COPY . .
-        
-        # Install frontend dependencies
-        RUN npm ci
-        
-        # Build frontend
-        RUN npm run build
-        
-        # Build Tauri app
-        RUN cargo tauri build --target ${{ matrix.target }}
-        EOF
-        
-        docker build -f Dockerfile.${{ matrix.distro }}-${{ matrix.version }} -t aether-${{ matrix.distro }}-${{ matrix.version }} .
 
-    - name: Run build in container
+        WORKDIR /app
+        EOF
+
+        docker build --platform linux/${{ matrix.arch }} \
+          -f Dockerfile.${{ matrix.distro }}-${{ matrix.version }} \
+          -t aether-toolchain-${{ matrix.distro }}-${{ matrix.version }} .
+
+    - name: Build inside container (artifacts land on the mounted workspace)
       run: |
-        docker run --rm -v $(pwd):/app aether-${{ matrix.distro }}-${{ matrix.version }}
+        docker run --rm --platform linux/${{ matrix.arch }} \
+          -v $(pwd):/app -w /app \
+          aether-toolchain-${{ matrix.distro }}-${{ matrix.version }} \
+          bash -c "npm ci && npm run build && npx tauri build --target ${{ matrix.target }}"
 
     - name: Create Debian package
       if: matrix.distro == 'debian'
@@ -165,18 +111,18 @@ jobs:
         mkdir -p debian-package/usr/bin
         mkdir -p debian-package/usr/share/applications
         mkdir -p debian-plugin/usr/share/icons/hicolor/256x256/apps
-        
+
         # Copy built binary
         cp src-tauri/target/${{ matrix.target }}/release/aether debian-package/usr/bin/
-        
+
         # Create control file
         cat > debian-package/DEBIAN/control << EOF
         Package: aether
         Version: 0.1.0
         Section: video
         Priority: optional
-        Architecture: ${{ matrix.arch == 'amd64' && 'amd64' || 'arm64' }}
-        Depends: libavcodec58 (>= 7:4.4), libavformat58 (>= 7:4.4), libavutil56 (>= 7:4.4), libswscale5 (>= 7:4.4), libgstreamer1.0-0 (>= 1.18.0), libgstreamer-plugins-base1.0-0 (>= 1.18.0), libgtk-3-0 (>= 3.24), libssl1.1 (>= 1.1.1)
+        Architecture: ${{ matrix.arch }}
+        Depends: libavcodec61, libavformat61, libavutil59, libswscale8, libswresample5, libgstreamer1.0-0 (>= 1.26.0), libgstreamer-plugins-base1.0-0 (>= 1.26.0), libges-1.0-0 (>= 1.26.0), libwebkit2gtk-4.1-0, libgtk-3-0 (>= 3.24), libssl3
         Maintainer: Aether Team <team@aether.video>
         Description: Professional video editing and compositing
          Aether is a professional video editing and compositing application
@@ -184,7 +130,7 @@ jobs:
          Features node-based compositing, real-time GPU preview,
          advanced color grading, and motion graphics.
         EOF
-        
+
         # Create desktop entry
         cat > debian-package/usr/share/applications/aether.desktop << EOF
         [Desktop Entry]
@@ -197,10 +143,10 @@ jobs:
         Categories=AudioVideo;Video;
         Keywords=video;edit;compositing;color;grading;
         EOF
-        
+
         # Calculate package size
         du -s debian-package/ | awk '{print $1 * 1024}' > debian-package/DEBIAN/size
-        
+
         # Build package
         dpkg-deb --build debian-package aether_${{ matrix.version }}_${{ matrix.arch }}.deb
 
@@ -221,11 +167,9 @@ jobs:
       matrix:
         include:
           - distro: debian
-            version: bookworm
+            version: trixie
           - distro: ubuntu
-            version: jammy
-          - distro: ubuntu
-            version: noble
+            version: questing
 
     steps:
     - name: Checkout repository
@@ -235,15 +179,17 @@ jobs:
       run: |
         docker run --rm -v $(pwd):/app ${{ matrix.distro }}:${{ matrix.version }} bash -c "
           apt-get update && apt-get install -y \
-            libavcodec58 \
-            libavformat58 \
-            libavutil56 \
-            libswscale5 \
+            libavcodec61 \
+            libavformat61 \
+            libavutil59 \
+            libswscale8 \
             libgstreamer1.0-0 \
             libgstreamer-plugins-base1.0-0 \
+            libges-1.0-0 \
+            libwebkit2gtk-4.1-0 \
             libgtk-3-0 \
-            libssl1.1
-          
+            libssl3
+
           # Test if binary would run (basic dependency check)
           echo 'Testing compatibility for ${{ matrix.distro }} ${{ matrix.version }}'
         "
