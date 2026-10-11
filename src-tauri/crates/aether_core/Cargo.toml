@@ -6,15 +6,6 @@ edition = "2024"
 [dependencies]
 # FFmpeg dependencies for final rendering
 ffmpeg-next = "9.0.0"
-# `build` compiles vendored FFmpeg from source — immune to system version
-# drift. Unix only: vendored build needs autotools, so Windows uses a
-# prebuilt FFmpeg via FFMPEG_DIR / pkg-config instead.
-[target.'cfg(not(windows))'.dependencies.ffmpeg-sys-next]
-version = "9.0.1"
-features = ["build"]
-
-[target.'cfg(windows)'.dependencies.ffmpeg-sys-next]
-version = "9.0.1"
 
 # GStreamer dependencies for core editing engine
 gstreamer = { version = "0.25.4", features = ["v1_18"] }
@@ -61,3 +52,12 @@ amf = []
 
 [dev-dependencies]
 env_logger = "0.11.11"   # For test logging
+
+# `build` compiles vendored FFmpeg from source — immune to system version
+# drift. Unix only: vendored build needs autotools, so Windows uses a
+# prebuilt FFmpeg via FFMPEG_DIR / pkg-config instead.
+[target.'cfg(not(windows))'.dependencies]
+ffmpeg-sys-next = { version = "9.0.1", features = ["build"] }
+
+[target.'cfg(windows)'.dependencies]
+ffmpeg-sys-next = "9.0.1"
