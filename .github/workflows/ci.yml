@@ -227,22 +227,38 @@ jobs:
   build-windows:
     name: Build Test (Windows x86_64)
     runs-on: windows-latest
+    timeout-minutes: 90
 
     steps:
+    - name: Cache GStreamer install
+      id: gst-cache
+      uses: actions/cache@v4
+      with:
+        path: C:\gstreamer
+        key: gst-msvc-1.28.7-x86_64-${{ runner.os }}
+
     - name: Install GStreamer (MSVC)
+      if: steps.gst-cache.outputs.cache-hit != 'true'
       shell: pwsh
       run: |
-        Invoke-WebRequest -Uri "https://gstreamer.freedesktop.org/data/pkg/windows/1.28.7/msvc/gstreamer-1.0-msvc-x86_64-1.28.7.exe" -OutFile gst-installer.exe
+        # curl.exe not Invoke-WebRequest: IWR progress rendering is pathologically
+        # slow on the 500MB installer (job hit the 6h timeout)
+        curl.exe -L --retry 3 -o gst-installer.exe "https://gstreamer.freedesktop.org/data/pkg/windows/1.28.7/msvc/gstreamer-1.0-msvc-x86_64-1.28.7.exe"
         Start-Process .\gst-installer.exe -ArgumentList "/install","/quiet","/norestart" -Wait
         $gst = "C:\gstreamer\1.0\msvc_x86_64"
         if (-not (Test-Path "$gst\lib\pkgconfig\gstreamer-1.0.pc")) { throw "GStreamer install failed" }
+
+    - name: Configure GStreamer env
+      shell: pwsh
+      run: |
+        $gst = "C:\gstreamer\1.0\msvc_x86_64"
         "PKG_CONFIG_PATH=$gst\lib\pkgconfig" >> $env:GITHUB_ENV
         "GSTREAMER_1_0_ROOT_MSVC_X86_64=$gst" >> $env:GITHUB_ENV
 
     - name: Install FFmpeg dev libraries
       shell: pwsh
       run: |
-        Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z" -OutFile ffmpeg.7z
+        curl.exe -L --retry 3 -o ffmpeg.7z "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full-shared.7z"
         7z x ffmpeg.7z -oC:\ | Out-Null
         $ffmpeg = Get-ChildItem C:\ -Directory -Filter "ffmpeg-*-full_shared" | Select-Object -First 1
         if (-not $ffmpeg) { throw "FFmpeg extraction failed" }
