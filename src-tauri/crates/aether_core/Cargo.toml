@@ -10,11 +10,8 @@ ffmpeg-next = "9.0.0"
 # GStreamer dependencies for core editing engine
 gstreamer = { version = "0.25.4", features = ["v1_18"] }
 gstreamer-app = "0.25.2"
-gstreamer-audio = "0.25.4"
-gstreamer-video = "0.25.4"
 gstreamer-editing-services = "0.25.4"
 gstreamer-pbutils = "0.25.4"
-gstreamer-base = "0.25.4"
 glib = "0.22.10"
 image = "0.25.10"
 chrono = "0.4.45"
