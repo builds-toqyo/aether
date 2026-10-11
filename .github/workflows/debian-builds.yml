@@ -60,6 +60,7 @@ jobs:
             pkg-config \
             libssl-dev \
             nasm \
+            clang libclang-dev \
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
             libges-1.0-dev \
