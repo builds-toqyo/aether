@@ -5,34 +5,36 @@ edition = "2024"
 
 [dependencies]
 # FFmpeg dependencies for final rendering
-ffmpeg-next = "8.1.0"
-ffmpeg-sys-next = "8.1.0"
+# `build` feature compiles vendored FFmpeg from source — immune to system
+# ffmpeg version drift (brew 9.x vs crate's 8.x API table)
+ffmpeg-next = "9.0.0"
+ffmpeg-sys-next = { version = "9.0.1", features = ["build"] }
 
 # GStreamer dependencies for core editing engine
-gstreamer = { version = "0.25.1", features = ["v1_18"] }
-gstreamer-app = "0.25.0"
-gstreamer-audio = "0.25.0"
-gstreamer-video = "0.25.0"
-gstreamer-editing-services = "0.25.0"
-gstreamer-pbutils = "0.25.0"
-gstreamer-base = "0.25.0"
-glib = "0.22.7"
-image = "0.25.5"
-chrono = "0.4.38"
+gstreamer = { version = "0.25.4", features = ["v1_18"] }
+gstreamer-app = "0.25.2"
+gstreamer-audio = "0.25.4"
+gstreamer-video = "0.25.4"
+gstreamer-editing-services = "0.25.4"
+gstreamer-pbutils = "0.25.4"
+gstreamer-base = "0.25.4"
+glib = "0.22.10"
+image = "0.25.10"
+chrono = "0.4.45"
 
 # GPU dependencies for compute pipeline
-wgpu = "29.0.3"
-pollster = "0.4.0"
-bytemuck = { version = "1.25.0", features = ["derive"] }
+wgpu = "30.0.1"
+pollster = "1.0.1"
+bytemuck = { version = "1.25.2", features = ["derive"] }
 
 # Common dependencies
-anyhow = "1.0.102"
-thiserror = "2.0.18"
-log = "0.4.29"
+anyhow = "1.0.104"
+thiserror = "2.0.21"
+log = "0.4.34"
 parking_lot = "0.12.5"  # For synchronization primitives
 once_cell = "1.21.4"    # For lazy initialization
-serde = { version = "1.0.228", features = ["derive"] }
-uuid = { version = "1.23.1", features = ["v4", "serde"] }
+serde = { version = "1.0.229", features = ["derive"] }
+uuid = { version = "1.28.0", features = ["v4", "serde"] }
 num_cpus = "1.17.0"      # For CPU count detection
 
 # Internal dependencies
@@ -42,7 +44,7 @@ aether_types = { path = "../aether_types" }
 libloading = "0.9.0"
 
 # Font metrics and text rendering
-fontdue = "0.9"
+fontdue = "0.9.4"
 
 [features]
 default = []
@@ -52,4 +54,4 @@ videotoolbox = []
 amf = []
 
 [dev-dependencies]
-env_logger = "0.11.10"   # For test logging
+env_logger = "0.11.11"   # For test logging
