@@ -59,7 +59,7 @@ impl ExecutionOrderCalculator {
 
             adjacency
                 .entry(connection.input_node_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(connection.output_node_id);
         }
 
@@ -79,7 +79,7 @@ impl ExecutionOrderCalculator {
 
         let mut filtered = HashMap::new();
         let mut visited = HashSet::new();
-        let mut to_visit = start_nodes.iter().cloned().collect::<Vec<_>>();
+        let mut to_visit = start_nodes.to_vec();
 
         while let Some(current) = to_visit.pop() {
             if visited.contains(&current) {
@@ -236,8 +236,7 @@ impl ExecutionOrderCalculator {
         let mut dependencies = Vec::new();
         let mut visited = HashSet::new();
         let mut to_visit = adjacency
-            .get(&node_id)
-            .map(|deps| deps.clone())
+            .get(&node_id).cloned()
             .unwrap_or_default();
 
         while let Some(current) = to_visit.pop() {

@@ -180,6 +180,12 @@ pub struct HistogramStatistics {
     pub luma: ChannelStatistics,
 }
 
+impl Default for HistogramStatistics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HistogramStatistics {
     pub fn new() -> Self {
         Self {
@@ -199,6 +205,12 @@ pub struct ExposureAnalysis {
     pub black_clipped: bool,
     pub white_clipped: bool,
     pub dynamic_range: u8,
+}
+
+impl Default for ExposureAnalysis {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ExposureAnalysis {
@@ -231,6 +243,12 @@ pub struct ColorBalanceAnalysis {
     pub green_cast: f32,
     pub blue_cast: f32,
     pub dominant_cast: ColorCast,
+}
+
+impl Default for ColorBalanceAnalysis {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ColorBalanceAnalysis {

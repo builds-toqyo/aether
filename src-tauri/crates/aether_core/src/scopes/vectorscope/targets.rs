@@ -83,14 +83,14 @@ impl TargetRenderer {
 
             for dx in -2..=2 {
                 if x as i32 + dx >= 0 && x as i32 + dx < width as i32 {
-                    let pixel = image.get_pixel_mut((x as i32 + dx) as u32, y as u32);
+                    let pixel = image.get_pixel_mut((x as i32 + dx) as u32, y);
                     *pixel = color;
                 }
             }
 
             for dy in -2..=2 {
                 if y as i32 + dy >= 0 && y as i32 + dy < height as i32 {
-                    let pixel = image.get_pixel_mut(x as u32, (y as i32 + dy) as u32);
+                    let pixel = image.get_pixel_mut(x, (y as i32 + dy) as u32);
                     *pixel = color;
                 }
             }

@@ -2,7 +2,6 @@ use crate::engine::editing::types::EditingError;
 use anyhow::Result;
 use ges::prelude::*;
 use glib::{ControlFlow, filename_to_uri};
-use gst::prelude::*;
 use gstreamer as gst;
 use gstreamer_editing_services as ges;
 use gstreamer_pbutils as gst_pbutils;
@@ -185,11 +184,10 @@ impl IntermediateExporter {
                             err.debug().unwrap_or_default()
                         ));
                     }
-                    gst::MessageView::StateChanged(state_changed) => {
-                        if state_changed.current() == gst::State::Playing {
+                    gst::MessageView::StateChanged(state_changed)
+                        if state_changed.current() == gst::State::Playing => {
                             debug!("Export pipeline started playing");
                         }
-                    }
                     _ => (),
                 }
 

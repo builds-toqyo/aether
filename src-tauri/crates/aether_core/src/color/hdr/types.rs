@@ -16,7 +16,9 @@ pub struct HdrPixel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum HdrDisplayType {
+    #[default]
     Sdr,
     Hdr10,
     DolbyVision,
@@ -25,7 +27,9 @@ pub enum HdrDisplayType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum ColorPrimaries {
+    #[default]
     Rec709,
     Rec2020,
     P3,
@@ -33,8 +37,10 @@ pub enum ColorPrimaries {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum TransferFunction {
     Srgb,
+    #[default]
     Rec709,
     Rec2020,
     Pq,
@@ -106,23 +112,8 @@ impl HdrPixel {
     }
 }
 
-impl Default for HdrDisplayType {
-    fn default() -> Self {
-        Self::Sdr
-    }
-}
 
-impl Default for ColorPrimaries {
-    fn default() -> Self {
-        Self::Rec709
-    }
-}
 
-impl Default for TransferFunction {
-    fn default() -> Self {
-        Self::Rec709
-    }
-}
 
 #[cfg(test)]
 mod tests {

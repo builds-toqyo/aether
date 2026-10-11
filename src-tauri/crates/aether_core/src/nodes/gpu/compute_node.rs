@@ -107,8 +107,8 @@ impl NodeExecutor for GpuComputeNode {
         });
 
         let workgroup_count = (
-            (context.resolution.0 + 15) / 16,
-            (context.resolution.1 + 15) / 16,
+            context.resolution.0.div_ceil(16),
+            context.resolution.1.div_ceil(16),
             1,
         );
 

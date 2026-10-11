@@ -153,7 +153,7 @@ impl LutApplicator {
         let c001 = lut_data.data.get(idx001).unwrap_or(&[0.0, 0.0, 0.0]);
 
         let c00 = self.lerp(c000, c100, r_frac);
-        let c01 = self.lerp(&c001, c001, r_frac);
+        let c01 = self.lerp(c001, c001, r_frac);
         let c0 = self.lerp(&c00, &c01, g_frac);
         self.lerp(&c0, &c0, b_frac)
     }

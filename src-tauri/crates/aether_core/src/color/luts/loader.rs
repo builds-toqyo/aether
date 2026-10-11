@@ -361,7 +361,7 @@ impl LutLoader {
         let mut out_of_range_count = 0;
         for rgb in &lut_data.data {
             for &value in rgb {
-                if value < 0.0 || value > 1.0 {
+                if !(0.0..=1.0).contains(&value) {
                     out_of_range_count += 1;
                 }
             }

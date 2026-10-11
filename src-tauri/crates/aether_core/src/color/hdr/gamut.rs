@@ -236,7 +236,7 @@ impl GamutMapper {
             ]),
             (super::types::ColorPrimaries::Rec2020, super::types::ColorPrimaries::Rec709) => Ok([
                 [1.641023, -0.324803, -0.316216],
-                [-0.418194, 1.279050, 0.139144],
+                [-0.418194, 1.279_05, 0.139144],
                 [-0.016279, -0.042748, 1.059027],
             ]),
             (super::types::ColorPrimaries::Rec709, super::types::ColorPrimaries::P3) => Ok([
@@ -245,7 +245,7 @@ impl GamutMapper {
                 [0.017083, 0.072697, 0.910220],
             ]),
             (super::types::ColorPrimaries::P3, super::types::ColorPrimaries::Rec709) => Ok([
-                [1.224940, -0.224940, 0.0],
+                [1.224_94, -0.224940, 0.0],
                 [-0.042057, 1.042057, 0.0],
                 [-0.019637, -0.078636, 1.098273],
             ]),

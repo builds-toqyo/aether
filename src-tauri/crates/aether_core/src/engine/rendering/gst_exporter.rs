@@ -3,7 +3,6 @@ use crate::engine::rendering::encoder::EncoderPreset;
 use crate::engine::rendering::formats::{AudioFormat, ContainerFormat, VideoFormat};
 use anyhow::{Context, Result};
 use glib::{ControlFlow, MainLoop, SourceId, filename_to_uri};
-use gst::prelude::*;
 use gstreamer as gst;
 use gstreamer_editing_services as ges;
 use gstreamer_editing_services::prelude::*;
@@ -185,9 +184,9 @@ impl GstExporter {
             .map_err(|_| EditingError::ExportError("Failed to create filesink".to_string()))?;
 
         pipeline
-            .add_many(&[&encodebin, &filesink])
+            .add_many([&encodebin, &filesink])
             .map_err(|e| EditingError::ExportError(format!("Failed to add elements: {}", e)))?;
-        gst::Element::link_many(&[&encodebin, &filesink]).map_err(|e| {
+        gst::Element::link_many([&encodebin, &filesink]).map_err(|e| {
             EditingError::ExportError(format!("Failed to link encodebin to filesink: {}", e))
         })?;
 
@@ -255,8 +254,8 @@ impl GstExporter {
                     }
                     gst::MessageView::Application(app) => {
                         let structure = app.structure();
-                        if let Some(structure) = structure {
-                            if structure.name() == "export-cancelled" {
+                        if let Some(structure) = structure
+                            && structure.name() == "export-cancelled" {
                                 let error_msg = "Export cancelled";
                                 let mut progress = progress_clone.lock().unwrap();
                                 progress.error = Some(error_msg.to_string());
@@ -268,7 +267,6 @@ impl GstExporter {
 
                                 main_loop_clone.quit();
                             }
-                        }
                     }
                     _ => (),
                 }
@@ -378,14 +376,13 @@ impl GstExporter {
 
         std::thread::sleep(Duration::from_millis(100));
 
-        if let Some(pipeline) = &self.pipeline {
-            if let Some(bus) = pipeline.bus() {
+        if let Some(pipeline) = &self.pipeline
+            && let Some(bus) = pipeline.bus() {
                 let structure = gst::Structure::builder("export-cancelled").build();
                 let message = gst::message::Application::new(structure);
                 bus.post(message)
                     .expect("Failed to post cancellation message");
             }
-        }
 
         Ok(())
     }
@@ -445,11 +442,10 @@ impl Drop for GstExporter {
             let _ = pipeline.set_state(gst::State::Null);
         }
 
-        if let Some(main_loop) = &self.main_loop {
-            if main_loop.is_running() {
+        if let Some(main_loop) = &self.main_loop
+            && main_loop.is_running() {
                 main_loop.quit();
             }
-        }
     }
 }
 

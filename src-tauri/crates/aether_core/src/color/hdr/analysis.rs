@@ -61,9 +61,9 @@ impl HdrAnalyzer {
         let mut max_luma: f32 = 0.0;
         let mut highlight_pixels = 0u64;
         let mut shadow_pixels = 0u64;
-        let contrast_ratio;
-        let highlight_preservation;
-        let shadow_preservation;
+        
+        
+        
 
         for pixel in &hdr_image.data {
             let luma = pixel.luminance();
@@ -83,10 +83,10 @@ impl HdrAnalyzer {
             }
         }
 
-        contrast_ratio = max_luma / min_luma.max(0.001);
+        let contrast_ratio = max_luma / min_luma.max(0.001);
         saturation_avg /= pixel_count;
-        highlight_preservation = highlight_pixels as f32 / pixel_count;
-        shadow_preservation = shadow_pixels as f32 / pixel_count;
+        let highlight_preservation = highlight_pixels as f32 / pixel_count;
+        let shadow_preservation = shadow_pixels as f32 / pixel_count;
 
         HdrQualityMetrics {
             contrast_ratio,

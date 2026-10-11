@@ -121,7 +121,7 @@ pub async fn get_node_result(
         for output_pin in &node.outputs {
             let value = execution_results
                 .get(&output_pin.id)
-                .map(|v| serialize_parameter_value(v))
+                .map(serialize_parameter_value)
                 .unwrap_or_else(|| "null".to_string());
             outputs.insert(output_pin.name.clone(), value);
         }

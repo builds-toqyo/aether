@@ -64,9 +64,9 @@ pub async fn connect_nodes(
     let connection = Connection {
         id: Uuid::new_v4(),
         output_node_id: output_id,
-        output_pin_id: output_pin_id,
+        output_pin_id,
         input_node_id: input_id,
-        input_pin_id: input_pin_id,
+        input_pin_id,
         enabled: true,
     };
 
@@ -90,9 +90,9 @@ pub async fn connect_nodes(
 
     Ok(ConnectionResponse {
         id: connection.id.to_string(),
-        output_node_id: output_node_id,
+        output_node_id,
         output_pin_name,
-        input_node_id: input_node_id,
+        input_node_id,
         input_pin_name,
         success: true,
         message: "Connection created successfully".to_string(),

@@ -126,6 +126,12 @@ pub struct ColorDistribution {
     pub color_balance: ColorBalance,
 }
 
+impl Default for ColorDistribution {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ColorDistribution {
     pub fn new() -> Self {
         Self {
@@ -142,6 +148,12 @@ pub struct ColorBalance {
     pub red: f32,
     pub green: f32,
     pub blue: f32,
+}
+
+impl Default for ColorBalance {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ColorBalance {
@@ -164,6 +176,12 @@ impl ColorBalance {
 #[derive(Debug, Clone)]
 pub struct TargetCompliance {
     pub targets: Vec<TargetResult>,
+}
+
+impl Default for TargetCompliance {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TargetCompliance {

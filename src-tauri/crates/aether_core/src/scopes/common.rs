@@ -412,6 +412,12 @@ pub struct ChannelStatistics {
     pub standard_deviation: f32,
 }
 
+impl Default for ChannelStatistics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ChannelStatistics {
     pub fn new() -> Self {
         Self {

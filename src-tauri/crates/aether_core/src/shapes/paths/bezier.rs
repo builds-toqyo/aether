@@ -391,7 +391,7 @@ impl BezierUtils {
 
         let x_extrema = Self::cubic_bezier_extrema(p0.0, p1.0, p2.0, p3.0);
         for t in x_extrema {
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 let point = BezierCurve::cubic_bezier_point(t, p0, p1, p2, p3);
                 min_x = min_x.min(point.0);
                 max_x = max_x.max(point.0);
@@ -400,7 +400,7 @@ impl BezierUtils {
 
         let y_extrema = Self::cubic_bezier_extrema(p0.1, p1.1, p2.1, p3.1);
         for t in y_extrema {
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 let point = BezierCurve::cubic_bezier_point(t, p0, p1, p2, p3);
                 min_y = min_y.min(point.1);
                 max_y = max_y.max(point.1);
@@ -424,16 +424,16 @@ impl BezierUtils {
                 let t1 = (-b + sqrt_d) / (2.0 * a);
                 let t2 = (-b - sqrt_d) / (2.0 * a);
 
-                if t1 >= 0.0 && t1 <= 1.0 {
+                if (0.0..=1.0).contains(&t1) {
                     extrema.push(t1);
                 }
-                if t2 >= 0.0 && t2 <= 1.0 && (t2 - t1).abs() > f64::EPSILON {
+                if (0.0..=1.0).contains(&t2) && (t2 - t1).abs() > f64::EPSILON {
                     extrema.push(t2);
                 }
             }
         } else if b.abs() > f64::EPSILON {
             let t = -c / b;
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 extrema.push(t);
             }
         }
@@ -453,7 +453,7 @@ impl BezierUtils {
 
         let x_extrema = Self::quadratic_bezier_extrema(p0.0, p1.0, p2.0);
         for t in x_extrema {
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 let point = BezierCurve::quadratic_bezier_point(t, p0, p1, p2);
                 min_x = min_x.min(point.0);
                 max_x = max_x.max(point.0);
@@ -462,7 +462,7 @@ impl BezierUtils {
 
         let y_extrema = Self::quadratic_bezier_extrema(p0.1, p1.1, p2.1);
         for t in y_extrema {
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 let point = BezierCurve::quadratic_bezier_point(t, p0, p1, p2);
                 min_y = min_y.min(point.1);
                 max_y = max_y.max(point.1);
@@ -480,7 +480,7 @@ impl BezierUtils {
 
         if a.abs() > f64::EPSILON {
             let t = -b / a;
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 extrema.push(t);
             }
         }

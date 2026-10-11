@@ -43,17 +43,14 @@ impl fmt::Display for LayerBlendMode {
 
 /// Layer visibility state
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum LayerVisibility {
+    #[default]
     Visible,
     Hidden,
     Locked,
 }
 
-impl Default for LayerVisibility {
-    fn default() -> Self {
-        LayerVisibility::Visible
-    }
-}
 
 /// Shape layer
 #[derive(Serialize)]
@@ -78,10 +75,10 @@ impl Clone for ShapeLayer {
             id: self.id.clone(),
             name: self.name.clone(),
             shape: self.shape.clone_box(),
-            transform: self.transform.clone(),
-            visibility: self.visibility.clone(),
+            transform: self.transform,
+            visibility: self.visibility,
             opacity: self.opacity,
-            blend_mode: self.blend_mode.clone(),
+            blend_mode: self.blend_mode,
             order: self.order,
             selected: self.selected,
             locked: self.locked,

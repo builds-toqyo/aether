@@ -124,7 +124,7 @@ impl ImageDecoder {
     ) -> Result<Vec<u8>, String> {
         let width = frame.width() as usize;
         let height = frame.height() as usize;
-        let line_size = frame.stride(0) as usize;
+        let line_size = frame.stride(0);
 
         let plane_data = frame.data(0);
 
@@ -226,7 +226,7 @@ impl ImageDecoder {
     ) -> Result<(), String> {
         let width = frame.width() as usize;
         let height = frame.height() as usize;
-        let line_size = frame.stride(0) as usize;
+        let line_size = frame.stride(0);
 
         let plane_data = frame.data_mut(0);
 

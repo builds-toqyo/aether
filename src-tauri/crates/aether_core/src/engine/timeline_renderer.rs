@@ -177,7 +177,7 @@ impl TimelineRenderer {
         let mut renderer_config = crate::engine::renderer::RendererConfig::default();
         renderer_config.width = config.width;
         renderer_config.height = config.height;
-        renderer_config.frame_rate = config.fps as f64;
+        renderer_config.frame_rate = config.fps;
 
         let renderer = Renderer::new(renderer_config);
 
@@ -196,10 +196,10 @@ impl TimelineRenderer {
 
         let timeline = self.timeline.lock().unwrap();
 
-        for (_track_id, track) in timeline.tracks() {
+        for track in timeline.tracks().values() {
             for clip in &track.clips {
-                if clip.clip_type == ClipType::Video {
-                    if let Some(source_path) = &clip.source_path {
+                if clip.clip_type == ClipType::Video
+                    && let Some(source_path) = &clip.source_path {
                         let in_point = clip
                             .properties
                             .get("in-point")
@@ -218,7 +218,6 @@ impl TimelineRenderer {
                         clip_renderer.initialize()?;
                         self.clip_renderers.insert(clip.id.clone(), clip_renderer);
                     }
-                }
             }
         }
 
@@ -253,8 +252,8 @@ impl TimelineRenderer {
         // Render each active clip
         for (_track_id, clips) in active_clips {
             for clip in clips {
-                if clip.clip_type == ClipType::Video {
-                    if let Some(clip_renderer) = self.clip_renderers.get_mut(&clip.id) {
+                if clip.clip_type == ClipType::Video
+                    && let Some(clip_renderer) = self.clip_renderers.get_mut(&clip.id) {
                         // Seek to the correct time in the clip
                         clip_renderer.seek_to_time(time, clip.start_time)?;
 
@@ -268,7 +267,6 @@ impl TimelineRenderer {
                             self.config.height,
                         )?;
                     }
-                }
             }
         }
 
@@ -352,7 +350,7 @@ impl TimelineRenderer {
 
         self.frame_cache.clear();
 
-        for (_, renderer) in &mut self.clip_renderers {
+        for renderer in self.clip_renderers.values_mut() {
             renderer.close()?;
         }
 
@@ -364,7 +362,7 @@ impl TimelineRenderer {
     }
 
     pub fn cleanup(&mut self) -> Result<(), TimelineRendererError> {
-        for (_, renderer) in &mut self.clip_renderers {
+        for renderer in self.clip_renderers.values_mut() {
             renderer.close()?;
         }
 

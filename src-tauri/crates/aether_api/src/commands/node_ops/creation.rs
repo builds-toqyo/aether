@@ -17,7 +17,7 @@ pub async fn create_node(
     debug!("{}, {}", node_type, name);
 
     // Parse node type
-    let node_type_enum = parse_node_type(&node_type).map_err(|e| format!("{}", e))?;
+    let node_type_enum = parse_node_type(&node_type).map_err(|e| e.to_string())?;
 
     // Create node
     let node = Node::new(node_type_enum, name.clone());

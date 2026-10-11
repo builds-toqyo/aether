@@ -5,18 +5,15 @@ use std::time::Instant;
 use super::interpolation::{AnimationInterpolator, InterpolationResult};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum PlaybackState {
+    #[default]
     Stopped,
     Playing,
     Paused,
     Seeking,
 }
 
-impl Default for PlaybackState {
-    fn default() -> Self {
-        PlaybackState::Stopped
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct AnimationState {
@@ -157,11 +154,10 @@ impl AnimationEngine {
     }
 
     pub fn play(&mut self) {
-        if self.state.playback_state == PlaybackState::Stopped {
-            if self.state.is_at_end() && !self.state.loop_animation {
+        if self.state.playback_state == PlaybackState::Stopped
+            && self.state.is_at_end() && !self.state.loop_animation {
                 self.state.current_time = self.state.start_time;
             }
-        }
         self.state.playback_state = PlaybackState::Playing;
         self.last_update = Instant::now();
         self.stats.playbacks_started += 1;

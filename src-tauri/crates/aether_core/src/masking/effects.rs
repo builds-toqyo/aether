@@ -214,7 +214,7 @@ impl MaskEffect {
             MaskEffectType::Custom(_) => result = self.apply_custom_effect(result, x, y),
         }
 
-        result = result * self.opacity;
+        result *= self.opacity;
 
         result = self.apply_blend_mode(result, value);
 
@@ -461,13 +461,11 @@ impl MaskEffectProcessor {
     pub fn process_value(&mut self, value: f64, x: f64, y: f64) -> f64 {
         let cache_key = format!("{:.2}_{:.2}_{:.4}", x, y, value);
 
-        if self.cache_enabled {
-            if let Some(cached_value) = self.cache_data.get(&cache_key) {
-                if !cached_value.is_empty() {
+        if self.cache_enabled
+            && let Some(cached_value) = self.cache_data.get(&cache_key)
+                && !cached_value.is_empty() {
                     return cached_value[0];
                 }
-            }
-        }
 
         let mut result = value;
 

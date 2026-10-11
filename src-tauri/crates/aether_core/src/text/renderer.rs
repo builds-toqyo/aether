@@ -439,9 +439,9 @@ impl TextRenderer {
         _text_layer: &crate::text::types::TextLayer,
         _time: f64,
     ) -> Vec<GlyphRenderInfo> {
-        let render_infos = Vec::new();
+        
 
-        render_infos
+        Vec::new()
     }
 
     fn get_animated_values(
@@ -468,15 +468,13 @@ impl TextRenderer {
     }
 
     fn parse_color(&self, color_str: &str) -> (f64, f64, f64, f64) {
-        if color_str.starts_with('#') {
-            let hex = &color_str[1..];
-            if hex.len() == 6 {
+        if let Some(hex) = color_str.strip_prefix('#')
+            && hex.len() == 6 {
                 let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(0) as f64 / 255.0;
                 let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(0) as f64 / 255.0;
                 let b = u8::from_str_radix(&hex[4..6], 16).unwrap_or(0) as f64 / 255.0;
                 return (r, g, b, 1.0);
             }
-        }
 
         (0.0, 0.0, 0.0, 1.0)
     }
@@ -540,6 +538,12 @@ impl TextRenderer {
     }
 }
 
+impl Default for GlyphCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GlyphCache {
     pub fn new() -> Self {
         Self {
@@ -586,7 +590,7 @@ impl GlyphCache {
         }
 
         let mut glyphs: Vec<_> = self.glyphs.iter().collect();
-        glyphs.sort_by(|a, b| a.1.frequency.cmp(&b.1.frequency));
+        glyphs.sort_by_key(|a| a.1.frequency);
 
         let remove_count = self.glyphs.len() - self.max_size;
         let keys_to_remove: Vec<String> = glyphs
@@ -621,6 +625,12 @@ impl GlyphCache {
         } else {
             self.hits as f64 / total as f64
         }
+    }
+}
+
+impl Default for GlyphRenderer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

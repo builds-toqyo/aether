@@ -340,8 +340,8 @@ pub async fn plugin_scan_directory(
     if let Ok(entries) = fs::read_dir(&dir) {
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
-            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                if extensions.contains(&ext) {
+            if let Some(ext) = path.extension().and_then(|e| e.to_str())
+                && extensions.contains(&ext) {
                     let manifest_path = path.with_extension("json");
                     let info = if manifest_path.exists() {
                         if let Ok(manifest_json) = fs::read_to_string(&manifest_path) {
@@ -434,7 +434,6 @@ pub async fn plugin_scan_directory(
                         loaded.push(info);
                     }
                 }
-            }
         }
     }
 
@@ -546,14 +545,13 @@ pub async fn plugin_search_repository(
         }
 
         // Filter by tags
-        if let Some(tags) = filter.tags {
-            if !tags.is_empty() {
+        if let Some(tags) = filter.tags
+            && !tags.is_empty() {
                 plugins.retain(|p| {
                     tags.iter()
                         .any(|tag| p.tags.iter().any(|pt| pt.eq_ignore_ascii_case(tag)))
                 });
             }
-        }
 
         // Filter by author
         if let Some(author) = filter.author {
@@ -572,7 +570,7 @@ pub async fn plugin_search_repository(
 
         match sort_by {
             "name" => plugins.sort_by(|a, b| a.name.cmp(&b.name)),
-            "downloads" => plugins.sort_by(|a, b| a.downloads.cmp(&b.downloads)),
+            "downloads" => plugins.sort_by_key(|a| a.downloads),
             "rating" => plugins.sort_by(|a, b| {
                 a.rating
                     .partial_cmp(&b.rating)

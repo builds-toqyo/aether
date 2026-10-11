@@ -141,7 +141,9 @@ pub enum RenderingStatus {
 }
 
 #[derive(Debug, Serialize, Clone)]
+#[derive(Default)]
 pub enum RenderFormat {
+    #[default]
     Mp4,
     Avi,
     Mov,
@@ -175,16 +177,13 @@ impl<'de> Deserialize<'de> for RenderFormat {
     }
 }
 
-impl Default for RenderFormat {
-    fn default() -> Self {
-        RenderFormat::Mp4
-    }
-}
 
 #[derive(Debug, Serialize, Clone)]
+#[derive(Default)]
 pub enum RenderQuality {
     Low,
     Medium,
+    #[default]
     High,
     Ultra,
     Custom {
@@ -213,11 +212,6 @@ impl<'de> Deserialize<'de> for RenderQuality {
     }
 }
 
-impl Default for RenderQuality {
-    fn default() -> Self {
-        RenderQuality::High
-    }
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum RenderPreset {
@@ -354,18 +348,15 @@ pub struct QueuedJob {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Default)]
 pub enum JobPriority {
     Low = 1,
+    #[default]
     Normal = 2,
     High = 3,
     Urgent = 4,
 }
 
-impl Default for JobPriority {
-    fn default() -> Self {
-        JobPriority::Normal
-    }
-}
 
 pub struct RenderingState {
     pub engine: RenderingEngine,
@@ -589,17 +580,15 @@ pub async fn rendering_start_job(
         return Err("Output path cannot be empty".to_string());
     }
 
-    if let Some((width, height)) = request.resolution {
-        if width == 0 || height == 0 {
+    if let Some((width, height)) = request.resolution
+        && (width == 0 || height == 0) {
             return Err("Resolution cannot be zero".to_string());
         }
-    }
 
-    if let Some(fps) = request.fps {
-        if fps <= 0.0 {
+    if let Some(fps) = request.fps
+        && fps <= 0.0 {
             return Err("FPS must be greater than 0".to_string());
         }
-    }
 
     // Generate job ID
     let job_id = format!("{}", uuid::Uuid::new_v4());
@@ -990,7 +979,7 @@ pub async fn rendering_get_all_jobs(
 
     // Collect all active jobs with updated status
     let mut jobs = Vec::new();
-    for (_job_id, active_job) in &rendering_state.active_jobs {
+    for active_job in rendering_state.active_jobs.values() {
         // Get current progress from exporter
         let progress = {
             let exporter = active_job.exporter.lock().map_err(|e| format!("{}", e))?;
@@ -1020,7 +1009,7 @@ pub async fn rendering_get_all_jobs(
     }
 
     // Include paused jobs
-    for (_job_id, paused_job) in &rendering_state.paused_jobs {
+    for paused_job in rendering_state.paused_jobs.values() {
         let mut job = paused_job.job.clone();
         job.status = RenderingStatus::Paused;
         jobs.push(job);
@@ -1045,7 +1034,7 @@ pub async fn rendering_get_queue(state: State<'_, AppState>) -> Result<Rendering
     let mut completed_jobs = Vec::new();
     let mut failed_jobs = Vec::new();
 
-    for (_job_id, active_job) in &rendering_state.active_jobs {
+    for active_job in rendering_state.active_jobs.values() {
         let progress = {
             let exporter = active_job
                 .exporter
@@ -1098,7 +1087,7 @@ pub async fn rendering_get_queue(state: State<'_, AppState>) -> Result<Rendering
         });
     }
 
-    for (_job_id, paused_job) in &rendering_state.paused_jobs {
+    for paused_job in rendering_state.paused_jobs.values() {
         let mut job = paused_job.job.clone();
         job.status = RenderingStatus::Paused;
         active_jobs.push(job);
@@ -1488,7 +1477,7 @@ pub async fn rendering_estimate_time(
         RenderQuality::Ultra => 25000000, // 25 Mbps
         RenderQuality::Custom { bitrate, .. } => *bitrate as u64,
     };
-    let _estimated_size = (bitrate as u64 * duration as u64) / 8; // Convert to bytes
+    let _estimated_size = (bitrate * duration as u64) / 8; // Convert to bytes
 
     // Calculate confidence based on complexity
     let confidence: f64 = if resolution_factor > 2.0 || format_factor > 1.5 {
@@ -1500,10 +1489,10 @@ pub async fn rendering_estimate_time(
     };
 
     let estimate = RenderingTimeEstimate {
-        estimated_seconds: estimated_total_time as f64,
-        estimated_minutes: (estimated_total_time / 60.0) as f64,
-        estimated_hours: (estimated_total_time / 3600.0) as f64,
-        confidence: confidence as f64,
+        estimated_seconds: estimated_total_time,
+        estimated_minutes: (estimated_total_time / 60.0),
+        estimated_hours: (estimated_total_time / 3600.0),
+        confidence,
         factors_used: vec![
             format!("resolution_factor: {}", resolution_factor),
             format!("format_factor: {}", format_factor),
@@ -1540,7 +1529,7 @@ pub async fn rendering_get_performance_stats(
     let mut render_time_per_frame = 0.0;
     let mut active_jobs_count = 0;
 
-    for (_job_id, active_job) in &rendering_state.active_jobs {
+    for active_job in rendering_state.active_jobs.values() {
         let progress = {
             let exporter = active_job
                 .exporter
@@ -1881,27 +1870,24 @@ pub async fn rendering_detect_scenes(
         if decoder.seek(t).is_err() {
             break;
         }
-        match decoder.decode_video_frame() {
-            Ok(frame) => {
-                let lums = extract_luminance(&frame);
-                if let Some(prev) = &prev_lums {
-                    let n = lums.len().min(prev.len());
-                    if n > 0 {
-                        let mean_diff = lums[..n]
-                            .iter()
-                            .zip(&prev[..n])
-                            .map(|(a, b)| (*a as i32 - *b as i32).unsigned_abs() as f64)
-                            .sum::<f64>()
-                            / n as f64;
-                        let score = mean_diff / 255.0;
-                        if score >= scene_threshold {
-                            boundaries.push((t, score.min(1.0)));
-                        }
+        if let Ok(frame) = decoder.decode_video_frame() {
+            let lums = extract_luminance(&frame);
+            if let Some(prev) = &prev_lums {
+                let n = lums.len().min(prev.len());
+                if n > 0 {
+                    let mean_diff = lums[..n]
+                        .iter()
+                        .zip(&prev[..n])
+                        .map(|(a, b)| (*a as i32 - *b as i32).unsigned_abs() as f64)
+                        .sum::<f64>()
+                        / n as f64;
+                    let score = mean_diff / 255.0;
+                    if score >= scene_threshold {
+                        boundaries.push((t, score.min(1.0)));
                     }
                 }
-                prev_lums = Some(lums);
             }
-            Err(_) => {}
+            prev_lums = Some(lums);
         }
         t += interval;
     }
@@ -2018,13 +2004,11 @@ pub async fn rendering_list_templates(_state: State<'_, AppState>) -> Result<Vec
         .map_err(|e| format!("Failed to read templates directory: {}", e))?;
 
     for entry in entries {
-        if let Ok(entry) = entry {
-            if let Some(name) = entry.file_name().to_str() {
-                if name.ends_with(".json") {
+        if let Ok(entry) = entry
+            && let Some(name) = entry.file_name().to_str()
+                && name.ends_with(".json") {
                     templates.push(name.strip_suffix(".json").unwrap_or(name).to_string());
                 }
-            }
-        }
     }
 
     info!("Found {} render templates", templates.len());

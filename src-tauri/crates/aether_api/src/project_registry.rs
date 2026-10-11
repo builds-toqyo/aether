@@ -184,7 +184,7 @@ impl ProjectRegistry {
         ).map_err(|e| format!("Failed to prepare query: {}", e))?;
 
         let rows = stmt
-            .query_map([], |row| Self::row_to_project(row))
+            .query_map([], Self::row_to_project)
             .map_err(|e| format!("Failed to query projects: {}", e))?;
 
         let mut projects = Vec::new();
@@ -204,7 +204,7 @@ impl ProjectRegistry {
         ).map_err(|e| format!("Failed to prepare query: {}", e))?;
 
         let rows = stmt
-            .query_map([limit as i64], |row| Self::row_to_project(row))
+            .query_map([limit as i64], Self::row_to_project)
             .map_err(|e| format!("Failed to query recent projects: {}", e))?;
 
         let mut projects = Vec::new();

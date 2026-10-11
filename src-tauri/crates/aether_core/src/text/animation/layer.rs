@@ -200,22 +200,18 @@ impl TextLayer {
                     }
                 }
                 AnimationType::PathPosition => {
-                    if let Some(ref path) = self.path {
-                        if let AnimationValue::Float(distance) = value {
-                            if let Some(pos) = path.get_point_at_distance(distance) {
+                    if let Some(ref path) = self.path
+                        && let AnimationValue::Float(distance) = value
+                            && let Some(pos) = path.get_point_at_distance(distance) {
                                 transform.position = pos;
                             }
-                        }
-                    }
                 }
                 AnimationType::PathRotation => {
-                    if let Some(ref path) = self.path {
-                        if let AnimationValue::Float(distance) = value {
-                            if let Some((tx, ty)) = path.get_tangent_at_distance(distance) {
+                    if let Some(ref path) = self.path
+                        && let AnimationValue::Float(distance) = value
+                            && let Some((tx, ty)) = path.get_tangent_at_distance(distance) {
                                 transform.rotation = ty.atan2(tx);
                             }
-                        }
-                    }
                 }
                 _ => {}
             }
@@ -305,7 +301,7 @@ impl TextLayer {
         let animation_id = format!(
             "typography_{}_{}",
             animation_type.as_u8(),
-            uuid::Uuid::new_v4().to_string()[..8].to_string()
+            &uuid::Uuid::new_v4().to_string()[..8]
         );
         let animation = CharacterAnimation::new(
             animation_id.clone(),
@@ -325,7 +321,7 @@ impl TextLayer {
         to_opacity: f64,
         duration: f64,
     ) -> String {
-        let animation_id = format!("fade_{}", uuid::Uuid::new_v4().to_string()[..8].to_string());
+        let animation_id = format!("fade_{}", &uuid::Uuid::new_v4().to_string()[..8]);
         let mut animation = CharacterAnimation::new(
             animation_id.clone(),
             "Fade".to_string(),
@@ -361,7 +357,7 @@ impl TextLayer {
     ) -> String {
         let animation_id = format!(
             "slide_{}",
-            uuid::Uuid::new_v4().to_string()[..8].to_string()
+            &uuid::Uuid::new_v4().to_string()[..8]
         );
         let mut animation = CharacterAnimation::new(
             animation_id.clone(),

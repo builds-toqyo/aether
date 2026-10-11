@@ -161,11 +161,10 @@ impl AnimationTrackCollection {
         let mut values = HashMap::new();
 
         for track in self.get_tracks_by_target(target_id) {
-            if track.enabled && !track.muted {
-                if let Some(value) = track.get_value_at_time(time) {
+            if track.enabled && !track.muted
+                && let Some(value) = track.get_value_at_time(time) {
                     values.insert(track.id.clone(), value);
                 }
-            }
         }
 
         values

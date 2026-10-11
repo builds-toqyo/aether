@@ -1,19 +1,11 @@
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct HdrConfig {
     pub display_config: HdrDisplayConfig,
     pub tone_mapping_config: ToneMappingConfig,
     pub gamut_mapping_config: GamutMappingConfig,
 }
 
-impl Default for HdrConfig {
-    fn default() -> Self {
-        Self {
-            display_config: HdrDisplayConfig::default(),
-            tone_mapping_config: ToneMappingConfig::default(),
-            gamut_mapping_config: GamutMappingConfig::default(),
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct HdrDisplayConfig {

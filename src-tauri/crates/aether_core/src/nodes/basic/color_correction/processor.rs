@@ -201,14 +201,14 @@ impl ColorProcessor {
                 0.0
             } else {
                 let g = temp - 19.0;
-                let g = 0.390081579 * g.powf(-0.254133);
+                let g = 0.390_081_58 * g.powf(-0.254133);
                 g.clamp(0.0, 1.0)
             };
             let b = if temp <= 19.0 {
                 0.0
             } else if temp <= 66.0 {
                 let b = temp - 10.0;
-                let b = 0.543206769 * b.powf(-0.231350);
+                let b = 0.543_206_75 * b.powf(-0.231350);
                 b.clamp(0.0, 1.0)
             } else {
                 1.0
@@ -228,7 +228,7 @@ impl ColorProcessor {
             let b = if temp >= 400.0 {
                 1.0
             } else {
-                0.543206769 * ((temp - 10.0) / 100.0).powf(-0.231350)
+                0.543_206_75 * ((temp - 10.0) / 100.0).powf(-0.231350)
             };
             (r, g, b)
         };

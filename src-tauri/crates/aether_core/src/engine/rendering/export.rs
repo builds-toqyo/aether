@@ -199,12 +199,12 @@ impl Exporter {
                 let out_width = if options.width > 0 {
                     options.width
                 } else {
-                    width as u32
+                    width
                 };
                 let out_height = if options.height > 0 {
                     options.height
                 } else {
-                    height as u32
+                    height
                 };
                 video.set_width(out_width);
                 video.set_height(out_height);
@@ -303,12 +303,12 @@ impl Exporter {
                 let out_width = if options.width > 0 {
                     options.width
                 } else {
-                    width as u32
+                    width
                 };
                 let out_height = if options.height > 0 {
                     options.height
                 } else {
-                    height as u32
+                    height
                 };
 
                 ffmpeg::software::scaling::context::Context::get(
@@ -364,8 +364,8 @@ impl Exporter {
                     std::thread::sleep(std::time::Duration::from_millis(100));
                 }
 
-                if let Some(stream_index) = video_stream_index {
-                    if stream.index() == stream_index {
+                if let Some(stream_index) = video_stream_index
+                    && stream.index() == stream_index {
                         video_decoder.send_packet(&packet)?;
 
                         while video_decoder.receive_frame(&mut decoded).is_ok() {
@@ -374,12 +374,12 @@ impl Exporter {
                                 if options.width > 0 {
                                     options.width
                                 } else {
-                                    width as u32
+                                    width
                                 },
                                 if options.height > 0 {
                                     options.height
                                 } else {
-                                    height as u32
+                                    height
                                 },
                             );
 
@@ -422,12 +422,11 @@ impl Exporter {
                             }
                         }
                     }
-                }
 
-                if let Some(audio_index) = audio_stream_index {
-                    if let Some(audio_stream_out) = audio_stream_index_out {
-                        if stream.index() == audio_index {
-                            if let Some(ref mut audio_decoder) = audio_decoder {
+                if let Some(audio_index) = audio_stream_index
+                    && let Some(audio_stream_out) = audio_stream_index_out
+                        && stream.index() == audio_index
+                            && let Some(ref mut audio_decoder) = audio_decoder {
                                 if *cancel_flag.lock().unwrap() {
                                     let error_msg =
                                         "Export cancelled during audio processing".to_string();
@@ -520,9 +519,6 @@ impl Exporter {
                                         audio_decoder.receive_frame(&mut audio_decoded);
                                 }
                             }
-                        }
-                    }
-                }
             }
 
             {

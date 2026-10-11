@@ -45,16 +45,15 @@ impl GraphValidator {
 
             adjacency
                 .entry(connection.input_node_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(connection.output_node_id);
         }
 
         for node_id in graph.nodes.keys() {
-            if !visited.contains(node_id) {
-                if Self::has_cycle_util(node_id, &adjacency, &mut visited, &mut rec_stack)? {
+            if !visited.contains(node_id)
+                && Self::has_cycle_util(node_id, &adjacency, &mut visited, &mut rec_stack)? {
                     return Err(NodeError::CircularDependency);
                 }
-            }
         }
 
         debug!("No circular dependencies found");
@@ -242,7 +241,7 @@ impl GraphValidator {
 
             adjacency
                 .entry(connection.input_node_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(connection.output_node_id);
         }
 

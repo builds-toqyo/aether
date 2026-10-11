@@ -308,11 +308,10 @@ impl MaskAnimationSystem {
         self.current_values.clear();
 
         for track in &self.tracks {
-            if track.enabled {
-                if let Some(value) = track.evaluate(self.global_time) {
+            if track.enabled
+                && let Some(value) = track.evaluate(self.global_time) {
                     self.current_values.insert(track.target.clone(), value);
                 }
-            }
         }
     }
 

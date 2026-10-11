@@ -13,29 +13,27 @@ impl OutputEncoders {
     }
 
     pub fn process_output(&self, input_value: ParameterValue, frame: u64) -> EncodingResult {
-        match &self.quality_settings {
-            _ => {
-                let start_time = std::time::Instant::now();
-                let result = match self.get_output_format() {
-                    OutputFormat::Raw => self.encode_raw(input_value, frame),
-                    OutputFormat::PngSequence => self.encode_to_png(input_value, frame),
-                    OutputFormat::JpegSequence => self.encode_to_jpeg(input_value, frame),
-                    OutputFormat::Mp4 => self.encode_to_mp4(input_value, frame),
-                    OutputFormat::ProRes => self.encode_to_prores(input_value, frame),
-                    OutputFormat::ExrSequence => self.encode_to_exr(input_value, frame),
-                };
+        {
+            let start_time = std::time::Instant::now();
+            let result = match self.get_output_format() {
+                OutputFormat::Raw => self.encode_raw(input_value, frame),
+                OutputFormat::PngSequence => self.encode_to_png(input_value, frame),
+                OutputFormat::JpegSequence => self.encode_to_jpeg(input_value, frame),
+                OutputFormat::Mp4 => self.encode_to_mp4(input_value, frame),
+                OutputFormat::ProRes => self.encode_to_prores(input_value, frame),
+                OutputFormat::ExrSequence => self.encode_to_exr(input_value, frame),
+            };
 
-                let encoding_time = start_time.elapsed().as_millis() as u64;
+            let encoding_time = start_time.elapsed().as_millis() as u64;
 
-                let mut metadata = result.metadata.clone();
-                metadata.encoding_time = Some(encoding_time);
+            let mut metadata = result.metadata.clone();
+            metadata.encoding_time = Some(encoding_time);
 
-                EncodingResult {
-                    success: result.success,
-                    output_data: result.output_data,
-                    metadata,
-                    error: result.error,
-                }
+            EncodingResult {
+                success: result.success,
+                output_data: result.output_data,
+                metadata,
+                error: result.error,
             }
         }
     }

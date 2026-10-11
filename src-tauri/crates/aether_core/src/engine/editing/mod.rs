@@ -14,7 +14,6 @@ pub use types::{ClipInfo, EditingError, MediaInfo, TrackType};
 
 use anyhow::Result;
 use ges::prelude::*;
-use gst::prelude::*;
 use gstreamer as gst;
 use gstreamer_editing_services as ges;
 use std::sync::{Arc, Mutex};

@@ -31,7 +31,7 @@ impl VectorscopeRenderer {
             *pixel = Rgb([16, 16, 16]);
         }
 
-        self.draw_intensity_grid(&mut image, &data, config)?;
+        self.draw_intensity_grid(&mut image, data, config)?;
 
         Ok(image)
     }

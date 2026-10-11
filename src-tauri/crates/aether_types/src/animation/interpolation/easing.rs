@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum EasingFunction {
+    #[default]
     Linear,
     QuadIn,
     QuadOut,
@@ -410,11 +412,6 @@ impl fmt::Display for EasingFunction {
     }
 }
 
-impl Default for EasingFunction {
-    fn default() -> Self {
-        EasingFunction::Linear
-    }
-}
 
 /// Easing function categories
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

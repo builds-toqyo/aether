@@ -426,11 +426,10 @@ impl BooleanUtils {
         let path_b = shape_b.to_path();
 
         // Check if all vertices of B are inside A
-        if let Some(first_segment) = path_b.segments.first() {
-            if !shape_a.contains_point(first_segment.x, first_segment.y) {
+        if let Some(first_segment) = path_b.segments.first()
+            && !shape_a.contains_point(first_segment.x, first_segment.y) {
                 return false;
             }
-        }
 
         // Sample points along B and check if they're inside A
         let samples = 20;

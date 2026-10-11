@@ -213,11 +213,10 @@ impl NodeValidator {
                 return Ok(false);
             }
 
-            if let Some(_connection_id) = &input_pin.connection {
-                if context.get_input(&input_pin.id).is_none() {
+            if let Some(_connection_id) = &input_pin.connection
+                && context.get_input(&input_pin.id).is_none() {
                     return Ok(false);
                 }
-            }
         }
 
         Ok(true)
@@ -250,11 +249,11 @@ impl NodeValidator {
                 issues.push("Parameter has empty name".to_string());
             }
 
-            if let Err(_) = Self::validate_parameter_type(name, param) {
+            if Self::validate_parameter_type(name, param).is_err() {
                 issues.push(format!("Parameter '{}' has invalid value type", name));
             }
 
-            if let Err(_) = Self::validate_parameter_bounds(name, param) {
+            if Self::validate_parameter_bounds(name, param).is_err() {
                 issues.push(format!("Parameter '{}' has invalid bounds", name));
             }
         }

@@ -287,7 +287,7 @@ impl KeyframeCollection {
         let pos = keyframes.iter().position(|k| k.time >= time);
 
         match pos {
-            Some(0) => (None, keyframes.get(0)),
+            Some(0) => (None, keyframes.first()),
             Some(i) => (keyframes.get(i - 1), keyframes.get(i)),
             None => {
                 if keyframes.is_empty() {
@@ -306,7 +306,7 @@ impl KeyframeCollection {
         let pos = keyframes.iter().position(|k| k.time() >= time);
 
         match pos {
-            Some(0) => (None, keyframes.get(0)),
+            Some(0) => (None, keyframes.first()),
             Some(i) => (keyframes.get(i - 1), keyframes.get(i)),
             None => {
                 if keyframes.is_empty() {

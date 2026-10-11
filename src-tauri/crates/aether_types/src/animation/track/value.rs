@@ -233,7 +233,7 @@ impl TrackValueUtils {
                 }
             }
             super::types::TrackType::Opacity => {
-                if values.len() >= 1 {
+                if !values.is_empty() {
                     Ok(TrackValue::Float(values[0]))
                 } else {
                     Err("Insufficient values for float".to_string())
@@ -249,7 +249,7 @@ impl TrackValueUtils {
                 }
             }
             super::types::TrackType::Custom => {
-                if values.len() >= 1 {
+                if !values.is_empty() {
                     Ok(TrackValue::Float(values[0]))
                 } else {
                     Err("Insufficient values for custom type".to_string())

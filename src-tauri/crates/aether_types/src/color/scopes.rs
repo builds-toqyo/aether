@@ -231,10 +231,10 @@ impl<'de> serde::Deserialize<'de> for HistogramData {
 
         let helper = HistogramDataHelper::deserialize(deserializer)?;
 
-        let red: [u32; 256] = helper.red.try_into().unwrap_or_else(|_| [0; 256]);
-        let green: [u32; 256] = helper.green.try_into().unwrap_or_else(|_| [0; 256]);
-        let blue: [u32; 256] = helper.blue.try_into().unwrap_or_else(|_| [0; 256]);
-        let luma: [u32; 256] = helper.luma.try_into().unwrap_or_else(|_| [0; 256]);
+        let red: [u32; 256] = helper.red.try_into().unwrap_or([0; 256]);
+        let green: [u32; 256] = helper.green.try_into().unwrap_or([0; 256]);
+        let blue: [u32; 256] = helper.blue.try_into().unwrap_or([0; 256]);
+        let luma: [u32; 256] = helper.luma.try_into().unwrap_or([0; 256]);
 
         Ok(HistogramData {
             red,
@@ -323,6 +323,12 @@ pub struct ScopeMetadata {
     pub stats: ScopeStats,
 }
 
+impl Default for ScopeMetadata {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScopeMetadata {
     pub fn new() -> Self {
         Self {
@@ -357,6 +363,12 @@ pub struct ScopeStats {
     pub peak_processing_time_us: f64,
 
     pub total_pixels_processed: u64,
+}
+
+impl Default for ScopeStats {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ScopeStats {

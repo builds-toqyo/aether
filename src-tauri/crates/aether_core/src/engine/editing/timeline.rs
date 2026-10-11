@@ -1,7 +1,6 @@
 use crate::engine::editing::types::{ClipInfo, EditingError, TrackType};
 use anyhow::Result;
 use ges::prelude::*;
-use gst::prelude::*;
 use gstreamer as gst;
 use gstreamer_editing_services as ges;
 use std::collections::HashMap;

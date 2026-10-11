@@ -170,7 +170,7 @@ pub async fn project_init(
     // Generate project ID
     let project_id = format!("{}", uuid::Uuid::new_v4());
     let now = chrono::Utc::now().to_rfc3339();
-    let project_path = format!("{}", project_id);
+    let project_path = project_id.to_string();
 
     // Initialize project in the editing engine
     state
@@ -264,7 +264,7 @@ pub async fn project_save(
 
     let file_path = request.file_path.unwrap_or_else(|| {
         crate::project_registry::home_dir()
-            .unwrap_or_else(|| std::env::temp_dir())
+            .unwrap_or_else(std::env::temp_dir)
             .join(".aether")
             .join("projects")
             .join(format!("{}.aether", request.project_id))
@@ -417,8 +417,8 @@ pub async fn project_load(
                 .get(pid)
                 .map_err(|e| format!("Failed to query project from registry: {}", e))?;
         }
-        if resolved.is_none() {
-            if let Some(found) = registry
+        if resolved.is_none()
+            && let Some(found) = registry
                 .get_all()
                 .map_err(|e| format!("Failed to query project registry: {}", e))?
                 .into_iter()
@@ -428,14 +428,13 @@ pub async fn project_load(
                     .get(&found.id)
                     .map_err(|e| format!("Failed to query project from registry: {}", e))?;
             }
-        }
     }
 
     let (project_info, restore_clips) = match resolved {
         Some((info, timeline_data)) => {
             let mut clips = Vec::new();
-            if let Some(timeline_json) = timeline_data {
-                if let Ok(timeline_info) =
+            if let Some(timeline_json) = timeline_data
+                && let Ok(timeline_info) =
                     serde_json::from_str::<crate::commands::timeline::TimelineInfo>(&timeline_json)
                 {
                     for clip_data in &timeline_info.clips {
@@ -453,7 +452,6 @@ pub async fn project_load(
                         }
                     }
                 }
-            }
             (info, clips)
         }
         None => load_project_file(&request.file_path)?,
@@ -542,11 +540,10 @@ pub async fn media_import(
 ) -> Result<Vec<MediaInfo>, String> {
     // Accept both single `path` and multi `file_paths` payloads
     let mut file_paths = request.file_paths.clone();
-    if let Some(path) = &request.path {
-        if !path.is_empty() && !file_paths.contains(path) {
+    if let Some(path) = &request.path
+        && !path.is_empty() && !file_paths.contains(path) {
             file_paths.push(path.clone());
         }
-    }
 
     debug!("Importing {} media files", file_paths.len());
 
@@ -601,7 +598,7 @@ pub async fn media_import(
                     fps: video_info.map(|v| v.frame_rate),
                     audio_channels: audio_info.map(|a| a.channels as u8),
                     audio_sample_rate: audio_info.map(|a| a.sample_rate as u32),
-                    bit_rate: video_info.and_then(|v| v.bitrate.map(|b| b as u32)),
+                    bit_rate: video_info.and_then(|v| v.bitrate.map(|b| b)),
                     created_at: chrono::Utc::now().to_rfc3339(),
                 };
 
@@ -708,11 +705,10 @@ pub async fn media_export(
         return Err("Output path cannot be empty".to_string());
     }
 
-    if let Some((width, height)) = request.resolution {
-        if width == 0 || height == 0 {
+    if let Some((width, height)) = request.resolution
+        && (width == 0 || height == 0) {
             return Err("Resolution dimensions cannot be zero".to_string());
         }
-    }
 
     let export_id = format!("export_{}", uuid::Uuid::new_v4());
     let started_at = chrono::Utc::now().to_rfc3339();

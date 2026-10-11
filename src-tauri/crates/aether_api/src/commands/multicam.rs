@@ -333,11 +333,10 @@ impl Timecode {
         ];
 
         for key in &tc_keys {
-            if let Some(tc_str) = metadata.get(*key) {
-                if let Ok(tc) = Self::from_string(tc_str, frame_rate) {
+            if let Some(tc_str) = metadata.get(*key)
+                && let Ok(tc) = Self::from_string(tc_str, frame_rate) {
                     return Some(tc);
                 }
-            }
         }
 
         None
@@ -496,10 +495,10 @@ impl AudioWaveform {
         ) {
             match msg.view() {
                 gst::MessageView::Element(element) => {
-                    if let Some(structure) = element.structure() {
-                        if structure.name() == "level" {
-                            if let Ok(rms) = structure.get::<gst::List>("rms") {
-                                if let Some(rms_value) =
+                    if let Some(structure) = element.structure()
+                        && structure.name() == "level"
+                            && let Ok(rms) = structure.get::<gst::List>("rms")
+                                && let Some(rms_value) =
                                     rms.as_slice().first().and_then(|v| v.get::<f64>().ok())
                                 {
                                     let amplitude = rms_value.abs();
@@ -509,9 +508,6 @@ impl AudioWaveform {
                                     });
                                     current_time += sample_duration;
                                 }
-                            }
-                        }
-                    }
                 }
                 gst::MessageView::Eos(_) => {
                     break;

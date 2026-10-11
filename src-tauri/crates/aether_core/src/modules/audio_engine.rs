@@ -291,7 +291,7 @@ impl AudioTrack {
                 }
 
                 let equalizer = gst::ElementFactory::make("equalizer-nbands")
-                    .name(&format!("eq-{}-{}", self.id, self.effects.len()))
+                    .name(format!("eq-{}-{}", self.id, self.effects.len()))
                     .property("num-bands", bands.len() as i32)
                     .build()
                     .map_err(|_| {
@@ -311,8 +311,10 @@ impl AudioTrack {
                 wet_level,
                 dry_level,
             } => {
-                let reverb = gst::ElementFactory::make("freeverb")
-                    .name(&format!("reverb-{}-{}", self.id, self.effects.len()))
+                
+
+                gst::ElementFactory::make("freeverb")
+                    .name(format!("reverb-{}-{}", self.id, self.effects.len()))
                     .property("room-size", room_size)
                     .property("damping", damping)
                     .property("level", wet_level)
@@ -320,9 +322,7 @@ impl AudioTrack {
                     .build()
                     .map_err(|_| {
                         EditingError::AudioError("Failed to create reverb element".to_string())
-                    })?;
-
-                reverb
+                    })?
             }
             AudioEffectType::Delay {
                 time_ms,
@@ -330,7 +330,7 @@ impl AudioTrack {
                 mix,
             } => {
                 let delay = gst::ElementFactory::make("ladspa-delay")
-                    .name(&format!("delay-{}-{}", self.id, self.effects.len()))
+                    .name(format!("delay-{}-{}", self.id, self.effects.len()))
                     .build()
                     .map_err(|_| {
                         EditingError::AudioError("Failed to create delay element".to_string())
@@ -350,8 +350,10 @@ impl AudioTrack {
                 release,
                 makeup,
             } => {
-                let compressor = gst::ElementFactory::make("audiodynamic")
-                    .name(&format!("comp-{}-{}", self.id, self.effects.len()))
+                
+
+                gst::ElementFactory::make("audiodynamic")
+                    .name(format!("comp-{}-{}", self.id, self.effects.len()))
                     .property("mode", 1)
                     .property("threshold", threshold)
                     .property("ratio", ratio)
@@ -361,9 +363,7 @@ impl AudioTrack {
                     .build()
                     .map_err(|_| {
                         EditingError::AudioError("Failed to create compressor element".to_string())
-                    })?;
-
-                compressor
+                    })?
             }
         };
 
@@ -469,26 +469,22 @@ impl AudioTrack {
             return Ok(self.peak_levels);
         }
 
-        if let Some(pipeline) = &self.pipeline {
-            if let Some(bus) = pipeline.bus() {
+        if let Some(pipeline) = &self.pipeline
+            && let Some(bus) = pipeline.bus() {
                 // Drain pending level element messages and keep the latest peaks
                 while let Some(msg) = bus.pop_filtered(&[gst::MessageType::Element]) {
-                    if let gst::MessageView::Element(element) = msg.view() {
-                        if let Some(structure) = element.structure() {
-                            if structure.name() == "level" {
-                                if let Ok(peak) = structure.get::<gst::List>("peak") {
+                    if let gst::MessageView::Element(element) = msg.view()
+                        && let Some(structure) = element.structure()
+                            && structure.name() == "level"
+                                && let Ok(peak) = structure.get::<gst::List>("peak") {
                                     let mut peaks =
                                         peak.as_slice().iter().filter_map(|v| v.get::<f64>().ok());
                                     let left = peaks.next().unwrap_or(0.0);
                                     let right = peaks.next().unwrap_or(left);
                                     self.peak_levels = (left, right);
                                 }
-                            }
-                        }
-                    }
                 }
             }
-        }
 
         Ok(self.peak_levels)
     }
@@ -653,7 +649,7 @@ impl AudioTrack {
             return Ok(());
         }
 
-        for (_, track) in &self.tracks {
+        for track in self.tracks.values() {
             let mut track = track.lock().unwrap();
 
             if let Some(watch_id) = track.level_watch_id.take() {
@@ -670,7 +666,7 @@ impl AudioTrack {
         }
 
         if let Some(watch_id) = self.bus_watch_id.take() {
-            let _ = watch_id.remove();
+            watch_id.remove();
         }
 
         self.initialized = false;
@@ -681,8 +677,8 @@ impl AudioTrack {
     pub fn set_output_device(&mut self, device_id: &str) -> Result<(), EditingError> {
         self.output_device = Some(device_id.to_string());
 
-        if self.initialized {
-            if let Some(pipeline) = &self.pipeline {
+        if self.initialized
+            && let Some(pipeline) = &self.pipeline {
                 let old_sink = pipeline.by_name("audio-sink").unwrap();
 
                 let new_sink = gst::ElementFactory::make("autoaudiosink")
@@ -715,7 +711,6 @@ impl AudioTrack {
                     EditingError::AudioError("Failed to remove old sink from pipeline".to_string())
                 })?;
             }
-        }
 
         Ok(())
     }

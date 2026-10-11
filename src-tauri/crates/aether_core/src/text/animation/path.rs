@@ -207,11 +207,10 @@ impl TextPath {
             return Err("Closed path must have at least 2 points".to_string());
         }
 
-        if let PathSpacing::Fixed(spacing) = self.spacing {
-            if spacing <= 0.0 {
+        if let PathSpacing::Fixed(spacing) = self.spacing
+            && spacing <= 0.0 {
                 return Err("Fixed spacing must be positive".to_string());
             }
-        }
 
         Ok(())
     }

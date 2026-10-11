@@ -15,19 +15,19 @@ impl ConnectionValidator {
 
         let output_node = graph
             .get_node(&connection.output_node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(connection.output_node_id))?;
+            .ok_or(NodeError::NodeNotFound(connection.output_node_id))?;
 
         let input_node = graph
             .get_node(&connection.input_node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(connection.input_node_id))?;
+            .ok_or(NodeError::NodeNotFound(connection.input_node_id))?;
 
         let output_pin = output_node
             .get_output_pin(&connection.output_pin_id)
-            .ok_or_else(|| NodeError::PinNotFound(connection.output_pin_id))?;
+            .ok_or(NodeError::PinNotFound(connection.output_pin_id))?;
 
         let input_pin = input_node
             .get_input_pin(&connection.input_pin_id)
-            .ok_or_else(|| NodeError::PinNotFound(connection.input_pin_id))?;
+            .ok_or(NodeError::PinNotFound(connection.input_pin_id))?;
 
         TypeChecker::check_type_compatibility(&output_pin.data_type, &input_pin.data_type)?;
 
@@ -77,19 +77,19 @@ impl ConnectionValidator {
     ) -> NodeResult<bool> {
         let output_node = graph
             .get_node(&output_node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(output_node_id))?;
+            .ok_or(NodeError::NodeNotFound(output_node_id))?;
 
         let input_node = graph
             .get_node(&input_node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(input_node_id))?;
+            .ok_or(NodeError::NodeNotFound(input_node_id))?;
 
         let output_pin = output_node
             .get_output_pin(&output_pin_id)
-            .ok_or_else(|| NodeError::PinNotFound(output_pin_id))?;
+            .ok_or(NodeError::PinNotFound(output_pin_id))?;
 
         let input_pin = input_node
             .get_input_pin(&input_pin_id)
-            .ok_or_else(|| NodeError::PinNotFound(input_pin_id))?;
+            .ok_or(NodeError::PinNotFound(input_pin_id))?;
 
         TypeChecker::check_type_compatibility(&output_pin.data_type, &input_pin.data_type)?;
 
@@ -113,11 +113,11 @@ impl ConnectionValidator {
 
         let output_node = graph
             .get_node(&output_node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(output_node_id))?;
+            .ok_or(NodeError::NodeNotFound(output_node_id))?;
 
         let input_node = graph
             .get_node(&input_node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(input_node_id))?;
+            .ok_or(NodeError::NodeNotFound(input_node_id))?;
 
         for output_pin in &output_node.outputs {
             for input_pin in &input_node.inputs {
@@ -143,11 +143,11 @@ impl ConnectionValidator {
 
         graph
             .get_node(&connection.output_node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(connection.output_node_id))?;
+            .ok_or(NodeError::NodeNotFound(connection.output_node_id))?;
 
         graph
             .get_node(&connection.input_node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(connection.input_node_id))?;
+            .ok_or(NodeError::NodeNotFound(connection.input_node_id))?;
 
         debug!("Connection removal validation passed");
 
@@ -201,8 +201,8 @@ impl ConnectionValidator {
             if let (Some(output_node), Some(input_node)) = (
                 graph.get_node(&connection.output_node_id),
                 graph.get_node(&connection.input_node_id),
-            ) {
-                if let (Some(output_pin), Some(input_pin)) = (
+            )
+                && let (Some(output_pin), Some(input_pin)) = (
                     output_node.get_output_pin(&connection.output_pin_id),
                     input_node.get_input_pin(&connection.input_pin_id),
                 ) {
@@ -210,7 +210,6 @@ impl ConnectionValidator {
                         format!("{:?} -> {:?}", output_pin.data_type, input_pin.data_type);
                     *type_counts.entry(type_key).or_insert(0) += 1;
                 }
-            }
         }
 
         ConnectionStats {

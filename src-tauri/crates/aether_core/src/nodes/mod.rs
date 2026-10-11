@@ -210,7 +210,7 @@ impl NodeManager {
         let executor = self
             .nodes
             .remove(node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(*node_id))?;
+            .ok_or(NodeError::NodeNotFound(*node_id))?;
 
         self.node_metadata.remove(node_id);
 
@@ -253,7 +253,7 @@ impl NodeManager {
         let executor = self
             .nodes
             .get_mut(node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(*node_id))?;
+            .ok_or(NodeError::NodeNotFound(*node_id))?;
 
         if !executor.can_execute(context) {
             return Err(NodeError::ExecutionFailed(

@@ -113,7 +113,7 @@ impl super::types::ShapePrimitive for Circle {
     }
 
     fn clone_box(&self) -> Box<dyn super::types::ShapePrimitive> {
-        Box::new(self.clone())
+        Box::new(*self)
     }
 
     fn validate(&self) -> Result<(), String> {

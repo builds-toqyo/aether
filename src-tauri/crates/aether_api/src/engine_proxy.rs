@@ -127,6 +127,12 @@ pub struct EditingEngineProxy {
     sender: Sender<EngineCommand>,
 }
 
+impl Default for EditingEngineProxy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EditingEngineProxy {
     pub fn new() -> Self {
         let (sender, receiver) = channel::<EngineCommand>();

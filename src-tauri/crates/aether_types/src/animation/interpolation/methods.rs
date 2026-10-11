@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum InterpolationMethod {
+    #[default]
     Linear,
 
     Bezier,
@@ -56,11 +58,6 @@ impl fmt::Display for InterpolationMethod {
     }
 }
 
-impl Default for InterpolationMethod {
-    fn default() -> Self {
-        InterpolationMethod::Linear
-    }
-}
 
 pub struct BasicInterpolation;
 

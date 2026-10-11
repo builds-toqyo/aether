@@ -53,7 +53,7 @@ impl LutData {
 
         for (i, rgb) in self.data.iter().enumerate() {
             for (c, &value) in rgb.iter().enumerate() {
-                if value < 0.0 || value > 1.0 {
+                if !(0.0..=1.0).contains(&value) {
                     return Err(format!(
                         "Invalid value at index {}, channel {}: {}",
                         i, c, value
@@ -102,7 +102,9 @@ impl Default for LutData {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum LutFormat {
+    #[default]
     Cube,
     ThreeDL,
     Look,
@@ -136,11 +138,6 @@ impl LutFormat {
     }
 }
 
-impl Default for LutFormat {
-    fn default() -> Self {
-        LutFormat::Cube
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct LutConfig {
@@ -181,9 +178,11 @@ impl Default for LutConfig {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum InterpolationQuality {
     Nearest,
     Linear,
+    #[default]
     Trilinear,
 }
 
@@ -207,11 +206,6 @@ impl InterpolationQuality {
     }
 }
 
-impl Default for InterpolationQuality {
-    fn default() -> Self {
-        InterpolationQuality::Trilinear
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct ColorCorrection {

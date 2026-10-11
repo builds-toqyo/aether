@@ -63,8 +63,8 @@ pub(super) fn apply_post_processing_gpu(
         pass.set_pipeline(pipeline);
         pass.set_bind_group(0, &bind_group, &[]);
         pass.dispatch_workgroups(
-            ((width as u32 + 7) / 8).max(1),
-            ((height as u32 + 7) / 8).max(1),
+            (width as u32).div_ceil(8).max(1),
+            (height as u32).div_ceil(8).max(1),
             1,
         );
     }

@@ -89,7 +89,7 @@ impl ExecutionCache {
         }
 
         std::hash::Hash::hash(&graph.connections.len(), &mut hasher);
-        for (_, connection) in &graph.connections {
+        for connection in graph.connections.values() {
             if connection.enabled {
                 std::hash::Hash::hash(&connection.output_node_id, &mut hasher);
                 std::hash::Hash::hash(&connection.input_node_id, &mut hasher);

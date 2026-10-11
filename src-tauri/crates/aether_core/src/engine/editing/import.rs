@@ -116,8 +116,8 @@ impl MediaImporter {
             }
         }
 
-        if options.create_proxy && media_info.media_type == MediaType::Video {
-            if let Some(format) = &options.proxy_format {
+        if options.create_proxy && media_info.media_type == MediaType::Video
+            && let Some(format) = &options.proxy_format {
                 debug!(
                     "Creating proxy with format {} for {}",
                     format,
@@ -127,14 +127,13 @@ impl MediaImporter {
                     warn!("Failed to create proxy: {}", e);
                 }
             }
-        }
 
         if let Some(_project) = &self.ges_project {
             debug!("Registering media with GES project: {}", uri);
 
             let mut structure = gst::Structure::new_empty("aether-media-info");
-            structure.set("title", &media_info.title.clone().unwrap_or_default());
-            structure.set("media-type", &format!("{:?}", media_info.media_type));
+            structure.set("title", media_info.title.clone().unwrap_or_default());
+            structure.set("media-type", format!("{:?}", media_info.media_type));
 
             if !media_info.video_streams.is_empty() {
                 let vs = &media_info.video_streams[0];
@@ -229,7 +228,7 @@ impl MediaImporter {
             .enumerate()
             .map(|(i, stream)| {
                 debug!("Analyzing video stream {}", i);
-                let caps = stream.caps().unwrap_or_else(|| gst::Caps::new_empty());
+                let caps = stream.caps().unwrap_or_else(gst::Caps::new_empty);
 
                 let structure = if caps.size() > 0 {
                     caps.structure(0)
@@ -237,7 +236,7 @@ impl MediaImporter {
                     None
                 };
                 if let Some(s) = structure {
-                    debug!("Video stream {} caps structure: {}", i, s.to_string());
+                    debug!("Video stream {} caps structure: {}", i, s);
                 } else {
                     warn!("Video stream {} has no caps structure", i);
                 }
@@ -438,7 +437,7 @@ impl MediaImporter {
             .map(|p| p.join(".aether_proxies"))
             .unwrap_or_else(|| PathBuf::from(".aether_proxies"));
 
-        std::fs::create_dir_all(&proxy_dir).map_err(|e| EditingError::IoError(e))?;
+        std::fs::create_dir_all(&proxy_dir).map_err(EditingError::IoError)?;
 
         let stem = source_path
             .file_stem()
@@ -468,7 +467,7 @@ impl MediaImporter {
             .ok_or_else(|| EditingError::ImportError("Invalid proxy path".to_string()))?;
 
         let status = Command::new("ffmpeg")
-            .args(&[
+            .args([
                 "-y",
                 "-i",
                 source_str,

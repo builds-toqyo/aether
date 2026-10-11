@@ -126,11 +126,10 @@ impl FileManager {
         let options = options.unwrap_or_default();
 
         let cache_key = path.to_path_buf();
-        if let Some(thumbnail_path) = self.thumbnail_cache.lock().unwrap().get(&cache_key) {
-            if thumbnail_path.exists() {
+        if let Some(thumbnail_path) = self.thumbnail_cache.lock().unwrap().get(&cache_key)
+            && thumbnail_path.exists() {
                 return Ok(thumbnail_path.clone());
             }
-        }
 
         let media_type = self.determine_media_type(path);
 
@@ -273,11 +272,10 @@ impl FileManager {
                 let caps = src_pad.current_caps();
                 if let Some(caps) = caps {
                     let s = caps.structure(0);
-                    if let Some(s) = s {
-                        if s.name().starts_with("video/") {
+                    if let Some(s) = s
+                        && s.name().starts_with("video/") {
                             let _ = src_pad.link(&sink_pad);
                         }
-                    }
                 }
             }
         });
@@ -375,31 +373,28 @@ impl FileManager {
                 Some(duration.seconds() as f64 + (duration.nseconds() as f64 / 1_000_000_000.0));
         }
 
-        if let Some(video_info) = discover_info.video_streams().get(0) {
+        if let Some(video_info) = discover_info.video_streams().first() {
             info.width = Some(video_info.width());
             info.height = Some(video_info.height());
 
             let framerate = video_info.framerate();
             info.frame_rate = Some(framerate.numer() as f64 / framerate.denom() as f64);
 
-            if let Some(caps) = video_info.caps() {
-                if let Some(s) = caps.structure(0) {
+            if let Some(caps) = video_info.caps()
+                && let Some(s) = caps.structure(0) {
                     info.codec = s.name().to_string().into();
                 }
-            }
         }
 
-        if let Some(audio_info) = discover_info.audio_streams().get(0) {
+        if let Some(audio_info) = discover_info.audio_streams().first() {
             info.sample_rate = Some(audio_info.sample_rate());
             info.channels = Some(audio_info.channels());
 
-            if info.codec.is_none() {
-                if let Some(caps) = audio_info.caps() {
-                    if let Some(s) = caps.structure(0) {
+            if info.codec.is_none()
+                && let Some(caps) = audio_info.caps()
+                    && let Some(s) = caps.structure(0) {
                         info.codec = s.name().to_string().into();
                     }
-                }
-            }
         }
 
         if let Some(tag_list) = discover_info.tags() {
@@ -439,17 +434,13 @@ impl FileManager {
 
         let imagefreeze_ref = imagefreeze.clone();
         decodebin.connect_pad_added(move |_, src_pad| {
-            if let Some(sink) = imagefreeze_ref.static_pad("sink") {
-                if !sink.is_linked() {
-                    if let Some(caps) = src_pad.current_caps() {
-                        if let Some(s) = caps.structure(0) {
-                            if s.name().starts_with("image/") || s.name().starts_with("video/") {
+            if let Some(sink) = imagefreeze_ref.static_pad("sink")
+                && !sink.is_linked()
+                    && let Some(caps) = src_pad.current_caps()
+                        && let Some(s) = caps.structure(0)
+                            && (s.name().starts_with("image/") || s.name().starts_with("video/")) {
                                 let _ = src_pad.link(&sink);
                             }
-                        }
-                    }
-                }
-            }
         });
         imagefreeze
             .link(&fakesink)
@@ -538,17 +529,13 @@ impl FileManager {
 
         let videoconvert_ref = videoconvert.clone();
         decodebin.connect_pad_added(move |_, src_pad| {
-            if let Some(sink) = videoconvert_ref.static_pad("sink") {
-                if !sink.is_linked() {
-                    if let Some(caps) = src_pad.current_caps() {
-                        if let Some(s) = caps.structure(0) {
-                            if s.name().starts_with("video/") {
+            if let Some(sink) = videoconvert_ref.static_pad("sink")
+                && !sink.is_linked()
+                    && let Some(caps) = src_pad.current_caps()
+                        && let Some(s) = caps.structure(0)
+                            && s.name().starts_with("video/") {
                                 let _ = src_pad.link(&sink);
                             }
-                        }
-                    }
-                }
-            }
         });
         gst::Element::link_many([&videoconvert, &videoscale, &capsfilter, &jpegenc, &filesink])
             .map_err(|e| anyhow!("downstream: {}", e))?;
@@ -643,17 +630,13 @@ impl FileManager {
 
         let videoconvert_ref = videoconvert.clone();
         decodebin.connect_pad_added(move |_, src_pad| {
-            if let Some(sink) = videoconvert_ref.static_pad("sink") {
-                if !sink.is_linked() {
-                    if let Some(caps) = src_pad.current_caps() {
-                        if let Some(s) = caps.structure(0) {
-                            if s.name().starts_with("image/") || s.name().starts_with("video/") {
+            if let Some(sink) = videoconvert_ref.static_pad("sink")
+                && !sink.is_linked()
+                    && let Some(caps) = src_pad.current_caps()
+                        && let Some(s) = caps.structure(0)
+                            && (s.name().starts_with("image/") || s.name().starts_with("video/")) {
                                 let _ = src_pad.link(&sink);
                             }
-                        }
-                    }
-                }
-            }
         });
         gst::Element::link_many([&videoconvert, &videoscale, &capsfilter, &pngenc, &filesink])
             .map_err(|e| anyhow!("downstream: {}", e))?;
@@ -733,17 +716,13 @@ impl FileManager {
 
         let audioconvert_ref = audioconvert.clone();
         decodebin.connect_pad_added(move |_, src_pad| {
-            if let Some(sink) = audioconvert_ref.static_pad("sink") {
-                if !sink.is_linked() {
-                    if let Some(caps) = src_pad.current_caps() {
-                        if let Some(s) = caps.structure(0) {
-                            if s.name().starts_with("audio/") {
+            if let Some(sink) = audioconvert_ref.static_pad("sink")
+                && !sink.is_linked()
+                    && let Some(caps) = src_pad.current_caps()
+                        && let Some(s) = caps.structure(0)
+                            && s.name().starts_with("audio/") {
                                 let _ = src_pad.link(&sink);
                             }
-                        }
-                    }
-                }
-            }
         });
 
         gst::Element::link_many([&audioconvert, &audiowaveform, &pngenc, &filesink])

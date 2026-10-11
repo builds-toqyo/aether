@@ -21,41 +21,35 @@ impl CoreTransformNode {
         let mut anchor_x = 0.0;
         let mut _anchor_y = 0.0;
 
-        if let Some(param) = self.node.parameters.get("position_x") {
-            if let ParameterValue::Float(val) = param.value {
+        if let Some(param) = self.node.parameters.get("position_x")
+            && let ParameterValue::Float(val) = param.value {
                 pos_x = val;
             }
-        }
 
-        if let Some(param) = self.node.parameters.get("position_y") {
-            if let ParameterValue::Float(val) = param.value {
+        if let Some(param) = self.node.parameters.get("position_y")
+            && let ParameterValue::Float(val) = param.value {
                 pos_y = val;
             }
-        }
 
-        if let Some(param) = self.node.parameters.get("scale") {
-            if let ParameterValue::Float(val) = param.value {
+        if let Some(param) = self.node.parameters.get("scale")
+            && let ParameterValue::Float(val) = param.value {
                 scale = val;
             }
-        }
 
-        if let Some(param) = self.node.parameters.get("rotation") {
-            if let ParameterValue::Float(val) = param.value {
+        if let Some(param) = self.node.parameters.get("rotation")
+            && let ParameterValue::Float(val) = param.value {
                 rotation = val;
             }
-        }
 
-        if let Some(param) = self.node.parameters.get("anchor_x") {
-            if let ParameterValue::Float(val) = param.value {
+        if let Some(param) = self.node.parameters.get("anchor_x")
+            && let ParameterValue::Float(val) = param.value {
                 anchor_x = val;
             }
-        }
 
-        if let Some(param) = self.node.parameters.get("anchor_y") {
-            if let ParameterValue::Float(val) = param.value {
+        if let Some(param) = self.node.parameters.get("anchor_y")
+            && let ParameterValue::Float(val) = param.value {
                 _anchor_y = val;
             }
-        }
 
         (pos_x, pos_y, scale, rotation, anchor_x)
     }

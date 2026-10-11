@@ -49,15 +49,15 @@ impl HistogramRenderer {
         for x in 0..width.min(256) {
             let bin = x as usize;
 
-            let red_height = (red_norm[bin] as u32 * height / 256) as u32;
-            let green_height = (green_norm[bin] as u32 * height / 256) as u32;
-            let blue_height = (blue_norm[bin] as u32 * height / 256) as u32;
+            let red_height = red_norm[bin] as u32 * height / 256 ;
+            let green_height = green_norm[bin] as u32 * height / 256 ;
+            let blue_height = blue_norm[bin] as u32 * height / 256 ;
 
             for y in (height - red_height)..height {
                 {
                     let pixel = image.get_pixel_mut(x, y);
                     let [r, g, b] = pixel.0;
-                    *pixel = Rgb([255.min(r + 128), g, b]);
+                    *pixel = Rgb([r + 128, g, b]);
                 }
             }
 
@@ -65,7 +65,7 @@ impl HistogramRenderer {
                 {
                     let pixel = image.get_pixel_mut(x, y);
                     let [r, g, b] = pixel.0;
-                    *pixel = Rgb([r, 255.min(g + 128), b]);
+                    *pixel = Rgb([r, g + 128, b]);
                 }
             }
 
@@ -73,7 +73,7 @@ impl HistogramRenderer {
                 {
                     let pixel = image.get_pixel_mut(x, y);
                     let [r, g, b] = pixel.0;
-                    *pixel = Rgb([r, g, 255.min(b + 128)]);
+                    *pixel = Rgb([r, g, b + 128]);
                 }
             }
         }
@@ -88,7 +88,7 @@ impl HistogramRenderer {
 
         for x in 0..width.min(256) {
             let bin = x as usize;
-            let luma_height = (luma_norm[bin] as u32 * height / 256) as u32;
+            let luma_height = luma_norm[bin] as u32 * height / 256 ;
 
             for y in (height - luma_height)..height {
                 {
@@ -112,12 +112,12 @@ impl HistogramRenderer {
         ];
 
         for (channel, color, index) in channels {
-            let x_offset = (index as u32 * channel_width) as u32;
+            let x_offset = index as u32 * channel_width ;
             let channel_data = data.normalize(channel);
 
             for x in 0..channel_width.min(256) {
                 let bin = x as usize;
-                let bin_height = (channel_data[bin] as u32 * height / 256) as u32;
+                let bin_height = channel_data[bin] as u32 * height / 256 ;
 
                 for y in (height - bin_height)..height {
                     let img_x = x_offset + x;
@@ -143,12 +143,12 @@ impl HistogramRenderer {
         ];
 
         for (channel, color, index) in channels {
-            let y_offset = (index as u32 * channel_height) as u32;
+            let y_offset = index as u32 * channel_height ;
             let channel_data = data.normalize(channel);
 
             for x in 0..width.min(256) {
                 let bin = x as usize;
-                let bin_height = (channel_data[bin] as u32 * channel_height / 256) as u32;
+                let bin_height = channel_data[bin] as u32 * channel_height / 256 ;
 
                 for y in 0..bin_height {
                     let img_y = y_offset + (channel_height - y);

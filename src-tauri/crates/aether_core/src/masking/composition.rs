@@ -262,9 +262,9 @@ impl MaskCompositor {
     pub fn evaluate_at(&mut self, x: f64, y: f64) -> MaskCompositionResult {
         let cache_key = format!("{:.2}_{:.2}", x, y);
 
-        if self.cache_enabled {
-            if let Some(cached_value) = self.cache_data.get(&cache_key) {
-                if !cached_value.is_empty() {
+        if self.cache_enabled
+            && let Some(cached_value) = self.cache_data.get(&cache_key)
+                && !cached_value.is_empty() {
                     return MaskCompositionResult {
                         value: cached_value[0],
                         position: (x, y),
@@ -273,16 +273,14 @@ impl MaskCompositor {
                         final_blend_mode: MaskBlendMode::Normal,
                     };
                 }
-            }
-        }
 
         let mut final_value = 0.0;
         let mut layers_used = Vec::new();
         let mut current_composition_mode = MaskCompositionMode::Add;
 
         for layer in &self.layers {
-            if let Some(evaluation) = layer.evaluate_at(x, y) {
-                if evaluation.value > 0.0 {
+            if let Some(evaluation) = layer.evaluate_at(x, y)
+                && evaluation.value > 0.0 {
                     layers_used.push(layer.id.clone());
 
                     if layers_used.len() == 1 {
@@ -296,7 +294,6 @@ impl MaskCompositor {
                         );
                     }
                 }
-            }
         }
 
         final_value *= self.global_opacity;

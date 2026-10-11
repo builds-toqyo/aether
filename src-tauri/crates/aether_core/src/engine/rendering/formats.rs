@@ -291,11 +291,9 @@ pub fn get_available_formats() -> Vec<FormatInfo> {
         (ContainerFormat::Gif, "Short animations without audio"),
     ]);
 
-    let web_friendly = vec![
-        ContainerFormat::Mp4,
+    let web_friendly = [ContainerFormat::Mp4,
         ContainerFormat::Webm,
-        ContainerFormat::Gif,
-    ];
+        ContainerFormat::Gif];
 
     containers
         .into_iter()

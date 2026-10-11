@@ -50,7 +50,9 @@ pub struct Parameter {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum ParameterValue {
+    #[default]
     None,
     Image(Uuid),
     Float(f32),
@@ -65,11 +67,6 @@ pub enum ParameterValue {
     Binary(Vec<u8>),
 }
 
-impl Default for ParameterValue {
-    fn default() -> Self {
-        ParameterValue::None
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum NodeType {

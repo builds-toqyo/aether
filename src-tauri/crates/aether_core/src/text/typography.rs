@@ -122,6 +122,12 @@ pub struct GlyphPosition {
     pub bearing: (f64, f64),
 }
 
+impl Default for TypographyControls {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypographyControls {
     pub fn new() -> Self {
         Self {

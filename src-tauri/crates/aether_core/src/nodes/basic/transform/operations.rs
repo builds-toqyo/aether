@@ -78,8 +78,7 @@ impl TransformOperations {
         for y in 0..height {
             for x in 0..width {
                 let (src_x, src_y) = matrix
-                    .inverse()
-                    .and_then(|inv_matrix| Some(inv_matrix.transform_point(x as f32, y as f32)))
+                    .inverse().map(|inv_matrix| inv_matrix.transform_point(x as f32, y as f32))
                     .unwrap_or((x as f32, y as f32));
 
                 let pixel = self.bilinear_interpolate(data, width, height, channels, src_x, src_y);

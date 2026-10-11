@@ -486,7 +486,7 @@ pub async fn timeline_remove_clip(
 
     Ok(TimelineResponse {
         success: true,
-        message: format!("{}", request.clip_id),
+        message: request.clip_id.to_string(),
         data: Some(serde_json::json!({
             "clip_id": request.clip_id
         })),

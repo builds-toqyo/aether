@@ -240,8 +240,8 @@ impl MediaConverter {
             let name = caps.and_then(|c| c.structure(0).map(|s| s.name().to_string()));
             if let Some(name) = name {
                 if name.starts_with("video/") {
-                    if let Some(sink) = v_queue.static_pad("sink") {
-                        if !sink.is_linked() {
+                    if let Some(sink) = v_queue.static_pad("sink")
+                        && !sink.is_linked() {
                             let _ = src_pad.link(&sink);
                             let src = video_enc.static_pad("src");
                             let mux_sink = muxer.request_pad_simple("video_%u");
@@ -249,10 +249,9 @@ impl MediaConverter {
                                 let _ = src.link(&mux_sink);
                             }
                         }
-                    }
-                } else if name.starts_with("audio/") {
-                    if let Some(sink) = a_queue.static_pad("sink") {
-                        if !sink.is_linked() {
+                } else if name.starts_with("audio/")
+                    && let Some(sink) = a_queue.static_pad("sink")
+                        && !sink.is_linked() {
                             let _ = src_pad.link(&sink);
                             let src = audio_enc.static_pad("src");
                             let mux_sink = muxer.request_pad_simple("audio_%u");
@@ -260,8 +259,6 @@ impl MediaConverter {
                                 let _ = src.link(&mux_sink);
                             }
                         }
-                    }
-                }
             }
         });
 
@@ -353,17 +350,13 @@ impl MediaConverter {
             .map_err(|e| anyhow!("downstream: {}", e))?;
 
         decodebin.connect_pad_added(move |_, src_pad| {
-            if let Some(sink) = queue.static_pad("sink") {
-                if !sink.is_linked() {
-                    if let Some(caps) = src_pad.current_caps() {
-                        if let Some(s) = caps.structure(0) {
-                            if s.name().starts_with("audio/") {
+            if let Some(sink) = queue.static_pad("sink")
+                && !sink.is_linked()
+                    && let Some(caps) = src_pad.current_caps()
+                        && let Some(s) = caps.structure(0)
+                            && s.name().starts_with("audio/") {
                                 let _ = src_pad.link(&sink);
                             }
-                        }
-                    }
-                }
-            }
         });
 
         let bus = pipeline.bus().ok_or_else(|| anyhow!("no bus"))?;
