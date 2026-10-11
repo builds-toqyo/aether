@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import useAppStore, { type Project } from "@/store";
+import { invoke } from "@tauri-apps/api/core";
+import useAppStore, { type Project, type ProjectSettings } from "@/store";
 import {
   Film,
   Plus,
@@ -29,6 +30,22 @@ export const WelcomeScreen: React.FC = () => {
     }
   }, [showDialog]);
 
+  const initBackendProject = async (name: string, settings: ProjectSettings) => {
+    try {
+      await invoke("project_init", {
+        request: {
+          name,
+          description: null,
+          fps: settings.framerate,
+          resolution: [settings.resolution.width, settings.resolution.height],
+          template: null,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to initialize backend project:", error);
+    }
+  };
+
   const createProject = (name: string) => {
     const trimmed = name.trim() || "Untitled Project";
     const newProject: Project = {
@@ -51,6 +68,20 @@ export const WelcomeScreen: React.FC = () => {
     setCurrentProject(newProject);
     setShowDialog(false);
     setNewName("");
+    void initBackendProject(newProject.name, newProject.settings);
+  };
+
+  const openProject = async (project: Project) => {
+    if (project.path) {
+      try {
+        await invoke("project_load", { request: { path: project.path } });
+      } catch (error) {
+        console.error("Failed to load backend project:", error);
+      }
+    } else {
+      await initBackendProject(project.name, project.settings);
+    }
+    setCurrentProject(project);
   };
 
   const handleDialogKeyDown = (e: React.KeyboardEvent) => {
@@ -127,7 +158,7 @@ export const WelcomeScreen: React.FC = () => {
               {recentProjects.map((project) => (
                 <button
                   key={project.id}
-                  onClick={() => setCurrentProject(project)}
+                  onClick={() => openProject(project)}
                   className="w-full flex items-center gap-3 p-3 rounded-lg bg-[#161616] hover:bg-[#1a1a1a] border border-transparent hover:border-[#2a2a2a] transition-all text-left group"
                 >
                   <div className="w-10 h-10 rounded bg-[#1f1f1f] flex items-center justify-center shrink-0">

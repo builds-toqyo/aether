@@ -7,6 +7,7 @@ import { PreviewSettings } from './PreviewSettings';
 import { PreviewProvider, usePreview } from './PreviewContext';
 import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, Settings } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { useMediaItems, useTimelineClips } from '@/store';
 import { formatTime } from '@/lib/utils';
 
 // Types
@@ -37,6 +38,11 @@ interface PreviewState {
 }
 
 export const PreviewWindow: React.FC = () => {
+  const mediaItems = useMediaItems();
+  const timelineClips = useTimelineClips();
+  // Preview engine only exists once media/timeline content is loaded
+  const hasMedia = mediaItems.length > 0 || timelineClips.length > 0;
+
   const [state, setState] = useState<PreviewState>({
     isPlaying: false,
     currentTime: 0,
@@ -88,6 +94,10 @@ export const PreviewWindow: React.FC = () => {
 
   // Playback controls
   const handlePlay = useCallback(async () => {
+    if (!hasMedia) {
+      setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
+      return;
+    }
     try {
       // Call backend to control preview playback
       const action = state.isPlaying ? 'pause' : 'play';
@@ -101,9 +111,13 @@ export const PreviewWindow: React.FC = () => {
       // Fallback to local state update
       setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
     }
-  }, [state.isPlaying, state.currentTime]);
+  }, [state.isPlaying, state.currentTime, hasMedia]);
 
   const handleStop = useCallback(async () => {
+    if (!hasMedia) {
+      setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
+      return;
+    }
     try {
       // Call backend to stop preview playback
       await invoke('preview_playback_control', { action: 'stop' });
@@ -116,11 +130,16 @@ export const PreviewWindow: React.FC = () => {
       // Fallback to local state update
       setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
     }
-  }, []);
+  }, [hasMedia]);
 
   const handleSkipBack = useCallback(async () => {
     try {
       const newTime = Math.max(0, state.currentTime - 10);
+
+      if (!hasMedia) {
+        setState(prev => ({ ...prev, currentTime: newTime }));
+        return;
+      }
       
       // Call backend to seek preview
       await invoke('preview_seek', { time: newTime });
@@ -133,11 +152,16 @@ export const PreviewWindow: React.FC = () => {
       // Fallback to local state update
       setState(prev => ({ ...prev, currentTime: Math.max(0, prev.currentTime - 10) }));
     }
-  }, [state.currentTime]);
+  }, [state.currentTime, hasMedia]);
 
   const handleSkipForward = useCallback(async () => {
     try {
       const newTime = Math.min(state.duration, state.currentTime + 10);
+
+      if (!hasMedia) {
+        setState(prev => ({ ...prev, currentTime: newTime }));
+        return;
+      }
       
       // Call backend to seek preview
       await invoke('preview_seek', { time: newTime });
@@ -150,7 +174,7 @@ export const PreviewWindow: React.FC = () => {
       // Fallback to local state update
       setState(prev => ({ ...prev, currentTime: Math.min(prev.duration, prev.currentTime + 10) }));
     }
-  }, [state.currentTime, state.duration]);
+  }, [state.currentTime, state.duration, hasMedia]);
 
   const handleTimeChange = useCallback((newTime: number) => {
     setState(prev => ({ ...prev, currentTime: Math.max(0, Math.min(prev.duration, newTime)) }));
@@ -246,8 +270,13 @@ export const PreviewWindow: React.FC = () => {
 
   // Frame loading from backend
   const loadFrame = useCallback(async (timestamp: number) => {
+    if (!hasMedia) {
+      setState(prev => ({ ...prev, isLoading: false }));
+      return;
+    }
+
     setState(prev => ({ ...prev, isLoading: true }));
-    
+
     try {
       // Call backend to get frame at timestamp
       const frameData = await invoke<any>('preview_get_frame', { timestamp });
@@ -279,7 +308,7 @@ export const PreviewWindow: React.FC = () => {
       
       setState(prev => ({ ...prev, currentFrame: mockFrame, isLoading: false }));
     }
-  }, []);
+  }, [hasMedia]);
 
   // Load frame when time changes
   useEffect(() => {
