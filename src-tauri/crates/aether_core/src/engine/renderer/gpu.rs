@@ -90,7 +90,6 @@ impl WgpuComputeState {
             label: Some("post_process_pipeline_layout"),
             bind_group_layouts: &[Some(&bind_group_layout)],
             immediate_size: 0,
-            ..Default::default()
         });
 
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {

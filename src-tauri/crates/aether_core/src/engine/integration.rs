@@ -7,6 +7,8 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+type IntegratedProgressCallback = Arc<Mutex<Box<dyn Fn(ExportProgress) + Send>>>;
+
 #[derive(Debug, Clone)]
 pub struct ExportProgress {
     pub stage: ExportStage,
@@ -73,13 +75,17 @@ impl ExportOptions {
         ));
 
         // Create GStreamer export options
-        let mut gst_options = GstExportOptions::default();
-        gst_options.output_path = intermediate_path.clone();
-        gst_options.container = "mp4".to_string();
+        let gst_options = GstExportOptions {
+            output_path: intermediate_path.clone(),
+            container: "mp4".to_string(),
+            ..Default::default()
+        };
 
         // Create FFmpeg export options
-        let mut ffmpeg_options = FfmpegExportOptions::default();
-        ffmpeg_options.output_path = output_path.clone();
+        let ffmpeg_options = FfmpegExportOptions {
+            output_path: output_path.clone(),
+            ..Default::default()
+        };
 
         Self {
             output_path,
@@ -97,7 +103,7 @@ pub struct IntegratedExporter {
     _rendering_engine: Arc<Mutex<RenderingEngine>>,
     options: ExportOptions,
     progress: Arc<Mutex<ExportProgress>>,
-    progress_callback: Option<Arc<Mutex<Box<dyn Fn(ExportProgress) + Send>>>>,
+    progress_callback: Option<IntegratedProgressCallback>,
     intermediate_exporter: Option<crate::engine::editing::IntermediateExporter>,
     final_exporter: Option<Arc<Mutex<crate::engine::rendering::Exporter>>>,
 }

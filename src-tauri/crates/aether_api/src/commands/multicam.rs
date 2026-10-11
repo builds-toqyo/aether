@@ -460,7 +460,7 @@ impl AudioWaveform {
         }
     }
 
-    pub fn extract_from_audio(audio_path: &PathBuf, sample_rate: u32) -> Result<Self, String> {
+    pub fn extract_from_audio(audio_path: &std::path::Path, sample_rate: u32) -> Result<Self, String> {
         use gst::prelude::*;
         use gstreamer as gst;
 

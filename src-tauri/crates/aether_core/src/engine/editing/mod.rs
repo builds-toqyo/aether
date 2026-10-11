@@ -31,6 +31,9 @@ pub struct EditingEngine {
 }
 
 impl EditingEngine {
+    // GES elements in the wrapped engines are intentionally !Send/!Sync;
+    // they are only ever accessed through the EditingEngineProxy command thread.
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn new() -> Result<Self, EditingError> {
         gst::init()?;
 

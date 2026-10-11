@@ -96,8 +96,8 @@ impl MergeNode {
 
         let mut result = inputs[0].clone();
 
-        for i in 1..inputs.len() {
-            result = self.blend_ops.apply_blend(result, inputs[i].clone());
+        for input in inputs.iter().skip(1) {
+            result = self.blend_ops.apply_blend(result, input.clone());
         }
         result
     }
@@ -109,7 +109,6 @@ impl NodeExecutor for MergeNode {
         let mut i = 0;
 
         while let Some(input_value) = self.node.get_input_value(&format!("input_{}", i)) {
-            let input_value = input_value;
             inputs.push(input_value);
             i += 1;
         }

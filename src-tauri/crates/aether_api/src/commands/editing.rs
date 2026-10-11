@@ -598,7 +598,7 @@ pub async fn media_import(
                     fps: video_info.map(|v| v.frame_rate),
                     audio_channels: audio_info.map(|a| a.channels as u8),
                     audio_sample_rate: audio_info.map(|a| a.sample_rate as u32),
-                    bit_rate: video_info.and_then(|v| v.bitrate.map(|b| b)),
+                    bit_rate: video_info.and_then(|v| v.bitrate),
                     created_at: chrono::Utc::now().to_rfc3339(),
                 };
 

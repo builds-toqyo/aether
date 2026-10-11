@@ -84,9 +84,7 @@ impl TransformOperations {
                 let pixel = self.bilinear_interpolate(data, width, height, channels, src_x, src_y);
 
                 let dst_offset = (y * width + x) * channels;
-                for c in 0..channels {
-                    result[dst_offset + c] = pixel[c];
-                }
+                result[dst_offset..(channels + dst_offset)].copy_from_slice(&pixel[..channels]);
             }
         }
 

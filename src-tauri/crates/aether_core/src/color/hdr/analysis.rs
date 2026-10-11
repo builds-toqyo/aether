@@ -98,7 +98,7 @@ impl HdrAnalyzer {
     }
 
     fn calculate_overall_quality_static(contrast_ratio: f32, saturation_avg: f32) -> f32 {
-        let contrast_score = (contrast_ratio.log10() / 4.0).min(1.0).max(0.0);
+        let contrast_score = (contrast_ratio.log10() / 4.0).clamp(0.0, 1.0);
         let saturation_score = saturation_avg;
         (contrast_score * 0.6 + saturation_score * 0.4) * 100.0
     }

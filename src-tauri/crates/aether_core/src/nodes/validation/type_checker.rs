@@ -54,20 +54,18 @@ impl TypeChecker {
     }
 
     pub fn are_values_compatible(value1: &ParameterValue, value2: &ParameterValue) -> bool {
-        match (value1, value2) {
-            (ParameterValue::Float(_), ParameterValue::Float(_)) => true,
-            (ParameterValue::Integer(_), ParameterValue::Integer(_)) => true,
-            (ParameterValue::Boolean(_), ParameterValue::Boolean(_)) => true,
-            (ParameterValue::String(_), ParameterValue::String(_)) => true,
-            (ParameterValue::Vector2(_, _), ParameterValue::Vector2(_, _)) => true,
-            (ParameterValue::Vector3(_, _, _), ParameterValue::Vector3(_, _, _)) => true,
-            (ParameterValue::Vector4(_, _, _, _), ParameterValue::Vector4(_, _, _, _)) => true,
-            (ParameterValue::Color(_, _, _, _), ParameterValue::Color(_, _, _, _)) => true,
-            (ParameterValue::Array(_), ParameterValue::Array(_)) => true,
-            (ParameterValue::Image(_), ParameterValue::Image(_)) => true,
-            (ParameterValue::None, ParameterValue::None) => true,
-            _ => false,
-        }
+        matches!((value1, value2),
+            (ParameterValue::Float(_), ParameterValue::Float(_))
+            | (ParameterValue::Integer(_), ParameterValue::Integer(_))
+            | (ParameterValue::Boolean(_), ParameterValue::Boolean(_))
+            | (ParameterValue::String(_), ParameterValue::String(_))
+            | (ParameterValue::Vector2(_, _), ParameterValue::Vector2(_, _))
+            | (ParameterValue::Vector3(_, _, _), ParameterValue::Vector3(_, _, _))
+            | (ParameterValue::Vector4(_, _, _, _), ParameterValue::Vector4(_, _, _, _))
+            | (ParameterValue::Color(_, _, _, _), ParameterValue::Color(_, _, _, _))
+            | (ParameterValue::Array(_), ParameterValue::Array(_))
+            | (ParameterValue::Image(_), ParameterValue::Image(_))
+            | (ParameterValue::None, ParameterValue::None))
     }
 
     pub fn is_value_in_bounds(

@@ -94,10 +94,7 @@ impl CharacterAnimation {
         }
 
         let mut time = adjusted_time;
-        if self.loops && self.loop_count > 0 {
-            let loop_duration = self.duration;
-            time = adjusted_time % loop_duration;
-        } else if self.loops {
+        if self.loops {
             let loop_duration = self.duration;
             time = adjusted_time % loop_duration;
         } else if adjusted_time > self.duration {

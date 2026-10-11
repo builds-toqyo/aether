@@ -106,10 +106,12 @@ impl LutProcessor {
     pub fn create_identity_lut(&mut self, name: &str, size: u32) -> Result<String> {
         debug!("Creating identity LUT: {} (size: {})", name, size);
 
-        let mut lut_data = LutData::default();
-        lut_data.name = name.to_string();
-        lut_data.size = size;
-        lut_data.format = super::types::LutFormat::Cube;
+        let mut lut_data = LutData {
+            name: name.to_string(),
+            size,
+            format: super::types::LutFormat::Cube,
+            ..Default::default()
+        };
         lut_data.generate_identity_lut(size);
 
         let lut_name = name.to_string();
@@ -128,10 +130,12 @@ impl LutProcessor {
     ) -> Result<String> {
         debug!("Creating color correction LUT: {}", name);
 
-        let mut lut_data = LutData::default();
-        lut_data.name = name.to_string();
-        lut_data.size = size;
-        lut_data.format = super::types::LutFormat::Cube;
+        let mut lut_data = LutData {
+            name: name.to_string(),
+            size,
+            format: super::types::LutFormat::Cube,
+            ..Default::default()
+        };
 
         for b in 0..size {
             for g in 0..size {

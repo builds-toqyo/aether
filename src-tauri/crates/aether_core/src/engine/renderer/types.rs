@@ -69,10 +69,10 @@ pub(super) enum Shaders {
         components: Vec<*mut std::ffi::c_void>,
     },
 
-    Software {
-        functions: Vec<Box<dyn Fn(&[u8], &mut [u8], usize, usize) + Send>>,
-    },
+    Software { functions: Vec<SoftwareFunction> },
 }
+
+pub type SoftwareFunction = Box<dyn Fn(&[u8], &mut [u8], usize, usize) + Send>;
 
 impl std::fmt::Debug for Shaders {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

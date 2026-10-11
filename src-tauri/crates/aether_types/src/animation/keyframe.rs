@@ -250,7 +250,7 @@ impl fmt::Display for TransformData {
 pub struct KeyframeCollection;
 
 impl KeyframeCollection {
-    pub fn sort_by_time<T>(keyframes: &mut Vec<Keyframe<T>>) {
+    pub fn sort_by_time<T>(keyframes: &mut [Keyframe<T>]) {
         keyframes.sort_by(|a, b| {
             a.time
                 .partial_cmp(&b.time)
@@ -258,7 +258,7 @@ impl KeyframeCollection {
         });
     }
 
-    pub fn sort_by_time_data(keyframes: &mut Vec<KeyframeData>) {
+    pub fn sort_by_time_data(keyframes: &mut [KeyframeData]) {
         keyframes.sort_by(|a, b| {
             a.time()
                 .partial_cmp(&b.time())

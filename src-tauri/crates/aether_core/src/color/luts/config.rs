@@ -62,9 +62,9 @@ impl LutConfig {
 
     pub fn summary(&self) -> String {
         format!(
-            "LUT Config: {} interpolation, {} color space, clamp: {}, cache: {} (max {})",
+            "LUT Config: {} interpolation, {:?} color space, clamp: {}, cache: {} (max {})",
             self.interpolation_quality.description(),
-            format!("{:?}", self.color_space),
+            self.color_space,
             self.clamp_output,
             self.cache_enabled,
             self.max_cache_size

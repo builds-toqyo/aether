@@ -1,5 +1,7 @@
-pub mod collection;
+#[allow(clippy::module_inception)]
 pub mod track;
+
+pub mod collection;
 pub mod types;
 pub mod value;
 

@@ -102,10 +102,10 @@ fn apply_gamma_correction(frame_data: &mut [u8], width: usize, height: usize) {
     let gamma = 1.1;
     let gamma_inv = 1.0 / gamma;
     let mut gamma_table = [0u8; 256];
-    for i in 0..256 {
+    for (i, entry) in gamma_table.iter_mut().enumerate() {
         let normalized = i as f32 / 255.0;
         let corrected = normalized.powf(gamma_inv);
-        gamma_table[i] = (corrected * 255.0).clamp(0.0, 255.0) as u8;
+        *entry = (corrected * 255.0).clamp(0.0, 255.0) as u8;
     }
     for y in 0..height {
         for x in 0..width {

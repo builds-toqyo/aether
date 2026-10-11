@@ -193,7 +193,7 @@ impl AudioTrack {
     }
 
     pub fn set_volume(&mut self, volume: f64) -> Result<(), EditingError> {
-        let volume = volume.max(0.0).min(1.0);
+        let volume = volume.clamp(0.0, 1.0);
         self.volume_level = volume;
 
         if let Some(volume_element) = &self.volume {
@@ -204,7 +204,7 @@ impl AudioTrack {
     }
 
     pub fn set_pan(&mut self, pan: f64) -> Result<(), EditingError> {
-        let pan = pan.max(-1.0).min(1.0);
+        let pan = pan.clamp(-1.0, 1.0);
         self.pan_position = pan;
 
         if let Some(pan_element) = &self.pan {
@@ -630,7 +630,7 @@ impl AudioTrack {
     }
 
     pub fn set_master_volume(&mut self, volume: f64) -> Result<(), EditingError> {
-        let volume = volume.max(0.0).min(1.0);
+        let volume = volume.clamp(0.0, 1.0);
         self.master_volume = volume;
 
         if let Some(volume_element) = &self.master_volume_element {

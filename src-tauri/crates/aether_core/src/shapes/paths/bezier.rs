@@ -1,3 +1,7 @@
+pub type BezierPoint = (f64, f64);
+pub type CubicBezierPoints = (BezierPoint, BezierPoint, BezierPoint, BezierPoint);
+pub type QuadraticBezierPoints = (BezierPoint, BezierPoint, BezierPoint);
+
 pub struct BezierCurve;
 
 impl BezierCurve {
@@ -166,10 +170,7 @@ impl BezierCurve {
         p1: (f64, f64),
         p2: (f64, f64),
         p3: (f64, f64),
-    ) -> (
-        ((f64, f64), (f64, f64), (f64, f64), (f64, f64)),
-        ((f64, f64), (f64, f64), (f64, f64), (f64, f64)),
-    ) {
+    ) -> (CubicBezierPoints, CubicBezierPoints) {
         let p01 = ((p0.0 + p1.0) / 2.0, (p0.1 + p1.1) / 2.0);
         let p12 = ((p1.0 + p2.0) / 2.0, (p1.1 + p2.1) / 2.0);
         let p23 = ((p2.0 + p3.0) / 2.0, (p2.1 + p3.1) / 2.0);
@@ -190,10 +191,7 @@ impl BezierCurve {
         p0: (f64, f64),
         p1: (f64, f64),
         p2: (f64, f64),
-    ) -> (
-        ((f64, f64), (f64, f64), (f64, f64)),
-        ((f64, f64), (f64, f64), (f64, f64)),
-    ) {
+    ) -> (QuadraticBezierPoints, QuadraticBezierPoints) {
         let p01 = ((p0.0 + p1.0) / 2.0, (p0.1 + p1.1) / 2.0);
         let p12 = ((p1.0 + p2.0) / 2.0, (p1.1 + p2.1) / 2.0);
         let p012 = ((p01.0 + p12.0) / 2.0, (p01.1 + p12.1) / 2.0);
@@ -350,7 +348,7 @@ impl BezierUtils {
         p1: (f64, f64),
         p2: (f64, f64),
         p3: (f64, f64),
-    ) -> Vec<((f64, f64), (f64, f64), (f64, f64))> {
+    ) -> Vec<QuadraticBezierPoints> {
         let mut result = Vec::new();
         let mut stack = vec![(p0, p1, p2, p3)];
 

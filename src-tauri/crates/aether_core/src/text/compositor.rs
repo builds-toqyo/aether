@@ -223,10 +223,10 @@ impl TextCompositor {
                     }
                 };
 
-                image_data[pixel_idx] = final_r.min(255.0).max(0.0) as u8;
-                image_data[pixel_idx + 1] = final_g.min(255.0).max(0.0) as u8;
-                image_data[pixel_idx + 2] = final_b.min(255.0).max(0.0) as u8;
-                image_data[pixel_idx + 3] = (final_a.min(1.0).max(0.0) * 255.0) as u8;
+                image_data[pixel_idx] = final_r.clamp(0.0, 255.0) as u8;
+                image_data[pixel_idx + 1] = final_g.clamp(0.0, 255.0) as u8;
+                image_data[pixel_idx + 2] = final_b.clamp(0.0, 255.0) as u8;
+                image_data[pixel_idx + 3] = (final_a.clamp(0.0, 1.0) * 255.0) as u8;
             }
         }
     }

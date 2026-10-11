@@ -28,13 +28,13 @@ pub struct Waveform {
 
 /// Analyze image data to generate histogram
 pub fn analyze_histogram(image_data: &[u8], _width: usize, _height: usize) -> Histogram {
-    let mut histogram = Histogram::default();
-
     // Initialize histograms with 256 bins
-    histogram.luminance = vec![0; 256];
-    histogram.red = vec![0; 256];
-    histogram.green = vec![0; 256];
-    histogram.blue = vec![0; 256];
+    let mut histogram = Histogram {
+        luminance: vec![0; 256],
+        red: vec![0; 256],
+        green: vec![0; 256],
+        blue: vec![0; 256],
+    };
 
     // Process pixels (assuming RGBA format)
     for chunk in image_data.chunks_exact(4) {
@@ -106,7 +106,7 @@ pub fn analyze_waveform(image_data: &[u8], width: usize, height: usize) -> Wavef
     let mut luminance_per_scanline = vec![vec![0u8; width]; height];
 
     // Process each scanline
-    for y in 0..height {
+    for (y, scanline) in luminance_per_scanline.iter_mut().enumerate() {
         let row_start = y * width * 4;
         let row_end = row_start + width * 4;
 
@@ -130,7 +130,7 @@ pub fn analyze_waveform(image_data: &[u8], width: usize, height: usize) -> Wavef
             };
 
             if x < width {
-                luminance_per_scanline[y][x] = luminance;
+                scanline[x] = luminance;
             }
         }
     }

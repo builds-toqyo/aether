@@ -158,21 +158,18 @@ pub async fn disconnect_nodes(
 }
 
 pub fn are_pin_types_compatible(output_type: &PinDataType, input_type: &PinDataType) -> bool {
-    match (output_type, input_type) {
-        (PinDataType::Image, PinDataType::Image) => true,
-        (PinDataType::Float, PinDataType::Float) => true,
-        (PinDataType::Vector2, PinDataType::Vector2) => true,
-        (PinDataType::Vector3, PinDataType::Vector3) => true,
-        (PinDataType::Vector4, PinDataType::Vector4) => true,
-        (PinDataType::Color, PinDataType::Color) => true,
-
-        (PinDataType::Float, PinDataType::Vector2) => true,
-        (PinDataType::Float, PinDataType::Vector3) => true,
-        (PinDataType::Float, PinDataType::Vector4) => true,
-        (PinDataType::Vector4, PinDataType::Color) => true,
-        (PinDataType::Color, PinDataType::Vector4) => true,
-        _ => false,
-    }
+    matches!((output_type, input_type),
+        (PinDataType::Image, PinDataType::Image)
+        | (PinDataType::Float, PinDataType::Float)
+        | (PinDataType::Vector2, PinDataType::Vector2)
+        | (PinDataType::Vector3, PinDataType::Vector3)
+        | (PinDataType::Vector4, PinDataType::Vector4)
+        | (PinDataType::Color, PinDataType::Color)
+        | (PinDataType::Float, PinDataType::Vector2)
+        | (PinDataType::Float, PinDataType::Vector3)
+        | (PinDataType::Float, PinDataType::Vector4)
+        | (PinDataType::Vector4, PinDataType::Color)
+        | (PinDataType::Color, PinDataType::Vector4))
 }
 
 #[derive(Debug, Serialize)]

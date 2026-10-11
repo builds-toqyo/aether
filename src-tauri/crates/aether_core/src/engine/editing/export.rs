@@ -10,6 +10,8 @@ use log::{debug, info};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+type ProgressCallback = Arc<Mutex<dyn Fn(ExportProgress) + Send + 'static>>;
+
 fn get_hardware_encoder_for_export() -> Option<&'static str> {
     #[cfg(target_os = "linux")]
     {
@@ -118,7 +120,7 @@ pub struct IntermediateExporter {
     options: ExportOptions,
     pipeline: Option<gst::Pipeline>,
     progress: Arc<Mutex<ExportProgress>>,
-    progress_callback: Option<Arc<Mutex<dyn Fn(ExportProgress) + Send + 'static>>>,
+    progress_callback: Option<ProgressCallback>,
 }
 
 impl IntermediateExporter {

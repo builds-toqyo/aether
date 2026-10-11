@@ -170,7 +170,7 @@ impl BlurKernels {
 
     pub fn calculate_optimal_size(&self) -> usize {
         let size = (self.radius * 3.0) as usize;
-        size.next_odd().max(3).min(51)
+        size.next_odd().clamp(3, 51)
     }
 
     pub fn get_radius(&self) -> f32 {

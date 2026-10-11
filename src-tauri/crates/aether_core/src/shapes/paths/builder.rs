@@ -262,11 +262,7 @@ impl PathBuilder {
         }
 
         for i in 1..points.len() {
-            if i == 1 {
-                if let Some((x, y)) = points.get(i) {
-                    self.line_to(*x, *y);
-                }
-            } else if i == points.len() - 1 {
+            if i == 1 || i == points.len() - 1 {
                 if let Some((x, y)) = points.get(i) {
                     self.line_to(*x, *y);
                 }

@@ -114,8 +114,10 @@ impl ClipRenderer {
         in_point: f64,
         out_point: f64,
     ) -> Result<Self, TimelineRendererError> {
-        let mut config = VideoDecoderConfig::default();
-        config.output_format = VideoFormat::RGBA32;
+        let config = VideoDecoderConfig {
+            output_format: VideoFormat::RGBA32,
+            ..Default::default()
+        };
 
         let decoder = VideoDecoder::new(config);
 
@@ -174,10 +176,12 @@ impl TimelineRenderer {
         config: TimelineRendererConfig,
         timeline: Arc<Mutex<Timeline>>,
     ) -> Result<Self, TimelineRendererError> {
-        let mut renderer_config = crate::engine::renderer::RendererConfig::default();
-        renderer_config.width = config.width;
-        renderer_config.height = config.height;
-        renderer_config.frame_rate = config.fps;
+        let renderer_config = crate::engine::renderer::RendererConfig {
+            width: config.width,
+            height: config.height,
+            frame_rate: config.fps,
+            ..Default::default()
+        };
 
         let renderer = Renderer::new(renderer_config);
 

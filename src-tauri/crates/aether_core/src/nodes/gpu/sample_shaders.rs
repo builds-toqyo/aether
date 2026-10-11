@@ -1,4 +1,4 @@
-/// Sample compute shaders for GPU node execution
+//! Sample compute shaders for GPU node execution
 
 /// Simple color grading compute shader
 pub const COLOR_GRADING_SHADER: &str = r#"

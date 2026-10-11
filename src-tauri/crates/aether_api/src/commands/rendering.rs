@@ -1818,8 +1818,10 @@ pub async fn rendering_detect_scenes(
         VideoDecoder, VideoDecoderConfig, VideoFormat as DecoderVideoFormat, VideoFrame,
     };
 
-    let mut decoder_config = VideoDecoderConfig::default();
-    decoder_config.output_format = DecoderVideoFormat::RGBA32;
+    let decoder_config = VideoDecoderConfig {
+        output_format: DecoderVideoFormat::RGBA32,
+        ..Default::default()
+    };
     let mut decoder = VideoDecoder::new(decoder_config);
 
     let (duration, fps) = {

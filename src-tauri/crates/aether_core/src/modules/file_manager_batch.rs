@@ -6,6 +6,9 @@ use std::time::Duration;
 
 use super::file_manager::{FileManager, ThumbnailOptions};
 
+type BatchOperations = Arc<Mutex<Vec<(u64, BatchOperation)>>>;
+type BatchResults = Arc<Mutex<Vec<(u64, BatchResult<Vec<PathBuf>>)>>>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BatchStatus {
     Queued,
@@ -89,9 +92,9 @@ pub enum BatchOperationOptions {
 pub struct BatchProcessor {
     file_manager: Arc<FileManager>,
 
-    operations: Arc<Mutex<Vec<(u64, BatchOperation)>>>,
+    operations: BatchOperations,
 
-    results: Arc<Mutex<Vec<(u64, BatchResult<Vec<PathBuf>>)>>>,
+    results: BatchResults,
 
     next_id: Arc<Mutex<u64>>,
 
@@ -199,8 +202,8 @@ impl BatchProcessor {
     }
 
     fn worker_thread(
-        operations: Arc<Mutex<Vec<(u64, BatchOperation)>>>,
-        results: Arc<Mutex<Vec<(u64, BatchResult<Vec<PathBuf>>)>>>,
+        operations: BatchOperations,
+        results: BatchResults,
         file_manager: Arc<FileManager>,
         running: Arc<Mutex<bool>>,
     ) {
@@ -269,7 +272,7 @@ impl BatchProcessor {
         file_manager: &FileManager,
         operation: &BatchOperation,
         id: u64,
-        results: &Arc<Mutex<Vec<(u64, BatchResult<Vec<PathBuf>>)>>>,
+        results: &BatchResults,
     ) -> Result<Vec<PathBuf>> {
         let mut processed_files = Vec::new();
         let total_files = operation.inputs.len();
@@ -316,7 +319,7 @@ impl BatchProcessor {
         file_manager: &FileManager,
         operation: &BatchOperation,
         id: u64,
-        results: &Arc<Mutex<Vec<(u64, BatchResult<Vec<PathBuf>>)>>>,
+        results: &BatchResults,
     ) -> Result<Vec<PathBuf>> {
         let mut thumbnail_paths = Vec::new();
         let total_files = operation.inputs.len();
@@ -369,7 +372,7 @@ impl BatchProcessor {
         file_manager: &FileManager,
         operation: &BatchOperation,
         id: u64,
-        results: &Arc<Mutex<Vec<(u64, BatchResult<Vec<PathBuf>>)>>>,
+        results: &BatchResults,
     ) -> Result<Vec<PathBuf>> {
         let mut frame_paths = Vec::new();
         let total_files = operation.inputs.len();
@@ -421,7 +424,7 @@ impl BatchProcessor {
         file_manager: &FileManager,
         operation: &BatchOperation,
         id: u64,
-        results: &Arc<Mutex<Vec<(u64, BatchResult<Vec<PathBuf>>)>>>,
+        results: &BatchResults,
     ) -> Result<Vec<PathBuf>> {
         use super::file_manager::MediaType;
         use super::file_manager_convert::{
