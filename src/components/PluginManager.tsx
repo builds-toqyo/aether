@@ -407,7 +407,9 @@ export function PluginManager() {
                           </a>
                         )}
                         {isInstalled ? (
-                          <CheckCircle2 size={14} className="text-green-400" title="Installed" />
+                          <span title="Installed">
+                            <CheckCircle2 size={14} className="text-green-400" />
+                          </span>
                         ) : (
                           <button
                             onClick={() => installPlugin(plugin.id)}
@@ -509,7 +511,9 @@ export function PluginManager() {
                         </span>
                         <div className="flex items-center gap-1">
                           {hasUpdate && (
-                            <AlertCircle size={10} className="text-orange-400" title="Update available" />
+                            <span title="Update available">
+                              <AlertCircle size={10} className="text-orange-400" />
+                            </span>
                           )}
                           <span className="text-[10px] text-[#555]">{plugin.version}</span>
                         </div>
