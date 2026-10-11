@@ -387,8 +387,8 @@ mod tests {
     use super::*;
     use crate::animation::keyframe::{Keyframe, KeyframeData};
     use crate::animation::interpolation::{InterpolationMethod, EasingFunction};
-    use super::types::{TrackType, ParameterBinding};
-    use super::value::TrackValue;
+    use crate::animation::track::types::{TrackType, ParameterBinding};
+    use crate::animation::track::value::TrackValue;
 
     #[test]
     fn test_track_collection() {

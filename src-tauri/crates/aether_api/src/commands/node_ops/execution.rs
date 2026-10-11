@@ -10,12 +10,13 @@ use aether_core::nodes::{NodeExecutor, ExecutionContext};
 use aether_core::nodes::core::CoreNodes;
 
 
-#[tauri::command]
+#[tauri::command(rename_all = "camelCase")]
 pub async fn execute_graph(
     frame: Option<u64>,
+    graph_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<ExecutionResponse, String> {
-    debug!("Executing graph, frame: {:?}", frame);
+    debug!("Executing graph, frame: {:?}, graph_id: {:?}", frame, graph_id);
 
     let graph = state.graph.lock().map_err(|e| format!("{}", e))?;
 
@@ -240,6 +241,6 @@ mod tests {
         assert_eq!(serialize_parameter_value(&ParameterValue::None), "null");
         assert_eq!(serialize_parameter_value(&ParameterValue::Float(3.14)), "3.14");
         assert_eq!(serialize_parameter_value(&ParameterValue::Boolean(true)), "true");
-        assert_eq!(serialize_parameter_value(&ParameterValue::String("test")), "\"test\"");
+        assert_eq!(serialize_parameter_value(&ParameterValue::String("test".to_string())), "\"test\"");
     }
 }

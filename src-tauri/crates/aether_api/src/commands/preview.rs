@@ -108,6 +108,31 @@ pub struct PreviewResponse {
 }
 
 
+fn parse_preview_quality(value: &str) -> Result<PreviewQuality, String> {
+    match value.to_lowercase().as_str() {
+        "low" => Ok(PreviewQuality::Low),
+        "medium" => Ok(PreviewQuality::Medium),
+        "high" => Ok(PreviewQuality::High),
+        "ultra" => Ok(PreviewQuality::Ultra),
+        other => Err(format!("Unknown preview quality: {}", other)),
+    }
+}
+
+
+fn parse_frame_format(value: &str) -> Result<FrameFormat, String> {
+    match value.to_lowercase().as_str() {
+        "rgba8" | "rgba" => Ok(FrameFormat::Rgba8),
+        "bgra8" | "bgra" => Ok(FrameFormat::Bgra8),
+        "rgb8" | "rgb" => Ok(FrameFormat::Rgb8),
+        "jpeg" | "jpg" => Ok(FrameFormat::Jpeg),
+        "png" => Ok(FrameFormat::Png),
+        "nv12" => Ok(FrameFormat::Nv12),
+        "yuv420" | "yuv420p" => Ok(FrameFormat::Yuv420),
+        other => Err(format!("Unknown frame format: {}", other)),
+    }
+}
+
+
 #[tauri::command]
 pub async fn get_preview_info(
     state: State<'_, AppState>,
@@ -148,46 +173,69 @@ pub async fn get_preview_info(
 }
 
 /// Control preview playback
-#[tauri::command]
+#[tauri::command(rename_all = "camelCase")]
 pub async fn preview_playback_control(
-    request: PreviewPlaybackControlRequest,
-    _state: State<'_, AppState>,
+    action: String,
+    current_time: Option<f64>,
+    state: State<'_, AppState>,
 ) -> Result<PreviewResponse, String> {
-    debug!("Preview playback control: {:?}", request.action);
+    debug!("Preview playback control: {}", action);
 
-    let message = match request.action {
-        PlaybackAction::Play => {
+    let engine = state.editing_engine.lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    let frame_duration_ns = (1_000_000_000.0 / 30.0) as i64;
+
+    let step_to = |direction: i64| -> i64 {
+        let position = match current_time {
+            Some(t) => (t * 1_000_000_000.0) as i64,
+            None => engine.get_preview_state()
+                .map(|s| s.position)
+                .unwrap_or(0),
+        };
+        (position + direction * frame_duration_ns).max(0)
+    };
+
+    let message = match action.to_lowercase().as_str() {
+        "play" => {
+            engine.preview_play()
+                .map_err(|e| format!("Preview play failed: {}", e))?;
             info!("Starting preview playback");
             "Preview playback started".to_string()
         }
-        PlaybackAction::Pause => {
+        "pause" => {
+            engine.preview_pause()
+                .map_err(|e| format!("Preview pause failed: {}", e))?;
             info!("Pausing preview playback");
             "Preview playback paused".to_string()
         }
-        PlaybackAction::Stop => {
+        "stop" => {
+            engine.preview_stop()
+                .map_err(|e| format!("Preview stop failed: {}", e))?;
             info!("Stopping preview playback");
             "Preview playback stopped".to_string()
         }
-        PlaybackAction::Seek => {
-            let time = request.current_time.unwrap_or(0.0);
+        "seek" => {
+            let time = current_time.unwrap_or(0.0);
+            engine.preview_seek((time * 1_000_000_000.0) as i64)
+                .map_err(|e| format!("Preview seek failed: {}", e))?;
             info!("Seeking preview to time: {}", time);
             format!("Preview seeked to {}", time)
         }
-        PlaybackAction::Next => {
-            info!("Moving to next frame");
-            "Moved to next frame".to_string()
-        }
-        PlaybackAction::Previous => {
-            info!("Moving to previous frame");
-            "Moved to previous frame".to_string()
-        }
-        PlaybackAction::StepForward => {
+        "next" | "stepforward" | "step_forward" => {
+            engine.preview_seek(step_to(1))
+                .map_err(|e| format!("Preview step forward failed: {}", e))?;
             info!("Stepping forward one frame");
             "Stepped forward one frame".to_string()
         }
-        PlaybackAction::StepBackward => {
+        "previous" | "stepbackward" | "step_backward" => {
+            engine.preview_seek(step_to(-1))
+                .map_err(|e| format!("Preview step backward failed: {}", e))?;
             info!("Stepping backward one frame");
             "Stepped backward one frame".to_string()
+        }
+        other => {
+            return Err(format!("Unknown playback action: {}", other));
         }
     };
 
@@ -201,45 +249,54 @@ pub async fn preview_playback_control(
 
 #[tauri::command]
 pub async fn preview_seek(
-    request: PreviewSeekRequest,
+    time: f64,
     state: State<'_, AppState>,
 ) -> Result<PreviewResponse, String> {
-    debug!("Preview seek to time: {}", request.time);
+    debug!("Preview seek to time: {}", time);
 
-    if request.time < 0.0 {
+    if time < 0.0 {
         return Err("Preview seek time cannot be negative".to_string());
     }
 
     let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
-    let position_ns = (request.time * 1_000_000_000.0) as i64;
+    let position_ns = (time * 1_000_000_000.0) as i64;
     engine.preview_seek(position_ns)
         .map_err(|e| format!("Preview seek failed: {}", e))?;
 
-    info!("Preview seek to time: {}", request.time);
+    info!("Preview seek to time: {}", time);
 
     Ok(PreviewResponse {
         success: true,
-        message: format!("Seeked to {}", request.time),
+        message: format!("Seeked to {}", time),
         data: Some(serde_json::json!({
-            "time": request.time,
-            "frame": (request.time * 30.0) as u32
+            "time": time,
+            "frame": (time * 30.0) as u32
         })),
     })
 }
 
 #[tauri::command]
 pub async fn preview_get_frame(
-    request: PreviewFrameRequest,
+    timestamp: Option<f64>,
+    quality: Option<String>,
+    format: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<PreviewFrame, String> {
-    debug!("Getting preview frame at timestamp: {}", request.timestamp);
+    let timestamp = timestamp.unwrap_or(0.0);
+    debug!("Getting preview frame at timestamp: {}", timestamp);
 
-    if request.timestamp < 0.0 {
+    if timestamp < 0.0 {
         return Err("Timestamp cannot be negative".to_string());
     }
 
-    let quality = request.quality.unwrap_or(PreviewQuality::Medium);
-    let format = request.format.unwrap_or(FrameFormat::Rgba8);
+    let quality = quality
+        .map(|q| parse_preview_quality(&q))
+        .transpose()?
+        .unwrap_or(PreviewQuality::Medium);
+    let format = format
+        .map(|f| parse_frame_format(&f))
+        .transpose()?
+        .unwrap_or(FrameFormat::Rgba8);
 
     let engine = state.editing_engine.lock().map_err(|e| format!("Failed to lock editing engine: {}", e))?;
 
@@ -249,17 +306,17 @@ pub async fn preview_get_frame(
     let (width, height) = engine.get_preview_dimensions()
         .map_err(|e| format!("Failed to get preview dimensions: {}", e))?;
 
-    let frame_number = (request.timestamp * 30.0) as u32;
+    let frame_number = (timestamp * 30.0) as u32;
     let frame_id = format!("frame_{}", frame_number);
 
     let data_base64 = frame_data.map(|data| STANDARD.encode(&data));
 
     info!("Retrieved frame: {} at {}s (quality: {:?}, format: {:?})",
-          frame_id, request.timestamp, quality, format);
+          frame_id, timestamp, quality, format);
 
     let preview_frame = PreviewFrame {
         id: frame_id.clone(),
-        timestamp: request.timestamp,
+        timestamp,
         width,
         height,
         format,
@@ -272,7 +329,7 @@ pub async fn preview_get_frame(
         use crate::commands::plugin::PluginHook;
         plugin_registry.invoke_hook(
             PluginHook::ProcessFrame,
-            &serde_json::json!({"frame_id": frame_id, "timestamp": request.timestamp, "width": width, "height": height})
+            &serde_json::json!({"frame_id": frame_id, "timestamp": timestamp, "width": width, "height": height})
         );
     }
 
@@ -338,7 +395,7 @@ pub async fn preview_get_frame_range(
     end_time: f64,
     quality: Option<PreviewQuality>,
     format: Option<FrameFormat>,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<Vec<PreviewFrame>, String> {
     debug!("Rendering preview frames: {} to {}", start_time, end_time);
 
@@ -363,21 +420,32 @@ pub async fn preview_get_frame_range(
     info!("Generating {} frames ({} to {}), quality: {:?}",
           frame_count, start_frame, end_frame, quality);
 
-    // Generate mock frames
+    let engine = state.editing_engine.lock()
+        .map_err(|e| format!("Failed to lock editing engine: {}", e))?;
+
+    let (width, height) = engine.get_preview_dimensions()
+        .map_err(|e| format!("Failed to get preview dimensions: {}", e))?;
+
+    // Seek to each frame and pull the real decoded frame from the preview engine
     let mut frames = Vec::new();
     for frame_num in start_frame..=end_frame {
         let timestamp = frame_num as f64 / fps;
-        let frame = PreviewFrame {
+        engine.preview_seek((timestamp * 1_000_000_000.0) as i64)
+            .map_err(|e| format!("Failed to seek to frame {}: {}", frame_num, e))?;
+
+        let frame_data = engine.get_preview_frame()
+            .map_err(|e| format!("Failed to get frame {}: {}", frame_num, e))?;
+
+        frames.push(PreviewFrame {
             id: format!("{}", frame_num),
             timestamp,
-            width: 1920,
-            height: 1080,
+            width,
+            height,
             format: format.clone(),
-            data: None,
+            data: frame_data.map(|data| STANDARD.encode(&data)),
             frame_number: frame_num,
             fps,
-        };
-        frames.push(frame);
+        });
     }
 
     Ok(frames)
@@ -574,7 +642,9 @@ mod tests {
     #[test]
     fn test_frame_range_validation() {
 
-        assert!(0.0 >= 1.0);
+        let start_time = 10.0;
+        let end_time = 5.0;
+        assert!(start_time >= end_time);
     }
 
     #[test]

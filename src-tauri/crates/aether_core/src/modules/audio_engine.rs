@@ -466,8 +466,29 @@ impl AudioTrack {
 
 
     pub fn update_peak_levels(&mut self) -> Result<(f64, f64), EditingError> {
-        if let Some(_level) = &self.level {
-            // TODO: Implement peak level update
+        if self.level.is_none() {
+            return Ok(self.peak_levels);
+        }
+
+        if let Some(pipeline) = &self.pipeline {
+            if let Some(bus) = pipeline.bus() {
+                // Drain pending level element messages and keep the latest peaks
+                while let Some(msg) = bus.pop_filtered(&[gst::MessageType::Element]) {
+                    if let gst::MessageView::Element(element) = msg.view() {
+                        if let Some(structure) = element.structure() {
+                            if structure.name() == "level" {
+                                if let Ok(peak) = structure.get::<gst::List>("peak") {
+                                    let mut peaks = peak.as_slice().iter()
+                                        .filter_map(|v| v.get::<f64>().ok());
+                                    let left = peaks.next().unwrap_or(0.0);
+                                    let right = peaks.next().unwrap_or(left);
+                                    self.peak_levels = (left, right);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         Ok(self.peak_levels)

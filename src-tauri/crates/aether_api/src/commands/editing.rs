@@ -37,19 +37,24 @@ pub struct ProjectCreateRequest {
 #[derive(Debug, Deserialize)]
 pub struct ProjectSaveRequest {
     pub project_id: String,
+    #[serde(alias = "path")]
     pub file_path: Option<String>,
     pub auto_save: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ProjectLoadRequest {
+    #[serde(alias = "path")]
     pub file_path: String,
     pub project_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct MediaImportRequest {
+    #[serde(default)]
     pub file_paths: Vec<String>,
+    #[serde(default)]
+    pub path: Option<String>,
     pub target_track: Option<String>,
     pub position: Option<f64>,
     pub auto_create_clips: Option<bool>,
@@ -223,10 +228,16 @@ pub async fn project_save(
         .get_timeline_info()
         .map_err(|e| format!("Failed to get timeline info: {}", e))?;
 
+    // Preserve the original creation timestamp if this project was saved before
+    let existing_created_at = state.project_registry.lock().ok()
+        .and_then(|registry| registry.get(&request.project_id).ok().flatten())
+        .map(|(info, _)| info.created_at);
+
     let project_data = serde_json::json!({
+        "version": 1,
         "project_id": request.project_id,
         "name": request.project_id.clone(),
-        "created_at": chrono::Utc::now().to_rfc3339(),
+        "created_at": existing_created_at.clone().unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
         "modified_at": chrono::Utc::now().to_rfc3339(),
         "duration": timeline_info.duration,
         "clips": timeline_info.clips.iter().map(|c| {
@@ -253,7 +264,20 @@ pub async fn project_save(
         }
     });
 
-    let file_path = request.file_path.unwrap_or_else(|| format!("/projects/{}.aether", request.project_id));
+    let file_path = request.file_path.unwrap_or_else(|| {
+        crate::project_registry::home_dir()
+            .unwrap_or_else(|| std::env::temp_dir())
+            .join(".aether")
+            .join("projects")
+            .join(format!("{}.aether", request.project_id))
+            .to_string_lossy()
+            .to_string()
+    });
+
+    if let Some(parent) = std::path::Path::new(&file_path).parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create project directory: {}", e))?;
+    }
 
     std::fs::write(&file_path, project_data.to_string())
         .map_err(|e| format!("Failed to write project file: {}", e))?;
@@ -263,7 +287,7 @@ pub async fn project_save(
         id: request.project_id.clone(),
         name: request.project_id.clone(),
         description: Some("Saved project".to_string()),
-        created_at: now.clone(),
+        created_at: existing_created_at.unwrap_or_else(|| now.clone()),
         modified_at: now,
         duration: timeline_info.duration as f64 / 1_000_000_000.0,
         fps: 30.0,
@@ -295,7 +319,63 @@ pub async fn project_save(
     })
 }
 
-/// Load project from SQLite registry
+struct RestoreClip {
+    source_file: String,
+    is_video: bool,
+    start_time: f64,
+    duration: f64,
+    in_point: f64,
+}
+
+/// Load a .aether project file directly, returning project info and clips to restore.
+fn load_project_file(file_path: &str) -> Result<(ProjectInfo, Vec<RestoreClip>), String> {
+    let contents = std::fs::read_to_string(file_path)
+        .map_err(|e| format!("Failed to read project file: {}", e))?;
+    let data: serde_json::Value = serde_json::from_str(&contents)
+        .map_err(|e| format!("Invalid project file: {}", e))?;
+
+    let version = data.get("version").and_then(|v| v.as_u64()).unwrap_or(1);
+    if version > 1 {
+        return Err(format!("Unsupported project file version: {}", version));
+    }
+
+    let restore_clips: Vec<RestoreClip> = data.get("clips")
+        .and_then(|c| c.as_array())
+        .map(|arr| arr.iter().filter_map(|c| {
+            Some(RestoreClip {
+                source_file: c.get("source_path")?.as_str()?.to_string(),
+                is_video: c.get("track_type").and_then(|t| t.as_str()) != Some("Audio"),
+                start_time: c.get("start_time")?.as_f64()?,
+                duration: c.get("duration")?.as_f64()?,
+                in_point: c.get("in_point").and_then(|v| v.as_f64()).unwrap_or(0.0),
+            })
+        }).collect())
+        .unwrap_or_default();
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let project_info = ProjectInfo {
+        id: data.get("project_id").and_then(|v| v.as_str()).map(String::from)
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+        name: data.get("name").and_then(|v| v.as_str()).map(String::from)
+            .unwrap_or_else(|| "Untitled".to_string()),
+        description: None,
+        created_at: data.get("created_at").and_then(|v| v.as_str()).map(String::from)
+            .unwrap_or_else(|| now.clone()),
+        modified_at: data.get("modified_at").and_then(|v| v.as_str()).map(String::from)
+            .unwrap_or(now),
+        duration: data.get("duration").and_then(|v| v.as_f64()).unwrap_or(0.0) / 1_000_000_000.0,
+        fps: data.pointer("/timeline_settings/fps").and_then(|v| v.as_f64()).unwrap_or(30.0),
+        resolution: (1920, 1080),
+        timeline_count: 1,
+        media_count: restore_clips.len(),
+        file_size: std::fs::metadata(file_path).map(|m| m.len()).unwrap_or(0),
+        file_path: file_path.to_string(),
+    };
+
+    Ok((project_info, restore_clips))
+}
+
+/// Load project from SQLite registry, falling back to the .aether file itself
 #[tauri::command]
 pub async fn project_load(
     request: ProjectLoadRequest,
@@ -307,52 +387,77 @@ pub async fn project_load(
         return Err("File path cannot be empty".to_string());
     }
 
-    let project_id = request.project_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    // Resolve from the registry by project id, then by file path
+    let mut resolved: Option<(ProjectInfo, Option<String>)> = None;
+    {
+        let registry = state.project_registry.lock()
+            .map_err(|e| format!("Failed to lock project registry: {}", e))?;
+        if let Some(pid) = &request.project_id {
+            resolved = registry.get(pid)
+                .map_err(|e| format!("Failed to query project from registry: {}", e))?;
+        }
+        if resolved.is_none() {
+            if let Some(found) = registry.get_all()
+                .map_err(|e| format!("Failed to query project registry: {}", e))?
+                .into_iter()
+                .find(|p| p.file_path == request.file_path) {
+                resolved = registry.get(&found.id)
+                    .map_err(|e| format!("Failed to query project from registry: {}", e))?;
+            }
+        }
+    }
 
-    let (project_info, timeline_data) = state.project_registry.lock()
-        .map_err(|e| format!("Failed to lock project registry: {}", e))?
-        .get(&project_id)
-        .map_err(|e| format!("Failed to query project from registry: {}", e))?
-        .ok_or_else(|| format!("Project {} not found in registry", project_id))?;
+    let (project_info, restore_clips) = match resolved {
+        Some((info, timeline_data)) => {
+            let mut clips = Vec::new();
+            if let Some(timeline_json) = timeline_data {
+                if let Ok(timeline_info) = serde_json::from_str::<crate::commands::timeline::TimelineInfo>(&timeline_json) {
+                    for clip_data in &timeline_info.clips {
+                        if let Some(source_file) = &clip_data.source_file {
+                            clips.push(RestoreClip {
+                                source_file: source_file.clone(),
+                                is_video: !matches!(clip_data.clip_type, crate::commands::timeline::ClipType::Audio),
+                                start_time: clip_data.start_time,
+                                duration: clip_data.duration,
+                                in_point: clip_data.in_point,
+                            });
+                        }
+                    }
+                }
+            }
+            (info, clips)
+        }
+        None => load_project_file(&request.file_path)?,
+    };
 
     state.editing_engine.lock().map_err(|e| format!("{}", e))?
         .init_project(Some(request.file_path.clone()))
         .map_err(|e| format!("Failed to initialize project: {}", e))?;
 
-    if let Some(timeline_json) = timeline_data {
-        if let Ok(timeline_info) = serde_json::from_str::<crate::commands::timeline::TimelineInfo>(&timeline_json) {
-            let editing_engine = state.editing_engine.lock().map_err(|e| format!("{}", e))?;
-            
-            for clip_data in &timeline_info.clips {
-                let track_type = match clip_data.clip_type {
-                    crate::commands::timeline::ClipType::Video => TrackType::Video,
-                    crate::commands::timeline::ClipType::Audio => TrackType::Audio,
-                    _ => TrackType::Video,
-                };
+    {
+        let editing_engine = state.editing_engine.lock().map_err(|e| format!("{}", e))?;
+        for clip in &restore_clips {
+            let uri = if clip.source_file.starts_with("file://") {
+                clip.source_file.clone()
+            } else {
+                format!("file://{}", clip.source_file)
+            };
 
-                if let Some(source_path) = &clip_data.source_file {
-                    let uri = if source_path.starts_with("file://") {
-                        source_path.clone()
-                    } else {
-                        format!("file://{}", source_path)
-                    };
+            let track_type = if clip.is_video { TrackType::Video } else { TrackType::Audio };
+            let start_time = (clip.start_time * 1_000_000_000.0) as i64;
+            let duration = (clip.duration * 1_000_000_000.0) as i64;
+            let in_point = (clip.in_point * 1_000_000_000.0) as i64;
 
-                    let start_time = (clip_data.start_time * 1_000_000_000.0) as i64;
-                    let duration = (clip_data.duration * 1_000_000_000.0) as i64;
-                    let in_point = (clip_data.in_point * 1_000_000_000.0) as i64;
+            debug!("Restoring clip {} (start: {}, duration: {}, in_point: {})",
+                uri, start_time, duration, in_point);
 
-                    debug!("Restoring clip {} from {} (start: {}, duration: {}, in_point: {})", 
-                        clip_data.name, uri, start_time, duration, in_point);
-
-                    if let Err(e) = editing_engine.timeline_add_clip(uri, track_type, start_time, duration, in_point) {
-                        warn!("Failed to restore clip {}: {}", clip_data.name, e);
-                    }
-                }
+            if let Err(e) = editing_engine.timeline_add_clip(uri, track_type, start_time, duration, in_point) {
+                warn!("Failed to restore clip {}: {}", clip.source_file, e);
             }
         }
     }
 
-    info!("Loaded project from SQLite: {} ({} clips, {:.2}s duration)", project_info.name, project_info.media_count, project_info.duration);
+    info!("Loaded project: {} ({} clips, {:.2}s duration)", project_info.name, project_info.media_count, project_info.duration);
 
     if let Ok(plugin_registry) = state.plugin_registry.lock() {
         use crate::commands::plugin::PluginHook;
@@ -389,15 +494,23 @@ pub async fn media_import(
     request: MediaImportRequest,
     state: State<'_, AppState>,
 ) -> Result<Vec<MediaInfo>, String> {
-    debug!("Importing {} media files", request.file_paths.len());
+    // Accept both single `path` and multi `file_paths` payloads
+    let mut file_paths = request.file_paths.clone();
+    if let Some(path) = &request.path {
+        if !path.is_empty() && !file_paths.contains(path) {
+            file_paths.push(path.clone());
+        }
+    }
 
-    if request.file_paths.is_empty() {
+    debug!("Importing {} media files", file_paths.len());
+
+    if file_paths.is_empty() {
         return Err("No files to import".to_string());
     }
 
     let mut imported_media = Vec::new();
 
-    for (index, file_path) in request.file_paths.iter().enumerate() {
+    for (index, file_path) in file_paths.iter().enumerate() {
         if file_path.is_empty() {
             warn!("Skipping empty file path at index {}", index);
             continue;
@@ -706,6 +819,7 @@ mod tests {
     fn test_media_import_validation() {
 
         let request = MediaImportRequest {
+            path: None,
             file_paths: vec![],
             target_track: None,
             position: None,

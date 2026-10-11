@@ -41,6 +41,9 @@ pub enum EngineCommand {
     TimelineMoveClip { clip_id: String, new_start_time: i64, resp: Sender<Result<(), EditingError>> },
     TimelineCreateTrack { track_type: TrackType, resp: Sender<Result<TrackInfo, EditingError>> },
     TimelineDeleteTrack { track_id: String, resp: Sender<Result<(), EditingError>> },
+    TimelineSplitClip { clip_id: String, position: i64, resp: Sender<Result<String, EditingError>> },
+    TimelineAddEffect { clip_id: String, effect_type: String, resp: Sender<Result<String, EditingError>> },
+    TimelineBindNodeToEffect { clip_id: String, effect_id: String, node_id: String, output_pin_name: String, resp: Sender<Result<(), EditingError>> },
     ImportMedia { path: String, options: ImportOptions, resp: Sender<Result<MediaInfo, EditingError>> },
     GetPreviewDimensions { resp: Sender<Result<(u32, u32), EditingError>> },
     GetPreviewState { resp: Sender<Result<PreviewState, EditingError>> },
@@ -129,6 +132,27 @@ impl EditingEngineProxy {
     pub fn timeline_delete_track(&self, track_id: String) -> Result<(), EditingError> {
         let (tx, rx) = channel();
         self.sender.send(EngineCommand::TimelineDeleteTrack { track_id, resp: tx })
+            .map_err(|_| EditingError::TimelineError("Engine thread disconnected".to_string()))?;
+        rx.recv().map_err(|_| EditingError::TimelineError("Engine thread response lost".to_string()))?
+    }
+
+    pub fn timeline_split_clip(&self, clip_id: String, position: i64) -> Result<String, EditingError> {
+        let (tx, rx) = channel();
+        self.sender.send(EngineCommand::TimelineSplitClip { clip_id, position, resp: tx })
+            .map_err(|_| EditingError::TimelineError("Engine thread disconnected".to_string()))?;
+        rx.recv().map_err(|_| EditingError::TimelineError("Engine thread response lost".to_string()))?
+    }
+
+    pub fn timeline_add_effect(&self, clip_id: String, effect_type: String) -> Result<String, EditingError> {
+        let (tx, rx) = channel();
+        self.sender.send(EngineCommand::TimelineAddEffect { clip_id, effect_type, resp: tx })
+            .map_err(|_| EditingError::TimelineError("Engine thread disconnected".to_string()))?;
+        rx.recv().map_err(|_| EditingError::TimelineError("Engine thread response lost".to_string()))?
+    }
+
+    pub fn timeline_bind_node_to_effect(&self, clip_id: String, effect_id: String, node_id: String, output_pin_name: String) -> Result<(), EditingError> {
+        let (tx, rx) = channel();
+        self.sender.send(EngineCommand::TimelineBindNodeToEffect { clip_id, effect_id, node_id, output_pin_name, resp: tx })
             .map_err(|_| EditingError::TimelineError("Engine thread disconnected".to_string()))?;
         rx.recv().map_err(|_| EditingError::TimelineError("Engine thread response lost".to_string()))?
     }
@@ -230,6 +254,9 @@ fn run_engine_thread(receiver: std::sync::mpsc::Receiver<EngineCommand>) {
                         EngineCommand::TimelineMoveClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
                         EngineCommand::TimelineCreateTrack { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
                         EngineCommand::TimelineDeleteTrack { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::TimelineSplitClip { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::TimelineAddEffect { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
+                        EngineCommand::TimelineBindNodeToEffect { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
                         EngineCommand::ImportMedia { resp, .. } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
                         EngineCommand::GetPreviewDimensions { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
                         EngineCommand::GetPreviewState { resp } => { let _ = resp.send(Err(EditingError::GstreamerInitError(err_str.clone()))); }
@@ -341,6 +368,34 @@ fn handle_command(engine: &mut EditingEngine, cmd: EngineCommand) -> Result<(), 
                 let mut timeline_guard = timeline.lock()
                     .map_err(|_| EditingError::TimelineError("Timeline lock poisoned".to_string()))?;
                 timeline_guard.remove_track(&track_id)
+            })();
+            let _ = resp.send(result);
+        }
+        EngineCommand::TimelineSplitClip { clip_id, position, resp } => {
+            let timeline = engine.timeline();
+            let result = (|| -> Result<String, EditingError> {
+                let mut timeline_guard = timeline.lock()
+                    .map_err(|_| EditingError::TimelineError("Timeline lock poisoned".to_string()))?;
+                timeline_guard.split_clip(&clip_id, position)
+            })();
+            let _ = resp.send(result);
+        }
+        EngineCommand::TimelineAddEffect { clip_id, effect_type, resp } => {
+            let timeline = engine.timeline();
+            let result = (|| -> Result<String, EditingError> {
+                let mut timeline_guard = timeline.lock()
+                    .map_err(|_| EditingError::TimelineError("Timeline lock poisoned".to_string()))?;
+                let effect = timeline_guard.add_effect(&clip_id, &effect_type)?;
+                Ok(effect.id)
+            })();
+            let _ = resp.send(result);
+        }
+        EngineCommand::TimelineBindNodeToEffect { clip_id, effect_id, node_id, output_pin_name, resp } => {
+            let timeline = engine.timeline();
+            let result = (|| -> Result<(), EditingError> {
+                let mut timeline_guard = timeline.lock()
+                    .map_err(|_| EditingError::TimelineError("Timeline lock poisoned".to_string()))?;
+                timeline_guard.bind_node_to_effect(&clip_id, &effect_id, &node_id, &output_pin_name)
             })();
             let _ = resp.send(result);
         }

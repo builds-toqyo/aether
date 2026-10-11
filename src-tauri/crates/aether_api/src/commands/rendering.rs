@@ -115,13 +115,11 @@ impl ExporterTrait for crate::render_proxy::GstExporterProxy {
     }
 
     fn pause(&mut self) -> Result<(), EditingError> {
-        warn!("GStreamer exporter pause requested - stub");
-        Ok(())
+        crate::render_proxy::GstExporterProxy::pause(self)
     }
 
     fn resume(&mut self) -> Result<(), EditingError> {
-        warn!("GStreamer exporter resume requested - stub");
-        Ok(())
+        crate::render_proxy::GstExporterProxy::resume(self)
     }
 
     fn is_paused(&self) -> bool {
@@ -143,7 +141,7 @@ pub enum RenderingStatus {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub enum RenderFormat {
     Mp4,
     Avi,
@@ -157,8 +155,35 @@ pub enum RenderFormat {
     Custom(String),
 }
 
+impl<'de> Deserialize<'de> for RenderFormat {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        Ok(match value.to_lowercase().as_str() {
+            "mp4" => RenderFormat::Mp4,
+            "avi" => RenderFormat::Avi,
+            "mov" => RenderFormat::Mov,
+            "mkv" => RenderFormat::Mkv,
+            "webm" => RenderFormat::Webm,
+            "gif" => RenderFormat::Gif,
+            "png_sequence" | "pngsequence" | "png" => RenderFormat::PngSequence,
+            "jpeg_sequence" | "jpegsequence" | "jpeg" | "jpg" => RenderFormat::JpegSequence,
+            "audio" | "audio_only" | "audioonly" => RenderFormat::AudioOnly,
+            other => RenderFormat::Custom(other.to_string()),
+        })
+    }
+}
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+impl Default for RenderFormat {
+    fn default() -> Self {
+        RenderFormat::Mp4
+    }
+}
+
+
+#[derive(Debug, Serialize, Clone)]
 pub enum RenderQuality {
     Low,
     Medium,
@@ -169,6 +194,28 @@ pub enum RenderQuality {
         preset: RenderPreset,
         profile: Option<String>,
     },
+}
+
+impl<'de> Deserialize<'de> for RenderQuality {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+        match value.to_lowercase().as_str() {
+            "low" | "draft" => Ok(RenderQuality::Low),
+            "medium" | "normal" => Ok(RenderQuality::Medium),
+            "high" => Ok(RenderQuality::High),
+            "ultra" | "maximum" => Ok(RenderQuality::Ultra),
+            other => Err(serde::de::Error::custom(format!("Unknown render quality: {}", other))),
+        }
+    }
+}
+
+impl Default for RenderQuality {
+    fn default() -> Self {
+        RenderQuality::High
+    }
 }
 
 
@@ -242,9 +289,12 @@ pub enum VideoCodec {
 
 #[derive(Debug, Deserialize)]
 pub struct RenderingRequest {
-    pub name: String,
+    #[serde(default)]
+    pub name: Option<String>,
     pub output_path: String,
+    #[serde(default)]
     pub format: RenderFormat,
+    #[serde(default)]
     pub quality: RenderQuality,
     pub resolution: Option<(u32, u32)>,
     pub fps: Option<f64>,
@@ -254,6 +304,17 @@ pub struct RenderingRequest {
     pub audio_settings: Option<AudioRenderSettings>,
     pub export_range: Option<ExportRange>,
     pub metadata: Option<RenderMetadata>,
+    // Convenience flat fields used by the export dialog
+    #[serde(default)]
+    pub video_codec: Option<String>,
+    #[serde(default)]
+    pub audio_codec: Option<String>,
+    #[serde(default)]
+    pub video_bitrate: Option<u32>,
+    #[serde(default)]
+    pub audio_bitrate: Option<serde_json::Value>,
+    #[serde(default)]
+    pub hardware_acceleration: Option<bool>,
 }
 
 
@@ -466,18 +527,75 @@ pub struct RenderingQueue {
 }
 
 
+/// Parse a bitrate that may be a number or a string like "192K"/"5M"
+fn parse_bitrate_value(value: &serde_json::Value) -> Option<u32> {
+    match value {
+        serde_json::Value::Number(n) => n.as_u64().map(|v| v as u32),
+        serde_json::Value::String(s) => {
+            let s = s.trim();
+            let (digits, mult) = match s.chars().last() {
+                Some('k') | Some('K') => (&s[..s.len() - 1], 1_000u64),
+                Some('m') | Some('M') => (&s[..s.len() - 1], 1_000_000u64),
+                _ => (s, 1u64),
+            };
+            digits.parse::<u64>().ok().map(|v| (v * mult) as u32)
+        },
+        _ => None,
+    }
+}
+
+fn parse_video_codec(codec: &str) -> VideoFormat {
+    match codec.to_lowercase().as_str() {
+        "h265" | "hevc" | "x265" => VideoFormat::H265,
+        "vp8" => VideoFormat::Vp8,
+        "vp9" => VideoFormat::Vp9,
+        "av1" => VideoFormat::Av1,
+        "prores" => VideoFormat::ProRes,
+        "dnxhd" => VideoFormat::Dnxhd,
+        "mjpeg" => VideoFormat::Mjpeg,
+        "mpeg2" => VideoFormat::Mpeg2,
+        "mpeg4" => VideoFormat::Mpeg4,
+        "theora" => VideoFormat::Theora,
+        "raw" => VideoFormat::Raw,
+        _ => VideoFormat::H264,
+    }
+}
+
+fn parse_audio_codec(codec: &str) -> AudioFormat {
+    match codec.to_lowercase().as_str() {
+        "mp3" => AudioFormat::Mp3,
+        "opus" => AudioFormat::Opus,
+        "vorbis" => AudioFormat::Vorbis,
+        "flac" => AudioFormat::Flac,
+        "pcm" | "wav" => AudioFormat::Pcm,
+        "ac3" => AudioFormat::Ac3,
+        "eac3" => AudioFormat::Eac3,
+        "wma" => AudioFormat::Wma,
+        _ => AudioFormat::Aac,
+    }
+}
+
+/// Derive a job name from the output path when none is provided
+fn job_name_from_path(output_path: &str) -> String {
+    std::path::Path::new(output_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "Render Job".to_string())
+}
+
 #[tauri::command]
 pub async fn rendering_start_job(
     request: RenderingRequest,
     state: State<'_, AppState>,
 ) -> Result<RenderingJob, String> {
-    debug!("{}", request.name);
+    debug!("{:?}", request.name);
+
+    let job_name = request.name.clone()
+        .filter(|n| !n.is_empty())
+        .unwrap_or_else(|| job_name_from_path(&request.output_path));
 
     // Validate inputs
-    if request.name.is_empty() {
-        return Err("Render job name cannot be empty".to_string());
-    }
-
     if request.output_path.is_empty() {
         return Err("Output path cannot be empty".to_string());
     }
@@ -498,21 +616,27 @@ pub async fn rendering_start_job(
     let job_id = format!("{}", uuid::Uuid::new_v4());
     let now = chrono::Utc::now().to_rfc3339();
 
+    let video_bitrate = request.video_settings.as_ref().map(|v| v.bitrate)
+        .or(request.video_bitrate)
+        .unwrap_or(5_000_000);
+    let audio_bitrate = request.audio_bitrate.as_ref().and_then(parse_bitrate_value)
+        .unwrap_or(192_000);
+
     // Create export options for the rendering engine
     let export_options = ExportOptions {
         input_path: std::path::PathBuf::from("/timeline/current"), // Input path derived from active timeline
         output_path: std::path::PathBuf::from(&request.output_path),
         container_format: convert_render_format(&request.format),
-        video_format: VideoFormat::H264, // Convert from request.video_settings
-        audio_format: AudioFormat::Aac,   // Convert from request.audio_settings
-        video_bitrate: request.video_settings.as_ref().map(|v| v.bitrate).unwrap_or(5000000),
-        audio_bitrate: 128000, // Default audio bitrate
+        video_format: request.video_codec.as_deref().map(parse_video_codec).unwrap_or(VideoFormat::H264),
+        audio_format: request.audio_codec.as_deref().map(parse_audio_codec).unwrap_or(AudioFormat::Aac),
+        video_bitrate,
+        audio_bitrate,
         frame_rate: request.fps.unwrap_or(30.0),
         width: request.resolution.unwrap_or((1920, 1080)).0,
         height: request.resolution.unwrap_or((1920, 1080)).1,
         encoder_preset: convert_render_quality(&request.quality),
         crf: 23, // Default CRF
-        hardware_acceleration: false,
+        hardware_acceleration: request.hardware_acceleration.unwrap_or(false),
         threads: 0, // Auto-detect
     };
 
@@ -562,7 +686,7 @@ pub async fn rendering_start_job(
     let active_job = ActiveRenderingJob {
         job: RenderingJob {
             id: job_id.clone(),
-            name: request.name.clone(),
+            name: job_name.clone(),
             status: RenderingStatus::Preparing,
             progress: 0.0,
             current_frame: 0,
@@ -586,13 +710,13 @@ pub async fn rendering_start_job(
     // Add to active jobs
     rendering_state.active_jobs.insert(job_id.clone(), active_job);
 
-    info!("Started job: {} ({})", request.name, job_id);
+    info!("Started job: {} ({})", job_name, job_id);
 
     if let Ok(plugin_registry) = state.plugin_registry.lock() {
         use crate::commands::plugin::PluginHook;
         plugin_registry.invoke_hook(
             PluginHook::OnRenderStart,
-            &serde_json::json!({"job_id": job_id, "name": request.name, "output_path": request.output_path})
+            &serde_json::json!({"job_id": job_id, "name": job_name, "output_path": request.output_path})
         );
     }
 
@@ -1505,21 +1629,25 @@ pub async fn rendering_start_batch_job(
     for request in requests {
         let job_id = format!("render_{}", uuid::Uuid::new_v4());
         let now = chrono::Utc::now().to_rfc3339();
+        let job_name = request.name.clone()
+            .filter(|n| !n.is_empty())
+            .unwrap_or_else(|| job_name_from_path(&request.output_path));
 
         let export_options = ExportOptions {
             input_path: std::path::PathBuf::from("/timeline/current"),
             output_path: std::path::PathBuf::from(&request.output_path),
             container_format: convert_render_format(&request.format),
-            video_format: VideoFormat::H264,
-            audio_format: AudioFormat::Aac,
-            video_bitrate: request.video_settings.as_ref().map(|v| v.bitrate).unwrap_or(5000000),
-            audio_bitrate: 128000,
+            video_format: request.video_codec.as_deref().map(parse_video_codec).unwrap_or(VideoFormat::H264),
+            audio_format: request.audio_codec.as_deref().map(parse_audio_codec).unwrap_or(AudioFormat::Aac),
+            video_bitrate: request.video_settings.as_ref().map(|v| v.bitrate)
+                .or(request.video_bitrate).unwrap_or(5000000),
+            audio_bitrate: request.audio_bitrate.as_ref().and_then(parse_bitrate_value).unwrap_or(192_000),
             frame_rate: request.fps.unwrap_or(30.0),
             width: request.resolution.unwrap_or((1920, 1080)).0,
             height: request.resolution.unwrap_or((1920, 1080)).1,
             encoder_preset: convert_render_quality(&request.quality),
             crf: 23,
-            hardware_acceleration: false,
+            hardware_acceleration: request.hardware_acceleration.unwrap_or(false),
             threads: 0,
         };
 
@@ -1542,7 +1670,7 @@ pub async fn rendering_start_batch_job(
         let _active_job = ActiveRenderingJob {
             job: RenderingJob {
                 id: job_id.clone(),
-                name: request.name.clone(),
+                name: job_name.clone(),
                 status: RenderingStatus::Pending,
                 progress: 0.0,
                 current_frame: 0,
@@ -1565,7 +1693,7 @@ pub async fn rendering_start_batch_job(
 
         let queued_job = QueuedJob {
             id: job_id.clone(),
-            name: request.name.clone(),
+            name: job_name.clone(),
             output_path: request.output_path.clone(),
             format: request.format.clone(),
             quality: request.quality.clone(),
@@ -1613,28 +1741,99 @@ pub async fn rendering_detect_scenes(
 
     let scene_threshold = threshold.unwrap_or(0.3);
 
-    // Placeholder: scene detection would use FFmpeg/GStreamer scene detection
-    // For now, return mock scene boundaries
-    let scenes = vec![
-        serde_json::json!({
-            "start_time": 0.0,
-            "end_time": 10.0,
-            "frame_number": 0,
-            "score": 0.95
-        }),
-        serde_json::json!({
-            "start_time": 10.0,
-            "end_time": 25.0,
-            "frame_number": 300,
-            "score": 0.88
-        }),
-        serde_json::json!({
-            "start_time": 25.0,
-            "end_time": 45.0,
-            "frame_number": 750,
-            "score": 0.92
-        }),
-    ];
+    use aether_core::engine::video_decoder::{
+        VideoDecoder, VideoDecoderConfig, VideoFormat as DecoderVideoFormat, VideoFrame,
+    };
+
+    let mut decoder_config = VideoDecoderConfig::default();
+    decoder_config.output_format = DecoderVideoFormat::RGBA32;
+    let mut decoder = VideoDecoder::new(decoder_config);
+
+    let (duration, fps) = {
+        let media_info = decoder.open(&path)
+            .map_err(|e| format!("Failed to open video: {}", e))?;
+        let fps = media_info.video_streams.first()
+            .map(|s| s.frame_rate)
+            .filter(|f| *f > 0.0)
+            .unwrap_or(30.0);
+        (media_info.duration, fps)
+    };
+
+    if duration <= 0.0 {
+        return Err("Unable to determine video duration for scene detection".to_string());
+    }
+
+    // Sample frames at regular intervals, cap total samples for performance
+    let max_samples = 600usize;
+    let interval = (duration / max_samples as f64).max(0.5);
+
+    let extract_luminance = |frame: &VideoFrame| -> Vec<u8> {
+        let bpp = frame.format.bytes_per_pixel();
+        let stride = frame.stride as usize;
+        let mut lums = Vec::new();
+        for y in (0..frame.height as usize).step_by(8) {
+            let row = y * stride;
+            for x in (0..frame.width as usize).step_by(16) {
+                let idx = row + x * bpp;
+                if idx + 2 < frame.buffer.len() {
+                    let r = frame.buffer[idx] as u32;
+                    let g = frame.buffer[idx + 1] as u32;
+                    let b = frame.buffer[idx + 2] as u32;
+                    lums.push(((r * 299 + g * 587 + b * 114) / 1000) as u8);
+                }
+            }
+        }
+        lums
+    };
+
+    // Detect boundaries where mean luminance difference exceeds the threshold
+    let mut boundaries: Vec<(f64, f64)> = Vec::new();
+    let mut prev_lums: Option<Vec<u8>> = None;
+    let mut t = 0.0;
+    while t < duration {
+        if decoder.seek(t).is_err() {
+            break;
+        }
+        match decoder.decode_video_frame() {
+            Ok(frame) => {
+                let lums = extract_luminance(&frame);
+                if let Some(prev) = &prev_lums {
+                    let n = lums.len().min(prev.len());
+                    if n > 0 {
+                        let mean_diff = lums[..n].iter().zip(&prev[..n])
+                            .map(|(a, b)| (*a as i32 - *b as i32).unsigned_abs() as f64)
+                            .sum::<f64>() / n as f64;
+                        let score = mean_diff / 255.0;
+                        if score >= scene_threshold {
+                            boundaries.push((t, score.min(1.0)));
+                        }
+                    }
+                }
+                prev_lums = Some(lums);
+            },
+            Err(_) => {},
+        }
+        t += interval;
+    }
+
+    // Build scene list from detected boundaries
+    let mut scenes = Vec::new();
+    let mut scene_start = 0.0;
+    for (boundary_time, score) in &boundaries {
+        scenes.push(serde_json::json!({
+            "start_time": scene_start,
+            "end_time": boundary_time,
+            "frame_number": (scene_start * fps) as u64,
+            "score": score
+        }));
+        scene_start = *boundary_time;
+    }
+    scenes.push(serde_json::json!({
+        "start_time": scene_start,
+        "end_time": duration,
+        "frame_number": (scene_start * fps) as u64,
+        "score": 1.0
+    }));
 
     info!("Detected {} scenes in {}", scenes.len(), video_path);
     Ok(RenderingResponse {
@@ -1877,7 +2076,7 @@ mod tests {
     fn test_rendering_request_validation() {
 
         let request = RenderingRequest {
-            name: "".to_string(),
+            name: Some("".to_string()),
             output_path: "/exports/video.mp4".to_string(),
             format: RenderFormat::Mp4,
             quality: RenderQuality::Medium,
@@ -1889,8 +2088,13 @@ mod tests {
             audio_settings: None,
             export_range: None,
             metadata: None,
+            video_codec: None,
+            audio_codec: None,
+            video_bitrate: None,
+            audio_bitrate: None,
+            hardware_acceleration: None,
         };
-        assert!(request.name.is_empty());
+        assert!(request.name.as_deref().unwrap_or("").is_empty());
     }
 
     #[test]

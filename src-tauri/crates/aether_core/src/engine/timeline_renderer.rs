@@ -215,10 +215,10 @@ impl TimelineRenderer {
             return Err(TimelineRendererError::ResourceError("Timeline renderer not initialized".to_string()));
         }
 
-        // TODO: fix frame_cache borrow checker issue
-        // if let Some(frame) = self.frame_cache.get(&Timestamp::from(time)) {
-        //     return Ok(frame);
-        // }
+        let timestamp = Timestamp::from(time);
+        if self.frame_cache.contains_key(&timestamp) {
+            return Ok(self.frame_cache.get(&timestamp).unwrap());
+        }
 
         let timeline = self.timeline.lock().unwrap();
         let active_clips = timeline.active_clips();
@@ -240,11 +240,15 @@ impl TimelineRenderer {
                         // Seek to the correct time in the clip
                         clip_renderer.seek_to_time(time, clip.start_time)?;
 
-                        // Decode a frame
-                        let _video_frame = clip_renderer.decode_frame()?;
+                        // Decode a frame (owned clone so the renderer borrow is released)
+                        let video_frame = clip_renderer.decode_frame()?.clone();
 
-                        // TODO: Implement frame compositing
-                        // self.composite_frame(&mut frame_data, video_frame)?;
+                        Self::composite_frame(
+                            &mut frame_data,
+                            &video_frame,
+                            self.config.width,
+                            self.config.height,
+                        )?;
                     }
                 }
             }
@@ -253,9 +257,72 @@ impl TimelineRenderer {
         // Render the final frame
         let frame = self.renderer.render(&frame_data, time)?;
 
-        // We can't actually add to cache here because frame is borrowed from renderer
+        // Cache a copy of the rendered frame and return the cached reference
+        if self.frame_cache.len() >= self.config.cache_size {
+            self.frame_cache.clear();
+        }
+        self.frame_cache.insert(timestamp, Frame {
+            data: frame.data.clone(),
+            width: frame.width,
+            height: frame.height,
+            timestamp: frame.timestamp,
+        });
 
-        Ok(frame)
+        Ok(self.frame_cache.get(&timestamp).unwrap())
+    }
+
+    /// Composite a decoded RGBA video frame onto the output buffer.
+    /// Scales with nearest-neighbor sampling when dimensions differ.
+    fn composite_frame(
+        frame_data: &mut [u8],
+        video_frame: &VideoFrame,
+        out_width: u32,
+        out_height: u32,
+    ) -> Result<(), TimelineRendererError> {
+        if video_frame.format != VideoFormat::RGBA32 {
+            return Err(TimelineRendererError::CompositionError(format!(
+                "Unsupported frame format for compositing: {:?}",
+                video_frame.format
+            )));
+        }
+
+        let bpp = video_frame.format.bytes_per_pixel();
+        let src_stride = video_frame.stride as usize;
+
+        if video_frame.width == out_width && video_frame.height == out_height {
+            // Fast path: same size, row-by-row copy
+            let row_bytes = (out_width as usize) * bpp;
+            for y in 0..out_height as usize {
+                let src_start = y * src_stride;
+                let dst_start = y * row_bytes;
+                let src_end = (src_start + row_bytes).min(video_frame.buffer.len());
+                let dst_end = (dst_start + row_bytes).min(frame_data.len());
+                let len = src_end.saturating_sub(src_start).min(dst_end - dst_start);
+                if len > 0 {
+                    frame_data[dst_start..dst_start + len]
+                        .copy_from_slice(&video_frame.buffer[src_start..src_start + len]);
+                }
+            }
+            return Ok(());
+        }
+
+        // Scaled path: nearest-neighbor stretch to output dimensions
+        for y in 0..out_height as usize {
+            let src_y = (y * video_frame.height as usize) / out_height as usize;
+            for x in 0..out_width as usize {
+                let src_x = (x * video_frame.width as usize) / out_width as usize;
+                let src_idx = src_y * src_stride + src_x * bpp;
+                let dst_idx = (y * out_width as usize + x) * bpp;
+                if src_idx + bpp <= video_frame.buffer.len()
+                    && dst_idx + bpp <= frame_data.len()
+                {
+                    frame_data[dst_idx..dst_idx + bpp]
+                        .copy_from_slice(&video_frame.buffer[src_idx..src_idx + bpp]);
+                }
+            }
+        }
+
+        Ok(())
     }
 
     pub fn update_timeline(&mut self, timeline: Arc<Mutex<Timeline>>) -> Result<(), TimelineRendererError> {

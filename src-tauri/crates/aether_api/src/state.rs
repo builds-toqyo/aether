@@ -10,6 +10,7 @@ use crate::commands::plugin::PluginRegistry;
 use crate::engine_proxy::EditingEngineProxy;
 use crate::project_registry::ProjectRegistry;
 use aether_core::modules::color_grading::ColorGradingEngine;
+use aether_core::modules::file_manager::FileManager;
 
 pub struct AppState {
     pub graph: Mutex<Graph>,
@@ -23,6 +24,7 @@ pub struct AppState {
     pub plugin_registry: Mutex<PluginRegistry>,
     pub active_exports: Mutex<HashMap<String, ExportJob>>,
     pub color_grading_engine: Mutex<ColorGradingEngine>,
+    pub file_manager: Mutex<FileManager>,
 }
 
 impl AppState {
@@ -42,6 +44,7 @@ impl AppState {
             plugin_registry: Mutex::new(PluginRegistry::new()),
             active_exports: Mutex::new(HashMap::new()),
             color_grading_engine: Mutex::new(ColorGradingEngine::new().expect("Failed to initialize color grading engine")),
+            file_manager: Mutex::new(FileManager::new().expect("Failed to initialize file manager")),
         }
     }
 

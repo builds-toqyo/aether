@@ -149,14 +149,14 @@ pub struct LoadPluginRequest {
 
 #[tauri::command]
 pub async fn plugin_load(
-    request: LoadPluginRequest,
+    path: String,
     state: State<'_, AppState>,
 ) -> Result<PluginResponse, String> {
-    debug!("Loading plugin from: {}", request.path);
+    debug!("Loading plugin from: {}", path);
 
-    let path = PathBuf::from(&request.path);
+    let path = PathBuf::from(&path);
     if !path.exists() {
-        return Err(format!("Plugin file not found: {}", request.path));
+        return Err(format!("Plugin file not found: {}", path.display()));
     }
 
     // For MVP: simulate loading by reading a companion .json manifest
@@ -173,7 +173,7 @@ pub async fn plugin_load(
             version: manifest.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string(),
             author: manifest.get("author").and_then(|v| v.as_str()).unwrap_or("").to_string(),
             description: manifest.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            path: request.path.clone(),
+            path: path.to_string_lossy().to_string(),
             loaded: true,
             hooks: manifest.get("hooks")
                 .and_then(|v| v.as_array())
@@ -206,8 +206,8 @@ pub async fn plugin_load(
             name: name.clone(),
             version: "0.0.0".to_string(),
             author: "".to_string(),
-            description: format!("Plugin loaded from {}", request.path),
-            path: request.path.clone(),
+            description: format!("Plugin loaded from {}", path.display()),
+            path: path.to_string_lossy().to_string(),
             loaded: true,
             hooks: Vec::new(),
             installed_version: Some("0.0.0".to_string()),
@@ -225,7 +225,7 @@ pub async fn plugin_load(
     }
 
     registry.register(info.clone());
-    info!("Loaded plugin '{}' v{} from {}", info.name, info.version, request.path);
+    info!("Loaded plugin '{}' v{} from {}", info.name, info.version, path.display());
 
     Ok(PluginResponse {
         success: true,
@@ -367,12 +367,12 @@ pub struct FetchRepositoryRequest {
 
 #[tauri::command]
 pub async fn plugin_fetch_repository(
-    request: FetchRepositoryRequest,
+    url: String,
 ) -> Result<PluginRepositoryResponse, String> {
-    debug!("Fetching plugin repository from: {}", request.url);
+    debug!("Fetching plugin repository from: {}", url);
 
     let client = Client::new();
-    let response = client.get(&request.url)
+    let response = client.get(&url)
         .send()
         .await
         .map_err(|e| format!("Failed to fetch repository: {}", e))?;
@@ -498,14 +498,16 @@ pub struct InstallPluginRequest {
 
 #[tauri::command]
 pub async fn plugin_install_from_repository(
-    request: InstallPluginRequest,
+    plugin_id: String,
+    repository_url: String,
+    install_path: String,
     state: State<'_, AppState>,
 ) -> Result<PluginInstallResponse, String> {
-    debug!("Installing plugin '{}' from repository", request.plugin_id);
+    debug!("Installing plugin '{}' from repository", plugin_id);
 
     // Fetch repository
     let client = Client::new();
-    let response = client.get(&request.repository_url)
+    let response = client.get(&repository_url)
         .send()
         .await
         .map_err(|e| format!("Failed to fetch repository: {}", e))?;
@@ -520,8 +522,8 @@ pub async fn plugin_install_from_repository(
 
     // Find plugin in repository
     let remote_plugin = repository.plugins.iter()
-        .find(|p| p.id == request.plugin_id)
-        .ok_or_else(|| format!("Plugin '{}' not found in repository", request.plugin_id))?;
+        .find(|p| p.id == plugin_id)
+        .ok_or_else(|| format!("Plugin '{}' not found in repository", plugin_id))?;
 
     // Download plugin
     let download_response = client.get(&remote_plugin.download_url)
@@ -548,13 +550,13 @@ pub async fn plugin_install_from_repository(
     }
 
     // Create install directory if needed
-    let install_path = PathBuf::from(&request.install_path);
-    fs::create_dir_all(&install_path)
+    let install_path_buf = PathBuf::from(&install_path);
+    fs::create_dir_all(&install_path_buf)
         .map_err(|e| format!("Failed to create install directory: {}", e))?;
 
     // Write plugin file
     let plugin_filename = format!("{}.{}", remote_plugin.id, std::env::consts::DLL_EXTENSION);
-    let plugin_path = install_path.join(&plugin_filename);
+    let plugin_path = install_path_buf.join(&plugin_filename);
     fs::write(&plugin_path, plugin_bytes)
         .map_err(|e| format!("Failed to write plugin file: {}", e))?;
 
@@ -572,16 +574,12 @@ pub async fn plugin_install_from_repository(
         "tags": remote_plugin.tags,
     });
 
-    let manifest_path = install_path.join(format!("{}.json", remote_plugin.id));
+    let manifest_path = install_path_buf.join(format!("{}.json", remote_plugin.id));
     fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap())
         .map_err(|e| format!("Failed to write manifest: {}", e))?;
 
     // Load the plugin
-    let load_request = LoadPluginRequest {
-        path: plugin_path.to_string_lossy().to_string(),
-    };
-
-    let load_response = plugin_load(load_request, state).await?;
+    let load_response = plugin_load(plugin_path.to_string_lossy().to_string(), state).await?;
 
     info!("Successfully installed plugin '{}' v{}", remote_plugin.name, remote_plugin.version);
 
@@ -606,8 +604,13 @@ pub async fn plugin_check_updates(
 ) -> Result<PluginUpdateResponse, String> {
     debug!("Checking for plugin updates from: {}", repository_url);
 
-    let registry = state.plugin_registry.lock()
-        .map_err(|e| format!("Failed to lock plugin registry: {}", e))?;
+    let local_versions: Vec<(String, String)> = {
+        let registry = state.plugin_registry.lock()
+            .map_err(|e| format!("Failed to lock plugin registry: {}", e))?;
+        registry.plugins.iter()
+            .map(|(id, p)| (id.clone(), p.version.clone()))
+            .collect()
+    };
 
     // Fetch repository
     let client = Client::new();
@@ -626,12 +629,12 @@ pub async fn plugin_check_updates(
 
     let mut updated_plugins = Vec::new();
 
-    for (plugin_id, local_plugin) in registry.plugins.iter() {
+    for (plugin_id, local_version) in &local_versions {
         if let Some(remote_plugin) = repository.plugins.iter().find(|p| p.id == *plugin_id) {
             // Compare versions (simple string comparison for now)
-            if local_plugin.version != remote_plugin.version {
+            if *local_version != remote_plugin.version {
                 updated_plugins.push(plugin_id.clone());
-                info!("Update available for '{}': {} -> {}", plugin_id, local_plugin.version, remote_plugin.version);
+                info!("Update available for '{}': {} -> {}", plugin_id, local_version, remote_plugin.version);
             }
         }
     }
@@ -658,11 +661,5 @@ pub async fn plugin_update_plugin(
     let _ = plugin_unload(plugin_id.clone(), state.clone()).await;
 
     // Install new version
-    let install_request = InstallPluginRequest {
-        plugin_id: plugin_id.clone(),
-        repository_url,
-        install_path,
-    };
-
-    plugin_install_from_repository(install_request, state).await
+    plugin_install_from_repository(plugin_id, repository_url, install_path, state).await
 }

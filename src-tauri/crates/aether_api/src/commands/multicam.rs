@@ -111,13 +111,14 @@ pub struct CreateMulticamRequest {
 
 #[tauri::command]
 pub async fn multicam_create(
-    request: CreateMulticamRequest,
+    name: String,
+    angle_media_ids: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<MulticamResponse, String> {
-    debug!("Creating multicam clip: {}", request.name);
+    debug!("Creating multicam clip: {}", name);
 
-    let mut clip = MulticamClip::new(&request.name);
-    for (i, media_id) in request.angle_media_ids.iter().enumerate() {
+    let mut clip = MulticamClip::new(&name);
+    for (i, media_id) in angle_media_ids.iter().enumerate() {
         let angle = CameraAngle::new(format!("Camera {}", i + 1), media_id.clone());
         clip.add_angle(angle);
     }
@@ -127,7 +128,7 @@ pub async fn multicam_create(
         .map_err(|e| format!("Failed to lock multicam registry: {}", e))?;
     registry.clips.insert(clip_id.clone(), clip.clone());
 
-    info!("Created multicam clip '{}' with {} angles", request.name, request.angle_media_ids.len());
+    info!("Created multicam clip '{}' with {} angles", name, angle_media_ids.len());
 
     Ok(MulticamResponse {
         success: true,
@@ -424,7 +425,7 @@ impl AudioWaveform {
             sample_rate
         );
 
-        let pipeline = gst::parse_launch(&pipeline_str)
+        let pipeline = gst::parse::launch(&pipeline_str)
             .map_err(|e| format!("Failed to create pipeline: {}", e))?;
 
         let bus = pipeline.bus().ok_or("Pipeline has no bus")?;
@@ -441,8 +442,8 @@ impl AudioWaveform {
                 gst::MessageView::Element(element) => {
                     if let Some(structure) = element.structure() {
                         if structure.name() == "level" {
-                            if let Ok(rms) = structure.get::<f64>("rms") {
-                                if let Some(rms_value) = rms.first() {
+                            if let Ok(rms) = structure.get::<gst::List>("rms") {
+                                if let Some(rms_value) = rms.as_slice().first().and_then(|v| v.get::<f64>().ok()) {
                                     let amplitude = rms_value.abs();
                                     waveform.samples.push(WaveformSample {
                                         timestamp: current_time,

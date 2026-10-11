@@ -8,11 +8,11 @@ use crate::state::AppState;
 use aether_types::{Node, NodeType};
 
 
-#[tauri::command]
+#[tauri::command(rename_all = "camelCase")]
 pub async fn create_node(
     node_type: String,
     name: String,
-    position: Option<(f64, f64)>,
+    position: Option<serde_json::Value>,
     state: State<'_, AppState>,
 ) -> Result<NodeResponse, String> {
     debug!("{}, {}", node_type, name);
@@ -24,8 +24,21 @@ pub async fn create_node(
     // Create node
     let node = Node::new(node_type_enum, name.clone());
 
+    // Accept position as either {x, y} object or [x, y] tuple
+    let position_tuple = position.as_ref().and_then(|p| match p {
+        serde_json::Value::Object(_) => Some((
+            p.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0),
+            p.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0),
+        )),
+        serde_json::Value::Array(arr) if arr.len() >= 2 => Some((
+            arr[0].as_f64().unwrap_or(0.0),
+            arr[1].as_f64().unwrap_or(0.0),
+        )),
+        _ => None,
+    });
+
     // Set position if provided
-    if let Some((x, y)) = position {
+    if let Some((x, y)) = position_tuple {
         // Store position in node metadata (you might want to add this to Node struct)
         debug!("{}, {}", x, y);
     }
@@ -41,14 +54,14 @@ pub async fn create_node(
         id: node_id,
         node_type,
         name,
-        position,
+        position: position_tuple,
         success: true,
         message: "Node created successfully".to_string(),
     })
 }
 
 /// Command to delete a node from the graph
-#[tauri::command]
+#[tauri::command(rename_all = "camelCase")]
 pub async fn delete_node(
     node_id: String,
     state: State<'_, AppState>,

@@ -83,7 +83,7 @@ const previewAPI: PreviewAPI = {
 
 const editingAPI: EditingAPI = {
   init_project: async (request: any) => {
-    return await invoke('project_init', request);
+    return await invoke('project_init', { request });
   },
 
   save_project: async (request: any) => {
@@ -101,7 +101,7 @@ const editingAPI: EditingAPI = {
 
 const renderingAPI: RenderingAPI = {
   start_job: async (request: any) => {
-    return await invoke('rendering_start_job', request);
+    return await invoke('rendering_start_job', { request });
   },
 
   cancel_job: async (jobId: string) => {

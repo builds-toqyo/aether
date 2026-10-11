@@ -6,6 +6,7 @@ use tauri::Manager;
 fn main() {
     src_tauri::init_app()
         .plugin(tauri_plugin_log::Builder::default().build())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             #[cfg(debug_assertions)]
             {

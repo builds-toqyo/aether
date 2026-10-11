@@ -463,13 +463,143 @@ impl BatchProcessor {
 
 
     fn process_convert(
-        _file_manager: &FileManager,
-        _operation: &BatchOperation,
-        _id: u64,
-        _results: &Arc<Mutex<Vec<(u64, BatchResult<Vec<PathBuf>>)>>>
+        file_manager: &FileManager,
+        operation: &BatchOperation,
+        id: u64,
+        results: &Arc<Mutex<Vec<(u64, BatchResult<Vec<PathBuf>>)>>>
     ) -> Result<Vec<PathBuf>> {
+        use super::file_manager::MediaType;
+        use super::file_manager_convert::{
+            AudioConversionOptions, ConversionFormat, MediaConverter, VideoConversionOptions,
+        };
+
+        let (format_str, quality, preserve_aspect_ratio, width, height) = match &operation.options {
+            BatchOperationOptions::Convert { format, quality, preserve_aspect_ratio, width, height } => {
+                (format.clone(), *quality, *preserve_aspect_ratio, *width, *height)
+            },
+            _ => return Err(anyhow!("Convert operation requires Convert options")),
+        };
+
+        let target_format = ConversionFormat::from_extension(format_str.trim_start_matches('.'))
+            .ok_or_else(|| anyhow!("Unsupported target format: {}", format_str))?;
+
+        let output_dir = operation.output_dir.clone()
+            .ok_or_else(|| anyhow!("Output directory required for conversion"))?;
+        std::fs::create_dir_all(&output_dir)?;
+
+        let converter = MediaConverter::new()?;
+        let mut output_paths = Vec::new();
+        let total_files = operation.inputs.len().max(1);
+
+        for (i, path) in operation.inputs.iter().enumerate() {
+
+            {
+                let results_lock = results.lock().unwrap();
+                for (op_id, result) in results_lock.iter() {
+                    if *op_id == id && result.status == BatchStatus::Cancelled {
+                        return Err(anyhow!("Operation cancelled"));
+                    }
+                }
+            }
 
 
-        Err(anyhow!("Media conversion not implemented yet"))
+            {
+                let mut results_lock = results.lock().unwrap();
+                for (op_id, result) in results_lock.iter_mut() {
+                    if *op_id == id {
+                        result.progress = ((i as f32 / total_files as f32) * 100.0) as u8;
+                        break;
+                    }
+                }
+            }
+
+            if !path.is_file() {
+                continue;
+            }
+
+            let media_info = file_manager.get_media_info(path)?;
+            let file_stem = path.file_stem().unwrap_or_default().to_string_lossy();
+            let output_path = output_dir.join(format!("{}{}", file_stem, target_format.extension()));
+
+            match media_info.media_type {
+                MediaType::Video => {
+                    let options = VideoConversionOptions {
+                        format: target_format,
+                        width,
+                        height,
+                        preserve_aspect_ratio,
+                        ..Default::default()
+                    };
+                    converter.convert_video(path, &output_path, options, |_| {})?;
+                },
+                MediaType::Audio => {
+                    let options = AudioConversionOptions {
+                        format: target_format,
+                        ..Default::default()
+                    };
+                    converter.convert_audio(path, &output_path, options, |_| {})?;
+                },
+                MediaType::Image => {
+                    Self::convert_image(path, &output_path, target_format, quality, width, height, preserve_aspect_ratio)?;
+                },
+                MediaType::Unknown => {
+                    return Err(anyhow!("Cannot determine media type for: {:?}", path));
+                },
+            }
+
+            output_paths.push(output_path);
+        }
+
+        Ok(output_paths)
+    }
+
+
+    fn convert_image(
+        input_path: &std::path::Path,
+        output_path: &std::path::Path,
+        format: super::file_manager_convert::ConversionFormat,
+        quality: u8,
+        width: Option<u32>,
+        height: Option<u32>,
+        preserve_aspect_ratio: bool,
+    ) -> Result<()> {
+        use super::file_manager_convert::ConversionFormat;
+
+        let img = image::open(input_path)?;
+
+        let img = if width.is_some() || height.is_some() {
+            let (src_w, src_h) = (img.width(), img.height());
+            let (target_w, target_h) = if preserve_aspect_ratio {
+                let w = width.unwrap_or(src_w);
+                let h = height.unwrap_or(src_h);
+                let scale = (w as f32 / src_w as f32).min(h as f32 / src_h as f32);
+                (
+                    (src_w as f32 * scale).round().max(1.0) as u32,
+                    (src_h as f32 * scale).round().max(1.0) as u32,
+                )
+            } else {
+                (width.unwrap_or(src_w), height.unwrap_or(src_h))
+            };
+            img.resize_exact(target_w, target_h, image::imageops::FilterType::Lanczos3)
+        } else {
+            img
+        };
+
+        if let Some(parent) = output_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        match format {
+            ConversionFormat::JPEG => {
+                let mut file = std::fs::File::create(output_path)?;
+                let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut file, quality);
+                encoder.encode_image(&img)?;
+            },
+            _ => {
+                img.save(output_path)?;
+            },
+        }
+
+        Ok(())
     }
 }

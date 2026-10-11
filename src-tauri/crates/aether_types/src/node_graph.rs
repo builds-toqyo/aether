@@ -49,7 +49,7 @@ pub struct Parameter {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ParameterValue {
     None,
     Image(Uuid),

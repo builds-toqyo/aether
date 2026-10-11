@@ -35,6 +35,7 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             timeline_sync_to_ges,
             timeline_create_track,
             timeline_delete_track,
+            timeline_bind_node_to_effect,
 
             get_preview_info,
             preview_playback_control,
@@ -108,5 +109,11 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             plugin_install_from_repository,
             plugin_check_updates,
             plugin_update_plugin,
+
+            color_analyze_histogram,
+            color_analyze_vectorscope,
+            color_analyze_waveform,
+
+            send_real_time_event,
         ])
 }

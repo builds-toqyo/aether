@@ -7,14 +7,19 @@ use crate::state::AppState;
 use aether_types::{Connection, PinDataType};
 
 
-#[tauri::command]
+#[tauri::command(rename_all = "camelCase")]
 pub async fn connect_nodes(
-    output_node_id: String,
-    output_pin_name: String,
-    input_node_id: String,
-    input_pin_name: String,
+    source_node_id: String,
+    source_port_id: String,
+    target_node_id: String,
+    target_port_id: String,
     state: State<'_, AppState>,
 ) -> Result<ConnectionResponse, String> {
+    let output_node_id = source_node_id;
+    let output_pin_name = source_port_id;
+    let input_node_id = target_node_id;
+    let input_pin_name = target_port_id;
+
     debug!("Connecting {}.{} -> {}.{}",
         output_node_id, output_pin_name, input_node_id, input_pin_name);
 
@@ -88,7 +93,7 @@ pub async fn connect_nodes(
 }
 
 /// Command to disconnect nodes
-#[tauri::command]
+#[tauri::command(rename_all = "camelCase")]
 pub async fn disconnect_nodes(
     connection_id: String,
     state: State<'_, AppState>,

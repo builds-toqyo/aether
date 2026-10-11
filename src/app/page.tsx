@@ -134,7 +134,7 @@ export default function Home() {
           return;
         }
         try {
-          await invoke('timeline_split_clip', { request: { clip_id: selectedTimelineClipIds[0] } });
+          await invoke('timeline_split_clip', { clip_id: selectedTimelineClipIds[0] });
           toast('Clip split', 'success');
         } catch (err) {
           toast(`Split failed: ${err}`, 'error');
@@ -325,7 +325,7 @@ export default function Home() {
                   return;
                 }
                 try {
-                  await invoke("timeline_split_clip", { request: { clip_id: selectedTimelineClipIds[0] } });
+                  await invoke("timeline_split_clip", { clip_id: selectedTimelineClipIds[0] });
                   toast("Clip split successfully", "success");
                 } catch (e) {
                   toast(`Split failed: ${e}`, "error");
