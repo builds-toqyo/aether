@@ -102,6 +102,9 @@ export interface PluginInfo {
   path: string;
   loaded: boolean;
   hooks: string[];
+  installed_version?: string;
+  latest_version?: string;
+  update_available?: boolean;
 }
 
 // Store State
