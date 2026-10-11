@@ -84,7 +84,9 @@ pub(super) fn apply_post_processing_gpu(
         .map_err(|_| RendererError::RenderError("GPU map channel closed".to_string()))?
         .map_err(|e| RendererError::RenderError(format!("GPU map failed: {}", e)))?;
 
-    let data = slice.get_mapped_range();
+    let data = slice
+        .get_mapped_range()
+        .map_err(|e| RendererError::RenderError(format!("GPU map range failed: {}", e)))?;
     frame_data.copy_from_slice(&data);
     drop(data);
     staging_buffer.unmap();
