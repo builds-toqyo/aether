@@ -106,14 +106,7 @@ jobs:
         apt-get update
         apt-get install -y \
           git curl ca-certificates build-essential pkg-config \
-          libavcodec-dev \
-          libavformat-dev \
-          libavutil-dev \
-          libswscale-dev \
-          libswresample-dev \
-          libavfilter-dev \
-          libavdevice-dev \
-          libpostproc-dev \
+          nasm \
           libgstreamer1.0-dev \
           libgstreamer-plugins-base1.0-dev \
           libges-1.0-dev \
@@ -154,10 +147,9 @@ jobs:
 
     - name: Install system dependencies (macOS)
       if: matrix.platform == 'macos'
-      # ffmpeg@8 (keg-only) pinned: ffmpeg-next 8.1.0 doesn't cover FFmpeg 9.x enums
+      # nasm for the vendored ffmpeg build; no system ffmpeg needed
       run: |
-        brew install ffmpeg@8 gstreamer gst-plugins-base gst-plugins-good
-        echo "PKG_CONFIG_PATH=$(brew --prefix ffmpeg@8)/lib/pkgconfig:${PKG_CONFIG_PATH:-}" >> "$GITHUB_ENV"
+        brew install nasm gstreamer gst-plugins-base gst-plugins-good
 
     - name: Install frontend dependencies
       run: npm ci
