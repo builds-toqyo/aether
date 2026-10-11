@@ -64,6 +64,9 @@ jobs:
             libavutil-dev \
             libswscale-dev \
             libswresample-dev \
+            libavfilter-dev \
+            libavdevice-dev \
+            libpostproc-dev \
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
             libges-1.0-dev \
@@ -122,7 +125,7 @@ jobs:
         Section: video
         Priority: optional
         Architecture: ${{ matrix.arch }}
-        Depends: libavcodec61, libavformat61, libavutil59, libswscale8, libswresample5, libgstreamer1.0-0 (>= 1.26.0), libgstreamer-plugins-base1.0-0 (>= 1.26.0), libges-1.0-0 (>= 1.26.0), libwebkit2gtk-4.1-0, libgtk-3-0 (>= 3.24), libssl3
+        Depends: libavcodec61, libavformat61, libavutil59, libswscale8, libswresample5, libavfilter10, libavdevice61, libpostproc58, libgstreamer1.0-0 (>= 1.26.0), libgstreamer-plugins-base1.0-0 (>= 1.26.0), libges-1.0-0 (>= 1.26.0), libwebkit2gtk-4.1-0, libgtk-3-0 (>= 3.24), libssl3
         Maintainer: Aether Team <team@aether.video>
         Description: Professional video editing and compositing
          Aether is a professional video editing and compositing application
