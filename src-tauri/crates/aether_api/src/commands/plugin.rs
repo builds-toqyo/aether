@@ -5,6 +5,7 @@ use std::fs;
 use log::{debug, info, warn};
 use tauri::State;
 use crate::state::AppState;
+use reqwest::Client;
 
 /// Metadata describing a loaded plugin
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,6 +18,51 @@ pub struct PluginInfo {
     pub path: String,
     pub loaded: bool,
     pub hooks: Vec<PluginHook>,
+    pub installed_version: Option<String>,
+    pub latest_version: Option<String>,
+    pub update_available: bool,
+}
+
+/// Plugin metadata from remote repository
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemotePluginInfo {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub author: String,
+    pub description: String,
+    pub download_url: String,
+    pub checksum: String,
+    pub size: u64,
+    pub dependencies: Vec<String>,
+    pub tags: Vec<String>,
+    pub license: String,
+    pub homepage: Option<String>,
+    pub repository: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub downloads: u64,
+    pub rating: f32,
+}
+
+/// Plugin repository index
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginRepository {
+    pub name: String,
+    pub url: String,
+    pub version: String,
+    pub plugins: Vec<RemotePluginInfo>,
+}
+
+/// Search filter for plugin repository
+#[derive(Debug, Clone, Deserialize)]
+pub struct PluginSearchFilter {
+    pub query: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub author: Option<String>,
+    pub min_rating: Option<f32>,
+    pub sort_by: Option<String>, // "name", "downloads", "rating", "updated"
+    pub sort_order: Option<String>, // "asc", "desc"
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -145,6 +191,9 @@ pub async fn plugin_load(
                     })
                     .collect())
                 .unwrap_or_default(),
+            installed_version: Some(manifest.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string()),
+            latest_version: None,
+            update_available: false,
         }
     } else {
         // No manifest: infer from filename
@@ -161,6 +210,9 @@ pub async fn plugin_load(
             path: request.path.clone(),
             loaded: true,
             hooks: Vec::new(),
+            installed_version: Some("0.0.0".to_string()),
+            latest_version: None,
+            update_available: false,
         }
     };
 
@@ -274,6 +326,9 @@ pub async fn plugin_scan_directory(
                                             })
                                             .collect())
                                         .unwrap_or_default(),
+                                    installed_version: Some(manifest.get("version").and_then(|v| v.as_str()).unwrap_or("0.0.0").to_string()),
+                                    latest_version: None,
+                                    update_available: false,
                                 }
                             } else {
                                 continue;
@@ -296,4 +351,318 @@ pub async fn plugin_scan_directory(
 
     info!("Scanned '{}': loaded {} new plugin(s)", directory, loaded.len());
     Ok(loaded)
+}
+
+#[derive(Debug, Serialize)]
+pub struct PluginRepositoryResponse {
+    pub success: bool,
+    pub message: String,
+    pub repository: Option<PluginRepository>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FetchRepositoryRequest {
+    pub url: String,
+}
+
+#[tauri::command]
+pub async fn plugin_fetch_repository(
+    request: FetchRepositoryRequest,
+) -> Result<PluginRepositoryResponse, String> {
+    debug!("Fetching plugin repository from: {}", request.url);
+
+    let client = Client::new();
+    let response = client.get(&request.url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch repository: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Repository request failed with status: {}", response.status()));
+    }
+
+    let repository: PluginRepository = response.json()
+        .await
+        .map_err(|e| format!("Failed to parse repository data: {}", e))?;
+
+    info!("Fetched repository '{}' with {} plugins", repository.name, repository.plugins.len());
+
+    Ok(PluginRepositoryResponse {
+        success: true,
+        message: format!("Fetched repository '{}' with {} plugins", repository.name, repository.plugins.len()),
+        repository: Some(repository),
+    })
+}
+
+#[derive(Debug, Serialize)]
+pub struct PluginSearchResponse {
+    pub success: bool,
+    pub message: String,
+    pub plugins: Vec<RemotePluginInfo>,
+}
+
+#[tauri::command]
+pub async fn plugin_search_repository(
+    repository_url: String,
+    filter: Option<PluginSearchFilter>,
+) -> Result<PluginSearchResponse, String> {
+    debug!("Searching repository: {}", repository_url);
+
+    let client = Client::new();
+    let response = client.get(&repository_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch repository: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Repository request failed with status: {}", response.status()));
+    }
+
+    let repository: PluginRepository = response.json()
+        .await
+        .map_err(|e| format!("Failed to parse repository data: {}", e))?;
+
+    let mut plugins = repository.plugins;
+
+    // Apply filters
+    if let Some(filter) = filter {
+        // Filter by query
+        if let Some(query) = filter.query {
+            let query_lower = query.to_lowercase();
+            plugins.retain(|p| {
+                p.name.to_lowercase().contains(&query_lower)
+                    || p.description.to_lowercase().contains(&query_lower)
+                    || p.id.to_lowercase().contains(&query_lower)
+            });
+        }
+
+        // Filter by tags
+        if let Some(tags) = filter.tags {
+            if !tags.is_empty() {
+                plugins.retain(|p| {
+                    tags.iter().any(|tag| p.tags.iter().any(|pt| pt.eq_ignore_ascii_case(tag)))
+                });
+            }
+        }
+
+        // Filter by author
+        if let Some(author) = filter.author {
+            plugins.retain(|p| p.author.eq_ignore_ascii_case(&author));
+        }
+
+        // Filter by minimum rating
+        if let Some(min_rating) = filter.min_rating {
+            plugins.retain(|p| p.rating >= min_rating);
+        }
+
+        // Sort results
+        let sort_by = filter.sort_by.as_deref().unwrap_or("name");
+        let sort_order = filter.sort_order.as_deref().unwrap_or("asc");
+        let reverse = sort_order == "desc";
+
+        match sort_by {
+            "name" => plugins.sort_by(|a, b| a.name.cmp(&b.name)),
+            "downloads" => plugins.sort_by(|a, b| a.downloads.cmp(&b.downloads)),
+            "rating" => plugins.sort_by(|a, b| a.rating.partial_cmp(&b.rating).unwrap_or(std::cmp::Ordering::Equal)),
+            "updated" => plugins.sort_by(|a, b| a.updated_at.cmp(&b.updated_at)),
+            _ => plugins.sort_by(|a, b| a.name.cmp(&b.name)),
+        }
+
+        if reverse {
+            plugins.reverse();
+        }
+    }
+
+    info!("Search returned {} plugins", plugins.len());
+
+    Ok(PluginSearchResponse {
+        success: true,
+        message: format!("Found {} plugins", plugins.len()),
+        plugins,
+    })
+}
+
+#[derive(Debug, Serialize)]
+pub struct PluginInstallResponse {
+    pub success: bool,
+    pub message: String,
+    pub plugin: Option<PluginInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InstallPluginRequest {
+    pub plugin_id: String,
+    pub repository_url: String,
+    pub install_path: String,
+}
+
+#[tauri::command]
+pub async fn plugin_install_from_repository(
+    request: InstallPluginRequest,
+    state: State<'_, AppState>,
+) -> Result<PluginInstallResponse, String> {
+    debug!("Installing plugin '{}' from repository", request.plugin_id);
+
+    // Fetch repository
+    let client = Client::new();
+    let response = client.get(&request.repository_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch repository: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Repository request failed with status: {}", response.status()));
+    }
+
+    let repository: PluginRepository = response.json()
+        .await
+        .map_err(|e| format!("Failed to parse repository data: {}", e))?;
+
+    // Find plugin in repository
+    let remote_plugin = repository.plugins.iter()
+        .find(|p| p.id == request.plugin_id)
+        .ok_or_else(|| format!("Plugin '{}' not found in repository", request.plugin_id))?;
+
+    // Download plugin
+    let download_response = client.get(&remote_plugin.download_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to download plugin: {}", e))?;
+
+    if !download_response.status().is_success() {
+        return Err(format!("Plugin download failed with status: {}", download_response.status()));
+    }
+
+    let plugin_bytes = download_response.bytes()
+        .await
+        .map_err(|e| format!("Failed to read plugin bytes: {}", e))?;
+
+    // Verify checksum
+    use sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(&plugin_bytes);
+    let checksum = format!("{:x}", hasher.finalize());
+
+    if checksum != remote_plugin.checksum {
+        return Err(format!("Checksum mismatch: expected {}, got {}", remote_plugin.checksum, checksum));
+    }
+
+    // Create install directory if needed
+    let install_path = PathBuf::from(&request.install_path);
+    fs::create_dir_all(&install_path)
+        .map_err(|e| format!("Failed to create install directory: {}", e))?;
+
+    // Write plugin file
+    let plugin_filename = format!("{}.{}", remote_plugin.id, std::env::consts::DLL_EXTENSION);
+    let plugin_path = install_path.join(&plugin_filename);
+    fs::write(&plugin_path, plugin_bytes)
+        .map_err(|e| format!("Failed to write plugin file: {}", e))?;
+
+    // Create manifest
+    let manifest = serde_json::json!({
+        "id": remote_plugin.id,
+        "name": remote_plugin.name,
+        "version": remote_plugin.version,
+        "author": remote_plugin.author,
+        "description": remote_plugin.description,
+        "license": remote_plugin.license,
+        "homepage": remote_plugin.homepage,
+        "repository": remote_plugin.repository,
+        "dependencies": remote_plugin.dependencies,
+        "tags": remote_plugin.tags,
+    });
+
+    let manifest_path = install_path.join(format!("{}.json", remote_plugin.id));
+    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap())
+        .map_err(|e| format!("Failed to write manifest: {}", e))?;
+
+    // Load the plugin
+    let load_request = LoadPluginRequest {
+        path: plugin_path.to_string_lossy().to_string(),
+    };
+
+    let load_response = plugin_load(load_request, state).await?;
+
+    info!("Successfully installed plugin '{}' v{}", remote_plugin.name, remote_plugin.version);
+
+    Ok(PluginInstallResponse {
+        success: true,
+        message: format!("Installed plugin '{}' v{}", remote_plugin.name, remote_plugin.version),
+        plugin: load_response.plugin,
+    })
+}
+
+#[derive(Debug, Serialize)]
+pub struct PluginUpdateResponse {
+    pub success: bool,
+    pub message: String,
+    pub updated_plugins: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn plugin_check_updates(
+    repository_url: String,
+    state: State<'_, AppState>,
+) -> Result<PluginUpdateResponse, String> {
+    debug!("Checking for plugin updates from: {}", repository_url);
+
+    let registry = state.plugin_registry.lock()
+        .map_err(|e| format!("Failed to lock plugin registry: {}", e))?;
+
+    // Fetch repository
+    let client = Client::new();
+    let response = client.get(&repository_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch repository: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Repository request failed with status: {}", response.status()));
+    }
+
+    let repository: PluginRepository = response.json()
+        .await
+        .map_err(|e| format!("Failed to parse repository data: {}", e))?;
+
+    let mut updated_plugins = Vec::new();
+
+    for (plugin_id, local_plugin) in registry.plugins.iter() {
+        if let Some(remote_plugin) = repository.plugins.iter().find(|p| p.id == *plugin_id) {
+            // Compare versions (simple string comparison for now)
+            if local_plugin.version != remote_plugin.version {
+                updated_plugins.push(plugin_id.clone());
+                info!("Update available for '{}': {} -> {}", plugin_id, local_plugin.version, remote_plugin.version);
+            }
+        }
+    }
+
+    info!("Found {} plugins with updates available", updated_plugins.len());
+
+    Ok(PluginUpdateResponse {
+        success: true,
+        message: format!("Found {} plugins with updates available", updated_plugins.len()),
+        updated_plugins,
+    })
+}
+
+#[tauri::command]
+pub async fn plugin_update_plugin(
+    plugin_id: String,
+    repository_url: String,
+    install_path: String,
+    state: State<'_, AppState>,
+) -> Result<PluginInstallResponse, String> {
+    debug!("Updating plugin '{}'", plugin_id);
+
+    // Unload current version
+    let _ = plugin_unload(plugin_id.clone(), state.clone()).await;
+
+    // Install new version
+    let install_request = InstallPluginRequest {
+        plugin_id: plugin_id.clone(),
+        repository_url,
+        install_path,
+    };
+
+    plugin_install_from_repository(install_request, state).await
 }

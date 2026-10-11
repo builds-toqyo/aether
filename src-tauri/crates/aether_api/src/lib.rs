@@ -103,5 +103,10 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             plugin_list,
             plugin_get_info,
             plugin_scan_directory,
+            plugin_fetch_repository,
+            plugin_search_repository,
+            plugin_install_from_repository,
+            plugin_check_updates,
+            plugin_update_plugin,
         ])
 }
