@@ -5,7 +5,7 @@ import { PreviewCanvas } from './PreviewCanvas';
 import { PreviewControls } from './PreviewControls';
 import { PreviewSettings } from './PreviewSettings';
 import { PreviewProvider, usePreview } from './PreviewContext';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, Settings } from 'lucide-react';
+import { Maximize2, Settings } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useMediaItems, useTimelineClips } from '@/store';
 import { formatTime } from '@/lib/utils';
