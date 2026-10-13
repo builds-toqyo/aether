@@ -1,8 +1,8 @@
-use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult};
 use crate::nodes::basic::color_correction::{ColorCorrectionParams, ColorProcessor, GpuOperations};
-use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, OutputPin};
-use uuid::Uuid;
+use crate::nodes::{ExecutionContext, NodeExecutor, NodeResult};
+use aether_types::{InputPin, Node, NodeType, OutputPin, ParameterValue, PinDataType};
 use log::debug;
+use uuid::Uuid;
 
 pub struct ColorCorrectionNode {
     node: Node,
@@ -12,7 +12,6 @@ pub struct ColorCorrectionNode {
 }
 
 impl ColorCorrectionNode {
-
     pub fn new(node: Node) -> Self {
         let parameters = ColorCorrectionParams::default();
         let processor = ColorProcessor::new(parameters.clone());
@@ -130,19 +129,25 @@ impl ColorCorrectionNode {
         self.processor.set_parameters(self.parameters.clone());
     }
 
-    pub fn process_image_texture(&mut self, input_id: Uuid, corrected_id: Uuid) -> Result<Uuid, String> {
+    pub fn process_image_texture(
+        &mut self,
+        input_id: Uuid,
+        corrected_id: Uuid,
+    ) -> Result<Uuid, String> {
         let texture_info = self.gpu_ops.bind_texture(input_id)?;
         let raw_data = self.gpu_ops.read_pixel_data(&texture_info);
         let rgb_data = self.gpu_ops.convert_to_rgb_float(&raw_data, &texture_info);
-        let corrected_image = self.processor.apply_corrections(&rgb_data, corrected_id);
-        let corrected_raw_data = self.gpu_ops.convert_from_rgb_float(&rgb_data, &texture_info);
-        self.gpu_ops.upload_corrected_texture(corrected_id, &corrected_raw_data, &texture_info)?;
+        let _corrected_image = self.processor.apply_corrections(&rgb_data, corrected_id);
+        let corrected_raw_data = self
+            .gpu_ops
+            .convert_from_rgb_float(&rgb_data, &texture_info);
+        self.gpu_ops
+            .upload_corrected_texture(corrected_id, &corrected_raw_data, &texture_info)?;
 
         debug!("Color correction applied successfully: {:?}", corrected_id);
 
         Ok(corrected_id)
     }
-
 
     pub fn create_standard(name: String) -> Node {
         let mut node = Node::new(NodeType::ColorCorrection, name);
@@ -221,22 +226,18 @@ impl ColorCorrectionNode {
         node
     }
 
-
     pub fn reset_parameters(&mut self) {
         self.parameters = ColorCorrectionParams::default();
         self.update_processor();
     }
 
-
     pub fn is_active(&self) -> bool {
         self.parameters.is_active()
     }
 
-
     pub fn clear_cache(&mut self) {
         self.gpu_ops.clear_cache();
     }
-
 
     pub fn cache_size(&self) -> usize {
         self.gpu_ops.cache_size()
@@ -244,22 +245,34 @@ impl ColorCorrectionNode {
 }
 
 impl NodeExecutor for ColorCorrectionNode {
-    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
-
-        let input_value = self.node.get_input_value("input").unwrap_or(ParameterValue::None);
+    fn execute(&mut self, _context: &mut ExecutionContext) -> NodeResult<()> {
+        let input_value = self
+            .node
+            .get_input_value("input")
+            .unwrap_or(ParameterValue::None);
 
         match input_value {
             ParameterValue::Image(input_id) => {
-                debug!("Executing color correction: brightness={:.2}, contrast={:.2}, saturation={:.2}, gamma={:.2}, temp={:.0}K, tint={:.1}, hue={:.1}°, lift={:.2}, gamma_gain={:.2}, gain={:.2}",
-                    self.parameters.brightness, self.parameters.contrast, self.parameters.saturation, self.parameters.gamma,
-                    self.parameters.temperature, self.parameters.tint, self.parameters.hue, self.parameters.lift, self.parameters.gamma_gain, self.parameters.gain);
+                debug!(
+                    "Executing color correction: brightness={:.2}, contrast={:.2}, saturation={:.2}, gamma={:.2}, temp={:.0}K, tint={:.1}, hue={:.1}°, lift={:.2}, gamma_gain={:.2}, gain={:.2}",
+                    self.parameters.brightness,
+                    self.parameters.contrast,
+                    self.parameters.saturation,
+                    self.parameters.gamma,
+                    self.parameters.temperature,
+                    self.parameters.tint,
+                    self.parameters.hue,
+                    self.parameters.lift,
+                    self.parameters.gamma_gain,
+                    self.parameters.gain
+                );
 
                 let corrected_id = Uuid::new_v4();
 
                 match self.process_image_texture(input_id, corrected_id) {
                     Ok(_) => {
-
-                        self.node.set_output_value("output", ParameterValue::Image(corrected_id));
+                        self.node
+                            .set_output_value("output", ParameterValue::Image(corrected_id));
                         Ok(())
                     }
                     Err(e) => {
@@ -269,7 +282,6 @@ impl NodeExecutor for ColorCorrectionNode {
                 }
             }
             _ => {
-
                 self.node.set_output_value("output", ParameterValue::None);
                 Ok(())
             }
@@ -287,7 +299,6 @@ impl NodeExecutor for ColorCorrectionNode {
     fn get_outputs(&self) -> Vec<Uuid> {
         self.node.outputs.iter().map(|pin| pin.id).collect()
     }
-
 }
 
 #[cfg(test)]
@@ -352,7 +363,6 @@ mod tests {
         let node = ColorCorrectionNode::create_standard("Test".to_string());
         let mut color_node = ColorCorrectionNode::new(node);
 
-
         color_node.set_brightness(2.0);
         assert_eq!(color_node.get_brightness(), 1.0);
 
@@ -377,14 +387,11 @@ mod tests {
         let node = ColorCorrectionNode::create_standard("Test".to_string());
         let mut color_node = ColorCorrectionNode::new(node);
 
-
         color_node.set_brightness(0.5);
         color_node.set_contrast(1.5);
         color_node.set_saturation(1.2);
 
-
         color_node.reset_parameters();
-
 
         assert_eq!(color_node.get_brightness(), 0.0);
         assert_eq!(color_node.get_contrast(), 1.0);
@@ -396,13 +403,10 @@ mod tests {
         let node = ColorCorrectionNode::create_standard("Test".to_string());
         let mut color_node = ColorCorrectionNode::new(node);
 
-
         assert!(!color_node.is_active());
-
 
         color_node.set_brightness(0.5);
         assert!(color_node.is_active());
-
 
         color_node.reset_parameters();
         assert!(!color_node.is_active());

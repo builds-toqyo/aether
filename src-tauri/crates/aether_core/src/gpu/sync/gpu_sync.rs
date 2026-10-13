@@ -45,25 +45,11 @@ impl GpuCpuSynchronization {
     pub fn wait_for_gpu(&mut self, device: &Device) -> Result<()> {
         debug!("Waiting for GPU to complete {} operations", self.pending_operations.len());
 
-
         device.poll(wgpu::Maintain::Wait);
 
-
-            if self.pending_operations.is_empty() {
-                self.last_sync_time = std::time::Instant::now();
-                debug!("GPU operations completed within timeout");
-                return Ok(true);
-            }
-
-
-            if start_time.elapsed() > timeout {
-                warn!("GPU operations did not complete within timeout");
-                return Ok(false);
-            }
-
-
-            std::thread::sleep(std::time::Duration::from_millis(1));
-        }
+        self.last_sync_time = std::time::Instant::now();
+        debug!("GPU operations completed");
+        Ok(())
     }
 
 

@@ -52,8 +52,8 @@ export const NodeGraphCanvas: React.FC = () => {
         const mouseX = (e.clientX - rect.left - viewport.x) / viewport.zoom;
         const mouseY = (e.clientY - rect.top - viewport.y) / viewport.zoom;
         setDragOffset({
-          x: mouseX - node.position.x,
-          y: mouseY - node.position.y
+          x: mouseX - (node.position?.x ?? 0),
+          y: mouseY - (node.position?.y ?? 0)
         });
       }
     }
@@ -85,7 +85,7 @@ export const NodeGraphCanvas: React.FC = () => {
   return (
     <div
       ref={canvasRef}
-      className="w-full h-full bg-gray-800 relative overflow-hidden"
+      className="w-full h-full bg-[#141414] relative overflow-hidden"
       onMouseDown={handleCanvasMouseDown}
       onMouseMove={(e) => {
         handleCanvasMouseMove(e);
@@ -96,11 +96,11 @@ export const NodeGraphCanvas: React.FC = () => {
       style={{ cursor: isConnecting ? 'crosshair' : 'default' }}
     >
       <div
-        className="absolute inset-0 opacity-20"
+        className="absolute inset-0 opacity-25"
         style={{
           backgroundImage: `
-            linear-gradient(to right, #374151 1px, transparent 1px),
-            linear-gradient(to bottom, #374151 1px, transparent 1px)
+            linear-gradient(to right, #2a2a2a 1px, transparent 1px),
+            linear-gradient(to bottom, #2a2a2a 1px, transparent 1px)
           `,
           backgroundSize: `${20 * viewport.zoom}px ${20 * viewport.zoom}px`,
           backgroundPosition: `${viewport.x}px ${viewport.y}px`,
@@ -147,7 +147,7 @@ export const NodeGraphCanvas: React.FC = () => {
         />
       ))}
 
-      <div className="absolute bottom-4 right-4 bg-gray-900 bg-opacity-80 text-white px-3 py-1 rounded text-sm">
+      <div className="absolute bottom-4 right-4 bg-[#1a1a1a]/80 border border-[#333] text-[#ccc] px-3 py-1 rounded text-[11px] tabular-nums">
         {(viewport.zoom * 100).toFixed(0)}%
       </div>
 
@@ -163,15 +163,15 @@ export const NodeGraphCanvas: React.FC = () => {
 // Helper function to get node port position
 function getNodePortPosition(node: any, portId: string): { x: number; y: number } {
   if (!node) return { x: 0, y: 0 };
-  
+
   // Find the port and return its position
-  const port = [...node.inputs, ...node.outputs].find(p => p.id === portId);
+  const port = [...(node.inputs ?? []), ...(node.outputs ?? [])].find(p => p.id === portId);
   if (port) {
     return {
-      x: node.position.x + port.position.x,
-      y: node.position.y + port.position.y
+      x: (node.position?.x ?? 0) + (port.position?.x ?? 0),
+      y: (node.position?.y ?? 0) + (port.position?.y ?? 0)
     };
   }
-  
-  return { x: node.position.x, y: node.position.y };
+
+  return { x: node.position?.x ?? 0, y: node.position?.y ?? 0 };
 }

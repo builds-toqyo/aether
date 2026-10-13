@@ -1,6 +1,6 @@
+use crate::engine::rendering::formats::{AudioFormat, VideoFormat};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
-use crate::engine::rendering::formats::{VideoFormat, AudioFormat};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EncoderPreset {
@@ -156,7 +156,8 @@ impl EncoderOptions {
     }
 
     pub fn add_option(&mut self, key: &str, value: &str) -> &mut Self {
-        self.additional_options.insert(key.to_string(), value.to_string());
+        self.additional_options
+            .insert(key.to_string(), value.to_string());
         self
     }
 
@@ -215,7 +216,10 @@ impl EncoderOptions {
         }
 
         if self.video_bitrate == 0 {
-            if matches!(self.video_format, VideoFormat::H264 | VideoFormat::H265 | VideoFormat::Vp9) {
+            if matches!(
+                self.video_format,
+                VideoFormat::H264 | VideoFormat::H265 | VideoFormat::Vp9
+            ) {
                 args.push("-crf".to_string());
                 args.push(self.crf.to_string());
             }

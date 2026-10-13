@@ -27,8 +27,8 @@ export const ConnectionComponent: React.FC<ConnectionComponentProps> = ({
   const getConnectionPath = () => {
     if (!sourceNode || !targetNode) return '';
 
-    const sourcePort = sourceNode.outputs.find((p: any) => p.id === connection.sourcePortId);
-    const targetPort = targetNode.inputs.find((p: any) => p.id === connection.targetPortId);
+    const sourcePort = (sourceNode.outputs ?? []).find((p: any) => p.id === connection.sourcePortId);
+    const targetPort = (targetNode.inputs ?? []).find((p: any) => p.id === connection.targetPortId);
 
     if (!sourcePort || !targetPort) return '';
 
@@ -62,7 +62,7 @@ export const ConnectionComponent: React.FC<ConnectionComponentProps> = ({
       <path
         d={getConnectionPath()}
         fill="none"
-        stroke={isSelected ? '#60A5FA' : '#6B7280'}
+        stroke={isSelected ? '#60A5FA' : '#555555'}
         strokeWidth={isSelected ? 3 : 2}
         className="cursor-pointer hover:stroke-blue-400 transition-colors"
         onClick={handleConnectionClick}
@@ -71,7 +71,7 @@ export const ConnectionComponent: React.FC<ConnectionComponentProps> = ({
       {targetNode && (
         <polygon
           points="0,-5 10,0 0,5"
-          fill={isSelected ? '#60A5FA' : '#6B7280'}
+          fill={isSelected ? '#60A5FA' : '#555555'}
           transform={`translate(${targetNode.position.x + 5}, ${targetNode.position.y + 20})`}
         />
       )}

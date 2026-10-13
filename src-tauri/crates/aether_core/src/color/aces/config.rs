@@ -1,4 +1,4 @@
-use crate::types::{ColorSpace};
+use crate::types::ColorSpace;
 
 #[derive(Debug, Clone)]
 pub struct AcesConfig {

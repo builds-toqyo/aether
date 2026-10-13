@@ -4,5 +4,5 @@ pub mod path;
 pub mod types;
 pub mod typography;
 
-pub use animator::{TextAnimator, CharacterAnimation};
+pub use animator::{CharacterAnimation, TextAnimator};
 pub use types::{AnimationType, AnimationValue, TextKeyframe};

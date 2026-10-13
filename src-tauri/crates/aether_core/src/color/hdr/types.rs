@@ -15,8 +15,9 @@ pub struct HdrPixel {
     pub b: f32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum HdrDisplayType {
+    #[default]
     Sdr,
     Hdr10,
     DolbyVision,
@@ -24,18 +25,19 @@ pub enum HdrDisplayType {
     Hlg,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ColorPrimaries {
+    #[default]
     Rec709,
     Rec2020,
     P3,
     DciP3,
 }
 
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TransferFunction {
     Srgb,
+    #[default]
     Rec709,
     Rec2020,
     Pq,
@@ -43,7 +45,6 @@ pub enum TransferFunction {
 }
 
 impl HdrImage {
-
     pub fn new(width: u32, height: u32) -> Self {
         Self {
             width,
@@ -108,24 +109,6 @@ impl HdrPixel {
     }
 }
 
-impl Default for HdrDisplayType {
-    fn default() -> Self {
-        Self::Sdr
-    }
-}
-
-impl Default for ColorPrimaries {
-    fn default() -> Self {
-        Self::Rec709
-    }
-}
-
-impl Default for TransferFunction {
-    fn default() -> Self {
-        Self::Rec709
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -161,7 +144,6 @@ mod tests {
     fn test_hdr_image_pixel_access() {
         let mut image = HdrImage::new(10, 10);
         let pixel = HdrPixel::new(500.0, 500.0, 500.0);
-
 
         assert!(image.set_pixel(5, 5, pixel).is_ok());
         assert!(image.set_pixel(10, 10, pixel).is_err());

@@ -1,11 +1,7 @@
-
-
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Ellipse {
-
     pub cx: f64,
 
     pub cy: f64,
@@ -18,7 +14,6 @@ pub struct Ellipse {
 }
 
 impl Ellipse {
-
     pub fn new(cx: f64, cy: f64, rx: f64, ry: f64) -> Self {
         Self {
             cx,
@@ -28,7 +23,6 @@ impl Ellipse {
             rotation: 0.0,
         }
     }
-
 
     pub fn rotated(cx: f64, cy: f64, rx: f64, ry: f64, rotation: f64) -> Self {
         Self {
@@ -40,11 +34,9 @@ impl Ellipse {
         }
     }
 
-
     pub fn is_circle(&self) -> bool {
         (self.rx - self.ry).abs() < f64::EPSILON
     }
-
 
     pub fn is_valid(&self) -> bool {
         self.rx > 0.0 && self.ry > 0.0
@@ -57,13 +49,11 @@ impl super::types::ShapePrimitive for Ellipse {
     }
 
     fn bounds(&self) -> super::transform::BoundingBox {
-
         let cos_r = self.rotation.cos();
         let sin_r = self.rotation.sin();
 
         let a = self.rx;
         let b = self.ry;
-
 
         let max_dx = (a * a * cos_r * cos_r + b * b * sin_r * sin_r).sqrt();
         let max_dy = (a * a * sin_r * sin_r + b * b * cos_r * cos_r).sqrt();
@@ -79,9 +69,7 @@ impl super::types::ShapePrimitive for Ellipse {
     fn to_path(&self) -> super::super::paths::Path {
         let mut builder = super::super::paths::PathBuilder::new();
 
-
         let k = 0.552284749831;
-
 
         let cos_r = self.rotation.cos();
         let sin_r = self.rotation.sin();
@@ -121,7 +109,6 @@ impl super::types::ShapePrimitive for Ellipse {
     }
 
     fn contains_point(&self, x: f64, y: f64) -> bool {
-
         let dx = x - self.cx;
         let dy = y - self.cy;
 
@@ -131,7 +118,6 @@ impl super::types::ShapePrimitive for Ellipse {
         let local_x = dx * cos_r - dy * sin_r;
         let local_y = dx * sin_r + dy * cos_r;
 
-
         (local_x * local_x) / (self.rx * self.rx) + (local_y * local_y) / (self.ry * self.ry) <= 1.0
     }
 
@@ -140,7 +126,6 @@ impl super::types::ShapePrimitive for Ellipse {
     }
 
     fn perimeter(&self) -> f64 {
-
         let a = self.rx;
         let b = self.ry;
         let h = ((a - b) * (a - b)) / ((a + b) * (a + b));
@@ -165,7 +150,7 @@ impl super::types::ShapePrimitive for Ellipse {
     }
 
     fn clone_box(&self) -> Box<dyn super::types::ShapePrimitive> {
-        Box::new(self.clone())
+        Box::new(*self)
     }
 
     fn validate(&self) -> Result<(), String> {
@@ -181,8 +166,8 @@ impl super::types::ShapePrimitive for Ellipse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::ShapePrimitive;
+    use super::*;
 
     #[test]
     fn test_ellipse_creation() {
@@ -217,7 +202,6 @@ mod tests {
 
         let expected_area = std::f64::consts::PI * 40.0 * 20.0;
         assert!((ellipse.area() - expected_area).abs() < 0.001);
-
 
         let perimeter = ellipse.perimeter();
         assert!(perimeter > 180.0 && perimeter < 200.0);
@@ -284,7 +268,6 @@ mod tests {
     fn test_rotated_ellipse_bounds() {
         let ellipse = Ellipse::rotated(50.0, 50.0, 40.0, 20.0, std::f64::consts::PI / 4.0);
         let bounds = ellipse.bounds();
-
 
         assert!(bounds.width() > 80.0);
         assert!(bounds.height() > 40.0);

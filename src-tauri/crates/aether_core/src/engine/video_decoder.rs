@@ -1,23 +1,17 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::error::Error;
-use std::fmt;
-use std::collections::HashMap;
-use std::ffi::{CStr, CString};
-use std::ptr;
-use std::slice;
 
-use ffmpeg_next as ffmpeg;
-use ffmpeg::format::{context::Input, input, Pixel};
+use ffmpeg::decoder;
+use ffmpeg::format::{context::Input, input};
 use ffmpeg::media::Type;
 use ffmpeg::software::scaling::{context::Context as SwsContext, flag::Flags};
-use ffmpeg::util::frame::video::Video;
-use ffmpeg::util::frame::{self, Frame};
-use ffmpeg::util::format;
 use ffmpeg::util::error::Error as FFmpegError;
+use ffmpeg::util::format;
+use ffmpeg::util::frame::{self};
 use ffmpeg::util::log as ffmpeg_log;
-use ffmpeg::{decoder, encoder};
-use log::{debug, error, info, warn};
+use ffmpeg_next as ffmpeg;
+use log::debug;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -56,7 +50,6 @@ pub enum VideoFormat {
 }
 
 impl VideoFormat {
-
     pub fn to_ffmpeg_format(&self) -> format::Pixel {
         match self {
             VideoFormat::RGB24 => format::Pixel::RGB24,
@@ -69,7 +62,6 @@ impl VideoFormat {
         }
     }
 
-
     pub fn from_ffmpeg_format(format: format::Pixel) -> Self {
         match format {
             format::Pixel::RGB24 => VideoFormat::RGB24,
@@ -81,7 +73,6 @@ impl VideoFormat {
             other => VideoFormat::Custom(other),
         }
     }
-
 
     pub fn bytes_per_pixel(&self) -> usize {
         match self {
@@ -96,7 +87,6 @@ impl VideoFormat {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct VideoFrame {
     pub buffer: Vec<u8>,
@@ -110,9 +100,15 @@ pub struct VideoFrame {
 }
 
 impl VideoFrame {
-    pub fn new(width: u32, height: u32, format: VideoFormat, timestamp: f64, duration: f64) -> Self {
+    pub fn new(
+        width: u32,
+        height: u32,
+        format: VideoFormat,
+        timestamp: f64,
+        duration: f64,
+    ) -> Self {
         let bytes_per_pixel = format.bytes_per_pixel();
-        let stride = width as u32 * bytes_per_pixel as u32;
+        let stride = width * bytes_per_pixel as u32;
         let buffer_size = (stride as usize) * (height as usize);
 
         Self {
@@ -128,11 +124,25 @@ impl VideoFrame {
     }
 
     pub fn from_ffmpeg_frame(frame: ffmpeg::frame::Video) -> Self {
-        let width = frame.width() as u32;
-        let height = frame.height() as u32;
+        let width = frame.width();
+        let height = frame.height();
         let format = VideoFormat::from_ffmpeg_format(frame.format());
         let mut video_frame = Self::new(width, height, format, 0.0, 0.0);
-        // TODO: copy actual frame data
+
+        let src_stride = frame.stride(0);
+        let dst_stride = video_frame.stride as usize;
+        let plane_data = frame.data(0);
+        let bytes_to_copy = dst_stride.min(src_stride);
+
+        for y in 0..height as usize {
+            let src_offset = y * src_stride;
+            let dst_offset = y * dst_stride;
+            if src_offset + bytes_to_copy <= plane_data.len() {
+                video_frame.buffer[dst_offset..dst_offset + bytes_to_copy]
+                    .copy_from_slice(&plane_data[src_offset..src_offset + bytes_to_copy]);
+            }
+        }
+
         video_frame
     }
 
@@ -146,7 +156,6 @@ impl VideoFrame {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct VideoStreamInfo {
     pub index: i32,
@@ -159,7 +168,6 @@ pub struct VideoStreamInfo {
     pub frames: i64,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct AudioStreamInfo {
     pub index: i32,
@@ -168,7 +176,6 @@ pub struct AudioStreamInfo {
     pub duration: f64,
     pub bit_rate: u64,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct MediaInfo {
@@ -179,7 +186,6 @@ pub struct MediaInfo {
     pub audio_streams: Vec<AudioStreamInfo>,
     pub metadata: HashMap<String, String>,
 }
-
 
 pub struct VideoDecoderConfig {
     pub hardware_acceleration: bool,
@@ -197,7 +203,6 @@ impl Default for VideoDecoderConfig {
     }
 }
 
-
 pub struct VideoDecoder {
     config: VideoDecoderConfig,
     is_initialized: bool,
@@ -213,7 +218,6 @@ pub struct VideoDecoder {
     state: Arc<Mutex<DecoderState>>,
 }
 
-
 struct DecoderState {
     is_decoding: bool,
     is_seeking: bool,
@@ -222,7 +226,6 @@ struct DecoderState {
 }
 
 impl VideoDecoder {
-
     pub fn new(config: VideoDecoderConfig) -> Self {
         let state = DecoderState {
             is_decoding: false,
@@ -246,22 +249,18 @@ impl VideoDecoder {
         }
     }
 
-
     fn init_ffmpeg() -> Result<(), VideoDecoderError> {
-
-        ffmpeg::init().map_err(|e| VideoDecoderError::InitializationError(format!("Failed to initialize FFmpeg: {}", e)))?;
-
+        ffmpeg::init().map_err(|e| {
+            VideoDecoderError::InitializationError(format!("Failed to initialize FFmpeg: {}", e))
+        })?;
 
         ffmpeg_log::set_level(ffmpeg_log::Level::Info);
 
         Ok(())
     }
 
-
     pub fn open<P: AsRef<Path>>(&mut self, path: P) -> Result<&MediaInfo, VideoDecoderError> {
-
         Self::init_ffmpeg()?;
-
 
         if self.is_initialized {
             self.close()?;
@@ -270,25 +269,21 @@ impl VideoDecoder {
         let path_str = path.as_ref().to_string_lossy().to_string();
         debug!("Opening media file: {}", path_str);
 
-
-        let input_ctx = input(&path_str)
-            .map_err(|e| VideoDecoderError::IOError(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to open input file: {}", e)
-            )))?;
-
+        let input_ctx = input(&path_str).map_err(|e| {
+            VideoDecoderError::IOError(std::io::Error::other(format!(
+                "Failed to open input file: {}",
+                e
+            )))
+        })?;
 
         self.format_context = Some(input_ctx);
 
-
         let format_ctx = self.format_context.as_mut().unwrap();
-
 
         let mut video_stream_index = -1;
         let mut audio_stream_index = -1;
         let mut video_streams = Vec::new();
         let mut audio_streams = Vec::new();
-
 
         for (stream_index, stream) in format_ctx.streams().enumerate() {
             let codec_params = stream.parameters();
@@ -296,22 +291,19 @@ impl VideoDecoder {
 
             match codec_params.medium() {
                 Type::Video => {
-
                     if video_stream_index < 0 {
                         video_stream_index = stream_idx;
                     }
 
-
                     let decoder = ffmpeg::codec::context::Context::from_parameters(codec_params)
-                        .map_err(|e| VideoDecoderError::FFmpegLibError(e))?
+                        .map_err(VideoDecoderError::FFmpegLibError)?
                         .decoder()
                         .video()
-                        .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+                        .map_err(VideoDecoderError::FFmpegLibError)?;
 
                     let width = decoder.width();
                     let height = decoder.height();
                     let pixel_format = decoder.format();
-
 
                     let frame_rate = {
                         let rational = stream.avg_frame_rate();
@@ -323,43 +315,42 @@ impl VideoDecoder {
                     };
 
                     let duration = if stream.duration() > 0 {
-                        (stream.duration() as f64) * stream.time_base().numerator() as f64 / stream.time_base().denominator() as f64
+                        (stream.duration() as f64) * stream.time_base().numerator() as f64
+                            / stream.time_base().denominator() as f64
                     } else {
                         0.0
                     };
 
                     let video_info = VideoStreamInfo {
                         index: stream_idx,
-                        width: width as u32,
-                        height: height as u32,
-                        format: VideoFormat::from_ffmpeg_format(pixel_format.into()),
+                        width,
+                        height,
+                        format: VideoFormat::from_ffmpeg_format(pixel_format),
                         frame_rate,
                         duration,
                         bit_rate: decoder.bit_rate() as u64,
-                        frames: stream.frames() as i64,
+                        frames: stream.frames(),
                     };
 
                     video_streams.push(video_info);
-                },
+                }
                 Type::Audio => {
-
                     if audio_stream_index < 0 {
                         audio_stream_index = stream_idx;
                     }
 
                     let decoder = ffmpeg::codec::context::Context::from_parameters(codec_params)
-                        .map_err(|e| VideoDecoderError::FFmpegLibError(e))?
+                        .map_err(VideoDecoderError::FFmpegLibError)?
                         .decoder()
                         .audio()
-                        .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
-
+                        .map_err(VideoDecoderError::FFmpegLibError)?;
 
                     let duration = if stream.duration() > 0 {
-                        (stream.duration() as f64) * stream.time_base().numerator() as f64 / stream.time_base().denominator() as f64
+                        (stream.duration() as f64) * stream.time_base().numerator() as f64
+                            / stream.time_base().denominator() as f64
                     } else {
                         0.0
                     };
-
 
                     let audio_info = AudioStreamInfo {
                         index: stream_idx,
@@ -370,33 +361,37 @@ impl VideoDecoder {
                     };
 
                     audio_streams.push(audio_info);
-                },
+                }
                 _ => {}
             }
         }
 
-
         if video_stream_index >= 0 {
-            let stream = format_ctx.stream(video_stream_index as usize)
-                .ok_or_else(|| VideoDecoderError::DecodingError("Video stream not found".to_string()))?;
+            let stream = format_ctx
+                .stream(video_stream_index as usize)
+                .ok_or_else(|| {
+                    VideoDecoderError::DecodingError("Video stream not found".to_string())
+                })?;
             let codec_params = stream.parameters();
 
-
             let decoder_id = codec_params.id();
-            let decoder = ffmpeg::codec::decoder::find(decoder_id)
-                .ok_or_else(|| VideoDecoderError::DecodingError(
-                    format!("Failed to find decoder for codec id: {:?}", decoder_id)
-                ))?;
-
+            let _decoder = ffmpeg::codec::decoder::find(decoder_id).ok_or_else(|| {
+                VideoDecoderError::DecodingError(format!(
+                    "Failed to find decoder for codec id: {:?}",
+                    decoder_id
+                ))
+            })?;
 
             let mut codec_ctx = ffmpeg::codec::context::Context::new();
-            codec_ctx.set_parameters(codec_params)
-                .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
-
+            codec_ctx
+                .set_parameters(codec_params)
+                .map_err(VideoDecoderError::FFmpegLibError)?;
 
             // Get decoder properties and open
-            let mut decoder = codec_ctx.decoder().video()
-                .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+            let decoder = codec_ctx
+                .decoder()
+                .video()
+                .map_err(VideoDecoderError::FFmpegLibError)?;
 
             let src_format = decoder.format();
             let dst_format = self.config.output_format.to_ffmpeg_format();
@@ -404,12 +399,16 @@ impl VideoDecoder {
             let height = decoder.height();
 
             if src_format != dst_format {
-
                 let sws_ctx = SwsContext::get(
-                    src_format, width as u32, height as u32,
-                    dst_format, width as u32, height as u32,
+                    src_format,
+                    width,
+                    height,
+                    dst_format,
+                    width,
+                    height,
                     Flags::BILINEAR,
-                ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+                )
+                .map_err(VideoDecoderError::FFmpegLibError)?;
 
                 self.sws_context = Some(sws_ctx);
             }
@@ -419,34 +418,47 @@ impl VideoDecoder {
         }
 
         if audio_stream_index >= 0 {
-            let stream = format_ctx.stream(audio_stream_index as usize)
-                .ok_or_else(|| VideoDecoderError::DecodingError("Audio stream not found".to_string()))?;
+            let stream = format_ctx
+                .stream(audio_stream_index as usize)
+                .ok_or_else(|| {
+                    VideoDecoderError::DecodingError("Audio stream not found".to_string())
+                })?;
             let codec_params = stream.parameters();
 
             let decoder_id = codec_params.id();
-            let decoder = ffmpeg::codec::decoder::find(decoder_id)
-                .ok_or_else(|| VideoDecoderError::DecodingError(
-                    format!("Failed to find decoder for codec id: {:?}", decoder_id)
-                ))?;
+            let _decoder = ffmpeg::codec::decoder::find(decoder_id).ok_or_else(|| {
+                VideoDecoderError::DecodingError(format!(
+                    "Failed to find decoder for codec id: {:?}",
+                    decoder_id
+                ))
+            })?;
 
             let mut codec_ctx = ffmpeg::codec::context::Context::new();
-            codec_ctx.set_parameters(codec_params)
-                .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+            codec_ctx
+                .set_parameters(codec_params)
+                .map_err(VideoDecoderError::FFmpegLibError)?;
 
-
-            let audio_decoder = codec_ctx.decoder().audio()
-                .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+            let audio_decoder = codec_ctx
+                .decoder()
+                .audio()
+                .map_err(VideoDecoderError::FFmpegLibError)?;
 
             self.audio_codec_context = Some(audio_decoder);
             self.current_audio_stream = audio_stream_index;
         }
 
-        // TODO: Get metadata when API is available
-        let metadata = HashMap::new();
+        let metadata: HashMap<String, String> = format_ctx
+            .metadata()
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
 
-
-        let format_name = "unknown".to_string(); // TODO: Get format name when API is available
-        let duration = 0.0; // TODO: Get duration from format context when API is available
+        let format_name = format_ctx.format().name().to_string();
+        let duration = if format_ctx.duration() > 0 {
+            format_ctx.duration() as f64 / 1_000_000.0
+        } else {
+            0.0
+        };
 
         let media_info = MediaInfo {
             path: path_str,
@@ -461,40 +473,42 @@ impl VideoDecoder {
         self.current_position = 0.0;
         self.is_initialized = true;
 
-
-        self.media_info.as_ref().ok_or(VideoDecoderError::InitializationError(
-            "Failed to initialize media info".to_string()
-        ))
+        self.media_info
+            .as_ref()
+            .ok_or(VideoDecoderError::InitializationError(
+                "Failed to initialize media info".to_string(),
+            ))
     }
-
 
     pub fn decode_video_frame(&mut self) -> Result<VideoFrame, VideoDecoderError> {
         if !self.is_initialized {
-            return Err(VideoDecoderError::InitializationError("Decoder not initialized".to_string()));
+            return Err(VideoDecoderError::InitializationError(
+                "Decoder not initialized".to_string(),
+            ));
         }
-
 
         if self.current_video_stream < 0 || self.video_codec_context.is_none() {
-            return Err(VideoDecoderError::DecodingError("No valid video stream selected".to_string()));
+            return Err(VideoDecoderError::DecodingError(
+                "No valid video stream selected".to_string(),
+            ));
         }
 
-        let format_ctx = self.format_context.as_mut()
-            .ok_or_else(|| VideoDecoderError::DecodingError("Format context not initialized".to_string()))?;
+        let format_ctx = self.format_context.as_mut().ok_or_else(|| {
+            VideoDecoderError::DecodingError("Format context not initialized".to_string())
+        })?;
 
-        let video_ctx = self.video_codec_context.as_mut()
-            .ok_or_else(|| VideoDecoderError::DecodingError("Video codec context not initialized".to_string()))?;
+        let video_ctx = self.video_codec_context.as_mut().ok_or_else(|| {
+            VideoDecoderError::DecodingError("Video codec context not initialized".to_string())
+        })?;
 
         let video_stream_index = self.current_video_stream as usize;
 
-
         let mut decoded_frame = frame::Video::empty();
-
 
         {
             let mut state = self.state.lock().unwrap();
             state.is_decoding = true;
         }
-
 
         struct DecodeGuard<'a> {
             state: &'a Arc<Mutex<DecoderState>>,
@@ -509,13 +523,13 @@ impl VideoDecoder {
 
         let _guard = DecodeGuard { state: &self.state };
 
-
         let mut frame_decoded = false;
 
         for (stream, packet) in format_ctx.packets() {
             if stream.index() == video_stream_index {
-                video_ctx.send_packet(&packet)
-                    .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+                video_ctx
+                    .send_packet(&packet)
+                    .map_err(VideoDecoderError::FFmpegLibError)?;
 
                 // Try to receive frame - it's ok if we need more packets
                 while video_ctx.receive_frame(&mut decoded_frame).is_ok() {
@@ -540,33 +554,38 @@ impl VideoDecoder {
         }
 
         if !frame_decoded {
-            return Err(VideoDecoderError::DecodingError("End of stream reached".to_string()));
+            return Err(VideoDecoderError::DecodingError(
+                "End of stream reached".to_string(),
+            ));
         }
 
-
         // decoded_frame is already a frame::Video
-        let width = decoded_frame.width() as u32;
-        let height = decoded_frame.height() as u32;
+        let _width = decoded_frame.width();
+        let _height = decoded_frame.height();
         let src_format = decoded_frame.format();
         let dst_format = self.config.output_format.to_ffmpeg_format();
 
-        let mut output_frame = frame::Video::empty();
-        let mut buffer: Vec<u8>;
-        let stride: u32;
-
+        let output_frame = frame::Video::empty();
+        let _buffer: Vec<u8>;
+        let _stride: u32;
 
         if src_format != dst_format {
-            let sws_ctx = match &mut self.sws_context {
+            let _sws_ctx = match &mut self.sws_context {
                 Some(ctx) => ctx,
                 None => {
                     let width = decoded_frame.width();
                     let height = decoded_frame.height();
 
                     let sws_ctx = SwsContext::get(
-                        src_format, width as u32, height as u32,
-                        dst_format, width as u32, height as u32,
+                        src_format,
+                        width,
+                        height,
+                        dst_format,
+                        width,
+                        height,
                         Flags::BILINEAR,
-                    ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+                    )
+                    .map_err(VideoDecoderError::FFmpegLibError)?;
 
                     self.sws_context = Some(sws_ctx);
                     self.sws_context.as_ref().unwrap()
@@ -582,8 +601,9 @@ impl VideoDecoder {
             return Ok(());
         }
 
-        let format_ctx = self.format_context.as_mut()
-            .ok_or_else(|| VideoDecoderError::DecodingError("Format context not initialized".to_string()))?;
+        let format_ctx = self.format_context.as_mut().ok_or_else(|| {
+            VideoDecoderError::DecodingError("Format context not initialized".to_string())
+        })?;
 
         self.video_codec_context = None;
         self.sws_context = None;
@@ -592,18 +612,23 @@ impl VideoDecoder {
         let codec_params = stream.parameters();
 
         let decoder_id = codec_params.id();
-        let decoder = ffmpeg::codec::decoder::find(decoder_id)
-            .ok_or_else(|| VideoDecoderError::DecodingError(
-                format!("Failed to find decoder for codec id: {:?}", decoder_id)
-            ))?;
+        let _decoder = ffmpeg::codec::decoder::find(decoder_id).ok_or_else(|| {
+            VideoDecoderError::DecodingError(format!(
+                "Failed to find decoder for codec id: {:?}",
+                decoder_id
+            ))
+        })?;
 
         let mut codec_ctx = ffmpeg::codec::context::Context::new();
-        codec_ctx.set_parameters(codec_params)
-            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+        codec_ctx
+            .set_parameters(codec_params)
+            .map_err(VideoDecoderError::FFmpegLibError)?;
 
         // Get decoder properties before opening
-        let mut decoder = codec_ctx.decoder().video()
-            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+        let decoder = codec_ctx
+            .decoder()
+            .video()
+            .map_err(VideoDecoderError::FFmpegLibError)?;
 
         let src_format = decoder.format();
         let dst_format = self.config.output_format.to_ffmpeg_format();
@@ -611,12 +636,16 @@ impl VideoDecoder {
         let height = decoder.height();
 
         if src_format != dst_format {
-
             let sws_ctx = SwsContext::get(
-                src_format, width as u32, height as u32,
-                dst_format, width as u32, height as u32,
+                src_format,
+                width,
+                height,
+                dst_format,
+                width,
+                height,
                 Flags::BILINEAR,
-            ).map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+            )
+            .map_err(VideoDecoderError::FFmpegLibError)?;
 
             self.sws_context = Some(sws_ctx);
         }
@@ -627,53 +656,57 @@ impl VideoDecoder {
         Ok(())
     }
 
-
     pub fn select_audio_stream(&mut self, stream_index: i32) -> Result<(), VideoDecoderError> {
         if !self.is_initialized {
-            return Err(VideoDecoderError::InitializationError("Decoder not initialized".to_string()));
-        }
-
-        let media_info = self.media_info.as_ref().ok_or(VideoDecoderError::InitializationError(
-            "No media info available".to_string()
-        ))?;
-
-        if stream_index < 0 || stream_index as usize >= media_info.audio_streams.len() {
-            return Err(VideoDecoderError::DecodingError(
-                format!("Invalid audio stream index: {}", stream_index)
+            return Err(VideoDecoderError::InitializationError(
+                "Decoder not initialized".to_string(),
             ));
         }
 
+        let media_info = self
+            .media_info
+            .as_ref()
+            .ok_or(VideoDecoderError::InitializationError(
+                "No media info available".to_string(),
+            ))?;
+
+        if stream_index < 0 || stream_index as usize >= media_info.audio_streams.len() {
+            return Err(VideoDecoderError::DecodingError(format!(
+                "Invalid audio stream index: {}",
+                stream_index
+            )));
+        }
 
         if self.current_audio_stream == stream_index {
             return Ok(());
         }
 
-
-        let format_ctx = self.format_context.as_mut()
-            .ok_or_else(|| VideoDecoderError::DecodingError("Format context not initialized".to_string()))?;
-
+        let format_ctx = self.format_context.as_mut().ok_or_else(|| {
+            VideoDecoderError::DecodingError("Format context not initialized".to_string())
+        })?;
 
         self.audio_codec_context = None;
-
 
         let stream = format_ctx.stream(stream_index as usize).unwrap();
         let codec_params = stream.parameters();
 
-
         let decoder_id = codec_params.id();
-        let decoder = ffmpeg::codec::decoder::find(decoder_id)
-            .ok_or_else(|| VideoDecoderError::DecodingError(
-                format!("Failed to find decoder for codec id: {:?}", decoder_id)
-            ))?;
-
+        let _decoder = ffmpeg::codec::decoder::find(decoder_id).ok_or_else(|| {
+            VideoDecoderError::DecodingError(format!(
+                "Failed to find decoder for codec id: {:?}",
+                decoder_id
+            ))
+        })?;
 
         let mut codec_ctx = ffmpeg::codec::context::Context::new();
-        codec_ctx.set_parameters(codec_params)
-            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+        codec_ctx
+            .set_parameters(codec_params)
+            .map_err(VideoDecoderError::FFmpegLibError)?;
 
-
-        let audio_decoder = codec_ctx.decoder().audio()
-            .map_err(|e| VideoDecoderError::FFmpegLibError(e))?;
+        let audio_decoder = codec_ctx
+            .decoder()
+            .audio()
+            .map_err(VideoDecoderError::FFmpegLibError)?;
 
         self.audio_codec_context = Some(audio_decoder);
         self.current_audio_stream = stream_index;
@@ -681,45 +714,35 @@ impl VideoDecoder {
         Ok(())
     }
 
-
     pub fn get_position(&self) -> f64 {
         self.current_position
     }
-
 
     pub fn close(&mut self) -> Result<(), VideoDecoderError> {
         if !self.is_initialized {
             return Ok(());
         }
 
-
         {
             let mut state = self.state.lock().unwrap();
             while state.is_decoding || state.is_seeking {
-
-
                 state.is_decoding = false;
                 state.is_seeking = false;
             }
         }
 
-
         self.sws_context = None;
-
 
         self.video_codec_context = None;
         self.audio_codec_context = None;
 
-
         self.format_context = None;
-
 
         self.is_initialized = false;
         self.current_position = 0.0;
         self.current_video_stream = -1;
         self.current_audio_stream = -1;
         self.media_info = None;
-
 
         let mut state = self.state.lock().unwrap();
         state.last_decoded_frame_pts = 0;
@@ -728,52 +751,52 @@ impl VideoDecoder {
         Ok(())
     }
 
-
     pub fn get_media_info(&self) -> Option<&MediaInfo> {
         self.media_info.as_ref()
     }
 
     pub fn seek(&mut self, time: f64) -> Result<(), VideoDecoderError> {
         if !self.is_initialized {
-            return Err(VideoDecoderError::InitializationError("Not initialized".to_string()));
+            return Err(VideoDecoderError::InitializationError(
+                "Not initialized".to_string(),
+            ));
         }
 
         // Convert time to stream time base
-        if let (Some(format_ctx), video_stream_index) = (&mut self.format_context, self.current_video_stream) {
-            if video_stream_index >= 0 {
-                if let Some(stream) = format_ctx.streams().nth(video_stream_index as usize) {
-                    let time_base = stream.time_base();
-                    let target_pts = (time * time_base.1 as f64 / time_base.0 as f64) as i64;
+        if let (Some(format_ctx), video_stream_index) =
+            (&mut self.format_context, self.current_video_stream)
+            && video_stream_index >= 0
+            && let Some(stream) = format_ctx.streams().nth(video_stream_index as usize)
+        {
+            let time_base = stream.time_base();
+            let target_pts = (time * time_base.1 as f64 / time_base.0 as f64) as i64;
 
-                    // Seek to the target position
-                    format_ctx.seek(target_pts, ..)?;
-                    self.current_position = time;
+            // Seek to the target position
+            format_ctx.seek(target_pts, ..)?;
+            self.current_position = time;
 
-                    // Reset frame cache
-                    let mut state = self.state.lock().unwrap();
-                    state.last_decoded_frame_pts = target_pts;
+            // Reset frame cache
+            let mut state = self.state.lock().unwrap();
+            state.last_decoded_frame_pts = target_pts;
 
-                    return Ok(());
-                }
-            }
+            return Ok(());
         }
 
-        Err(VideoDecoderError::DecodingError("No video stream available for seeking".to_string()))
+        Err(VideoDecoderError::DecodingError(
+            "No video stream available for seeking".to_string(),
+        ))
     }
 }
 
 impl Drop for VideoDecoder {
     fn drop(&mut self) {
-
         let _ = self.close();
     }
 }
 
-
 pub fn create_default_decoder() -> VideoDecoder {
     VideoDecoder::new(VideoDecoderConfig::default())
 }
-
 
 pub fn get_media_info<P: AsRef<Path>>(path: P) -> Result<MediaInfo, VideoDecoderError> {
     let mut decoder = create_default_decoder();

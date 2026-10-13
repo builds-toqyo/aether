@@ -1,6 +1,5 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use super::types::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum GradientType {
@@ -41,16 +40,20 @@ impl GradientStop {
         if self.mid_point < 0.0 || self.mid_point > 1.0 {
             return Err("Gradient stop mid-point must be between 0.0 and 1.0".to_string());
         }
-        if self.color.0 < 0.0 || self.color.0 > 1.0 ||
-           self.color.1 < 0.0 || self.color.1 > 1.0 ||
-           self.color.2 < 0.0 || self.color.2 > 1.0 ||
-           self.color.3 < 0.0 || self.color.3 > 1.0 {
+        if self.color.0 < 0.0
+            || self.color.0 > 1.0
+            || self.color.1 < 0.0
+            || self.color.1 > 1.0
+            || self.color.2 < 0.0
+            || self.color.2 > 1.0
+            || self.color.3 < 0.0
+            || self.color.3 > 1.0
+        {
             return Err("Gradient color values must be between 0.0 and 1.0".to_string());
         }
         Ok(())
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GradientMask {
@@ -70,7 +73,6 @@ pub struct GradientMask {
     pub fractal_depth: u32,
     pub interpolation: GradientInterpolation,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum GradientInterpolation {
@@ -167,13 +169,15 @@ impl GradientMask {
 
     pub fn add_stop(&mut self, stop: GradientStop) {
         self.stops.push(stop);
-        self.stops.sort_by(|a, b| a.position.partial_cmp(&b.position).unwrap());
+        self.stops
+            .sort_by(|a, b| a.position.partial_cmp(&b.position).unwrap());
         self.properties.update_modified_time();
     }
 
     pub fn remove_stop(&mut self, position: f64) -> bool {
         let initial_len = self.stops.len();
-        self.stops.retain(|stop| (stop.position - position).abs() > f64::EPSILON);
+        self.stops
+            .retain(|stop| (stop.position - position).abs() > f64::EPSILON);
         let removed = self.stops.len() < initial_len;
         if removed {
             self.properties.update_modified_time();
@@ -208,8 +212,6 @@ impl GradientMask {
                 Some((x - r, y - r, x + r, y + r))
             }
             GradientType::Noise | GradientType::Fractal => {
-
-
                 Some((x - 100.0, y - 100.0, x + 100.0, y + 100.0))
             }
         }
@@ -250,7 +252,6 @@ impl GradientMask {
         }
 
         let mut eval = MaskEvaluation::new(self.properties.id.clone(), value, (x, y));
-
 
         eval.gradient_value = Some(value);
 
@@ -339,7 +340,6 @@ impl GradientMask {
     }
 
     fn evaluate_noise(&self, x: f64, y: f64) -> f64 {
-
         let nx = x * self.noise_scale;
         let ny = y * self.noise_scale;
 
@@ -359,22 +359,21 @@ impl GradientMask {
     }
 
     fn evaluate_fractal(&self, x: f64, y: f64) -> f64 {
-
         self.fractal_noise(x, y, self.fractal_depth, 1.0)
     }
 
     fn simplex_noise(&self, x: f64, y: f64) -> f64 {
-
         let s = (x + y) * 0.3660254037844386;
         let i = (x + s).floor();
         let j = (y + s).floor();
 
         let t = (i + j) * 0.211324865405187;
-        let x0 = x - (i - t);
-        let y0 = y - (j - t);
+        let _x0 = x - (i - t);
+        let _y0 = y - (j - t);
 
-
-        let hash = ((i as u32).wrapping_mul(374761393).wrapping_add((j as u32).wrapping_mul(668265263))) as f64;
+        let hash = ((i as u32)
+            .wrapping_mul(374761393)
+            .wrapping_add((j as u32).wrapping_mul(668265263))) as f64;
         (hash % 1000.0) / 500.0 - 1.0
     }
 
@@ -387,97 +386,35 @@ impl GradientMask {
         }
     }
 
-    fn interpolate_gradient(&self, t: f64) -> (f64, f64, f64, f64) {
-        if self.stops.is_empty() {
-            return (0.0, 0.0, 0.0, 0.0);
-        }
-
-        if self.stops.len() == 1 {
-            return self.stops[0].color;
-        }
-
-
-        let mut lower_stop = &self.stops[0];
-        let mut upper_stop = &self.stops[self.stops.len() - 1];
-
-        for i in 0..self.stops.len() - 1 {
-            if self.stops[i].position <= t && self.stops[i + 1].position >= t {
-                lower_stop = &self.stops[i];
-                upper_stop = &self.stops[i + 1];
-                break;
-            }
-        }
-
-        if lower_stop.position == upper_stop.position {
-            return lower_stop.color;
-        }
-
-        let local_t = (t - lower_stop.position) / (upper_stop.position - lower_stop.position);
-        let eased_t = self.apply_easing(local_t, lower_stop.mid_point);
-
-        (
-            lower_stop.color.0 + (upper_stop.color.0 - lower_stop.color.0) * eased_t,
-            lower_stop.color.1 + (upper_stop.color.1 - lower_stop.color.1) * eased_t,
-            lower_stop.color.2 + (upper_stop.color.2 - lower_stop.color.2) * eased_t,
-            lower_stop.color.3 + (upper_stop.color.3 - lower_stop.color.3) * eased_t,
-        )
-    }
-
-    fn apply_easing(&self, t: f64, mid_point: f64) -> f64 {
-        let adjusted_t = if t < mid_point {
-            t / mid_point
-        } else {
-            (t - mid_point) / (1.0 - mid_point)
-        };
-
-        let eased_t = match self.interpolation {
-            GradientInterpolation::Linear => adjusted_t,
-            GradientInterpolation::Ease => {
-                if adjusted_t < 0.5 {
-                    2.0 * adjusted_t * adjusted_t
-                } else {
-                    1.0 - 2.0 * (1.0 - adjusted_t) * (1.0 - adjusted_t)
-                }
-            }
-            GradientInterpolation::EaseIn => adjusted_t * adjusted_t,
-            GradientInterpolation::EaseOut => 1.0 - (1.0 - adjusted_t) * (1.0 - adjusted_t),
-            GradientInterpolation::EaseInOut => {
-                if adjusted_t < 0.5 {
-                    2.0 * adjusted_t * adjusted_t
-                } else {
-                    1.0 - 2.0 * (1.0 - adjusted_t) * (1.0 - adjusted_t)
-                }
-            }
-            GradientInterpolation::Cubic => adjusted_t * adjusted_t * adjusted_t,
-            GradientInterpolation::Exponential => {
-                if adjusted_t <= 0.0 {
-                    0.0
-                } else {
-                    2.0f64.powf(10.0 * (adjusted_t - 1.0))
-                }
-            }
-        };
-
-        if t < mid_point {
-            eased_t * mid_point
-        } else {
-            mid_point + eased_t * (1.0 - mid_point)
-        }
-    }
-
-    pub fn create_linear_gradient(id: String, name: String, start: (f64, f64), end: (f64, f64)) -> Self {
+    pub fn create_linear_gradient(
+        id: String,
+        name: String,
+        start: (f64, f64),
+        end: (f64, f64),
+    ) -> Self {
         Self::new(id, name, GradientType::Linear)
             .with_start_point(start.0, start.1)
             .with_end_point(end.0, end.1)
     }
 
-    pub fn create_radial_gradient(id: String, name: String, center: (f64, f64), radius: f64) -> Self {
+    pub fn create_radial_gradient(
+        id: String,
+        name: String,
+        center: (f64, f64),
+        radius: f64,
+    ) -> Self {
         Self::new(id, name, GradientType::Radial)
             .with_center_point(center.0, center.1)
             .with_radius(radius)
     }
 
-    pub fn create_angular_gradient(id: String, name: String, center: (f64, f64), radius: f64, angle: f64) -> Self {
+    pub fn create_angular_gradient(
+        id: String,
+        name: String,
+        center: (f64, f64),
+        radius: f64,
+        angle: f64,
+    ) -> Self {
         Self::new(id, name, GradientType::Angular)
             .with_center_point(center.0, center.1)
             .with_radius(radius)
@@ -521,7 +458,11 @@ impl GradientMask {
 
 impl Default for GradientMask {
     fn default() -> Self {
-        Self::new("default".to_string(), "Default Gradient".to_string(), GradientType::Linear)
+        Self::new(
+            "default".to_string(),
+            "Default Gradient".to_string(),
+            GradientType::Linear,
+        )
     }
 }
 
@@ -531,7 +472,11 @@ mod tests {
 
     #[test]
     fn test_gradient_mask_creation() {
-        let mask = GradientMask::new("grad1".to_string(), "Test Gradient".to_string(), GradientType::Linear);
+        let mask = GradientMask::new(
+            "grad1".to_string(),
+            "Test Gradient".to_string(),
+            GradientType::Linear,
+        );
 
         assert_eq!(mask.properties.id, "grad1");
         assert_eq!(mask.properties.name, "Test Gradient");
@@ -552,8 +497,7 @@ mod tests {
 
     #[test]
     fn test_gradient_stop_builder() {
-        let stop = GradientStop::new(0.3, (0.5, 0.7, 0.2, 1.0))
-            .with_mid_point(0.7);
+        let stop = GradientStop::new(0.3, (0.5, 0.7, 0.2, 1.0)).with_mid_point(0.7);
 
         assert_eq!(stop.position, 0.3);
         assert_eq!(stop.mid_point, 0.7);
@@ -567,13 +511,17 @@ mod tests {
             GradientStop::new(1.0, (0.0, 0.0, 1.0, 1.0)),
         ];
 
-        let mask = GradientMask::new("grad1".to_string(), "Test".to_string(), GradientType::Radial)
-            .with_stops(stops.clone())
-            .with_center_point(100.0, 100.0)
-            .with_radius(75.0)
-            .with_repeat(true)
-            .with_reverse(true)
-            .with_interpolation(GradientInterpolation::Ease);
+        let mask = GradientMask::new(
+            "grad1".to_string(),
+            "Test".to_string(),
+            GradientType::Radial,
+        )
+        .with_stops(stops.clone())
+        .with_center_point(100.0, 100.0)
+        .with_radius(75.0)
+        .with_repeat(true)
+        .with_reverse(true)
+        .with_interpolation(GradientInterpolation::Ease);
 
         assert_eq!(mask.stops, stops);
         assert_eq!(mask.center_point, (100.0, 100.0));
@@ -589,7 +537,7 @@ mod tests {
             "linear".to_string(),
             "Linear".to_string(),
             (-50.0, 0.0),
-            (50.0, 0.0)
+            (50.0, 0.0),
         );
 
         let eval_start = mask.evaluate_at(-50.0, 0.0);
@@ -608,7 +556,7 @@ mod tests {
             "radial".to_string(),
             "Radial".to_string(),
             (0.0, 0.0),
-            50.0
+            50.0,
         );
 
         let eval_center = mask.evaluate_at(0.0, 0.0);
@@ -628,13 +576,12 @@ mod tests {
             "Angular".to_string(),
             (0.0, 0.0),
             50.0,
-            0.0
+            0.0,
         );
 
         let eval_right = mask.evaluate_at(50.0, 0.0);
         let eval_top = mask.evaluate_at(0.0, 50.0);
         let eval_left = mask.evaluate_at(-50.0, 0.0);
-
 
         assert!(eval_right.value != eval_top.value);
         assert!(eval_top.value != eval_left.value);
@@ -670,7 +617,9 @@ mod tests {
         invalid_mask.stops = vec![GradientStop::new(0.0, (1.0, 0.0, 0.0, 1.0))];
         assert!(invalid_mask.validate().is_err());
 
-        invalid_mask.stops.push(GradientStop::new(1.0, (0.0, 1.0, 0.0, 1.0)));
+        invalid_mask
+            .stops
+            .push(GradientStop::new(1.0, (0.0, 1.0, 0.0, 1.0)));
         invalid_mask.radius = -1.0;
         assert!(invalid_mask.validate().is_err());
 
@@ -680,23 +629,16 @@ mod tests {
     }
 
     #[test]
-    fn test_gradient_interpolation() {
-        let mask = GradientMask::new("test".to_string(), "Test".to_string(), GradientType::Linear)
-            .with_interpolation(GradientInterpolation::Ease);
-
-        let color = mask.interpolate_gradient(0.5);
-
-        assert!(color.3 > 0.0 && color.3 < 1.0);
-    }
-
-    #[test]
     fn test_noise_gradient() {
-        let mask = GradientMask::new("noise".to_string(), "Noise".to_string(), GradientType::Noise)
-            .with_noise_params(0.1, 4, 0.5);
+        let mask = GradientMask::new(
+            "noise".to_string(),
+            "Noise".to_string(),
+            GradientType::Noise,
+        )
+        .with_noise_params(0.1, 4, 0.5);
 
         let eval1 = mask.evaluate_at(0.0, 0.0);
         let eval2 = mask.evaluate_at(10.0, 10.0);
-
 
         assert!(eval1.value != eval2.value);
         assert!(eval1.value >= 0.0 && eval1.value <= 1.0);
@@ -709,13 +651,12 @@ mod tests {
             "repeat".to_string(),
             "Repeat".to_string(),
             (-50.0, 0.0),
-            (50.0, 0.0)
+            (50.0, 0.0),
         );
         mask.repeat = true;
 
         let eval_inside = mask.evaluate_at(0.0, 0.0);
         let eval_outside = mask.evaluate_at(150.0, 0.0);
-
 
         assert!(eval_outside.value >= 0.0 && eval_outside.value <= 1.0);
     }
@@ -726,13 +667,12 @@ mod tests {
             "reverse".to_string(),
             "Reverse".to_string(),
             (-50.0, 0.0),
-            (50.0, 0.0)
+            (50.0, 0.0),
         );
         mask.reverse = true;
 
         let eval_start = mask.evaluate_at(-50.0, 0.0);
         let eval_end = mask.evaluate_at(50.0, 0.0);
-
 
         assert_eq!(eval_start.value, 1.0);
         assert_eq!(eval_end.value, 0.0);
@@ -744,7 +684,7 @@ mod tests {
             "linear".to_string(),
             "Linear".to_string(),
             (-50.0, 0.0),
-            (50.0, 0.0)
+            (50.0, 0.0),
         );
 
         let bounds = linear_mask.get_bounds();
@@ -759,7 +699,7 @@ mod tests {
             "radial".to_string(),
             "Radial".to_string(),
             (0.0, 0.0),
-            50.0
+            50.0,
         );
 
         let bounds = radial_mask.get_bounds();

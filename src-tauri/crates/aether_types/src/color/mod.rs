@@ -1,12 +1,8 @@
-
-
 pub mod scopes;
 
-
 pub use scopes::{
-    ColorScopeData, WaveformData, VectorscopeData, HistogramData, ScopeMetadata,
-    ScopeResolution, WaveformChannel, HistogramChannel, ColorSpace, VideoRange,
-    WaveformConfig, VectorscopeConfig, HistogramConfig, ScopeStats,
-    VectorscopePoint, WaveformMode, WaveformScale, VectorscopeTarget,
-    VectorscopeScale, HistogramMode,
+    ColorScopeData, ColorSpace, HistogramChannel, HistogramConfig, HistogramData, HistogramMode,
+    ScopeMetadata, ScopeResolution, ScopeStats, VectorscopeConfig, VectorscopeData,
+    VectorscopePoint, VectorscopeScale, VectorscopeTarget, VideoRange, WaveformChannel,
+    WaveformConfig, WaveformData, WaveformMode, WaveformScale,
 };

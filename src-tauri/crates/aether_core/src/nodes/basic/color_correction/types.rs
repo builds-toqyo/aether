@@ -1,9 +1,7 @@
 use uuid::Uuid;
 
-
 #[derive(Debug, Clone)]
 pub struct CorrectedImage {
-
     pub original_id: Uuid,
 
     pub corrected_id: Uuid,
@@ -29,10 +27,8 @@ pub struct CorrectedImage {
     pub gain: f32,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct TextureInfo {
-
     pub id: Uuid,
 
     pub width: usize,
@@ -50,10 +46,8 @@ pub struct TextureInfo {
     pub mipmap_count: usize,
 }
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextureFormat {
-
     RGBA8,
 
     RGB8,
@@ -72,11 +66,9 @@ pub enum TextureFormat {
 
     R32F,
 }
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextureInternalFormat {
-
     RGBA8,
 
     RGB8,
@@ -96,10 +88,8 @@ pub enum TextureInternalFormat {
     R32F,
 }
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum PixelType {
-
     UnsignedByte,
 
     UnsignedShort,
@@ -107,10 +97,8 @@ pub enum PixelType {
     Float,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct ColorCorrectionParams {
-
     pub brightness: f32,
 
     pub contrast: f32,
@@ -150,11 +138,9 @@ impl Default for ColorCorrectionParams {
 }
 
 impl ColorCorrectionParams {
-
     pub fn new() -> Self {
         Self::default()
     }
-
 
     pub fn validate(&mut self) {
         self.brightness = self.brightness.clamp(-1.0, 1.0);
@@ -169,17 +155,16 @@ impl ColorCorrectionParams {
         self.gain = self.gain.clamp(0.0, 2.0);
     }
 
-
     pub fn is_active(&self) -> bool {
-        self.brightness != 0.0 ||
-        self.contrast != 1.0 ||
-        self.saturation != 1.0 ||
-        self.gamma != 1.0 ||
-        self.temperature != 6500.0 ||
-        self.tint != 0.0 ||
-        self.hue != 0.0 ||
-        self.lift != 0.0 ||
-        self.gamma_gain != 1.0 ||
-        self.gain != 1.0
+        self.brightness != 0.0
+            || self.contrast != 1.0
+            || self.saturation != 1.0
+            || self.gamma != 1.0
+            || self.temperature != 6500.0
+            || self.tint != 0.0
+            || self.hue != 0.0
+            || self.lift != 0.0
+            || self.gamma_gain != 1.0
+            || self.gain != 1.0
     }
 }

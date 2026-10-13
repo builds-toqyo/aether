@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { ScopeData, ScopeSettings } from './index';
+import { useCanvasSize } from './useCanvasSize';
 
 interface VectorscopeProps {
   data?: ScopeData['vectorscope'];
@@ -13,13 +14,13 @@ export const Vectorscope: React.FC<VectorscopeProps> = ({
   isLoading,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Calculate canvas dimensions
+  // Square canvas sized to the smaller container dimension
+  const { ref: canvasAreaRef, size: areaSize } = useCanvasSize();
   const canvasSize = useMemo(() => {
-    const size = 300;
-    return { width: size, height: size };
-  }, []);
+    const side = Math.min(areaSize.width, areaSize.height);
+    return { width: side, height: side };
+  }, [areaSize]);
 
   // Default color targets for vectorscope
   const defaultTargets = useMemo(() => [
@@ -226,15 +227,15 @@ export const Vectorscope: React.FC<VectorscopeProps> = ({
   }, [canvasSize, draw]);
 
   return (
-    <div className="flex flex-col h-full" ref={containerRef}>
-      <div className="flex justify-between items-center p-2 bg-gray-800 border-b border-gray-700">
-        <h4 className="text-sm font-semibold text-white">Vectorscope</h4>
-        <div className="text-xs text-gray-300">
-          <span className="text-gray-600">Chroma: {(settings.chromaScale * 100).toFixed(0)}%</span>
-          {settings.intensity !== 1.0 && <span className="ml-2 text-gray-600">Intensity: {settings.intensity.toFixed(1)}x</span>}
+    <div className="flex flex-col h-full">
+      <div className="flex justify-between items-center px-3 py-2 bg-[#1a1a1a] border-b border-[#222]">
+        <h4 className="text-[12px] font-semibold text-[#ccc]">Vectorscope</h4>
+        <div className="text-[11px]">
+          <span className="text-[#777]">Chroma: {(settings.chromaScale * 100).toFixed(0)}%</span>
+          {settings.intensity !== 1.0 && <span className="ml-2 text-[#777]">Intensity: {settings.intensity.toFixed(1)}x</span>}
         </div>
       </div>
-      <div className="relative flex items-center justify-center bg-black min-h-[300px]">
+      <div ref={canvasAreaRef} className="relative flex-1 min-h-0 flex items-center justify-center bg-black">
         <canvas
           ref={canvasRef}
           className={`block ${isLoading ? 'opacity-50' : ''}`}
@@ -242,11 +243,11 @@ export const Vectorscope: React.FC<VectorscopeProps> = ({
         />
         {isLoading && (
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-            <div className="w-6 h-6 border-2 border-gray-600 border-t-2 border-t-white rounded-full animate-spin"></div>
+            <div className="w-6 h-6 border-2 border-[#444] border-t-blue-400 rounded-full animate-spin"></div>
           </div>
         )}
       </div>
-      <div className="p-2 bg-gray-800 border-t border-gray-700">
+      <div className="px-3 py-1.5 bg-[#1a1a1a] border-t border-[#222]">
         <div className="flex gap-1">
           <span className="px-1 py-0.5 bg-red-500 bg-opacity-70 text-white text-xs font-semibold rounded">R</span>
           <span className="px-1 py-0.5 bg-green-500 bg-opacity-70 text-black text-xs font-semibold rounded">G</span>

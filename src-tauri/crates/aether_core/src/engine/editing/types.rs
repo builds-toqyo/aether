@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::Error;
-use serde::{Serialize, Deserialize};
 
 #[derive(Error, Debug)]
 pub enum EditingError {
@@ -82,7 +82,6 @@ impl From<anyhow::Error> for EditingError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MediaInfo {
-
     pub path: PathBuf,
     pub duration: i64,
     pub title: Option<String>,

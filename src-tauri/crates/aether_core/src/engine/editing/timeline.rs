@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use anyhow::{Context, Result};
-use gstreamer as gst;
-use gst::prelude::*;
-use gstreamer_editing_services as ges;
+use crate::engine::editing::types::{ClipInfo, EditingError, TrackType};
+use anyhow::Result;
 use ges::prelude::*;
-use crate::engine::editing::types::{EditingError, ClipInfo, TrackType};
+use gstreamer as gst;
+use gstreamer_editing_services as ges;
+use std::collections::HashMap;
 
 pub struct Timeline {
     ges_timeline: Option<ges::Timeline>,
@@ -44,7 +42,9 @@ impl Timeline {
     }
 
     pub fn add_video_track(&mut self) -> Result<TimelineTrack, EditingError> {
-        let timeline = self.ges_timeline.as_ref()
+        let timeline = self
+            .ges_timeline
+            .as_ref()
             .ok_or(EditingError::NotInitialized)?;
 
         let track = ges::VideoTrack::new();
@@ -64,7 +64,9 @@ impl Timeline {
     }
 
     pub fn add_audio_track(&mut self) -> Result<TimelineTrack, EditingError> {
-        let timeline = self.ges_timeline.as_ref()
+        let timeline = self
+            .ges_timeline
+            .as_ref()
             .ok_or(EditingError::NotInitialized)?;
 
         let track = ges::AudioTrack::new();
@@ -83,25 +85,32 @@ impl Timeline {
         Ok(timeline_track)
     }
 
-    pub fn add_clip(&mut self,
-                   uri: &str,
-                   track_type: TrackType,
-                   start_time: i64,
-                   duration: i64,
-                   in_point: i64) -> Result<TimelineClip, EditingError> {
-        let timeline = self.ges_timeline.as_ref()
+    pub fn add_clip(
+        &mut self,
+        uri: &str,
+        track_type: TrackType,
+        start_time: i64,
+        duration: i64,
+        in_point: i64,
+    ) -> Result<TimelineClip, EditingError> {
+        let timeline = self
+            .ges_timeline
+            .as_ref()
             .ok_or(EditingError::NotInitialized)?;
 
         let layer = if timeline.layers().is_empty() {
             timeline.append_layer()
         } else {
-            timeline.layer(0).ok_or(EditingError::TimelineError("No layers available".to_string()))?
+            timeline.layer(0).ok_or(EditingError::TimelineError(
+                "No layers available".to_string(),
+            ))?
         };
 
         let asset = ges::UriClipAsset::request_sync(uri)?;
 
         let clip = asset.extract()?;
-        let clip = clip.downcast::<ges::Clip>()
+        let clip = clip
+            .downcast::<ges::Clip>()
             .map_err(|_| EditingError::TimelineError("Failed to downcast to Clip".to_string()))?;
 
         clip.set_start(gst::ClockTime::from_nseconds(start_time as u64));
@@ -133,10 +142,16 @@ impl Timeline {
     }
 
     pub fn move_clip(&mut self, clip_id: &str, new_start_time: i64) -> Result<(), EditingError> {
-        let clip = self.clips.get_mut(clip_id)
-            .ok_or(EditingError::InvalidParameter(format!("Clip not found: {}", clip_id)))?;
+        let clip = self
+            .clips
+            .get_mut(clip_id)
+            .ok_or(EditingError::InvalidParameter(format!(
+                "Clip not found: {}",
+                clip_id
+            )))?;
 
-        clip.ges_clip.set_start(gst::ClockTime::from_nseconds(new_start_time as u64));
+        clip.ges_clip
+            .set_start(gst::ClockTime::from_nseconds(new_start_time as u64));
 
         clip.start_time = new_start_time;
 
@@ -149,10 +164,16 @@ impl Timeline {
     }
 
     pub fn trim_clip(&mut self, clip_id: &str, new_duration: i64) -> Result<(), EditingError> {
-        let clip = self.clips.get_mut(clip_id)
-            .ok_or(EditingError::InvalidParameter(format!("Clip not found: {}", clip_id)))?;
+        let clip = self
+            .clips
+            .get_mut(clip_id)
+            .ok_or(EditingError::InvalidParameter(format!(
+                "Clip not found: {}",
+                clip_id
+            )))?;
 
-        clip.ges_clip.set_duration(gst::ClockTime::from_nseconds(new_duration as u64));
+        clip.ges_clip
+            .set_duration(gst::ClockTime::from_nseconds(new_duration as u64));
 
         clip.duration = new_duration;
 
@@ -162,19 +183,26 @@ impl Timeline {
     }
 
     pub fn split_clip(&mut self, clip_id: &str, position: i64) -> Result<String, EditingError> {
-        let clip = self.clips.get(clip_id)
-            .ok_or(EditingError::InvalidParameter(format!("Clip not found: {}", clip_id)))?;
+        let clip = self
+            .clips
+            .get(clip_id)
+            .ok_or(EditingError::InvalidParameter(format!(
+                "Clip not found: {}",
+                clip_id
+            )))?;
 
         if position <= clip.start_time || position >= clip.start_time + clip.duration {
-            return Err(EditingError::InvalidParameter(
-                format!("Split position {} is outside clip bounds", position)
-            ));
+            return Err(EditingError::InvalidParameter(format!(
+                "Split position {} is outside clip bounds",
+                position
+            )));
         }
 
         let relative_position = position - clip.start_time;
 
         let right_clip = clip.ges_clip.split(relative_position as u64)?;
-        let right_clip = right_clip.downcast::<ges::Clip>()
+        let right_clip = right_clip
+            .downcast::<ges::Clip>()
             .map_err(|_| EditingError::TimelineError("Failed to downcast to Clip".to_string()))?;
 
         let right_clip_id = format!("clip_{}", self.clips.len());
@@ -192,14 +220,24 @@ impl Timeline {
         let left_clip = self.clips.get_mut(clip_id).unwrap();
         left_clip.duration = relative_position;
 
-        self.clips.insert(right_clip_id.clone(), right_timeline_clip);
+        self.clips
+            .insert(right_clip_id.clone(), right_timeline_clip);
 
         Ok(right_clip_id)
     }
 
-    pub fn add_effect(&mut self, clip_id: &str, effect_type: &str) -> Result<TimelineEffect, EditingError> {
-        let clip = self.clips.get_mut(clip_id)
-            .ok_or(EditingError::InvalidParameter(format!("Clip not found: {}", clip_id)))?;
+    pub fn add_effect(
+        &mut self,
+        clip_id: &str,
+        effect_type: &str,
+    ) -> Result<TimelineEffect, EditingError> {
+        let clip = self
+            .clips
+            .get_mut(clip_id)
+            .ok_or(EditingError::InvalidParameter(format!(
+                "Clip not found: {}",
+                clip_id
+            )))?;
 
         let effect = ges::Effect::new(effect_type)?;
 
@@ -211,6 +249,7 @@ impl Timeline {
             name: effect_type.to_string(),
             ges_effect: effect,
             parameters: HashMap::new(),
+            node_connection: None,
         };
 
         clip.effects.push(timeline_effect.clone());
@@ -218,11 +257,42 @@ impl Timeline {
         Ok(timeline_effect)
     }
 
-    pub fn remove_clip(&mut self, clip_id: &str) -> Result<(), EditingError> {
-        let clip = self.clips.get(clip_id)
-            .ok_or(EditingError::InvalidParameter(format!("Clip not found: {}", clip_id)))?;
+    pub fn bind_node_to_effect(
+        &mut self,
+        clip_id: &str,
+        effect_id: &str,
+        node_id: &str,
+        output_pin_name: &str,
+    ) -> Result<(), EditingError> {
+        let clip = self
+            .clips
+            .get_mut(clip_id)
+            .ok_or(EditingError::InvalidParameter(format!(
+                "Clip not found: {}",
+                clip_id
+            )))?;
 
-        let layer = clip.ges_clip.layer()
+        let effect = clip.effects.iter_mut().find(|e| e.id == effect_id).ok_or(
+            EditingError::InvalidParameter(format!("Effect not found: {}", effect_id)),
+        )?;
+
+        effect.node_connection = Some((node_id.to_string(), output_pin_name.to_string()));
+
+        Ok(())
+    }
+
+    pub fn remove_clip(&mut self, clip_id: &str) -> Result<(), EditingError> {
+        let clip = self
+            .clips
+            .get(clip_id)
+            .ok_or(EditingError::InvalidParameter(format!(
+                "Clip not found: {}",
+                clip_id
+            )))?;
+
+        let layer = clip
+            .ges_clip
+            .layer()
             .ok_or(EditingError::TimelineError("Clip has no layer".to_string()))?;
 
         layer.remove_clip(&clip.ges_clip)?;
@@ -235,7 +305,8 @@ impl Timeline {
     }
 
     pub fn get_clips(&self) -> Vec<ClipInfo> {
-        self.clips.values()
+        self.clips
+            .values()
             .map(|clip| clip.to_clip_info())
             .collect()
     }
@@ -263,6 +334,28 @@ impl Timeline {
 
     pub fn get_ges_timeline(&self) -> Option<&ges::Timeline> {
         self.ges_timeline.as_ref()
+    }
+
+    pub fn get_video_tracks(&self) -> &Vec<TimelineTrack> {
+        &self.video_tracks
+    }
+
+    pub fn get_audio_tracks(&self) -> &Vec<TimelineTrack> {
+        &self.audio_tracks
+    }
+
+    pub fn remove_track(&mut self, track_id: &str) -> Result<(), EditingError> {
+        let before = self.video_tracks.len() + self.audio_tracks.len();
+        self.video_tracks.retain(|t| t.id != track_id);
+        self.audio_tracks.retain(|t| t.id != track_id);
+        let after = self.video_tracks.len() + self.audio_tracks.len();
+        if after == before {
+            return Err(EditingError::InvalidParameter(format!(
+                "Track not found: {}",
+                track_id
+            )));
+        }
+        Ok(())
     }
 }
 
@@ -321,6 +414,9 @@ pub struct TimelineEffect {
     pub ges_effect: ges::Effect,
 
     pub parameters: HashMap<String, String>,
+
+    /// Node graph connection: (node_id, output_pin_name)
+    pub node_connection: Option<(String, String)>,
 }
 
 impl TimelineEffect {

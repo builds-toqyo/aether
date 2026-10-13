@@ -1,9 +1,7 @@
-use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult};
-use crate::nodes::basic::transform::{TransformParams, TransformOperations};
-use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, OutputPin};
+use crate::nodes::basic::transform::{TransformOperations, TransformParams};
+use crate::nodes::{ExecutionContext, NodeExecutor, NodeResult};
+use aether_types::{InputPin, Node, NodeType, OutputPin, ParameterValue, PinDataType};
 use uuid::Uuid;
-use log::debug;
-
 
 pub struct TransformNode {
     node: Node,
@@ -12,7 +10,6 @@ pub struct TransformNode {
 }
 
 impl TransformNode {
-
     pub fn new(node: Node) -> Self {
         let params = TransformParams::default();
         let operations = TransformOperations::new(params.clone());
@@ -24,77 +21,63 @@ impl TransformNode {
         }
     }
 
-
     pub fn set_position(&mut self, x: f32, y: f32) {
         self.params.set_position(x, y);
         self.operations.update_params(self.params.clone());
     }
 
-
     pub fn get_position(&self) -> (f32, f32) {
         self.params.get_position()
     }
-
 
     pub fn set_scale(&mut self, x: f32, y: f32) {
         self.params.set_scale(x, y);
         self.operations.update_params(self.params.clone());
     }
 
-
     pub fn get_scale(&self) -> (f32, f32) {
         self.params.get_scale()
     }
-
 
     pub fn set_uniform_scale(&mut self, scale: f32) {
         self.params.set_uniform_scale(scale);
         self.operations.update_params(self.params.clone());
     }
 
-
     pub fn get_uniform_scale(&self) -> f32 {
         self.params.get_uniform_scale()
     }
-
 
     pub fn set_rotation(&mut self, rotation: f32) {
         self.params.set_rotation(rotation);
         self.operations.update_params(self.params.clone());
     }
 
-
     pub fn get_rotation(&self) -> f32 {
         self.params.get_rotation()
     }
 
-
     pub fn get_rotation_rad(&self) -> f32 {
         self.params.get_rotation_rad()
     }
-
 
     pub fn set_anchor(&mut self, x: f32, y: f32) {
         self.params.set_anchor(x, y);
         self.operations.update_params(self.params.clone());
     }
 
-
     pub fn get_anchor(&self) -> (f32, f32) {
         self.params.get_anchor()
     }
-
 
     pub fn set_uniform_scale_flag(&mut self, uniform: bool) {
         self.params.set_uniform_scale_flag(uniform);
         self.operations.update_params(self.params.clone());
     }
 
-
     pub fn is_uniform_scale(&self) -> bool {
         self.params.is_uniform_scale()
     }
-
 
     pub fn set_params(&mut self, params: TransformParams) {
         self.params = params.clone();
@@ -102,41 +85,33 @@ impl TransformNode {
         self.operations.update_params(self.params.clone());
     }
 
-
     pub fn get_params(&self) -> &TransformParams {
         &self.params
     }
-
 
     pub fn reset(&mut self) {
         self.params.reset();
         self.operations.update_params(self.params.clone());
     }
 
-
     pub fn is_active(&self) -> bool {
         self.params.is_active()
     }
-
 
     pub fn transform_point(&self, x: f32, y: f32) -> (f32, f32) {
         self.operations.transform_point(x, y)
     }
 
-
     pub fn transform_vector(&self, x: f32, y: f32) -> (f32, f32) {
         self.operations.transform_vector(x, y)
     }
-
 
     pub fn get_bounding_box(&self, width: f32, height: f32) -> ((f32, f32), (f32, f32)) {
         self.operations.get_bounding_box(width, height)
     }
 
-
     pub fn create_standard(name: String) -> Node {
         let mut node = Node::new(NodeType::Transform, name);
-
 
         let input_pin = InputPin {
             id: Uuid::new_v4(),
@@ -149,7 +124,6 @@ impl TransformNode {
         };
         node.add_input(input_pin);
 
-
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
@@ -157,7 +131,6 @@ impl TransformNode {
             value: ParameterValue::None,
         };
         node.add_output(output_pin);
-
 
         let position_x_param = aether_types::Parameter {
             id: Uuid::new_v4(),
@@ -268,13 +241,13 @@ impl TransformNode {
 }
 
 impl NodeExecutor for TransformNode {
-    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
-
-        let input_value = self.node.get_input_value("input").unwrap_or(ParameterValue::None);
-
+    fn execute(&mut self, _context: &mut ExecutionContext) -> NodeResult<()> {
+        let input_value = self
+            .node
+            .get_input_value("input")
+            .unwrap_or(ParameterValue::None);
 
         let output_value = self.operations.apply_transform(input_value);
-
 
         self.node.set_output_value("output", output_value);
 
@@ -292,7 +265,6 @@ impl NodeExecutor for TransformNode {
     fn get_outputs(&self) -> Vec<Uuid> {
         self.node.outputs.iter().map(|pin| pin.id).collect()
     }
-
 }
 
 #[cfg(test)]
@@ -340,7 +312,6 @@ mod tests {
         let node = TransformNode::create_standard("Test".to_string());
         let mut transform_node = TransformNode::new(node);
 
-
         transform_node.set_rotation(450.0);
         assert_eq!(transform_node.get_rotation(), 90.0);
 
@@ -356,13 +327,10 @@ mod tests {
         let node = TransformNode::create_standard("Test".to_string());
         let mut transform_node = TransformNode::new(node);
 
-
         assert!(!transform_node.is_active());
-
 
         transform_node.set_position(10.0, 0.0);
         assert!(transform_node.is_active());
-
 
         transform_node.reset();
         assert!(!transform_node.is_active());
@@ -380,15 +348,12 @@ mod tests {
         let node = TransformNode::create_standard("Test".to_string());
         let mut transform_node = TransformNode::new(node);
 
-
         transform_node.set_scale(2.0, 3.0);
         assert_eq!(transform_node.get_scale(), (2.0, 3.0));
-
 
         transform_node.set_uniform_scale_flag(true);
         assert!(transform_node.is_uniform_scale());
         assert_eq!(transform_node.get_scale(), (2.5, 2.5));
-
 
         transform_node.set_uniform_scale(1.5);
         assert_eq!(transform_node.get_scale(), (1.5, 1.5));
@@ -399,16 +364,13 @@ mod tests {
         let node = TransformNode::create_standard("Test".to_string());
         let mut transform_node = TransformNode::new(node);
 
-
         transform_node.set_position(100.0, 200.0);
         transform_node.set_scale(2.0, 3.0);
         transform_node.set_rotation(45.0);
         transform_node.set_anchor(50.0, 75.0);
         transform_node.set_uniform_scale_flag(false);
 
-
         transform_node.reset();
-
 
         assert_eq!(transform_node.get_position(), (0.0, 0.0));
         assert_eq!(transform_node.get_scale(), (1.0, 1.0));
@@ -422,17 +384,14 @@ mod tests {
         let node = TransformNode::create_standard("Test".to_string());
         let mut transform_node = TransformNode::new(node);
 
-
         transform_node.set_position(10.0, 20.0);
         let result = transform_node.transform_point(0.0, 0.0);
         assert_eq!(result, (10.0, 20.0));
-
 
         transform_node.reset();
         transform_node.set_scale(2.0, 3.0);
         let result = transform_node.transform_point(10.0, 10.0);
         assert_eq!(result, (20.0, 30.0));
-
 
         transform_node.reset();
         transform_node.set_rotation(90.0);
@@ -451,10 +410,7 @@ mod tests {
         assert_eq!(node.outputs.len(), 1);
         assert!(node.inputs[0].required);
 
-
-        let param_names: Vec<String> = node.parameters.iter()
-            .map(|p| p.name.clone())
-            .collect();
+        let param_names: Vec<String> = node.parameters.iter().map(|p| p.name.clone()).collect();
         assert!(param_names.contains(&"position_x".to_string()));
         assert!(param_names.contains(&"position_y".to_string()));
         assert!(param_names.contains(&"scale_x".to_string()));

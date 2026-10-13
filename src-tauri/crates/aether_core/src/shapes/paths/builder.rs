@@ -39,15 +39,21 @@ impl PathBuilder {
         self
     }
 
-
-    pub fn bezier_to(&mut self, x: f64, y: f64, cp1_x: f64, cp1_y: f64, cp2_x: f64, cp2_y: f64) -> &mut Self {
+    pub fn bezier_to(
+        &mut self,
+        x: f64,
+        y: f64,
+        cp1_x: f64,
+        cp1_y: f64,
+        cp2_x: f64,
+        cp2_y: f64,
+    ) -> &mut Self {
         let segment = super::segments::PathSegment::cubic_to(x, y, cp1_x, cp1_y, cp2_x, cp2_y);
         self.path.segments.push(segment);
         self.path.current_x = x;
         self.path.current_y = y;
         self
     }
-
 
     pub fn close(&mut self) -> &mut Self {
         let segment = super::segments::PathSegment::close();
@@ -58,7 +64,6 @@ impl PathBuilder {
         self
     }
 
-
     pub fn rectangle(&mut self, x: f64, y: f64, width: f64, height: f64) -> &mut Self {
         self.move_to(x, y);
         self.line_to(x + width, y);
@@ -68,8 +73,14 @@ impl PathBuilder {
         self
     }
 
-
-    pub fn rounded_rectangle(&mut self, x: f64, y: f64, width: f64, height: f64, radius: f64) -> &mut Self {
+    pub fn rounded_rectangle(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        radius: f64,
+    ) -> &mut Self {
         let r = radius.min(width / 2.0).min(height / 2.0);
 
         self.move_to(x + r, y);
@@ -85,64 +96,57 @@ impl PathBuilder {
         self
     }
 
-
     pub fn circle(&mut self, cx: f64, cy: f64, radius: f64) -> &mut Self {
         let k = 0.552284749831;
 
         self.move_to(cx + radius, cy);
         self.bezier_to(
-            cx + radius, cy - k * radius,
-            cx + k * radius, cy - radius,
-            cx, cy - radius,
+            cx + radius,
+            cy - k * radius,
+            cx + k * radius,
+            cy - radius,
+            cx,
+            cy - radius,
         );
         self.bezier_to(
-            cx - k * radius, cy - radius,
-            cx - radius, cy - k * radius,
-            cx - radius, cy,
+            cx - k * radius,
+            cy - radius,
+            cx - radius,
+            cy - k * radius,
+            cx - radius,
+            cy,
         );
         self.bezier_to(
-            cx - radius, cy + k * radius,
-            cx - k * radius, cy + radius,
-            cx, cy + radius,
+            cx - radius,
+            cy + k * radius,
+            cx - k * radius,
+            cy + radius,
+            cx,
+            cy + radius,
         );
         self.bezier_to(
-            cx + k * radius, cy + radius,
-            cx + radius, cy + k * radius,
-            cx + radius, cy,
+            cx + k * radius,
+            cy + radius,
+            cx + radius,
+            cy + k * radius,
+            cx + radius,
+            cy,
         );
         self.close();
         self
     }
-
 
     pub fn ellipse(&mut self, cx: f64, cy: f64, rx: f64, ry: f64) -> &mut Self {
         let k = 0.552284749831;
 
         self.move_to(cx + rx, cy);
-        self.bezier_to(
-            cx + rx, cy - k * ry,
-            cx + k * rx, cy - ry,
-            cx, cy - ry,
-        );
-        self.bezier_to(
-            cx - k * rx, cy - ry,
-            cx - rx, cy - k * ry,
-            cx - rx, cy,
-        );
-        self.bezier_to(
-            cx - rx, cy + k * ry,
-            cx - k * rx, cy + ry,
-            cx, cy + ry,
-        );
-        self.bezier_to(
-            cx + k * rx, cy + ry,
-            cx + rx, cy + k * ry,
-            cx + rx, cy,
-        );
+        self.bezier_to(cx + rx, cy - k * ry, cx + k * rx, cy - ry, cx, cy - ry);
+        self.bezier_to(cx - k * rx, cy - ry, cx - rx, cy - k * ry, cx - rx, cy);
+        self.bezier_to(cx - rx, cy + k * ry, cx - k * rx, cy + ry, cx, cy + ry);
+        self.bezier_to(cx + k * rx, cy + ry, cx + rx, cy + k * ry, cx + rx, cy);
         self.close();
         self
     }
-
 
     pub fn regular_polygon(&mut self, cx: f64, cy: f64, radius: f64, sides: usize) -> &mut Self {
         let angle_step = 2.0 * std::f64::consts::PI / sides as f64;
@@ -163,13 +167,23 @@ impl PathBuilder {
         self
     }
 
-
-    pub fn star(&mut self, cx: f64, cy: f64, outer_radius: f64, inner_radius: f64, points: usize) -> &mut Self {
+    pub fn star(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        outer_radius: f64,
+        inner_radius: f64,
+        points: usize,
+    ) -> &mut Self {
         let angle_step = std::f64::consts::PI / points as f64;
 
         for i in 0..points * 2 {
             let angle = i as f64 * angle_step - std::f64::consts::PI / 2.0;
-            let radius = if i % 2 == 0 { outer_radius } else { inner_radius };
+            let radius = if i % 2 == 0 {
+                outer_radius
+            } else {
+                inner_radius
+            };
             let x = cx + radius * angle.cos();
             let y = cy + radius * angle.sin();
 
@@ -184,8 +198,14 @@ impl PathBuilder {
         self
     }
 
-
-    pub fn arc(&mut self, cx: f64, cy: f64, radius: f64, start_angle: f64, end_angle: f64) -> &mut Self {
+    pub fn arc(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        radius: f64,
+        start_angle: f64,
+        end_angle: f64,
+    ) -> &mut Self {
         let start_x = cx + radius * start_angle.cos();
         let start_y = cy + radius * start_angle.sin();
 
@@ -194,7 +214,6 @@ impl PathBuilder {
         } else {
             self.line_to(start_x, start_y);
         }
-
 
         let angle_diff = end_angle - start_angle;
         let steps = ((angle_diff.abs() / (std::f64::consts::PI / 4.0)).ceil() as usize).max(1);
@@ -209,7 +228,6 @@ impl PathBuilder {
             if i == 1 {
                 self.line_to(x, y);
             } else {
-
                 let prev_angle = start_angle + (i - 1) as f64 * angle_step;
                 let mid_angle = prev_angle + angle_step / 2.0;
                 let mid_x = cx + radius * mid_angle.cos();
@@ -221,7 +239,6 @@ impl PathBuilder {
 
         self
     }
-
 
     pub fn polyline(&mut self, points: &[(f64, f64)]) -> &mut Self {
         if let Some((x, y)) = points.first() {
@@ -235,7 +252,6 @@ impl PathBuilder {
         self
     }
 
-
     pub fn smooth_curve(&mut self, points: &[(f64, f64)], tension: f64) -> &mut Self {
         if points.len() < 2 {
             return self;
@@ -246,18 +262,11 @@ impl PathBuilder {
         }
 
         for i in 1..points.len() {
-            if i == 1 {
-
-                if let Some((x, y)) = points.get(i) {
-                    self.line_to(*x, *y);
-                }
-            } else if i == points.len() - 1 {
-
+            if i == 1 || i == points.len() - 1 {
                 if let Some((x, y)) = points.get(i) {
                     self.line_to(*x, *y);
                 }
             } else {
-
                 let (x0, y0) = points[i - 1];
                 let (x1, y1) = points[i];
                 let (x2, y2) = points[i + 1];
@@ -274,26 +283,21 @@ impl PathBuilder {
         self
     }
 
-
     pub fn build(self) -> super::path::Path {
         self.path
     }
-
 
     pub fn current_position(&self) -> (f64, f64) {
         (self.path.current_x, self.path.current_y)
     }
 
-
     pub fn start_position(&self) -> (f64, f64) {
         (self.path.start_x, self.path.start_y)
     }
 
-
     pub fn is_closed(&self) -> bool {
         self.path.closed
     }
-
 
     pub fn segment_count(&self) -> usize {
         self.path.segments.len()

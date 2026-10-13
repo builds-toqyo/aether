@@ -1,7 +1,7 @@
+use crate::shapes::paths::{Path, PathBuilder};
+use crate::shapes::primitives::{BoundingBox, ShapePrimitive};
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use crate::shapes::primitives::{ShapePrimitive, BoundingBox};
-use crate::shapes::paths::{Path, PathBuilder};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum BooleanOperation {
@@ -139,7 +139,9 @@ impl ShapeBoolean {
 
         // Add second path with a move to separate them
         if let Some(last_segment) = path_a.segments.last() {
-            combined.segments.push(PathSegment::move_to(last_segment.x, last_segment.y));
+            combined
+                .segments
+                .push(PathSegment::move_to(last_segment.x, last_segment.y));
         }
 
         for segment in &path_b.segments {
@@ -179,19 +181,16 @@ impl ShapeBoolean {
         let mut vertices: Vec<(f64, f64)> = Vec::new();
 
         // Sample points along path
-        let samples = if path.segments.len() > 10 {
-            100
-        } else {
-            50
-        };
+        let samples = if path.segments.len() > 10 { 100 } else { 50 };
 
         let points = path.sample_points(samples);
 
         // Remove duplicate points
         for point in points {
-            if vertices.is_empty() ||
-               (point.0 - vertices.last().unwrap().0).abs() > f64::EPSILON ||
-               (point.1 - vertices.last().unwrap().1).abs() > f64::EPSILON {
+            if vertices.is_empty()
+                || (point.0 - vertices.last().unwrap().0).abs() > f64::EPSILON
+                || (point.1 - vertices.last().unwrap().1).abs() > f64::EPSILON
+            {
                 vertices.push(point);
             }
         }
@@ -228,7 +227,8 @@ impl ShapeBoolean {
     /// Polygon subtract operation
     fn polygon_subtract(poly_a: &[(f64, f64)], poly_b: &[(f64, f64)]) -> Vec<(f64, f64)> {
         // Simplified subtract - return points in A that are not in B
-        poly_a.iter()
+        poly_a
+            .iter()
             .filter(|&point| !Self::point_in_polygon(point, poly_b))
             .copied()
             .collect()
@@ -237,7 +237,8 @@ impl ShapeBoolean {
     /// Polygon intersect operation
     fn polygon_intersect(poly_a: &[(f64, f64)], poly_b: &[(f64, f64)]) -> Vec<(f64, f64)> {
         // Simplified intersect - return points in A that are also in B
-        poly_a.iter()
+        poly_a
+            .iter()
             .filter(|&point| Self::point_in_polygon(point, poly_b))
             .copied()
             .collect()
@@ -276,8 +277,9 @@ impl ShapeBoolean {
             let p1 = polygon[i];
             let p2 = polygon[(i + 1) % n];
 
-            if ((p1.1 > point.1) != (p2.1 > point.1)) &&
-               (point.0 < (p2.0 - p1.0) * (point.1 - p1.1) / (p2.1 - p1.1) + p1.0) {
+            if ((p1.1 > point.1) != (p2.1 > point.1))
+                && (point.0 < (p2.0 - p1.0) * (point.1 - p1.1) / (p2.1 - p1.1) + p1.0)
+            {
                 inside = !inside;
             }
         }
@@ -292,7 +294,8 @@ impl ShapeBoolean {
         }
 
         // Find point with lowest y-coordinate (and leftmost if tie)
-        let start = points.iter()
+        let start = points
+            .iter()
             .enumerate()
             .min_by(|(_, a), (_, b)| {
                 a.1.partial_cmp(&b.1)
@@ -305,7 +308,8 @@ impl ShapeBoolean {
         let start_point = points[start];
 
         // Sort points by polar angle with respect to start point
-        let mut sorted_points: Vec<(f64, f64)> = points.iter()
+        let mut sorted_points: Vec<(f64, f64)> = points
+            .iter()
             .enumerate()
             .filter(|(idx, _)| *idx != start)
             .map(|(_, point)| *point)
@@ -314,7 +318,9 @@ impl ShapeBoolean {
         sorted_points.sort_by(|a, b| {
             let angle_a = (a.1 - start_point.1).atan2(a.0 - start_point.0);
             let angle_b = (b.1 - start_point.1).atan2(b.0 - start_point.0);
-            angle_a.partial_cmp(&angle_b).unwrap_or(std::cmp::Ordering::Equal)
+            angle_a
+                .partial_cmp(&angle_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // Graham scan
@@ -347,34 +353,22 @@ pub struct AdvancedBoolean;
 
 impl AdvancedBoolean {
     /// Perform union with proper polygon clipping
-    pub fn union(
-        shape_a: &dyn ShapePrimitive,
-        shape_b: &dyn ShapePrimitive,
-    ) -> BooleanResult {
+    pub fn union(shape_a: &dyn ShapePrimitive, shape_b: &dyn ShapePrimitive) -> BooleanResult {
         ShapeBoolean::operate(shape_a, shape_b, BooleanOperation::Union)
     }
 
     /// Perform subtract with proper polygon clipping
-    pub fn subtract(
-        shape_a: &dyn ShapePrimitive,
-        shape_b: &dyn ShapePrimitive,
-    ) -> BooleanResult {
+    pub fn subtract(shape_a: &dyn ShapePrimitive, shape_b: &dyn ShapePrimitive) -> BooleanResult {
         ShapeBoolean::operate(shape_a, shape_b, BooleanOperation::Subtract)
     }
 
     /// Perform intersect with proper polygon clipping
-    pub fn intersect(
-        shape_a: &dyn ShapePrimitive,
-        shape_b: &dyn ShapePrimitive,
-    ) -> BooleanResult {
+    pub fn intersect(shape_a: &dyn ShapePrimitive, shape_b: &dyn ShapePrimitive) -> BooleanResult {
         ShapeBoolean::operate(shape_a, shape_b, BooleanOperation::Intersect)
     }
 
     /// Perform XOR with proper polygon clipping
-    pub fn xor(
-        shape_a: &dyn ShapePrimitive,
-        shape_b: &dyn ShapePrimitive,
-    ) -> BooleanResult {
+    pub fn xor(shape_a: &dyn ShapePrimitive, shape_b: &dyn ShapePrimitive) -> BooleanResult {
         ShapeBoolean::operate(shape_a, shape_b, BooleanOperation::Xor)
     }
 
@@ -401,7 +395,11 @@ impl AdvancedBoolean {
             let result = ShapeBoolean::operate_paths(&current_path, &shape_path, current_operation);
 
             if !result.success {
-                return Err(format!("Boolean operation failed on shape {}: {}", i, result.error.as_deref().unwrap_or("unknown error")));
+                return Err(format!(
+                    "Boolean operation failed on shape {}: {}",
+                    i,
+                    result.error.as_deref().unwrap_or("unknown error")
+                ));
             }
 
             current_path = result.path;
@@ -416,10 +414,7 @@ pub struct BooleanUtils;
 
 impl BooleanUtils {
     /// Check if two shapes intersect
-    pub fn shapes_intersect(
-        shape_a: &dyn ShapePrimitive,
-        shape_b: &dyn ShapePrimitive,
-    ) -> bool {
+    pub fn shapes_intersect(shape_a: &dyn ShapePrimitive, shape_b: &dyn ShapePrimitive) -> bool {
         let bounds_a = shape_a.bounds();
         let bounds_b = shape_b.bounds();
 
@@ -427,17 +422,14 @@ impl BooleanUtils {
     }
 
     /// Check if shape A contains shape B
-    pub fn shape_contains(
-        shape_a: &dyn ShapePrimitive,
-        shape_b: &dyn ShapePrimitive,
-    ) -> bool {
+    pub fn shape_contains(shape_a: &dyn ShapePrimitive, shape_b: &dyn ShapePrimitive) -> bool {
         let path_b = shape_b.to_path();
 
         // Check if all vertices of B are inside A
-        if let Some(first_segment) = path_b.segments.first() {
-            if !shape_a.contains_point(first_segment.x, first_segment.y) {
-                return false;
-            }
+        if let Some(first_segment) = path_b.segments.first()
+            && !shape_a.contains_point(first_segment.x, first_segment.y)
+        {
+            return false;
         }
 
         // Sample points along B and check if they're inside A
@@ -453,25 +445,13 @@ impl BooleanUtils {
         true
     }
 
-
-    pub fn intersection_area(
-        shape_a: &dyn ShapePrimitive,
-        shape_b: &dyn ShapePrimitive,
-    ) -> f64 {
+    pub fn intersection_area(shape_a: &dyn ShapePrimitive, shape_b: &dyn ShapePrimitive) -> f64 {
         let result = AdvancedBoolean::intersect(shape_a, shape_b);
 
-        if result.success {
-            result.area()
-        } else {
-            0.0
-        }
+        if result.success { result.area() } else { 0.0 }
     }
 
-
-    pub fn union_area(
-        shape_a: &dyn ShapePrimitive,
-        shape_b: &dyn ShapePrimitive,
-    ) -> f64 {
+    pub fn union_area(shape_a: &dyn ShapePrimitive, shape_b: &dyn ShapePrimitive) -> f64 {
         let result = AdvancedBoolean::union(shape_a, shape_b);
 
         if result.success {
@@ -481,15 +461,10 @@ impl BooleanUtils {
         }
     }
 
-
-    pub fn simplify_shape(
-        shape: &dyn ShapePrimitive,
-        tolerance: f64,
-    ) -> Path {
+    pub fn simplify_shape(shape: &dyn ShapePrimitive, tolerance: f64) -> Path {
         let path = shape.to_path();
         Self::simplify_path(&path, tolerance)
     }
-
 
     fn simplify_path(path: &Path, tolerance: f64) -> Path {
         if path.segments.len() < 3 {
@@ -508,9 +483,10 @@ impl BooleanUtils {
                     current_y = segment.y;
                 }
                 crate::shapes::paths::PathSegmentType::LineTo => {
-
-                    if let Some(last_segment) = simplified_segments.last() {
-                        let distance = ((segment.x - current_x).powi(2) + (segment.y - current_y).powi(2)).sqrt();
+                    if let Some(_last_segment) = simplified_segments.last() {
+                        let distance = ((segment.x - current_x).powi(2)
+                            + (segment.y - current_y).powi(2))
+                        .sqrt();
 
                         if distance > tolerance {
                             simplified_segments.push(segment.clone());
@@ -527,8 +503,8 @@ impl BooleanUtils {
                     simplified_segments.push(segment.clone());
                 }
 
-                crate::shapes::paths::PathSegmentType::QuadraticTo |
-                crate::shapes::paths::PathSegmentType::CubicTo => {
+                crate::shapes::paths::PathSegmentType::QuadraticTo
+                | crate::shapes::paths::PathSegmentType::CubicTo => {
                     simplified_segments.push(segment.clone());
                     current_x = segment.x;
                     current_y = segment.y;
@@ -546,13 +522,12 @@ impl BooleanUtils {
     }
 }
 
-
 use crate::shapes::paths::PathSegment;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shapes::primitives::{Rectangle, Circle};
+    use crate::shapes::primitives::{Circle, Rectangle};
 
     #[test]
     fn test_boolean_union() {
@@ -612,19 +587,13 @@ mod tests {
 
         let hull = ShapeBoolean::convex_hull(&points);
 
-
         assert!(hull.len() >= 4);
         assert!(!hull.contains(&(5.0, 5.0)));
     }
 
     #[test]
     fn test_point_in_polygon() {
-        let square = vec![
-            (0.0, 0.0),
-            (10.0, 0.0),
-            (10.0, 10.0),
-            (0.0, 10.0),
-        ];
+        let square = vec![(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)];
 
         assert!(ShapeBoolean::point_in_polygon(&(5.0, 5.0), &square));
         assert!(ShapeBoolean::point_in_polygon(&(1.0, 1.0), &square));

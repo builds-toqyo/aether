@@ -127,7 +127,6 @@ mod tests {
         ];
 
         for anim_type in types {
-
             assert_eq!(anim_type, anim_type);
         }
     }

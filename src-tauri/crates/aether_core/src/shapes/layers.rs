@@ -1,11 +1,10 @@
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use std::collections::HashMap;
+use std::fmt;
 
-use crate::shapes::primitives::{ShapePrimitive, Transform, BoundingBox};
+use crate::shapes::boolean::{AdvancedBoolean, BooleanOperation, BooleanResult};
 use crate::shapes::paths::Path;
-use crate::shapes::boolean::{BooleanResult, BooleanOperation, AdvancedBoolean};
-
+use crate::shapes::primitives::{BoundingBox, PathShape, ShapePrimitive, Transform};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LayerBlendMode {
@@ -43,22 +42,17 @@ impl fmt::Display for LayerBlendMode {
 }
 
 /// Layer visibility state
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum LayerVisibility {
+    #[default]
     Visible,
     Hidden,
     Locked,
 }
 
-impl Default for LayerVisibility {
-    fn default() -> Self {
-        LayerVisibility::Visible
-    }
-}
-
 /// Shape layer
 #[derive(Serialize)]
-pub struct ShapeLayer { 
+pub struct ShapeLayer {
     pub id: String,
     pub name: String,
     #[serde(skip)]
@@ -79,10 +73,10 @@ impl Clone for ShapeLayer {
             id: self.id.clone(),
             name: self.name.clone(),
             shape: self.shape.clone_box(),
-            transform: self.transform.clone(),
-            visibility: self.visibility.clone(),
+            transform: self.transform,
+            visibility: self.visibility,
             opacity: self.opacity,
-            blend_mode: self.blend_mode.clone(),
+            blend_mode: self.blend_mode,
             order: self.order,
             selected: self.selected,
             locked: self.locked,
@@ -110,11 +104,7 @@ impl std::fmt::Debug for ShapeLayer {
 }
 
 impl ShapeLayer {
-    pub fn new<S: Into<String>>(
-        id: S,
-        name: S,
-        shape: Box<dyn ShapePrimitive>,
-    ) -> Self {
+    pub fn new<S: Into<String>>(id: S, name: S, shape: Box<dyn ShapePrimitive>) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
@@ -187,9 +177,7 @@ impl ShapeLayer {
     }
 
     pub fn is_visible(&self) -> bool {
-        matches!(self.visibility, LayerVisibility::Visible) &&
-        self.opacity > 0.0 &&
-        !self.locked
+        matches!(self.visibility, LayerVisibility::Visible) && self.opacity > 0.0 && !self.locked
     }
 
     pub fn set_visibility(&mut self, visibility: LayerVisibility) {
@@ -323,7 +311,8 @@ impl ShapeLayerCollection {
 
     /// Move layer to new position
     pub fn move_layer(&mut self, id: &str, new_order: i32) -> Result<(), String> {
-        let index = self.find_layer_index(id)
+        let index = self
+            .find_layer_index(id)
             .ok_or_else(|| format!("Layer with ID {} not found", id))?;
 
         let mut layer = self.layers.remove(index);
@@ -336,7 +325,8 @@ impl ShapeLayerCollection {
 
     /// Move layer up in stack
     pub fn move_layer_up(&mut self, id: &str) -> Result<(), String> {
-        let index = self.find_layer_index(id)
+        let index = self
+            .find_layer_index(id)
             .ok_or_else(|| format!("Layer with ID {} not found", id))?;
 
         if index == 0 {
@@ -350,7 +340,8 @@ impl ShapeLayerCollection {
 
     /// Move layer down in stack
     pub fn move_layer_down(&mut self, id: &str) -> Result<(), String> {
-        let index = self.find_layer_index(id)
+        let index = self
+            .find_layer_index(id)
             .ok_or_else(|| format!("Layer with ID {} not found", id))?;
 
         if index == self.layers.len() - 1 {
@@ -364,21 +355,18 @@ impl ShapeLayerCollection {
 
     /// Get visible layers
     pub fn get_visible_layers(&self) -> Vec<&ShapeLayer> {
-        self.layers.iter()
-            .filter(|l| l.is_visible())
-            .collect()
+        self.layers.iter().filter(|l| l.is_visible()).collect()
     }
 
     /// Get selected layers
     pub fn get_selected_layers(&self) -> Vec<&ShapeLayer> {
-        self.layers.iter()
-            .filter(|l| l.selected)
-            .collect()
+        self.layers.iter().filter(|l| l.selected).collect()
     }
 
     /// Get layers at point
     pub fn get_layers_at_point(&self, x: f64, y: f64) -> Vec<&ShapeLayer> {
-        self.layers.iter()
+        self.layers
+            .iter()
             .filter(|l| l.contains_point(x, y))
             .collect()
     }
@@ -463,7 +451,14 @@ impl ShapeLayerCollection {
                         builder.quadratic_to(segment.x, segment.y, segment.cp1_x, segment.cp1_y);
                     }
                     crate::shapes::paths::PathSegmentType::CubicTo => {
-                        builder.bezier_to(segment.x, segment.y, segment.cp1_x, segment.cp1_y, segment.cp2_x, segment.cp2_y);
+                        builder.bezier_to(
+                            segment.x,
+                            segment.y,
+                            segment.cp1_x,
+                            segment.cp1_y,
+                            segment.cp2_x,
+                            segment.cp2_y,
+                        );
                     }
                     crate::shapes::paths::PathSegmentType::Close => {
                         builder.close();
@@ -476,16 +471,18 @@ impl ShapeLayerCollection {
     }
 
     /// Perform boolean operation on selected layers
-    pub fn boolean_operation_selected(&self, operation: BooleanOperation) -> Result<BooleanResult, String> {
+    pub fn boolean_operation_selected(
+        &self,
+        operation: BooleanOperation,
+    ) -> Result<BooleanResult, String> {
         let selected_layers = self.get_selected_layers();
 
         if selected_layers.len() < 2 {
             return Err("At least 2 layers must be selected for boolean operations".to_string());
         }
 
-        let shapes: Vec<&dyn ShapePrimitive> = selected_layers.iter()
-            .map(|l| l.shape.as_ref())
-            .collect();
+        let shapes: Vec<&dyn ShapePrimitive> =
+            selected_layers.iter().map(|l| l.shape.as_ref()).collect();
 
         let operations = vec![operation; selected_layers.len() - 1];
         AdvancedBoolean::multiple_operations(&shapes, &operations)
@@ -508,27 +505,27 @@ impl ShapeLayerCollection {
         let mut result_layer = visible_layers[0].clone_with_id("flattened");
 
         for layer in visible_layers.iter().skip(1) {
-            let boolean_result = AdvancedBoolean::union(result_layer.shape.as_ref(), layer.shape.as_ref());
+            let boolean_result =
+                AdvancedBoolean::union(result_layer.shape.as_ref(), layer.shape.as_ref());
 
             if boolean_result.success {
-                // Create new shape from result path
-                // Note: This is a simplified implementation
-                // In a real implementation, you'd need to convert the path back to a shape
+                let path_shape = PathShape::from_path(boolean_result.path);
+                result_layer.shape = Box::new(path_shape);
                 result_layer.name = format!("Combined_{}", layer.name);
             } else {
-                return Err(format!("Failed to combine layer '{}': {:?}",
-                    layer.name, boolean_result.error));
+                return Err(format!(
+                    "Failed to combine layer '{}': {:?}",
+                    layer.name, boolean_result.error
+                ));
             }
         }
 
         Ok(result_layer)
     }
 
-
     pub fn set_global_transform(&mut self, transform: Transform) {
         self.global_transform = transform;
     }
-
 
     pub fn apply_global_transform(&mut self, transform: &Transform) {
         self.global_transform = self.global_transform.combine(transform);
@@ -538,13 +535,14 @@ impl ShapeLayerCollection {
         }
     }
 
-
     pub fn get_stats(&self) -> LayerCollectionStats {
         let visible_count = self.get_visible_layers().len();
         let selected_count = self.get_selected_layers().len();
         let locked_count = self.layers.iter().filter(|l| l.locked).count();
 
-        let total_area = self.layers.iter()
+        let total_area = self
+            .layers
+            .iter()
             .filter(|l| l.is_visible())
             .map(|l| l.area())
             .sum();
@@ -562,12 +560,10 @@ impl ShapeLayerCollection {
         }
     }
 
-
     fn sort_layers_by_order(&mut self) {
         self.layers.sort_by_key(|l| l.order);
         self.update_layer_orders();
     }
-
 
     fn update_layer_orders(&mut self) {
         for (i, layer) in self.layers.iter_mut().enumerate() {
@@ -575,12 +571,10 @@ impl ShapeLayerCollection {
         }
     }
 
-
     pub fn validate(&self) -> Result<(), String> {
         if self.name.is_empty() {
             return Err("Collection name cannot be empty".to_string());
         }
-
 
         let mut ids = std::collections::HashSet::new();
         for layer in &self.layers {
@@ -589,7 +583,6 @@ impl ShapeLayerCollection {
             }
             ids.insert(&layer.id);
 
-
             layer.validate()?;
         }
 
@@ -597,10 +590,8 @@ impl ShapeLayerCollection {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LayerCollectionStats {
-
     pub total_layers: usize,
 
     pub visible_layers: usize,
@@ -617,7 +608,6 @@ pub struct LayerCollectionStats {
 }
 
 impl LayerCollectionStats {
-
     pub fn aspect_ratio(&self) -> f64 {
         if self.bounds_height > 0.0 {
             self.bounds_width / self.bounds_height
@@ -625,7 +615,6 @@ impl LayerCollectionStats {
             1.0
         }
     }
-
 
     pub fn average_area(&self) -> f64 {
         if self.visible_layers > 0 {
@@ -636,37 +625,31 @@ impl LayerCollectionStats {
     }
 }
 
-
 pub struct ShapeLayerCollectionBuilder {
     collection: ShapeLayerCollection,
 }
 
 impl ShapeLayerCollectionBuilder {
-
     pub fn new<S: Into<String>>(name: S) -> Self {
         Self {
             collection: ShapeLayerCollection::new(name),
         }
     }
 
-
     pub fn layer(mut self, layer: ShapeLayer) -> Self {
         let _ = self.collection.add_layer(layer);
         self
     }
-
 
     pub fn global_transform(mut self, transform: Transform) -> Self {
         self.collection.set_global_transform(transform);
         self
     }
 
-
     pub fn metadata<K: Into<String>, V: Into<String>>(mut self, key: K, value: V) -> Self {
         self.collection.metadata.insert(key.into(), value.into());
         self
     }
-
 
     pub fn build(self) -> Result<ShapeLayerCollection, String> {
         self.collection.validate()?;
@@ -683,7 +666,7 @@ impl Default for ShapeLayerCollection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shapes::primitives::{Rectangle, Circle};
+    use crate::shapes::primitives::{Circle, Rectangle};
 
     #[test]
     fn test_shape_layer() {
@@ -738,13 +721,11 @@ mod tests {
 
         collection.add_layer(layer).unwrap();
 
-
         let selected = collection.select_layer_at_point(50.0, 50.0);
         assert!(selected.is_some());
 
         let selected_layers = collection.get_selected_layers();
         assert_eq!(selected_layers.len(), 1);
-
 
         collection.deselect_all();
         let selected_layers = collection.get_selected_layers();
@@ -763,7 +744,6 @@ mod tests {
 
         collection.add_layer(layer1).unwrap();
         collection.add_layer(layer2).unwrap();
-
 
         collection.move_layer_up("layer2").unwrap();
 

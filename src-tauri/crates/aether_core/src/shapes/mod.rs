@@ -1,9 +1,14 @@
-pub mod primitives;
-pub mod paths;
 pub mod boolean;
 pub mod layers;
+pub mod paths;
+pub mod primitives;
 
-pub use primitives::{ShapePrimitive, Rectangle, Circle, Ellipse, Line, Polygon, Transform, BoundingBox};
-pub use paths::{Path, PathSegment, PathBuilder, BezierCurve};
-pub use boolean::{BooleanOperation, BooleanResult, ShapeBoolean, AdvancedBoolean, BooleanUtils};
-pub use layers::{ShapeLayer, ShapeLayerCollection, LayerBlendMode, LayerVisibility, LayerCollectionStats, ShapeLayerCollectionBuilder};
+pub use boolean::{AdvancedBoolean, BooleanOperation, BooleanResult, BooleanUtils, ShapeBoolean};
+pub use layers::{
+    LayerBlendMode, LayerCollectionStats, LayerVisibility, ShapeLayer, ShapeLayerCollection,
+    ShapeLayerCollectionBuilder,
+};
+pub use paths::{BezierCurve, Path, PathBuilder, PathSegment};
+pub use primitives::{
+    BoundingBox, Circle, Ellipse, Line, Polygon, Rectangle, ShapePrimitive, Transform,
+};

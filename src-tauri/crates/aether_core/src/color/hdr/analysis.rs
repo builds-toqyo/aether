@@ -1,5 +1,3 @@
-use super::types::HdrPixel;
-
 #[derive(Debug, Clone)]
 pub struct HdrAnalysis {
     pub max_nits: f32,
@@ -20,7 +18,7 @@ pub enum HdrContentType {
 pub struct HdrAnalyzer;
 
 impl HdrAnalyzer {
-    pub fn classify_content_type(max_nits: f32, avg_nits: f32) -> HdrContentType {
+    pub fn classify_content_type(max_nits: f32, _avg_nits: f32) -> HdrContentType {
         if max_nits > 1000.0 {
             HdrContentType::TrueHdr
         } else if max_nits > 400.0 {
@@ -56,10 +54,7 @@ impl HdrAnalyzer {
     }
 
     pub fn calculate_quality_metrics(hdr_image: &super::types::HdrImage) -> HdrQualityMetrics {
-        let mut contrast_ratio = 0.0;
         let mut saturation_avg = 0.0;
-        let mut highlight_preservation = 0.0;
-        let mut shadow_preservation = 0.0;
         let pixel_count = hdr_image.data.len() as f32;
 
         let mut min_luma = f32::MAX;
@@ -85,10 +80,10 @@ impl HdrAnalyzer {
             }
         }
 
-        contrast_ratio = max_luma / min_luma.max(0.001);
+        let contrast_ratio = max_luma / min_luma.max(0.001);
         saturation_avg /= pixel_count;
-        highlight_preservation = highlight_pixels as f32 / pixel_count;
-        shadow_preservation = shadow_pixels as f32 / pixel_count;
+        let highlight_preservation = highlight_pixels as f32 / pixel_count;
+        let shadow_preservation = shadow_pixels as f32 / pixel_count;
 
         HdrQualityMetrics {
             contrast_ratio,
@@ -100,13 +95,9 @@ impl HdrAnalyzer {
     }
 
     fn calculate_overall_quality_static(contrast_ratio: f32, saturation_avg: f32) -> f32 {
-        let contrast_score = (contrast_ratio.log10() / 4.0).min(1.0).max(0.0);
+        let contrast_score = (contrast_ratio.log10() / 4.0).clamp(0.0, 1.0);
         let saturation_score = saturation_avg;
         (contrast_score * 0.6 + saturation_score * 0.4) * 100.0
-    }
-
-    fn calculate_overall_quality(&self, contrast_ratio: f32, saturation_avg: f32) -> f32 {
-        Self::calculate_overall_quality_static(contrast_ratio, saturation_avg)
     }
 
     pub fn generate_statistics(hdr_image: &super::types::HdrImage) -> HdrStatistics {
@@ -154,19 +145,25 @@ impl HdrAnalyzer {
 
         let analysis = Self::analyze_content(hdr_image);
 
-        let max_pixels = hdr_image.data.iter()
+        let max_pixels = hdr_image
+            .data
+            .iter()
             .filter(|p| p.luminance() >= 0.99 * hdr_image.max_nits)
             .count();
 
         if max_pixels > hdr_image.data.len() / 100 {
-            issues.push(HdrIssue::HighlightClipping(max_pixels as f32 / hdr_image.data.len() as f32));
+            issues.push(HdrIssue::HighlightClipping(
+                max_pixels as f32 / hdr_image.data.len() as f32,
+            ));
         }
 
         if analysis.dynamic_range < 10.0 {
             issues.push(HdrIssue::LimitedDynamicRange(analysis.dynamic_range));
         }
 
-        let unique_values = hdr_image.data.iter()
+        let unique_values = hdr_image
+            .data
+            .iter()
             .map(|p| (p.r * 100.0) as i32)
             .collect::<std::collections::HashSet<_>>()
             .len();
@@ -204,7 +201,6 @@ pub struct HdrQualityMetrics {
     pub overall_quality: f32,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct HdrStatistics {
     pub histogram: [u32; 256],
@@ -213,7 +209,6 @@ pub struct HdrStatistics {
     pub percentile_50: f32,
     pub percentile_95: f32,
 }
-
 
 #[derive(Debug, Clone)]
 pub enum HdrIssue {
@@ -227,10 +222,18 @@ impl HdrIssue {
     pub fn severity(&self) -> IssueSeverity {
         match self {
             HdrIssue::HighlightClipping(percentage) => {
-                if *percentage > 0.1 { IssueSeverity::High } else { IssueSeverity::Medium }
+                if *percentage > 0.1 {
+                    IssueSeverity::High
+                } else {
+                    IssueSeverity::Medium
+                }
             }
             HdrIssue::LimitedDynamicRange(ratio) => {
-                if *ratio < 5.0 { IssueSeverity::High } else { IssueSeverity::Medium }
+                if *ratio < 5.0 {
+                    IssueSeverity::High
+                } else {
+                    IssueSeverity::Medium
+                }
             }
             HdrIssue::Banding => IssueSeverity::Medium,
             HdrIssue::ExcessiveNoise(_) => IssueSeverity::Low,
@@ -239,10 +242,18 @@ impl HdrIssue {
 
     pub fn description(&self) -> &'static str {
         match self {
-            HdrIssue::HighlightClipping(_) => "Highlight clipping detected - loss of detail in bright areas",
-            HdrIssue::LimitedDynamicRange(_) => "Limited dynamic range - insufficient HDR characteristics",
-            HdrIssue::Banding => "Color banding detected - insufficient bit depth or compression artifacts",
-            HdrIssue::ExcessiveNoise(_) => "Excessive noise detected - may indicate sensor limitations or compression",
+            HdrIssue::HighlightClipping(_) => {
+                "Highlight clipping detected - loss of detail in bright areas"
+            }
+            HdrIssue::LimitedDynamicRange(_) => {
+                "Limited dynamic range - insufficient HDR characteristics"
+            }
+            HdrIssue::Banding => {
+                "Color banding detected - insufficient bit depth or compression artifacts"
+            }
+            HdrIssue::ExcessiveNoise(_) => {
+                "Excessive noise detected - may indicate sensor limitations or compression"
+            }
         }
     }
 }
@@ -259,14 +270,25 @@ mod tests {
     use super::*;
     #[test]
     fn test_content_classification() {
+        assert_eq!(
+            HdrAnalyzer::classify_content_type(100.0, 50.0),
+            HdrContentType::SdrUpscaled
+        );
 
-        assert_eq!(HdrAnalyzer::classify_content_type(100.0, 50.0), HdrContentType::SdrUpscaled);
+        assert_eq!(
+            HdrAnalyzer::classify_content_type(300.0, 100.0),
+            HdrContentType::LimitedHdr
+        );
 
-        assert_eq!(HdrAnalyzer::classify_content_type(300.0, 100.0), HdrContentType::LimitedHdr);
+        assert_eq!(
+            HdrAnalyzer::classify_content_type(600.0, 200.0),
+            HdrContentType::EnhancedHdr
+        );
 
-        assert_eq!(HdrAnalyzer::classify_content_type(600.0, 200.0), HdrContentType::EnhancedHdr);
-
-        assert_eq!(HdrAnalyzer::classify_content_type(1500.0, 500.0), HdrContentType::TrueHdr);
+        assert_eq!(
+            HdrAnalyzer::classify_content_type(1500.0, 500.0),
+            HdrContentType::TrueHdr
+        );
     }
 
     #[test]
@@ -297,8 +319,28 @@ mod tests {
     fn test_quality_metrics() {
         let mut hdr_image = super::types::HdrImage::new(10, 10);
 
-        hdr_image.set_pixel(0, 0, super::types::HdrPixel { r: 1000.0, g: 1000.0, b: 1000.0 }).unwrap();
-        hdr_image.set_pixel(1, 1, super::types::HdrPixel { r: 0.1, g: 0.1, b: 0.1 }).unwrap();
+        hdr_image
+            .set_pixel(
+                0,
+                0,
+                super::types::HdrPixel {
+                    r: 1000.0,
+                    g: 1000.0,
+                    b: 1000.0,
+                },
+            )
+            .unwrap();
+        hdr_image
+            .set_pixel(
+                1,
+                1,
+                super::types::HdrPixel {
+                    r: 0.1,
+                    g: 0.1,
+                    b: 0.1,
+                },
+            )
+            .unwrap();
 
         let metrics = HdrAnalyzer::calculate_quality_metrics(&hdr_image);
 
@@ -339,7 +381,6 @@ mod tests {
         let mut hdr_image = super::types::HdrImage::new(10, 10);
         hdr_image.max_nits = 1000.0;
 
-
         for i in 0..20 {
             let x = i % 10;
             let y = i / 10;
@@ -361,7 +402,10 @@ mod tests {
                     assert!(matches!(issue.severity(), IssueSeverity::Medium));
                 }
                 HdrIssue::LimitedDynamicRange(_) => {
-                    assert!(matches!(issue.severity(), IssueSeverity::Medium | IssueSeverity::High));
+                    assert!(matches!(
+                        issue.severity(),
+                        IssueSeverity::Medium | IssueSeverity::High
+                    ));
                 }
                 _ => {}
             }

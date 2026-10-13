@@ -1,11 +1,8 @@
-
-
+use anyhow::Result;
 use image::{Rgb, RgbImage};
-use anyhow::{Result, anyhow};
 use log::debug;
 
-use super::{types::LutData, config::LutConfig};
-
+use super::{config::LutConfig, types::LutData};
 
 pub struct LutApplicator {
     config: LutConfig,
@@ -13,7 +10,6 @@ pub struct LutApplicator {
 }
 
 impl LutApplicator {
-
     pub fn new(config: LutConfig) -> Self {
         Self {
             config: config.clone(),
@@ -21,9 +17,13 @@ impl LutApplicator {
         }
     }
 
-
     pub fn apply_lut(&self, image: &mut RgbImage, lut_data: &LutData) -> Result<()> {
-        debug!("Applying LUT '{}' to image ({}x{})", lut_data.name, image.width(), image.height());
+        debug!(
+            "Applying LUT '{}' to image ({}x{})",
+            lut_data.name,
+            image.width(),
+            image.height()
+        );
 
         let (width, height) = image.dimensions();
 
@@ -32,11 +32,9 @@ impl LutApplicator {
                 let pixel = image.get_pixel(x, y);
                 let [r, g, b] = pixel.0;
 
-
                 let rf = r as f32 / 255.0;
                 let gf = g as f32 / 255.0;
                 let bf = b as f32 / 255.0;
-
 
                 let transformed = match self.config.interpolation_quality {
                     crate::color::luts::types::InterpolationQuality::Nearest => {
@@ -50,7 +48,6 @@ impl LutApplicator {
                     }
                 };
 
-
                 let final_values = if self.config.clamp_output {
                     [
                         transformed[0].clamp(0.0, 1.0),
@@ -60,7 +57,6 @@ impl LutApplicator {
                 } else {
                     transformed
                 };
-
 
                 let new_r = (final_values[0] * 255.0).round().clamp(0.0, 255.0) as u8;
                 let new_g = (final_values[1] * 255.0).round().clamp(0.0, 255.0) as u8;
@@ -75,13 +71,10 @@ impl LutApplicator {
         Ok(())
     }
 
-
     pub fn apply_lut_to_pixel(&self, pixel: [u8; 3], lut_data: &LutData) -> Result<[u8; 3]> {
-
         let rf = pixel[0] as f32 / 255.0;
         let gf = pixel[1] as f32 / 255.0;
         let bf = pixel[2] as f32 / 255.0;
-
 
         let transformed = match self.config.interpolation_quality {
             crate::color::luts::types::InterpolationQuality::Nearest => {
@@ -95,7 +88,6 @@ impl LutApplicator {
             }
         };
 
-
         let final_values = if self.config.clamp_output {
             [
                 transformed[0].clamp(0.0, 1.0),
@@ -106,7 +98,6 @@ impl LutApplicator {
             transformed
         };
 
-
         Ok([
             (final_values[0] * 255.0).round().clamp(0.0, 255.0) as u8,
             (final_values[1] * 255.0).round().clamp(0.0, 255.0) as u8,
@@ -114,21 +105,17 @@ impl LutApplicator {
         ])
     }
 
-
     fn interpolate_nearest(&self, lut_data: &LutData, input: [f32; 3]) -> [f32; 3] {
         let size = lut_data.size;
         let size_minus_1 = size - 1;
-
 
         let r = input[0].clamp(0.0, 1.0);
         let g = input[1].clamp(0.0, 1.0);
         let b = input[2].clamp(0.0, 1.0);
 
-
         let r_index = (r * size_minus_1 as f32).round() as u32;
         let g_index = (g * size_minus_1 as f32).round() as u32;
         let b_index = (b * size_minus_1 as f32).round() as u32;
-
 
         let r_index = r_index.min(size_minus_1);
         let g_index = g_index.min(size_minus_1);
@@ -139,26 +126,21 @@ impl LutApplicator {
         lut_data.data.get(idx).copied().unwrap_or([0.0, 0.0, 0.0])
     }
 
-
     fn interpolate_linear(&self, lut_data: &LutData, input: [f32; 3]) -> [f32; 3] {
         let size = lut_data.size;
         let size_minus_1 = size - 1;
-
 
         let r = input[0].clamp(0.0, 1.0);
         let g = input[1].clamp(0.0, 1.0);
         let b = input[2].clamp(0.0, 1.0);
 
-
         let r_index = (r * size_minus_1 as f32) as u32;
         let g_index = (g * size_minus_1 as f32) as u32;
         let b_index = (b * size_minus_1 as f32) as u32;
 
-
         let r_frac = (r * size_minus_1 as f32) - r_index as f32;
         let g_frac = (g * size_minus_1 as f32) - g_index as f32;
         let b_frac = (b * size_minus_1 as f32) - b_index as f32;
-
 
         let idx000 = self.lut_index(r_index, g_index, b_index, size);
         let idx100 = self.lut_index((r_index + 1).min(size_minus_1), g_index, b_index, size);
@@ -167,45 +149,59 @@ impl LutApplicator {
 
         let c000 = lut_data.data.get(idx000).unwrap_or(&[0.0, 0.0, 0.0]);
         let c100 = lut_data.data.get(idx100).unwrap_or(&[0.0, 0.0, 0.0]);
-        let c010 = lut_data.data.get(idx010).unwrap_or(&[0.0, 0.0, 0.0]);
+        let _c010 = lut_data.data.get(idx010).unwrap_or(&[0.0, 0.0, 0.0]);
         let c001 = lut_data.data.get(idx001).unwrap_or(&[0.0, 0.0, 0.0]);
 
-
         let c00 = self.lerp(c000, c100, r_frac);
-        let c01 = self.lerp(&c001, c001, r_frac);
+        let c01 = self.lerp(c001, c001, r_frac);
         let c0 = self.lerp(&c00, &c01, g_frac);
         self.lerp(&c0, &c0, b_frac)
     }
-
 
     fn interpolate_trilinear(&self, lut_data: &LutData, input: [f32; 3]) -> [f32; 3] {
         let size = lut_data.size;
         let size_minus_1 = size - 1;
 
-
         let r = input[0].clamp(0.0, 1.0);
         let g = input[1].clamp(0.0, 1.0);
         let b = input[2].clamp(0.0, 1.0);
-
 
         let r_index = (r * size_minus_1 as f32) as u32;
         let g_index = (g * size_minus_1 as f32) as u32;
         let b_index = (b * size_minus_1 as f32) as u32;
 
-
         let r_frac = (r * size_minus_1 as f32) - r_index as f32;
         let g_frac = (g * size_minus_1 as f32) - g_index as f32;
         let b_frac = (b * size_minus_1 as f32) - b_index as f32;
 
-
         let idx000 = self.lut_index(r_index, g_index, b_index, size);
         let idx100 = self.lut_index((r_index + 1).min(size_minus_1), g_index, b_index, size);
         let idx010 = self.lut_index(r_index, (g_index + 1).min(size_minus_1), b_index, size);
-        let idx110 = self.lut_index((r_index + 1).min(size_minus_1), (g_index + 1).min(size_minus_1), b_index, size);
+        let idx110 = self.lut_index(
+            (r_index + 1).min(size_minus_1),
+            (g_index + 1).min(size_minus_1),
+            b_index,
+            size,
+        );
         let idx001 = self.lut_index(r_index, g_index, (b_index + 1).min(size_minus_1), size);
-        let idx101 = self.lut_index((r_index + 1).min(size_minus_1), g_index, (b_index + 1).min(size_minus_1), size);
-        let idx011 = self.lut_index(r_index, (g_index + 1).min(size_minus_1), (b_index + 1).min(size_minus_1), size);
-        let idx111 = self.lut_index((r_index + 1).min(size_minus_1), (g_index + 1).min(size_minus_1), (b_index + 1).min(size_minus_1), size);
+        let idx101 = self.lut_index(
+            (r_index + 1).min(size_minus_1),
+            g_index,
+            (b_index + 1).min(size_minus_1),
+            size,
+        );
+        let idx011 = self.lut_index(
+            r_index,
+            (g_index + 1).min(size_minus_1),
+            (b_index + 1).min(size_minus_1),
+            size,
+        );
+        let idx111 = self.lut_index(
+            (r_index + 1).min(size_minus_1),
+            (g_index + 1).min(size_minus_1),
+            (b_index + 1).min(size_minus_1),
+            size,
+        );
 
         let c000 = lut_data.data.get(idx000).unwrap_or(&[0.0, 0.0, 0.0]);
         let c100 = lut_data.data.get(idx100).unwrap_or(&[0.0, 0.0, 0.0]);
@@ -215,7 +211,6 @@ impl LutApplicator {
         let c101 = lut_data.data.get(idx101).unwrap_or(&[0.0, 0.0, 0.0]);
         let c011 = lut_data.data.get(idx011).unwrap_or(&[0.0, 0.0, 0.0]);
         let c111 = lut_data.data.get(idx111).unwrap_or(&[0.0, 0.0, 0.0]);
-
 
         let c00 = self.lerp(c000, c100, r_frac);
         let c01 = self.lerp(c001, c101, r_frac);
@@ -228,11 +223,9 @@ impl LutApplicator {
         self.lerp(&c0, &c1, b_frac)
     }
 
-
     fn lut_index(&self, r: u32, g: u32, b: u32, size: u32) -> usize {
         ((b * size + g) * size + r) as usize
     }
-
 
     fn lerp(&self, a: &[f32; 3], b: &[f32; 3], t: f32) -> [f32; 3] {
         [
@@ -242,8 +235,12 @@ impl LutApplicator {
         ]
     }
 
-
-    pub fn apply_lut_with_intensity(&self, image: &mut RgbImage, lut_data: &LutData, intensity: f32) -> Result<()> {
+    pub fn apply_lut_with_intensity(
+        &self,
+        image: &mut RgbImage,
+        lut_data: &LutData,
+        intensity: f32,
+    ) -> Result<()> {
         if intensity <= 0.0 {
             return Ok(());
         }
@@ -251,7 +248,10 @@ impl LutApplicator {
             return self.apply_lut(image, lut_data);
         }
 
-        debug!("Applying LUT '{}' with intensity {}", lut_data.name, intensity);
+        debug!(
+            "Applying LUT '{}' with intensity {}",
+            lut_data.name, intensity
+        );
 
         let (width, height) = image.dimensions();
         let original_image = image.clone();
@@ -259,12 +259,18 @@ impl LutApplicator {
         for y in 0..height {
             for x in 0..width {
                 let original_pixel = original_image.get_pixel(x, y);
-                let original_rgb = [original_pixel.0[0] as f32, original_pixel.0[1] as f32, original_pixel.0[2] as f32];
-
+                let original_rgb = [
+                    original_pixel.0[0] as f32,
+                    original_pixel.0[1] as f32,
+                    original_pixel.0[2] as f32,
+                ];
 
                 let lut_pixel = self.apply_lut_to_pixel(original_pixel.0, lut_data)?;
-                let lut_rgb = [lut_pixel[0] as f32, lut_pixel[1] as f32, lut_pixel[2] as f32];
-
+                let lut_rgb = [
+                    lut_pixel[0] as f32,
+                    lut_pixel[1] as f32,
+                    lut_pixel[2] as f32,
+                ];
 
                 let blended = [
                     original_rgb[0] * (1.0 - intensity) + lut_rgb[0] * intensity,
@@ -272,19 +278,27 @@ impl LutApplicator {
                     original_rgb[2] * (1.0 - intensity) + lut_rgb[2] * intensity,
                 ];
 
-                image.put_pixel(x, y, Rgb([
-                    blended[0].round().clamp(0.0, 255.0) as u8,
-                    blended[1].round().clamp(0.0, 255.0) as u8,
-                    blended[2].round().clamp(0.0, 255.0) as u8,
-                ]));
+                image.put_pixel(
+                    x,
+                    y,
+                    Rgb([
+                        blended[0].round().clamp(0.0, 255.0) as u8,
+                        blended[1].round().clamp(0.0, 255.0) as u8,
+                        blended[2].round().clamp(0.0, 255.0) as u8,
+                    ]),
+                );
             }
         }
 
         Ok(())
     }
 
-
-    pub fn apply_lut_to_region(&self, image: &mut RgbImage, lut_data: &LutData, region: &Region) -> Result<()> {
+    pub fn apply_lut_to_region(
+        &self,
+        image: &mut RgbImage,
+        lut_data: &LutData,
+        region: &Region,
+    ) -> Result<()> {
         debug!("Applying LUT '{}' to region {:?}", lut_data.name, region);
 
         let (width, height) = image.dimensions();
@@ -305,9 +319,16 @@ impl LutApplicator {
         Ok(())
     }
 
-
-    pub fn preview_lut(&self, image: &mut RgbImage, lut_data: &LutData, sample_rate: u32) -> Result<()> {
-        debug!("Previewing LUT '{}' with sample rate {}", lut_data.name, sample_rate);
+    pub fn preview_lut(
+        &self,
+        image: &mut RgbImage,
+        lut_data: &LutData,
+        sample_rate: u32,
+    ) -> Result<()> {
+        debug!(
+            "Previewing LUT '{}' with sample rate {}",
+            lut_data.name, sample_rate
+        );
 
         let (width, height) = image.dimensions();
 
@@ -322,9 +343,8 @@ impl LutApplicator {
         Ok(())
     }
 
-
     pub fn get_performance_metrics(&self, lut_data: &LutData) -> LutPerformanceMetrics {
-        let size = lut_data.size as f32;
+        let _size = lut_data.size as f32;
         let memory_usage = lut_data.data.len() * 3 * std::mem::size_of::<f32>();
 
         LutPerformanceMetrics {
@@ -340,23 +360,21 @@ impl LutApplicator {
         }
     }
 
-
     pub fn update_config(&mut self, config: LutConfig) {
         self.config = config;
 
         self.interpolation_cache.clear();
     }
 
-
     pub fn clear_cache(&mut self) {
         self.interpolation_cache.clear();
     }
 
-
     pub fn get_cache_stats(&self) -> CacheStats {
         CacheStats {
             entries: self.interpolation_cache.len(),
-            memory_usage_bytes: self.interpolation_cache.len() * std::mem::size_of::<((u32, u32, u32), [f32; 3])>(),
+            memory_usage_bytes: self.interpolation_cache.len()
+                * std::mem::size_of::<((u32, u32, u32), [f32; 3])>(),
         }
     }
 }
@@ -367,7 +385,6 @@ impl Default for LutApplicator {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct Region {
     pub x: u32,
@@ -377,27 +394,27 @@ pub struct Region {
 }
 
 impl Region {
-
     pub fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
-        Self { x, y, width, height }
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
     }
-
 
     pub fn entire(image_width: u32, image_height: u32) -> Self {
         Self::new(0, 0, image_width, image_height)
     }
 
-
     pub fn is_valid(&self) -> bool {
         self.width > 0 && self.height > 0
     }
-
 
     pub fn area(&self) -> u32 {
         self.width * self.height
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct LutPerformanceMetrics {
@@ -409,7 +426,6 @@ pub struct LutPerformanceMetrics {
 }
 
 impl LutPerformanceMetrics {
-
     pub fn memory_usage_string(&self) -> String {
         let bytes = self.memory_usage_bytes;
 
@@ -422,14 +438,11 @@ impl LutPerformanceMetrics {
         }
     }
 
-
     pub fn estimated_processing_time(&self, image_pixels: u32) -> f32 {
-
         let base_time = 0.1;
         base_time * self.estimated_cost_per_pixel * image_pixels as f32
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct CacheStats {
@@ -446,7 +459,10 @@ mod tests {
         let config = LutConfig::default();
         let applicator = LutApplicator::new(config);
 
-        assert!(matches!(applicator.config.interpolation_quality, crate::color::luts::types::InterpolationQuality::Trilinear));
+        assert!(matches!(
+            applicator.config.interpolation_quality,
+            crate::color::luts::types::InterpolationQuality::Trilinear
+        ));
     }
 
     #[test]
@@ -454,11 +470,13 @@ mod tests {
         let mut lut_data = LutData::new("test".to_string(), 3, LutFormat::Cube);
         lut_data.generate_identity_lut(3);
 
-        let applicator = LutApplicator::new(LutConfig::new().with_interpolation_quality(crate::color::luts::types::InterpolationQuality::Nearest));
+        let applicator =
+            LutApplicator::new(LutConfig::new().with_interpolation_quality(
+                crate::color::luts::types::InterpolationQuality::Nearest,
+            ));
 
         let input = [0.5, 0.5, 0.5];
         let output = applicator.interpolate_nearest(&lut_data, input);
-
 
         assert!((output[0] - input[0]).abs() < 0.1);
         assert!((output[1] - input[1]).abs() < 0.1);
@@ -473,8 +491,9 @@ mod tests {
         let applicator = LutApplicator::default();
 
         let input_pixel = [128, 128, 128];
-        let output_pixel = applicator.apply_lut_to_pixel(input_pixel, &lut_data).unwrap();
-
+        let output_pixel = applicator
+            .apply_lut_to_pixel(input_pixel, &lut_data)
+            .unwrap();
 
         for i in 0..3 {
             let diff = (output_pixel[i] as f32 - input_pixel[i] as f32).abs();
@@ -489,17 +508,16 @@ mod tests {
 
         let applicator = LutApplicator::default();
 
-
         let mut image = RgbImage::new(10, 10);
         image.put_pixel(0, 0, Rgb([100, 100, 100]));
 
         let original_pixel = image.get_pixel(0, 0);
 
-
-        applicator.apply_lut_with_intensity(&mut image, &lut_data, 0.5).unwrap();
+        applicator
+            .apply_lut_with_intensity(&mut image, &lut_data, 0.5)
+            .unwrap();
 
         let blended_pixel = image.get_pixel(0, 0);
-
 
         assert_eq!(original_pixel.0, blended_pixel.0);
     }
@@ -511,7 +529,6 @@ mod tests {
 
         let applicator = LutApplicator::default();
 
-
         let mut image = RgbImage::new(10, 10);
         for y in 0..10 {
             for x in 0..10 {
@@ -521,9 +538,10 @@ mod tests {
 
         let original_pixel = image.get_pixel(5, 5);
 
-
         let region = Region::new(0, 0, 3, 3);
-        applicator.apply_lut_to_region(&mut image, &lut_data, &region).unwrap();
+        applicator
+            .apply_lut_to_region(&mut image, &lut_data, &region)
+            .unwrap();
 
         let unchanged_pixel = image.get_pixel(5, 5);
         assert_eq!(original_pixel.0, unchanged_pixel.0);

@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use anyhow::{Context, Result};
-use gstreamer as gst;
-use gst::prelude::*;
-use gstreamer_editing_services as ges;
 use crate::engine::editing::types::EditingError;
+use anyhow::Result;
+use gst::prelude::*;
+use gstreamer as gst;
+use gstreamer_editing_services as ges;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EffectType {
@@ -49,7 +49,6 @@ impl EffectType {
         }
     }
 
-
     pub fn default_parameters(&self) -> HashMap<String, String> {
         let mut params = HashMap::new();
 
@@ -59,26 +58,25 @@ impl EffectType {
                 params.insert("contrast".to_string(), "1.0".to_string());
                 params.insert("saturation".to_string(), "1.0".to_string());
                 params.insert("hue".to_string(), "0.0".to_string());
-            },
+            }
             EffectType::Blur => {
                 params.insert("sigma".to_string(), "1.0".to_string());
-            },
+            }
             EffectType::Volume => {
                 params.insert("volume".to_string(), "1.0".to_string());
-            },
+            }
             EffectType::Text => {
                 params.insert("text".to_string(), "Text".to_string());
                 params.insert("font-desc".to_string(), "Sans 24".to_string());
                 params.insert("valignment".to_string(), "center".to_string());
                 params.insert("halignment".to_string(), "center".to_string());
-            },
+            }
             _ => {}
         }
 
         params
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransitionType {
@@ -93,7 +91,6 @@ pub enum TransitionType {
 }
 
 impl TransitionType {
-
     pub fn to_gst_name(&self) -> &str {
         match self {
             TransitionType::Crossfade => "crossfade",
@@ -154,7 +151,7 @@ pub struct Transition {
 
     pub parameters: HashMap<String, String>,
 
-    ges_transition: Option<ges::Transition>,
+    ges_transition: Option<ges::TransitionClip>,
 }
 
 impl Transition {
@@ -176,37 +173,37 @@ impl Transition {
         Ok(())
     }
 
-    pub fn create_ges_transition(&mut self, _track_type: ges::TrackType) -> Result<ges::Transition, EditingError> {
-        Err(EditingError::EffectError("GES Transition creation requires updated API".to_string()))
+    fn transition_type_to_enum(&self) -> ges::VideoStandardTransitionType {
+        match self.transition_type {
+            TransitionType::Crossfade => ges::VideoStandardTransitionType::Crossfade,
+            TransitionType::Wipe => ges::VideoStandardTransitionType::BarWipeLr,
+            TransitionType::Slide => ges::VideoStandardTransitionType::BoxWipeTl,
+            TransitionType::Fade => ges::VideoStandardTransitionType::Crossfade,
+            TransitionType::AudioCrossfade => ges::VideoStandardTransitionType::Crossfade,
+            TransitionType::Custom(ref name) => match name.as_str() {
+                "crossfade" => ges::VideoStandardTransitionType::Crossfade,
+                "fade" => ges::VideoStandardTransitionType::Crossfade,
+                "wipe" => ges::VideoStandardTransitionType::BarWipeLr,
+                "slide" => ges::VideoStandardTransitionType::BoxWipeTl,
+                _ => ges::VideoStandardTransitionType::Crossfade,
+            },
+        }
     }
-}
 
-pub fn get_available_effects() -> Vec<EffectType> {
-    vec![
-        EffectType::ColorCorrection,
-        EffectType::ColorGrading,
-        EffectType::Blur,
-        EffectType::Sharpen,
-        EffectType::Crop,
-        EffectType::Scale,
-        EffectType::Rotate,
-        EffectType::Flip,
-        EffectType::Text,
-        EffectType::Overlay,
-        EffectType::Volume,
-        EffectType::Fade,
-        EffectType::Equalizer,
-        EffectType::Reverb,
-        EffectType::Delay,
-    ]
-}
+    pub fn create_ges_transition(
+        &mut self,
+        _track_type: ges::TrackType,
+    ) -> Result<ges::TransitionClip, EditingError> {
+        let vtype = self.transition_type_to_enum();
+        let transition = ges::TransitionClip::new(vtype).ok_or_else(|| {
+            EditingError::EffectError(format!("Failed to create {:?} transition clip", vtype))
+        })?;
 
-pub fn get_available_transitions() -> Vec<TransitionType> {
-    vec![
-        TransitionType::Crossfade,
-        TransitionType::Wipe,
-        TransitionType::Slide,
-        TransitionType::Fade,
-        TransitionType::AudioCrossfade,
-    ]
+        for (name, value) in &self.parameters {
+            transition.set_property_from_str(name, value);
+        }
+
+        self.ges_transition = Some(transition.clone());
+        Ok(transition)
+    }
 }
