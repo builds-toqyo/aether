@@ -65,12 +65,49 @@ export const NodeGraphEditor: React.FC = () => {
   useEffect(() => {
     const initializeGraph = async () => {
       try {
-        const graphInfo = await invoke<Graph>('get_graph_info');
+        // Backend returns GraphInfoResponse: { node_count, connection_count,
+        // node_types, nodes: NodeInfo[] } — NodeInfo has node_type/input_count/
+        // output_count but no position/ports/parameters, so map it onto the
+        // local Node shape and lay nodes out in a grid.
+        const graphInfo = await invoke<{
+          nodes?: Array<{
+            id: string;
+            name: string;
+            node_type: string;
+            input_count: number;
+            output_count: number;
+            enabled: boolean;
+          }>;
+        }>('get_graph_info');
         console.log('Graph initialized:', graphInfo);
         
         // Load existing graph if available
-        if (graphInfo && graphInfo.nodes) {
-          setGraph(graphInfo);
+        if (graphInfo?.nodes?.length) {
+          setGraph(prev => ({
+            ...prev,
+            nodes: graphInfo.nodes!.map((n, i) => ({
+              id: n.id,
+              type: n.node_type,
+              name: n.name,
+              position: { x: 100 + (i % 4) * 220, y: 100 + Math.floor(i / 4) * 160 },
+              inputs: Array.from({ length: n.input_count }, (_, p) => ({
+                id: `${n.id}-in-${p}`,
+                name: `in_${p}`,
+                type: 'input' as const,
+                dataType: 'any',
+                position: { x: 0, y: 0 },
+              })),
+              outputs: Array.from({ length: n.output_count }, (_, p) => ({
+                id: `${n.id}-out-${p}`,
+                name: `out_${p}`,
+                type: 'output' as const,
+                dataType: 'any',
+                position: { x: 0, y: 0 },
+              })),
+              parameters: {},
+            })),
+            connections: [],
+          }));
         }
       } catch (error) {
         console.error('Failed to initialize graph:', error);
