@@ -218,7 +218,7 @@ export const ColorScopes: React.FC = () => {
         <h3 className="text-[13px] font-semibold text-[#ccc]">Color Scopes</h3>
         <div className="flex gap-2">
           <button
-            className={`flex items-center justify-center min-w-8 h-8 bg-[#252525] border border-[#333] rounded-md text-[#ccc] cursor-pointer transition-all hover:bg-[#333] hover:border-[#444] ${isPaused ? 'bg-green-600/20 border-green-500/50 text-green-400' : ''}`}
+            className={`flex items-center justify-center min-w-8 h-8 bg-[#252525] border border-[#333] rounded-md text-[#ccc] cursor-pointer transition-all hover:bg-[#333] hover:border-[#444] ${isPaused ? 'bg-blue-600/20 border-blue-500/50 text-blue-400' : ''}`}
             onClick={handlePauseToggle}
             title={isPaused ? 'Resume Updates' : 'Pause Updates'}
           >
@@ -276,7 +276,7 @@ export const ColorScopes: React.FC = () => {
           </div>
         )}
         {!settings.enabled.waveform && !settings.enabled.vectorscope && !settings.enabled.histogram && (
-          <div className="flex items-center justify-center p-10 text-[#444] italic text-[13px]">
+          <div className="flex items-center justify-center p-10 text-[#555] italic text-[13px]">
             No scopes enabled. Enable scopes using the controls below.
           </div>
         )}

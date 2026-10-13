@@ -200,9 +200,9 @@ export const Histogram: React.FC<HistogramProps> = ({
 
   return (
     <div className="flex flex-col h-full" ref={containerRef}>
-      <div className="flex justify-between items-center p-2 bg-gray-800 border-b border-gray-700">
-        <h4 className="text-sm font-semibold text-white">Histogram</h4>
-        <div className="text-xs text-gray-300 font-medium">
+      <div className="flex justify-between items-center px-3 py-2 bg-[#1a1a1a] border-b border-[#222]">
+        <h4 className="text-[12px] font-semibold text-[#ccc]">Histogram</h4>
+        <div className="text-[11px] text-[#777] font-medium">
           {settings.mode === 'rgb' && 'RGB'}
           {settings.mode === 'luma' && 'Luma'}
           {settings.mode === 'all' && 'All'}
@@ -217,14 +217,14 @@ export const Histogram: React.FC<HistogramProps> = ({
         />
         {isLoading && (
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-            <div className="w-6 h-6 border-2 border-gray-600 border-t-2 border-t-white rounded-full animate-spin"></div>
+            <div className="w-6 h-6 border-2 border-[#444] border-t-blue-400 rounded-full animate-spin"></div>
           </div>
         )}
       </div>
-      <div className="p-2 bg-gray-800 border-t border-gray-700 text-xs text-gray-600">
+      <div className="px-3 py-1.5 bg-[#1a1a1a] border-t border-[#222] text-[11px] text-[#777]">
         <div className="flex justify-between items-center">
-          <span className="text-gray-600">0-255 levels</span>
-          <span className="text-gray-600">Max: {getMaxValue().toFixed(0)}</span>
+          <span className="text-[#555]">0-255 levels</span>
+          <span className="text-[#777]">Max: {getMaxValue().toFixed(0)}</span>
         </div>
       </div>
     </div>

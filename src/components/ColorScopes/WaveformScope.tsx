@@ -218,9 +218,9 @@ export const WaveformScope: React.FC<WaveformScopeProps> = ({
 
   return (
 <div className="flex flex-col h-full" ref={containerRef}>
-<div className="flex justify-between items-center p-2 bg-gray-800 border-b border-gray-700">
-<h4 className="text-sm font-semibold text-white">Waveform</h4>
-<div className="text-xs text-gray-300 font-medium">
+<div className="flex justify-between items-center px-3 py-2 bg-[#1a1a1a] border-b border-[#222]">
+<h4 className="text-[12px] font-semibold text-[#ccc]">Waveform</h4>
+<div className="text-[11px] text-[#777] font-medium">
 {settings.mode === 'luma' && 'Luma'}
 {settings.mode === 'rgb' && 'RGB'}
 {settings.mode === 'parade' && 'Parade'}
@@ -235,15 +235,15 @@ style={{ imageRendering: 'crisp-edges', width: canvasSize.width, height: canvasS
 />
 {isLoading && (
 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-<div className="w-6 h-6 border-2 border-gray-600 border-t-2 border-t-white rounded-full animate-spin"></div>
+<div className="w-6 h-6 border-2 border-[#444] border-t-blue-400 rounded-full animate-spin"></div>
 </div>
 )}
 </div>
-<div className="p-2 bg-gray-800 border-t border-gray-700 text-xs text-gray-600">
+<div className="px-3 py-1.5 bg-[#1a1a1a] border-t border-[#222] text-[11px] text-[#777]">
 <div className="flex justify-between items-center">
 <div className="flex gap-4">
-<span className="text-gray-600">IRE: 0-100</span>
-<span className="text-gray-600">
+<span className="text-[#555]">IRE: 0-100</span>
+<span className="text-[#777]">
 {settings.mode === 'rgb' && 'RGB Channels'}
 {settings.mode === 'luma' && 'Luma Channel'}
 {settings.mode === 'parade' && 'RGB Parade'}
