@@ -42,6 +42,43 @@ interface Graph {
   connections: Connection[];
 }
 
+// Backend NodeInfo shape (get_graph_info)
+interface BackendNodeInfo {
+  id: string;
+  name: string;
+  node_type: string;
+  input_count: number;
+  output_count: number;
+  enabled: boolean;
+}
+
+// Map a backend node description onto the local Node shape, synthesizing
+// ports from the pin counts and a layout position when none is known.
+const toFrontendNode = (
+  n: Pick<BackendNodeInfo, 'id' | 'name' | 'node_type'> & Partial<BackendNodeInfo>,
+  position: { x: number; y: number }
+): Node => ({
+  id: n.id,
+  type: n.node_type,
+  name: n.name,
+  position,
+  inputs: Array.from({ length: n.input_count ?? 0 }, (_, p) => ({
+    id: `${n.id}-in-${p}`,
+    name: `in_${p}`,
+    type: 'input' as const,
+    dataType: 'any',
+    position: { x: 0, y: 0 },
+  })),
+  outputs: Array.from({ length: n.output_count ?? 0 }, (_, p) => ({
+    id: `${n.id}-out-${p}`,
+    name: `out_${p}`,
+    type: 'output' as const,
+    dataType: 'any',
+    position: { x: 0, y: 0 },
+  })),
+  parameters: {},
+});
+
 export const NodeGraphEditor: React.FC = () => {
   const [graph, setGraph] = useState<Graph>({
     id: '',
@@ -61,6 +98,25 @@ export const NodeGraphEditor: React.FC = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
+  // Fetch the backend graph and merge it into local state, preserving
+  // positions/parameters of nodes we already know about.
+  const refreshGraph = useCallback(async () => {
+    const graphInfo = await invoke<{ nodes?: BackendNodeInfo[] }>('get_graph_info');
+    setGraph(prev => ({
+      ...prev,
+      nodes: (graphInfo?.nodes ?? []).map((n, i) => {
+        const existing = prev.nodes.find(p => p.id === n.id);
+        return {
+          ...toFrontendNode(n, existing?.position ?? {
+            x: 100 + (i % 4) * 220,
+            y: 100 + Math.floor(i / 4) * 160,
+          }),
+          parameters: existing?.parameters ?? {},
+        };
+      }),
+    }));
+  }, []);
+
   // Initialize graph
   useEffect(() => {
     const initializeGraph = async () => {
@@ -69,43 +125,16 @@ export const NodeGraphEditor: React.FC = () => {
         // node_types, nodes: NodeInfo[] } — NodeInfo has node_type/input_count/
         // output_count but no position/ports/parameters, so map it onto the
         // local Node shape and lay nodes out in a grid.
-        const graphInfo = await invoke<{
-          nodes?: Array<{
-            id: string;
-            name: string;
-            node_type: string;
-            input_count: number;
-            output_count: number;
-            enabled: boolean;
-          }>;
-        }>('get_graph_info');
+        const graphInfo = await invoke<{ nodes?: BackendNodeInfo[] }>('get_graph_info');
         console.log('Graph initialized:', graphInfo);
-        
+
         // Load existing graph if available
         if (graphInfo?.nodes?.length) {
           setGraph(prev => ({
             ...prev,
-            nodes: graphInfo.nodes!.map((n, i) => ({
-              id: n.id,
-              type: n.node_type,
-              name: n.name,
-              position: { x: 100 + (i % 4) * 220, y: 100 + Math.floor(i / 4) * 160 },
-              inputs: Array.from({ length: n.input_count }, (_, p) => ({
-                id: `${n.id}-in-${p}`,
-                name: `in_${p}`,
-                type: 'input' as const,
-                dataType: 'any',
-                position: { x: 0, y: 0 },
-              })),
-              outputs: Array.from({ length: n.output_count }, (_, p) => ({
-                id: `${n.id}-out-${p}`,
-                name: `out_${p}`,
-                type: 'output' as const,
-                dataType: 'any',
-                position: { x: 0, y: 0 },
-              })),
-              parameters: {},
-            })),
+            nodes: graphInfo.nodes!.map((n, i) =>
+              toFrontendNode(n, { x: 100 + (i % 4) * 220, y: 100 + Math.floor(i / 4) * 160 })
+            ),
             connections: [],
           }));
         }
@@ -115,28 +144,42 @@ export const NodeGraphEditor: React.FC = () => {
         console.log('Starting with empty graph');
       }
     };
-    
+
     initializeGraph();
   }, []);
 
   // Handle node creation
   const handleCreateNode = useCallback(async (nodeType: string, position: { x: number; y: number }) => {
     try {
-      // Call backend to create node
-      const newNode = await invoke<Node>('create_node', {
+      // Backend returns NodeResponse: { id, node_type, name, position: [x,y],
+      // success, message } — no ports/parameters, so normalize it onto the
+      // local Node shape before storing (raw response crashes the renderer).
+      const res = await invoke<{
+        id: string;
+        node_type: string;
+        name: string;
+        position?: [number, number] | null;
+      }>('create_node', {
         nodeType,
         position,
         name: `${nodeType}_${Date.now()}`
       });
-      
-      // Update local state with the created node
+
+      const newNode = toFrontendNode(
+        { id: res.id, name: res.name, node_type: res.node_type },
+        Array.isArray(res.position) ? { x: res.position[0], y: res.position[1] } : position
+      );
+
       setGraph(prev => ({
         ...prev,
         nodes: [...prev.nodes, newNode]
       }));
-      
+
       setSelectedNode(newNode);
       console.log('Node created successfully:', newNode);
+
+      // Sync real port counts/types from the backend in the background
+      refreshGraph().catch(() => {});
     } catch (error) {
       console.error('Failed to create node:', error);
       // Fallback to mock implementation if backend fails
@@ -159,7 +202,7 @@ export const NodeGraphEditor: React.FC = () => {
       
       setSelectedNode(mockNode);
     }
-  }, []);
+  }, [refreshGraph]);
 
   // Handle node deletion
   const handleDeleteNode = useCallback(async (nodeId: string) => {
@@ -197,20 +240,36 @@ export const NodeGraphEditor: React.FC = () => {
   // Handle connection creation
   const handleCreateConnection = useCallback(async (sourceNodeId: string, sourcePortId: string, targetNodeId: string, targetPortId: string) => {
     try {
-      // Call backend to create connection
-      const newConnection = await invoke<Connection>('connect_nodes', {
+      // Backend returns ConnectionResponse: { id, output_node_id,
+      // output_pin_name, input_node_id, input_pin_name } — map onto the
+      // local Connection shape before storing.
+      const res = await invoke<{
+        id: string;
+        output_node_id: string;
+        output_pin_name: string;
+        input_node_id: string;
+        input_pin_name: string;
+      }>('connect_nodes', {
         sourceNodeId,
         sourcePortId,
         targetNodeId,
         targetPortId
       });
-      
+
+      const newConnection: Connection = {
+        id: res.id,
+        sourceNodeId: res.output_node_id,
+        sourcePortId: res.output_pin_name,
+        targetNodeId: res.input_node_id,
+        targetPortId: res.input_pin_name,
+      };
+
       // Update local state with the created connection
       setGraph(prev => ({
         ...prev,
         connections: [...prev.connections, newConnection]
       }));
-      
+
       console.log('Connection created successfully:', newConnection);
     } catch (error) {
       console.error('Failed to create connection:', error);

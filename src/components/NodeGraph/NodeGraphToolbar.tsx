@@ -49,10 +49,12 @@ export const NodeGraphToolbar: React.FC = () => {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     
     graph.nodes.forEach(node => {
-      minX = Math.min(minX, node.position.x);
-      minY = Math.min(minY, node.position.y);
-      maxX = Math.max(maxX, node.position.x + 200); // Approximate node width
-      maxY = Math.max(maxY, node.position.y + 150); // Approximate node height
+      const x = node.position?.x ?? 0;
+      const y = node.position?.y ?? 0;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + 200); // Approximate node width
+      maxY = Math.max(maxY, y + 150); // Approximate node height
     });
 
     const graphWidth = maxX - minX;
@@ -74,9 +76,9 @@ export const NodeGraphToolbar: React.FC = () => {
   };
 
   return (
-    <div className="w-16 bg-gray-900 border-r border-gray-700 flex flex-col items-center py-4 space-y-2">
+    <div className="w-16 bg-[#1a1a1a] border-r border-[#222] flex flex-col items-center py-4 space-y-2">
       <div className="mb-4">
-        <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
           A
         </div>
       </div>
@@ -86,7 +88,7 @@ export const NodeGraphToolbar: React.FC = () => {
           <button
             key={nodeType.type}
             onClick={() => handleNodeCreate(nodeType.type)}
-            className="w-12 h-12 bg-gray-800 hover:bg-gray-700 rounded-lg flex flex-col items-center justify-center text-gray-300 hover:text-white transition-colors group"
+            className="w-12 h-12 bg-[#252525] hover:bg-[#333] rounded-lg flex flex-col items-center justify-center text-[#999] hover:text-[#e0e0e0] transition-colors group"
             title={`Create ${nodeType.name} node`}
           >
             <div className="text-lg">{nodeType.icon}</div>
@@ -97,12 +99,12 @@ export const NodeGraphToolbar: React.FC = () => {
         ))}
       </div>
 
-      <div className="w-10 h-px bg-gray-700" />
+      <div className="w-10 h-px bg-[#333]" />
 
       <div className="space-y-2">
         <button
           onClick={handleZoomIn}
-          className="w-12 h-12 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+          className="w-12 h-12 bg-[#252525] hover:bg-[#333] rounded-lg flex items-center justify-center text-[#999] hover:text-[#e0e0e0] transition-colors"
           title="Zoom In"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -112,7 +114,7 @@ export const NodeGraphToolbar: React.FC = () => {
 
         <button
           onClick={handleZoomOut}
-          className="w-12 h-12 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+          className="w-12 h-12 bg-[#252525] hover:bg-[#333] rounded-lg flex items-center justify-center text-[#999] hover:text-[#e0e0e0] transition-colors"
           title="Zoom Out"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,7 +124,7 @@ export const NodeGraphToolbar: React.FC = () => {
 
         <button
           onClick={handleZoomReset}
-          className="w-12 h-12 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+          className="w-12 h-12 bg-[#252525] hover:bg-[#333] rounded-lg flex items-center justify-center text-[#999] hover:text-[#e0e0e0] transition-colors"
           title="Reset View"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,7 +134,7 @@ export const NodeGraphToolbar: React.FC = () => {
 
         <button
           onClick={handleFitToScreen}
-          className="w-12 h-12 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+          className="w-12 h-12 bg-[#252525] hover:bg-[#333] rounded-lg flex items-center justify-center text-[#999] hover:text-[#e0e0e0] transition-colors"
           title="Fit to Screen"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,7 +143,7 @@ export const NodeGraphToolbar: React.FC = () => {
         </button>
       </div>
 
-      <div className="mt-auto text-xs text-gray-500 text-center">
+      <div className="mt-auto text-[11px] text-[#555] text-center">
         <div>{graph.nodes.length} nodes</div>
         <div>{graph.connections.length} connections</div>
       </div>

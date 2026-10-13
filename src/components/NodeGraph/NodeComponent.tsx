@@ -56,17 +56,21 @@ export const NodeComponent: React.FC<NodeComponentProps> = ({
       colorCorrection: 'bg-pink-600',
       blur: 'bg-indigo-600'
     };
-    return colors[nodeType as keyof typeof colors] || 'bg-gray-600';
+    return colors[nodeType as keyof typeof colors] || 'bg-[#555]';
   };
+
+  const inputs = node.inputs ?? [];
+  const outputs = node.outputs ?? [];
+  const parameters = node.parameters ?? {};
 
   return (
     <div
-      className={`absolute bg-gray-800 border-2 rounded-lg shadow-lg transition-all ${
-        isSelected ? 'border-blue-400 shadow-blue-400/50' : 'border-gray-600'
+      className={`absolute bg-[#252525] border-2 rounded-lg shadow-lg transition-all ${
+        isSelected ? 'border-blue-400 shadow-blue-400/50' : 'border-[#444]'
       } ${isDragged ? 'opacity-75' : ''}`}
       style={{
-        left: `${node.position.x}px`,
-        top: `${node.position.y}px`,
+        left: `${node.position?.x ?? 0}px`,
+        top: `${node.position?.y ?? 0}px`,
         minWidth: '200px'
       }}
       onMouseDown={(e) => onMouseDown(node.id, e)}
@@ -87,9 +91,9 @@ export const NodeComponent: React.FC<NodeComponentProps> = ({
       </div>
 
       <div className="p-3">
-        {node.inputs.length > 0 && (
+        {inputs.length > 0 && (
           <div className="space-y-1 mb-2">
-            {node.inputs.map((port: any) => (
+            {inputs.map((port: any) => (
               <NodePort
                 key={port.id}
                 port={port}
@@ -100,24 +104,24 @@ export const NodeComponent: React.FC<NodeComponentProps> = ({
         )}
 
         <div className="space-y-2 mb-2">
-          {Object.entries(node.parameters).map(([key, value]) => (
+          {Object.entries(parameters).map(([key, value]) => (
             <div key={key} className="flex items-center justify-between">
-              <label className="text-xs text-gray-400">{key}:</label>
+              <label className="text-xs text-[#999]">{key}:</label>
               <input
                 type="text"
                 value={String(value)}
                 onChange={(e) => {
                   // Handle parameter update
                 }}
-                className="bg-gray-700 text-white text-xs px-2 py-1 rounded w-20"
+                className="bg-[#1a1a1a] border border-[#333] text-white text-xs px-2 py-1 rounded w-20 outline-none focus:border-blue-500"
               />
             </div>
           ))}
         </div>
 
-        {node.outputs.length > 0 && (
+        {outputs.length > 0 && (
           <div className="space-y-1">
-            {node.outputs.map((port: any) => (
+            {outputs.map((port: any) => (
               <NodePort
                 key={port.id}
                 port={port}
@@ -129,7 +133,7 @@ export const NodeComponent: React.FC<NodeComponentProps> = ({
       </div>
 
       <div className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize">
-        <svg className="w-full h-full text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+        <svg className="w-full h-full text-[#555]" fill="currentColor" viewBox="0 0 24 24">
           <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM18 18H16V16H18V18ZM14 22H12V20H14V22Z" />
         </svg>
       </div>
