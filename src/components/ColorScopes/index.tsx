@@ -213,7 +213,7 @@ export const ColorScopes: React.FC = () => {
   }, [fetchScopeData]);
 
   return (
-    <div className="flex flex-col bg-[#141414] border border-[#222] rounded-lg overflow-hidden font-sans text-[#e0e0e0]">
+    <div className="flex flex-col h-full bg-[#141414] font-sans text-[#e0e0e0]">
       <div className="flex justify-between items-center p-3 bg-[#1a1a1a] border-b border-[#222]">
         <h3 className="text-[13px] font-semibold text-[#ccc]">Color Scopes</h3>
         <div className="flex gap-2">
@@ -247,9 +247,9 @@ export const ColorScopes: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-4 p-4 min-h-[200px]">
+      <div className="flex flex-wrap gap-3 p-3 flex-1 min-h-0">
         {settings.enabled.waveform && (
-          <div className="flex-1 min-w-[300px] bg-[#1a1a1a] border border-[#222] rounded-md overflow-hidden">
+          <div className="flex-1 min-w-[280px] flex flex-col bg-[#1a1a1a] border border-[#222] rounded-md overflow-hidden">
             <WaveformScope
               data={scopeData.waveform}
               settings={settings.waveform}
@@ -258,7 +258,7 @@ export const ColorScopes: React.FC = () => {
           </div>
         )}
         {settings.enabled.vectorscope && (
-          <div className="flex-1 min-w-[300px] bg-[#1a1a1a] border border-[#222] rounded-md overflow-hidden">
+          <div className="flex-1 min-w-[280px] flex flex-col bg-[#1a1a1a] border border-[#222] rounded-md overflow-hidden">
             <Vectorscope
               data={scopeData.vectorscope}
               settings={settings.vectorscope}
@@ -267,7 +267,7 @@ export const ColorScopes: React.FC = () => {
           </div>
         )}
         {settings.enabled.histogram && (
-          <div className="flex-1 min-w-[300px] bg-[#1a1a1a] border border-[#222] rounded-md overflow-hidden">
+          <div className="flex-1 min-w-[280px] flex flex-col bg-[#1a1a1a] border border-[#222] rounded-md overflow-hidden">
             <Histogram
               data={scopeData.histogram}
               settings={settings.histogram}

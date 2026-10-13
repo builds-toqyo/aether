@@ -1,5 +1,6 @@
-import React, { useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { ScopeData, ScopeSettings } from './index';
+import { useCanvasSize } from './useCanvasSize';
 
 interface HistogramProps {
   data?: ScopeData['histogram'];
@@ -13,14 +14,9 @@ export const Histogram: React.FC<HistogramProps> = ({
   isLoading,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Calculate canvas dimensions
-  const canvasSize = useMemo(() => {
-    const width = 400;
-    const height = 250;
-    return { width, height };
-  }, []);
+  // Canvas fills its container via ResizeObserver
+  const { ref: canvasAreaRef, size: canvasSize } = useCanvasSize();
 
   // Draw grid lines
   const drawGrid = useCallback((ctx: CanvasRenderingContext2D) => {
@@ -199,7 +195,7 @@ export const Histogram: React.FC<HistogramProps> = ({
   }, [canvasSize, draw]);
 
   return (
-    <div className="flex flex-col h-full" ref={containerRef}>
+    <div className="flex flex-col h-full">
       <div className="flex justify-between items-center px-3 py-2 bg-[#1a1a1a] border-b border-[#222]">
         <h4 className="text-[12px] font-semibold text-[#ccc]">Histogram</h4>
         <div className="text-[11px] text-[#777] font-medium">
@@ -209,7 +205,7 @@ export const Histogram: React.FC<HistogramProps> = ({
           {settings.logarithmic && ' (Log)'}
         </div>
       </div>
-      <div className="relative flex items-center justify-center bg-black min-h-[250px]">
+      <div ref={canvasAreaRef} className="relative flex-1 min-h-0 flex items-center justify-center bg-black">
         <canvas
           ref={canvasRef}
           className={`block ${isLoading ? 'opacity-50' : ''}`}
