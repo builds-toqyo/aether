@@ -12,7 +12,7 @@ export const NodeGraphToolbar: React.FC = () => {
     { type: 'output', name: 'Output', icon: <Upload className="w-5 h-5" /> },
     { type: 'merge', name: 'Merge', icon: <Merge className="w-5 h-5" /> },
     { type: 'transform', name: 'Transform', icon: <RotateCw className="w-5 h-5" /> },
-    { type: 'colorCorrection', name: 'Color Correction', icon: <Palette className="w-5 h-5" /> },
+    { type: 'color_correction', name: 'Color Correction', icon: <Palette className="w-5 h-5" /> },
     { type: 'blur', name: 'Blur', icon: <Droplets className="w-5 h-5" /> }
   ];
 

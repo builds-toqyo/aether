@@ -52,6 +52,12 @@ interface BackendNodeInfo {
   enabled: boolean;
 }
 
+// Backend emits node_type as Debug names ("ColorCorrection", "Merge") from
+// queries but echoes the request string from create_node — normalize to
+// snake_case so frontend lookups are consistent.
+const normalizeNodeType = (t: string) =>
+  t.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+
 // Map a backend node description onto the local Node shape, synthesizing
 // ports from the pin counts and a layout position when none is known.
 const toFrontendNode = (
@@ -59,7 +65,7 @@ const toFrontendNode = (
   position: { x: number; y: number }
 ): Node => ({
   id: n.id,
-  type: n.node_type,
+  type: normalizeNodeType(n.node_type),
   name: n.name,
   position,
   inputs: Array.from({ length: n.input_count ?? 0 }, (_, p) => ({

@@ -53,7 +53,7 @@ export const NodeComponent: React.FC<NodeComponentProps> = ({
       output: 'bg-green-600',
       merge: 'bg-purple-600',
       transform: 'bg-orange-600',
-      colorCorrection: 'bg-pink-600',
+      color_correction: 'bg-pink-600',
       blur: 'bg-indigo-600'
     };
     return colors[nodeType as keyof typeof colors] || 'bg-[#555]';
