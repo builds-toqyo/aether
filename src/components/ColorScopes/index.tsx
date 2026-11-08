@@ -90,6 +90,7 @@ export const ColorScopes: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [imageData, setImageData] = useState<Uint8Array | null>(null);
+  const [frameDims, setFrameDims] = useState({ width: 1920, height: 1080 });
 
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -98,6 +99,9 @@ export const ColorScopes: React.FC = () => {
     try {
       const frame = await invoke<any>('preview_get_frame');
       if (frame && frame.data) {
+        if (frame.width && frame.height) {
+          setFrameDims({ width: frame.width, height: frame.height });
+        }
         // Convert base64 or binary data to Uint8Array
         if (typeof frame.data === 'string') {
           const binaryString = atob(frame.data);
@@ -123,31 +127,28 @@ export const ColorScopes: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      const width = 1920; // Default, should come from preview
-      const height = 1080;
+      const { width, height } = frameDims;
 
-      // Fetch all scope data in parallel
-      const [histogramData, vectorscopeData, waveformData] = await Promise.all([
-        invoke('color_analyze_histogram', {
-          request: { image_data: Array.from(imageData), width, height }
-        }).catch(() => null),
-        invoke('color_analyze_vectorscope', {
-          request: { image_data: Array.from(imageData), width, height }
-        }).catch(() => null),
-        invoke('color_analyze_waveform', {
-          request: { image_data: Array.from(imageData), width, height }
-        }).catch(() => null),
-      ]);
+      // One combined invoke — serializing image_data to JSON is the
+      // dominant cost, so send it once rather than 3× per update.
+      const pixels = Array.from(imageData);
+      const res = await invoke<any>('color_analyze_scopes', {
+        request: { image_data: pixels, width, height }
+      }).catch(() => null);
+
+      const histogramData = res?.histogram;
+      const vectorscopeData = res?.vectorscope;
+      const waveformData = res?.waveform;
 
       setScopeData({
         histogram: histogramData && typeof histogramData === 'object' && 'red' in histogramData ? {
-          red: (histogramData as any).red,
-          green: (histogramData as any).green,
-          blue: (histogramData as any).blue,
-          luma: (histogramData as any).luminance,
+          red: histogramData.red,
+          green: histogramData.green,
+          blue: histogramData.blue,
+          luma: histogramData.luminance,
         } : undefined,
         vectorscope: vectorscopeData && typeof vectorscopeData === 'object' && 'uv_points' in vectorscopeData ? {
-          points: (vectorscopeData as any).uv_points.map(([x, y]: [number, number]) => ({ x, y, intensity: 1 })),
+          points: vectorscopeData.uv_points.map(([x, y]: [number, number]) => ({ x, y, intensity: 1 })),
           targets: [
             { name: 'Skin', x: 0.1, y: 0.1, color: '#ff9999', radius: 0.1 },
             { name: 'Grass', x: -0.1, y: 0.1, color: '#99ff99', radius: 0.1 },
@@ -155,11 +156,11 @@ export const ColorScopes: React.FC = () => {
           ],
         } : undefined,
         waveform: waveformData && typeof waveformData === 'object' && 'luminance_per_scanline' in waveformData ? {
-          luma: (waveformData as any).luminance_per_scanline,
+          luma: waveformData.luminance_per_scanline,
           rgb: {
-            red: (waveformData as any).luminance_per_scanline,
-            green: (waveformData as any).luminance_per_scanline,
-            blue: (waveformData as any).luminance_per_scanline,
+            red: waveformData.red_per_scanline ?? waveformData.luminance_per_scanline,
+            green: waveformData.green_per_scanline ?? waveformData.luminance_per_scanline,
+            blue: waveformData.blue_per_scanline ?? waveformData.luminance_per_scanline,
           },
         } : undefined,
       });
@@ -169,7 +170,7 @@ export const ColorScopes: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [imageData, isPaused]);
+  }, [imageData, isPaused, frameDims]);
 
   // Set up automatic updates
   useEffect(() => {
@@ -194,11 +195,12 @@ export const ColorScopes: React.FC = () => {
     fetchScopeData();
   }, [fetchPreviewFrame, fetchScopeData]);
 
-  // Fetch preview frame periodically
+  // Fetch preview frame periodically — capped at ~2fps; scope updates
+  // re-analyze the current frame at the configured rate.
   useEffect(() => {
-    const frameInterval = setInterval(fetchPreviewFrame, 1000 / settings.updateRate);
+    const frameInterval = setInterval(fetchPreviewFrame, 500);
     return () => clearInterval(frameInterval);
-  }, [fetchPreviewFrame, settings.updateRate]);
+  }, [fetchPreviewFrame]);
 
   const handleSettingsChange = useCallback((newSettings: Partial<ScopeSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
