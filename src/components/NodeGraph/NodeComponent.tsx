@@ -21,7 +21,8 @@ export const NodeComponent: React.FC<NodeComponentProps> = ({
 }) => {
   const {
     setSelectedNode,
-    handleCreateConnection,
+    handlePortClick: onPortConnect,
+    handleUpdateNodeParameter,
     handleDeleteNode
   } = useNodeGraph();
 
@@ -32,14 +33,7 @@ export const NodeComponent: React.FC<NodeComponentProps> = ({
 
   const handlePortClick = (portId: string, portType: 'input' | 'output', e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (portType === 'output') {
-      // Start connection from output port
-      // This would be handled in the context
-    } else if (portType === 'input') {
-      // Complete connection to input port
-      // This would be handled in the context
-    }
+    onPortConnect(node.id, portId, portType);
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -110,9 +104,9 @@ export const NodeComponent: React.FC<NodeComponentProps> = ({
               <input
                 type="text"
                 value={String(value)}
-                onChange={(e) => {
-                  // Handle parameter update
-                }}
+                onChange={(e) => handleUpdateNodeParameter(node.id, key, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
                 className="bg-[#1a1a1a] border border-[#333] text-white text-xs px-2 py-1 rounded w-20 outline-none focus:border-blue-500"
               />
             </div>
