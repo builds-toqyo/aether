@@ -1,22 +1,28 @@
 use crate::nodes::NodeError;
-use aether_types::{PinDataType, ParameterValue};
+use aether_types::{ParameterValue, PinDataType};
 use log::debug;
 use once_cell::sync::Lazy;
 
-static ARRAY_FLOAT: Lazy<PinDataType> = Lazy::new(|| PinDataType::Array(Box::new(PinDataType::Float)));
+static ARRAY_FLOAT: Lazy<PinDataType> =
+    Lazy::new(|| PinDataType::Array(Box::new(PinDataType::Float)));
 
 pub struct TypeChecker;
 
 impl TypeChecker {
-    pub fn check_type_compatibility(output_type: &PinDataType, input_type: &PinDataType) -> Result<(), NodeError> {
-        debug!("Checking type compatibility: {:?} -> {:?}", output_type, input_type);
+    pub fn check_type_compatibility(
+        output_type: &PinDataType,
+        input_type: &PinDataType,
+    ) -> Result<(), NodeError> {
+        debug!(
+            "Checking type compatibility: {:?} -> {:?}",
+            output_type, input_type
+        );
 
         if output_type == input_type {
             return Ok(());
         }
 
         match (output_type, input_type) {
-
             (PinDataType::Float, PinDataType::Integer) => Ok(()),
             (PinDataType::Float, PinDataType::Vector2) => Ok(()),
             (PinDataType::Float, PinDataType::Vector3) => Ok(()),
@@ -31,7 +37,6 @@ impl TypeChecker {
 
             (PinDataType::Vector4, PinDataType::Color) => Ok(()),
             (PinDataType::Color, PinDataType::Vector4) => Ok(()),
-
 
             (PinDataType::Array(output_inner), PinDataType::Array(input_inner)) => {
                 Self::check_type_compatibility(output_inner, input_inner)
@@ -48,37 +53,55 @@ impl TypeChecker {
         Self::check_type_compatibility(output_type, input_type).is_ok()
     }
 
-
     pub fn are_values_compatible(value1: &ParameterValue, value2: &ParameterValue) -> bool {
-        match (value1, value2) {
-            (ParameterValue::Float(_), ParameterValue::Float(_)) => true,
-            (ParameterValue::Integer(_), ParameterValue::Integer(_)) => true,
-            (ParameterValue::Boolean(_), ParameterValue::Boolean(_)) => true,
-            (ParameterValue::String(_), ParameterValue::String(_)) => true,
-            (ParameterValue::Vector2(_, _), ParameterValue::Vector2(_, _)) => true,
-            (ParameterValue::Vector3(_, _, _), ParameterValue::Vector3(_, _, _)) => true,
-            (ParameterValue::Vector4(_, _, _, _), ParameterValue::Vector4(_, _, _, _)) => true,
-            (ParameterValue::Color(_, _, _, _), ParameterValue::Color(_, _, _, _)) => true,
-            (ParameterValue::Array(_), ParameterValue::Array(_)) => true,
-            (ParameterValue::Image(_), ParameterValue::Image(_)) => true,
-            (ParameterValue::None, ParameterValue::None) => true,
-            _ => false,
-        }
+        matches!(
+            (value1, value2),
+            (ParameterValue::Float(_), ParameterValue::Float(_))
+                | (ParameterValue::Integer(_), ParameterValue::Integer(_))
+                | (ParameterValue::Boolean(_), ParameterValue::Boolean(_))
+                | (ParameterValue::String(_), ParameterValue::String(_))
+                | (ParameterValue::Vector2(_, _), ParameterValue::Vector2(_, _))
+                | (
+                    ParameterValue::Vector3(_, _, _),
+                    ParameterValue::Vector3(_, _, _)
+                )
+                | (
+                    ParameterValue::Vector4(_, _, _, _),
+                    ParameterValue::Vector4(_, _, _, _)
+                )
+                | (
+                    ParameterValue::Color(_, _, _, _),
+                    ParameterValue::Color(_, _, _, _)
+                )
+                | (ParameterValue::Array(_), ParameterValue::Array(_))
+                | (ParameterValue::Image(_), ParameterValue::Image(_))
+                | (ParameterValue::None, ParameterValue::None)
+        )
     }
 
-    pub fn is_value_in_bounds(value: &ParameterValue, min: &ParameterValue, max: &ParameterValue) -> Result<bool, NodeError> {
+    pub fn is_value_in_bounds(
+        value: &ParameterValue,
+        min: &ParameterValue,
+        max: &ParameterValue,
+    ) -> Result<bool, NodeError> {
         match (value, min, max) {
-            (ParameterValue::Float(val), ParameterValue::Float(min_val), ParameterValue::Float(max_val)) => {
-                Ok(val >= min_val && val <= max_val)
-            }
-            (ParameterValue::Integer(val), ParameterValue::Integer(min_val), ParameterValue::Integer(max_val)) => {
-                Ok(val >= min_val && val <= max_val)
-            }
-            (ParameterValue::String(val), ParameterValue::String(min_val), ParameterValue::String(max_val)) => {
-                Ok(val >= min_val && val <= max_val)
-            }
+            (
+                ParameterValue::Float(val),
+                ParameterValue::Float(min_val),
+                ParameterValue::Float(max_val),
+            ) => Ok(val >= min_val && val <= max_val),
+            (
+                ParameterValue::Integer(val),
+                ParameterValue::Integer(min_val),
+                ParameterValue::Integer(max_val),
+            ) => Ok(val >= min_val && val <= max_val),
+            (
+                ParameterValue::String(val),
+                ParameterValue::String(min_val),
+                ParameterValue::String(max_val),
+            ) => Ok(val >= min_val && val <= max_val),
             _ => Err(NodeError::InvalidParameterValue(
-                "Incompatible value types for bounds checking".to_string()
+                "Incompatible value types for bounds checking".to_string(),
             )),
         }
     }
@@ -89,7 +112,7 @@ impl TypeChecker {
             (ParameterValue::Integer(val), ParameterValue::Integer(min_val)) => Ok(val >= min_val),
             (ParameterValue::String(val), ParameterValue::String(min_val)) => Ok(val >= min_val),
             _ => Err(NodeError::InvalidParameterValue(
-                "Incompatible value types for comparison".to_string()
+                "Incompatible value types for comparison".to_string(),
             )),
         }
     }
@@ -100,15 +123,16 @@ impl TypeChecker {
             (ParameterValue::Integer(val), ParameterValue::Integer(max_val)) => Ok(val <= max_val),
             (ParameterValue::String(val), ParameterValue::String(max_val)) => Ok(val <= max_val),
             _ => Err(NodeError::InvalidParameterValue(
-                "Incompatible value types for comparison".to_string()
+                "Incompatible value types for comparison".to_string(),
             )),
         }
     }
 
-
-    pub fn convert_value(value: &ParameterValue, target_type: &PinDataType) -> Result<ParameterValue, NodeError> {
+    pub fn convert_value(
+        value: &ParameterValue,
+        target_type: &PinDataType,
+    ) -> Result<ParameterValue, NodeError> {
         match (value, target_type) {
-
             (ParameterValue::Float(val), PinDataType::Integer) => {
                 Ok(ParameterValue::Integer(*val as i32))
             }
@@ -188,7 +212,10 @@ impl TypeChecker {
     }
 
     pub fn is_vector_type(data_type: &PinDataType) -> bool {
-        matches!(data_type, PinDataType::Vector2 | PinDataType::Vector3 | PinDataType::Vector4)
+        matches!(
+            data_type,
+            PinDataType::Vector2 | PinDataType::Vector3 | PinDataType::Vector4
+        )
     }
 
     pub fn is_color_type(data_type: &PinDataType) -> bool {
@@ -211,7 +238,6 @@ impl TypeChecker {
         }
     }
 
-
     pub fn get_type_size(data_type: &PinDataType) -> usize {
         match data_type {
             PinDataType::Float => 4,
@@ -228,20 +254,15 @@ impl TypeChecker {
         }
     }
 
-
     pub fn is_conversion_lossy(source_type: &PinDataType, target_type: &PinDataType) -> bool {
         match (source_type, target_type) {
-
             (PinDataType::Vector3, PinDataType::Vector2) => true,
             (PinDataType::Vector4, PinDataType::Vector2) => true,
             (PinDataType::Vector4, PinDataType::Vector3) => true,
 
-
             (PinDataType::Float, PinDataType::Integer) => true,
 
-
             _ if source_type == target_type => false,
-
 
             (PinDataType::Vector2, PinDataType::Vector3) => false,
             (PinDataType::Vector2, PinDataType::Vector4) => false,
@@ -254,22 +275,18 @@ impl TypeChecker {
         }
     }
 
-
     pub fn get_conversion_cost(source_type: &PinDataType, target_type: &PinDataType) -> u32 {
         if source_type == target_type {
             return 0;
         }
 
         match (source_type, target_type) {
-
             (PinDataType::Float, PinDataType::Integer) => 1,
             (PinDataType::Integer, PinDataType::Float) => 1,
-
 
             (PinDataType::Float, PinDataType::Vector2) => 2,
             (PinDataType::Float, PinDataType::Vector3) => 3,
             (PinDataType::Float, PinDataType::Vector4) => 4,
-
 
             (PinDataType::Vector2, PinDataType::Vector3) => 2,
             (PinDataType::Vector2, PinDataType::Vector4) => 3,
@@ -278,13 +295,10 @@ impl TypeChecker {
             (PinDataType::Vector4, PinDataType::Vector2) => 2,
             (PinDataType::Vector4, PinDataType::Vector3) => 1,
 
-
             (PinDataType::Vector4, PinDataType::Color) => 1,
             (PinDataType::Color, PinDataType::Vector4) => 1,
 
-
             (PinDataType::Array(_), PinDataType::Array(_)) => 10,
-
 
             _ => u32::MAX,
         }
@@ -297,61 +311,104 @@ mod tests {
 
     #[test]
     fn test_type_compatibility() {
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Float,
+            &PinDataType::Float
+        ));
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Vector3,
+            &PinDataType::Vector3
+        ));
 
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Float, &PinDataType::Float));
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Vector3, &PinDataType::Vector3));
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Float,
+            &PinDataType::Vector2
+        ));
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Float,
+            &PinDataType::Vector3
+        ));
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Float,
+            &PinDataType::Vector4
+        ));
 
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Vector2,
+            &PinDataType::Vector3
+        ));
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Vector2,
+            &PinDataType::Vector4
+        ));
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Vector3,
+            &PinDataType::Vector4
+        ));
 
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Float, &PinDataType::Vector2));
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Float, &PinDataType::Vector3));
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Float, &PinDataType::Vector4));
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Vector3,
+            &PinDataType::Vector2
+        ));
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Vector4,
+            &PinDataType::Vector2
+        ));
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Vector4,
+            &PinDataType::Vector3
+        ));
 
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Vector4,
+            &PinDataType::Color
+        ));
+        assert!(TypeChecker::are_types_compatible(
+            &PinDataType::Color,
+            &PinDataType::Vector4
+        ));
 
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Vector2, &PinDataType::Vector3));
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Vector2, &PinDataType::Vector4));
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Vector3, &PinDataType::Vector4));
-
-
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Vector3, &PinDataType::Vector2));
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Vector4, &PinDataType::Vector2));
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Vector4, &PinDataType::Vector3));
-
-
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Vector4, &PinDataType::Color));
-        assert!(TypeChecker::are_types_compatible(&PinDataType::Color, &PinDataType::Vector4));
-
-
-        assert!(!TypeChecker::are_types_compatible(&PinDataType::Float, &PinDataType::Boolean));
-        assert!(!TypeChecker::are_types_compatible(&PinDataType::String, &PinDataType::Vector3));
+        assert!(!TypeChecker::are_types_compatible(
+            &PinDataType::Float,
+            &PinDataType::Boolean
+        ));
+        assert!(!TypeChecker::are_types_compatible(
+            &PinDataType::String,
+            &PinDataType::Vector3
+        ));
     }
 
     #[test]
     fn test_value_conversion() {
-
         let result = TypeChecker::convert_value(&ParameterValue::Float(3.7), &PinDataType::Integer);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), ParameterValue::Integer(3));
-
 
         let result = TypeChecker::convert_value(&ParameterValue::Float(1.5), &PinDataType::Vector2);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), ParameterValue::Vector2(1.5, 1.5));
 
-
-        let result = TypeChecker::convert_value(&ParameterValue::Vector2(1.0, 2.0), &PinDataType::Vector3);
+        let result =
+            TypeChecker::convert_value(&ParameterValue::Vector2(1.0, 2.0), &PinDataType::Vector3);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), ParameterValue::Vector3(1.0, 2.0, 0.0));
 
-
-        let result = TypeChecker::convert_value(&ParameterValue::Vector3(1.0, 2.0, 3.0), &PinDataType::Vector2);
+        let result = TypeChecker::convert_value(
+            &ParameterValue::Vector3(1.0, 2.0, 3.0),
+            &PinDataType::Vector2,
+        );
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), ParameterValue::Vector2(1.0, 2.0));
 
-
-        let result = TypeChecker::convert_value(&ParameterValue::Color(1.0, 0.5, 0.25, 1.0), &PinDataType::Vector4);
+        let result = TypeChecker::convert_value(
+            &ParameterValue::Color(1.0, 0.5, 0.25, 1.0),
+            &PinDataType::Vector4,
+        );
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ParameterValue::Vector4(1.0, 0.5, 0.25, 1.0));
-
+        assert_eq!(
+            result.unwrap(),
+            ParameterValue::Vector4(1.0, 0.5, 0.25, 1.0)
+        );
 
         let original = ParameterValue::Float(2.5);
         let result = TypeChecker::convert_value(&original, &PinDataType::Float);
@@ -361,7 +418,6 @@ mod tests {
 
     #[test]
     fn test_value_bounds() {
-
         let value = ParameterValue::Float(5.0);
         let min = ParameterValue::Float(1.0);
         let max = ParameterValue::Float(10.0);
@@ -370,7 +426,6 @@ mod tests {
 
         let max_out = ParameterValue::Float(3.0);
         assert!(!TypeChecker::is_value_in_bounds(&value, &min, &max_out).unwrap());
-
 
         let int_value = ParameterValue::Integer(5);
         let int_min = ParameterValue::Integer(1);
@@ -402,38 +457,68 @@ mod tests {
 
     #[test]
     fn test_conversion_lossy() {
+        assert!(!TypeChecker::is_conversion_lossy(
+            &PinDataType::Float,
+            &PinDataType::Float
+        ));
 
-        assert!(!TypeChecker::is_conversion_lossy(&PinDataType::Float, &PinDataType::Float));
+        assert!(TypeChecker::is_conversion_lossy(
+            &PinDataType::Vector3,
+            &PinDataType::Vector2
+        ));
+        assert!(TypeChecker::is_conversion_lossy(
+            &PinDataType::Vector4,
+            &PinDataType::Vector3
+        ));
 
+        assert!(!TypeChecker::is_conversion_lossy(
+            &PinDataType::Vector2,
+            &PinDataType::Vector3
+        ));
+        assert!(!TypeChecker::is_conversion_lossy(
+            &PinDataType::Vector3,
+            &PinDataType::Vector4
+        ));
 
-        assert!(TypeChecker::is_conversion_lossy(&PinDataType::Vector3, &PinDataType::Vector2));
-        assert!(TypeChecker::is_conversion_lossy(&PinDataType::Vector4, &PinDataType::Vector3));
-
-
-        assert!(!TypeChecker::is_conversion_lossy(&PinDataType::Vector2, &PinDataType::Vector3));
-        assert!(!TypeChecker::is_conversion_lossy(&PinDataType::Vector3, &PinDataType::Vector4));
-
-
-        assert!(TypeChecker::is_conversion_lossy(&PinDataType::Float, &PinDataType::Integer));
+        assert!(TypeChecker::is_conversion_lossy(
+            &PinDataType::Float,
+            &PinDataType::Integer
+        ));
     }
 
     #[test]
     fn test_conversion_cost() {
+        assert_eq!(
+            TypeChecker::get_conversion_cost(&PinDataType::Float, &PinDataType::Float),
+            0
+        );
 
-        assert_eq!(TypeChecker::get_conversion_cost(&PinDataType::Float, &PinDataType::Float), 0);
+        assert_eq!(
+            TypeChecker::get_conversion_cost(&PinDataType::Float, &PinDataType::Integer),
+            1
+        );
 
+        assert_eq!(
+            TypeChecker::get_conversion_cost(&PinDataType::Float, &PinDataType::Vector2),
+            2
+        );
+        assert_eq!(
+            TypeChecker::get_conversion_cost(&PinDataType::Float, &PinDataType::Vector3),
+            3
+        );
 
-        assert_eq!(TypeChecker::get_conversion_cost(&PinDataType::Float, &PinDataType::Integer), 1);
+        assert_eq!(
+            TypeChecker::get_conversion_cost(&PinDataType::Vector2, &PinDataType::Vector3),
+            2
+        );
+        assert_eq!(
+            TypeChecker::get_conversion_cost(&PinDataType::Vector3, &PinDataType::Vector2),
+            1
+        );
 
-
-        assert_eq!(TypeChecker::get_conversion_cost(&PinDataType::Float, &PinDataType::Vector2), 2);
-        assert_eq!(TypeChecker::get_conversion_cost(&PinDataType::Float, &PinDataType::Vector3), 3);
-
-
-        assert_eq!(TypeChecker::get_conversion_cost(&PinDataType::Vector2, &PinDataType::Vector3), 2);
-        assert_eq!(TypeChecker::get_conversion_cost(&PinDataType::Vector3, &PinDataType::Vector2), 1);
-
-
-        assert_eq!(TypeChecker::get_conversion_cost(&PinDataType::Float, &PinDataType::Boolean), u32::MAX);
+        assert_eq!(
+            TypeChecker::get_conversion_cost(&PinDataType::Float, &PinDataType::Boolean),
+            u32::MAX
+        );
     }
 }

@@ -7,6 +7,8 @@ import { TimelineRuler } from './TimelineRuler';
 import { TimelineProvider, useTimeline } from './TimelineContext';
 import { Play, Pause, SkipBack, SkipForward, Scissors } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import useAppStore from '@/store';
+import { formatTime } from '@/lib/utils';
 
 // Types
 interface TimelineClip {
@@ -167,16 +169,20 @@ export const TimelineEditor: React.FC = () => {
   }, []);
 
   // Clip manipulation
+  const selectStoreClip = useAppStore((s) => s.selectTimelineClip);
+  const deselectAllStoreClips = useAppStore((s) => s.deselectAllTimelineClips);
+
   const handleClipSelect = useCallback((clipId: string, multiSelect: boolean = false) => {
     setState(prev => ({
       ...prev,
-      selectedClips: multiSelect 
+      selectedClips: multiSelect
         ? prev.selectedClips.includes(clipId)
           ? prev.selectedClips.filter(id => id !== clipId)
           : [...prev.selectedClips, clipId]
         : [clipId]
     }));
-  }, []);
+    selectStoreClip(clipId, multiSelect);
+  }, [selectStoreClip]);
 
   const handleClipMove = useCallback(async (clipId: string, newTime: number, newTrackId?: string) => {
     try {
@@ -288,7 +294,8 @@ export const TimelineEditor: React.FC = () => {
       })),
       selectedClips: prev.selectedClips.filter(id => id !== clipId)
     }));
-  }, []);
+    deselectAllStoreClips();
+  }, [deselectAllStoreClips]);
 
   // Time navigation
   const handleTimeChange = useCallback((newTime: number) => {
@@ -331,50 +338,50 @@ export const TimelineEditor: React.FC = () => {
 
   return (
     <TimelineProvider value={contextValue}>
-      <div className="flex flex-col h-full bg-gray-900">
-        <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
+      <div className="flex flex-col h-full bg-[#141414]">
+        <div className="flex items-center justify-between px-3 py-2 bg-[#1a1a1a] border-b border-[#222]">
           <div className="flex items-center space-x-2">
             <button
               onClick={handlePlay}
-              className="p-2 bg-blue-600 hover:bg-blue-700 rounded text-white transition-colors"
+              className="p-1.5 bg-blue-600/90 hover:bg-blue-500 rounded-md text-white transition-colors"
             >
               {state.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
             </button>
             <button
               onClick={handleStop}
-              className="p-2 bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors"
+              className="p-1.5 bg-[#252525] hover:bg-[#333] rounded-md text-[#ccc] transition-colors"
             >
               <div className="w-4 h-4 bg-white rounded-sm" />
             </button>
             <button
               onClick={handleSkipBack}
-              className="p-2 bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors"
+              className="p-1.5 bg-[#252525] hover:bg-[#333] rounded-md text-[#ccc] transition-colors"
             >
               <SkipBack className="w-4 h-4" />
             </button>
             <button
               onClick={handleSkipForward}
-              className="p-2 bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors"
+              className="p-1.5 bg-[#252525] hover:bg-[#333] rounded-md text-[#ccc] transition-colors"
             >
               <SkipForward className="w-4 h-4" />
             </button>
             <button
               onClick={() => handleClipSplit(state.selectedClips[0], state.currentTime)}
               disabled={state.selectedClips.length !== 1}
-              className="p-2 bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 bg-[#252525] hover:bg-[#333] rounded-md text-[#ccc] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Scissors className="w-4 h-4" />
             </button>
           </div>
           
           <div className="flex items-center space-x-4">
-            <span className="text-white text-sm font-mono">
+            <span className="text-[#aaa] text-[12px] font-mono tracking-wide">
               {formatTime(state.currentTime)} / {formatTime(state.duration)}
             </span>
             <select
               value={state.playbackRate}
               onChange={(e) => setState(prev => ({ ...prev, playbackRate: parseFloat(e.target.value) }))}
-              className="bg-gray-700 text-white px-2 py-1 rounded text-sm"
+              className="bg-[#1a1a1a] text-[#aaa] px-2 py-1 rounded-md text-[11px] border border-[#2a2a2a]"
             >
               <option value={0.25}>0.25x</option>
               <option value={0.5}>0.5x</option>
@@ -391,25 +398,25 @@ export const TimelineEditor: React.FC = () => {
           <TimelineCanvas />
         </div>
 
-        <div className="absolute bottom-4 right-4 flex items-center space-x-2 bg-gray-800 rounded-lg px-2 py-1">
+        <div className="absolute bottom-3 right-3 flex items-center space-x-1.5 bg-[#1a1a1a] rounded-md px-2 py-1 border border-[#222]">
           <button
             onClick={handleZoomOut}
-            className="p-1 hover:bg-gray-700 rounded text-white transition-colors"
+            className="p-1 hover:bg-[#2a2a2a] rounded text-[#888] transition-colors"
           >
             <span className="text-xs">−</span>
           </button>
-          <span className="text-white text-xs px-2">
+          <span className="text-[#888] text-[10px] px-1.5 min-w-[28px] text-center">
             {Math.round(state.zoom * 100)}%
           </span>
           <button
             onClick={handleZoomIn}
-            className="p-1 hover:bg-gray-700 rounded text-white transition-colors"
+            className="p-1 hover:bg-[#2a2a2a] rounded text-[#888] transition-colors"
           >
             <span className="text-xs">+</span>
           </button>
           <button
             onClick={handleZoomReset}
-            className="p-1 hover:bg-gray-700 rounded text-white transition-colors ml-2"
+            className="p-1 hover:bg-[#2a2a2a] rounded text-[#888] transition-colors ml-1.5"
           >
             <span className="text-xs">Reset</span>
           </button>
@@ -419,17 +426,5 @@ export const TimelineEditor: React.FC = () => {
   );
 };
 
-// Helper function to format time
-function formatTime(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  const frames = Math.floor((seconds % 1) * 30); // Assuming 30 fps
-  
-  if (hours > 0) {
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
-  }
-  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
-}
 
 export default TimelineEditor;

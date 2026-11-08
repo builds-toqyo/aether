@@ -1,7 +1,6 @@
-use crate::nodes::{NodeError, NodeResult};
 use crate::nodes::validation::TypeChecker;
-use aether_types::{Node, PinDataType, ParameterValue};
-use uuid::Uuid;
+use crate::nodes::{NodeError, NodeResult};
+use aether_types::{Node, ParameterValue, PinDataType};
 use log::debug;
 
 pub struct NodeValidator;
@@ -39,24 +38,23 @@ impl NodeValidator {
         let mut input_pin_names = std::collections::HashSet::new();
 
         for (index, input_pin) in node.inputs.iter().enumerate() {
-
             if input_pin_names.contains(&input_pin.name) {
-                return Err(NodeError::InvalidConnection(
-                    format!("Duplicate input pin name '{}' in node '{}'", input_pin.name, node.name)
-                ));
+                return Err(NodeError::InvalidConnection(format!(
+                    "Duplicate input pin name '{}' in node '{}'",
+                    input_pin.name, node.name
+                )));
             }
             input_pin_names.insert(&input_pin.name);
-
 
             if input_pin.required && input_pin.connection.is_none() {
                 return Err(NodeError::RequiredInputNotConnected(input_pin.name.clone()));
             }
 
-
             if input_pin.name.is_empty() {
-                return Err(NodeError::InvalidConnection(
-                    format!("Input pin {} in node '{}' has empty name", index, node.name)
-                ));
+                return Err(NodeError::InvalidConnection(format!(
+                    "Input pin {} in node '{}' has empty name",
+                    index, node.name
+                )));
             }
         }
 
@@ -67,19 +65,19 @@ impl NodeValidator {
         let mut output_pin_names = std::collections::HashSet::new();
 
         for (index, output_pin) in node.outputs.iter().enumerate() {
-
             if output_pin_names.contains(&output_pin.name) {
-                return Err(NodeError::InvalidConnection(
-                    format!("Duplicate output pin name '{}' in node '{}'", output_pin.name, node.name)
-                ));
+                return Err(NodeError::InvalidConnection(format!(
+                    "Duplicate output pin name '{}' in node '{}'",
+                    output_pin.name, node.name
+                )));
             }
             output_pin_names.insert(&output_pin.name);
 
-
             if output_pin.name.is_empty() {
-                return Err(NodeError::InvalidConnection(
-                    format!("Output pin {} in node '{}' has empty name", index, node.name)
-                ));
+                return Err(NodeError::InvalidConnection(format!(
+                    "Output pin {} in node '{}' has empty name",
+                    index, node.name
+                )));
             }
         }
 
@@ -90,14 +88,13 @@ impl NodeValidator {
         let mut parameter_names = std::collections::HashSet::new();
 
         for (name, param) in &node.parameters {
-
             if parameter_names.contains(name) {
-                return Err(NodeError::InvalidConnection(
-                    format!("Duplicate parameter name '{}' in node '{}'", name, node.name)
-                ));
+                return Err(NodeError::InvalidConnection(format!(
+                    "Duplicate parameter name '{}' in node '{}'",
+                    name, node.name
+                )));
             }
             parameter_names.insert(name);
-
 
             Self::validate_parameter(name, param)?;
         }
@@ -108,13 +105,11 @@ impl NodeValidator {
     fn validate_parameter(name: &str, param: &aether_types::Parameter) -> NodeResult<()> {
         if name.is_empty() {
             return Err(NodeError::InvalidConnection(
-                "Parameter has empty name".to_string()
+                "Parameter has empty name".to_string(),
             ));
         }
 
-
         Self::validate_parameter_type(name, param)?;
-
 
         Self::validate_parameter_bounds(name, param)?;
 
@@ -134,74 +129,81 @@ impl NodeValidator {
             (PinDataType::Array(_), ParameterValue::Array(_)) => Ok(()),
             (PinDataType::Image, ParameterValue::Image(_)) => Ok(()),
             (PinDataType::Image, ParameterValue::None) => Ok(()),
-            _ => Err(NodeError::InvalidParameterValue(
-                format!("Parameter '{}' has invalid value for type {:?}", name, param.data_type)
-            )),
+            _ => Err(NodeError::InvalidParameterValue(format!(
+                "Parameter '{}' has invalid value for type {:?}",
+                name, param.data_type
+            ))),
         }
     }
 
     fn validate_parameter_bounds(name: &str, param: &aether_types::Parameter) -> NodeResult<()> {
         match (&param.min_value, &param.max_value, &param.value) {
             (Some(min), Some(max), value) => {
-
-                if !TypeChecker::are_values_compatible(&ParameterValue::Float(*min), &ParameterValue::Float(*max)) {
-                    return Err(NodeError::InvalidParameterValue(
-                        format!("Parameter '{}' min and max values are incompatible", name)
-                    ));
+                if !TypeChecker::are_values_compatible(
+                    &ParameterValue::Float(*min),
+                    &ParameterValue::Float(*max),
+                ) {
+                    return Err(NodeError::InvalidParameterValue(format!(
+                        "Parameter '{}' min and max values are incompatible",
+                        name
+                    )));
                 }
 
-
-                if !TypeChecker::is_value_in_bounds(value, &ParameterValue::Float(*min), &ParameterValue::Float(*max))? {
-                    return Err(NodeError::InvalidParameterValue(
-                        format!("Parameter '{}' value is out of bounds", name)
-                    ));
+                if !TypeChecker::is_value_in_bounds(
+                    value,
+                    &ParameterValue::Float(*min),
+                    &ParameterValue::Float(*max),
+                )? {
+                    return Err(NodeError::InvalidParameterValue(format!(
+                        "Parameter '{}' value is out of bounds",
+                        name
+                    )));
                 }
             }
             (Some(min), None, value) => {
-
                 if !TypeChecker::is_value_ge(value, &ParameterValue::Float(*min))? {
-                    return Err(NodeError::InvalidParameterValue(
-                        format!("Parameter '{}' value is below minimum", name)
-                    ));
+                    return Err(NodeError::InvalidParameterValue(format!(
+                        "Parameter '{}' value is below minimum",
+                        name
+                    )));
                 }
             }
             (None, Some(max), value) => {
-
                 if !TypeChecker::is_value_le(value, &ParameterValue::Float(*max))? {
-                    return Err(NodeError::InvalidParameterValue(
-                        format!("Parameter '{}' value is above maximum", name)
-                    ));
+                    return Err(NodeError::InvalidParameterValue(format!(
+                        "Parameter '{}' value is above maximum",
+                        name
+                    )));
                 }
             }
-            (None, None, _) => {
-
-            }
+            (None, None, _) => {}
         }
 
         Ok(())
     }
-
 
     fn validate_node_name(node: &Node) -> NodeResult<()> {
         if node.name.is_empty() {
-            return Err(NodeError::InvalidConnection(
-                format!("Node {} has empty name", node.id)
-            ));
+            return Err(NodeError::InvalidConnection(format!(
+                "Node {} has empty name",
+                node.id
+            )));
         }
 
-
         if node.name.contains(|c: char| c.is_control()) {
-            return Err(NodeError::InvalidConnection(
-                format!("Node '{}' name contains invalid characters", node.name)
-            ));
+            return Err(NodeError::InvalidConnection(format!(
+                "Node '{}' name contains invalid characters",
+                node.name
+            )));
         }
 
         Ok(())
     }
 
-
-    pub fn can_execute_node(node: &Node, context: &crate::nodes::ExecutionContext) -> NodeResult<bool> {
-
+    pub fn can_execute_node(
+        node: &Node,
+        context: &crate::nodes::ExecutionContext,
+    ) -> NodeResult<bool> {
         if !node.enabled {
             return Ok(false);
         }
@@ -211,11 +213,10 @@ impl NodeValidator {
                 return Ok(false);
             }
 
-
-            if let Some(connection_id) = &input_pin.connection {
-                if context.get_input(&input_pin.id).is_none() {
-                    return Ok(false);
-                }
+            if let Some(_connection_id) = &input_pin.connection
+                && context.get_input(&input_pin.id).is_none()
+            {
+                return Ok(false);
             }
         }
 
@@ -225,10 +226,12 @@ impl NodeValidator {
     pub fn get_validation_issues(node: &Node) -> Vec<String> {
         let mut issues = Vec::new();
 
-
         for input_pin in &node.inputs {
             if input_pin.required && input_pin.connection.is_none() {
-                issues.push(format!("Required input '{}' is not connected", input_pin.name));
+                issues.push(format!(
+                    "Required input '{}' is not connected",
+                    input_pin.name
+                ));
             }
 
             if input_pin.name.is_empty() {
@@ -236,28 +239,25 @@ impl NodeValidator {
             }
         }
 
-
         for output_pin in &node.outputs {
             if output_pin.name.is_empty() {
                 issues.push("Output pin has empty name".to_string());
             }
         }
 
-
         for (name, param) in &node.parameters {
             if name.is_empty() {
                 issues.push("Parameter has empty name".to_string());
             }
 
-            if let Err(_) = Self::validate_parameter_type(name, param) {
+            if Self::validate_parameter_type(name, param).is_err() {
                 issues.push(format!("Parameter '{}' has invalid value type", name));
             }
 
-            if let Err(_) = Self::validate_parameter_bounds(name, param) {
+            if Self::validate_parameter_bounds(name, param).is_err() {
                 issues.push(format!("Parameter '{}' has invalid bounds", name));
             }
         }
-
 
         if node.name.is_empty() {
             issues.push("Node has empty name".to_string());
@@ -266,11 +266,16 @@ impl NodeValidator {
         issues
     }
 
-
     pub fn get_node_stats(node: &Node) -> NodeStats {
         let required_inputs = node.inputs.iter().filter(|pin| pin.required).count();
-        let connected_inputs = node.inputs.iter().filter(|pin| pin.connection.is_some()).count();
-        let connected_required_inputs = node.inputs.iter()
+        let connected_inputs = node
+            .inputs
+            .iter()
+            .filter(|pin| pin.connection.is_some())
+            .count();
+        let connected_required_inputs = node
+            .inputs
+            .iter()
             .filter(|pin| pin.required && pin.connection.is_some())
             .count();
 
@@ -288,7 +293,6 @@ impl NodeValidator {
 
 #[derive(Debug, Clone)]
 pub struct NodeStats {
-
     pub total_inputs: usize,
 
     pub required_inputs: usize,
@@ -305,11 +309,9 @@ pub struct NodeStats {
 }
 
 impl NodeStats {
-
     pub fn is_ready(&self) -> bool {
         self.enabled && self.connected_required_inputs == self.required_inputs
     }
-
 
     pub fn connection_ratio(&self) -> f64 {
         if self.total_inputs == 0 {
@@ -323,7 +325,7 @@ impl NodeStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aether_types::{Node, NodeType, InputPin, OutputPin, ParameterValue, PinDataType};
+    use aether_types::{InputPin, Node, NodeType, OutputPin, ParameterValue, PinDataType};
 
     #[test]
     fn test_validate_node() {
@@ -340,7 +342,6 @@ mod tests {
         };
         node.add_input(input_pin);
 
-
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
             name: "output".to_string(),
@@ -348,7 +349,6 @@ mod tests {
             value: ParameterValue::None,
         };
         node.add_output(output_pin);
-
 
         assert!(NodeValidator::validate_node(&node).is_ok());
     }
@@ -370,7 +370,10 @@ mod tests {
 
         let result = NodeValidator::validate_node(&node);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), NodeError::RequiredInputNotConnected(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            NodeError::RequiredInputNotConnected(_)
+        ));
     }
 
     #[test]
@@ -379,7 +382,10 @@ mod tests {
 
         let result = NodeValidator::validate_node(&node);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), NodeError::InvalidConnection(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            NodeError::InvalidConnection(_)
+        ));
     }
 
     #[test]
@@ -393,7 +399,6 @@ mod tests {
             min_value: Some(ParameterValue::Float(0.0)),
             max_value: Some(ParameterValue::Float(2.0)),
         };
-
 
         assert!(NodeValidator::validate_parameter("test_param", &param).is_ok());
     }
@@ -412,13 +417,15 @@ mod tests {
 
         let result = NodeValidator::validate_parameter("test_param", &param);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), NodeError::InvalidParameterValue(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            NodeError::InvalidParameterValue(_)
+        ));
     }
 
     #[test]
     fn test_get_validation_issues() {
         let mut node = Node::new(NodeType::Input, "Test Node".to_string());
-
 
         let input_pin = InputPin {
             id: Uuid::new_v4(),
@@ -433,7 +440,6 @@ mod tests {
 
         let issues = NodeValidator::get_validation_issues(&node);
 
-
         assert_eq!(issues.len(), 1);
         assert!(issues[0].contains("Required input"));
     }
@@ -441,7 +447,6 @@ mod tests {
     #[test]
     fn test_node_stats() {
         let mut node = Node::new(NodeType::Input, "Test Node".to_string());
-
 
         let input_pin1 = InputPin {
             id: Uuid::new_v4(),

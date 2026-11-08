@@ -1,9 +1,8 @@
-use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult};
-use crate::nodes::basic::output::{OutputFormat, QualitySettings, OutputEncoders};
-use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, OutputPin};
-use uuid::Uuid;
+use crate::nodes::basic::output::{OutputEncoders, OutputFormat, QualitySettings};
+use crate::nodes::{ExecutionContext, NodeExecutor, NodeResult};
+use aether_types::{InputPin, Node, NodeType, OutputPin, ParameterValue, PinDataType};
 use log::debug;
-
+use uuid::Uuid;
 
 pub struct OutputNode {
     node: Node,
@@ -41,7 +40,8 @@ impl OutputNode {
     pub fn set_quality_settings(&mut self, settings: QualitySettings) {
         self.quality_settings = settings.clone();
         self.quality_settings.validate();
-        self.encoders.update_quality_settings(self.quality_settings.clone());
+        self.encoders
+            .update_quality_settings(self.quality_settings.clone());
     }
 
     pub fn create_standard(name: String) -> Node {
@@ -136,7 +136,8 @@ impl OutputNode {
 
     pub fn reset_quality_settings(&mut self) {
         self.quality_settings = QualitySettings::default();
-        self.encoders.update_quality_settings(self.quality_settings.clone());
+        self.encoders
+            .update_quality_settings(self.quality_settings.clone());
     }
 
     pub fn is_active(&self) -> bool {
@@ -146,14 +147,20 @@ impl OutputNode {
 
 impl NodeExecutor for OutputNode {
     fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
-
-        let input_value = self.node.get_input_value("input").unwrap_or(ParameterValue::None);
+        let input_value = self
+            .node
+            .get_input_value("input")
+            .unwrap_or(ParameterValue::None);
 
         let encoding_result = self.encoders.process_output(input_value, context.frame);
 
         if encoding_result.success {
-            debug!("Output processed successfully: {:?}", encoding_result.metadata);
-            self.node.set_output_value("output", encoding_result.output_data);
+            debug!(
+                "Output processed successfully: {:?}",
+                encoding_result.metadata
+            );
+            self.node
+                .set_output_value("output", encoding_result.output_data);
         } else {
             if let Some(error) = &encoding_result.error {
                 log::error!("Output processing failed: {}", error);
@@ -175,7 +182,6 @@ impl NodeExecutor for OutputNode {
     fn get_outputs(&self) -> Vec<Uuid> {
         self.node.outputs.iter().map(|pin| pin.id).collect()
     }
-
 }
 
 #[cfg(test)]
@@ -312,9 +318,7 @@ mod tests {
         assert_eq!(node.outputs.len(), 1);
         assert!(node.inputs[0].required);
 
-        let param_names: Vec<String> = node.parameters.iter()
-            .map(|p| p.name.clone())
-            .collect();
+        let param_names: Vec<String> = node.parameters.iter().map(|p| p.name.clone()).collect();
         assert!(param_names.contains(&"output_format".to_string()));
         assert!(param_names.contains(&"jpeg_quality".to_string()));
         assert!(param_names.contains(&"png_compression".to_string()));

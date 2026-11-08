@@ -1,9 +1,8 @@
 #[cfg(test)]
 mod tests {
     use super::super::color_grading::*;
-    use std::path::PathBuf;
     use anyhow::Result;
-
+    use std::path::PathBuf;
 
     fn create_test_engine() -> Result<ColorGradingEngine> {
         let mut engine = ColorGradingEngine::new()?;
@@ -31,17 +30,14 @@ mod tests {
     fn test_color_adjustments() -> Result<()> {
         let mut engine = create_test_engine()?;
 
-
         engine.set_brightness(0.5)?;
         assert_eq!(engine.get_brightness(), 0.5);
-
 
         engine.set_brightness(2.0)?;
         assert_eq!(engine.get_brightness(), 1.0);
 
         engine.set_brightness(-2.0)?;
         assert_eq!(engine.get_brightness(), -1.0);
-
 
         engine.set_contrast(1.5)?;
         assert_eq!(engine.get_contrast(), 1.5);
@@ -62,7 +58,6 @@ mod tests {
     fn test_color_curves() -> Result<()> {
         let mut engine = create_test_engine()?;
 
-
         let rgb_curve = vec![
             CurvePoint { x: 0.0, y: 0.0 },
             CurvePoint { x: 0.25, y: 0.3 },
@@ -73,7 +68,6 @@ mod tests {
 
         engine.set_curve("rgb", &rgb_curve)?;
 
-
         let retrieved_curve = engine.get_curve("rgb")?;
         assert_eq!(retrieved_curve.len(), rgb_curve.len());
 
@@ -82,7 +76,6 @@ mod tests {
             assert_eq!(point.y, rgb_curve[i].y);
         }
 
-
         engine.reset_curve("rgb")?;
         let reset_curve = engine.get_curve("rgb")?;
         assert_eq!(reset_curve.len(), 2);
@@ -90,7 +83,6 @@ mod tests {
         assert_eq!(reset_curve[0].y, 0.0);
         assert_eq!(reset_curve[1].x, 1.0);
         assert_eq!(reset_curve[1].y, 1.0);
-
 
         let result = engine.set_curve("invalid", &rgb_curve);
         assert!(result.is_err());
@@ -102,10 +94,8 @@ mod tests {
     fn test_lut_operations() -> Result<()> {
         let mut engine = create_test_engine()?;
 
-
         engine.set_lut_strength(0.75)?;
         assert_eq!(engine.get_lut_strength(), 0.75);
-
 
         engine.clear_lut()?;
         assert!(engine.get_lut_file().is_none());
@@ -117,13 +107,10 @@ mod tests {
     fn test_scopes() -> Result<()> {
         let mut engine = create_test_engine()?;
 
-
         engine.enable_scope(ScopeType::Histogram, 256, 100, false)?;
-
 
         let scopes = engine.get_configured_scopes();
         assert!(scopes.contains(&ScopeType::Histogram));
-
 
         engine.disable_scope(ScopeType::Histogram)?;
         let scopes_after = engine.get_configured_scopes();
@@ -136,30 +123,23 @@ mod tests {
     fn test_presets() -> Result<()> {
         let mut engine = create_test_engine()?;
 
-
         engine.set_brightness(0.2)?;
         engine.set_contrast(1.3)?;
         engine.set_saturation(0.8)?;
 
-
         engine.create_preset("test_preset")?;
-
 
         engine.set_brightness(0.0)?;
         engine.set_contrast(1.0)?;
         engine.set_saturation(1.0)?;
 
-
         engine.apply_preset("test_preset")?;
-
 
         assert_eq!(engine.get_brightness(), 0.2);
         assert_eq!(engine.get_contrast(), 1.3);
         assert_eq!(engine.get_saturation(), 0.8);
 
-
         engine.delete_preset("test_preset")?;
-
 
         let result = engine.apply_preset("test_preset");
         assert!(result.is_err());

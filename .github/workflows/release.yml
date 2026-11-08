@@ -82,32 +82,45 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            binary_name: aether-windows-x64.exe
-            platform: windows
-          - os: windows-latest
-            target: aarch64-pc-windows-msvc
-            binary_name: aether-windows-arm64.exe
-            platform: windows
+          # NOTE: Windows MSVC needs GStreamer/GES MSVC dev binaries (not on
+          # choco); aarch64-linux needs multiarch gst cross-libs; x86_64-apple
+          # needs x86 gst libs (brew is arm64-only) — all dropped for now.
           - os: ubuntu-latest
+            container: debian:trixie
             target: x86_64-unknown-linux-gnu
             binary_name: aether-linux-x64
             platform: linux
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            binary_name: aether-linux-arm64
-            platform: linux
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            binary_name: aether-macos-x64
-            platform: macos
           - os: macos-latest
             target: aarch64-apple-darwin
             binary_name: aether-macos-arm64
             platform: macos
 
+    # debian:trixie ships GStreamer 1.26.x (required by gstreamer-rs 0.25);
+    # evaluates to no container for the macos entry
+    container: ${{ matrix.container }}
+
     steps:
+    - name: Install system dependencies (Linux)
+      if: matrix.platform == 'linux'
+      run: |
+        apt-get update
+        apt-get install -y \
+          git curl ca-certificates build-essential pkg-config \
+          nasm \
+          clang libclang-dev \
+          libgstreamer1.0-dev \
+          libgstreamer-plugins-base1.0-dev \
+          libges-1.0-dev \
+          libwebkit2gtk-4.1-dev \
+          libjavascriptcoregtk-4.1-dev \
+          libsoup-3.0-dev \
+          librsvg2-dev \
+          libgtk-3-dev \
+          libayatana-appindicator3-dev \
+          libxdo-dev \
+          file patchelf desktop-file-utils \
+          libssl-dev
+
     - name: Checkout repository
       uses: actions/checkout@v4
 
@@ -133,31 +146,11 @@ jobs:
         node-version: '22'
         cache: 'npm'
 
-    - name: Install system dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          libavcodec-dev \
-          libavformat-dev \
-          libavutil-dev \
-          libswscale-dev \
-          libswresample-dev \
-          libgstreamer1.0-dev \
-          libgstreamer-plugins-base1.0-dev \
-          libgstreamer-editing-services1.0-dev \
-          pkg-config \
-          libssl-dev
-
     - name: Install system dependencies (macOS)
-      if: matrix.os == 'macos-latest'
+      if: matrix.platform == 'macos'
+      # nasm for the vendored ffmpeg build; no system ffmpeg needed
       run: |
-        brew install ffmpeg gstreamer gst-plugins-base gst-plugins-good
-
-    - name: Install system dependencies (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        choco install ffmpeg
+        brew install nasm gstreamer gst-plugins-base gst-plugins-good
 
     - name: Install frontend dependencies
       run: npm ci
@@ -167,16 +160,9 @@ jobs:
 
     - name: Build Tauri binary
       run: |
-        cargo tauri build --target ${{ matrix.target }} --no-bundle
+        npx tauri build --target ${{ matrix.target }} --no-bundle
 
-    - name: Rename binary (Windows)
-      if: matrix.platform == 'windows'
-      run: |
-        cd src-tauri/target/${{ matrix.target }}/release/
-        mv aether.exe ${{ matrix.binary_name }}
-
-    - name: Rename binary (Unix)
-      if: matrix.platform != 'windows'
+    - name: Rename binary
       run: |
         cd src-tauri/target/${{ matrix.target }}/release/
         mv aether ${{ matrix.binary_name }}

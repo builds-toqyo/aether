@@ -1,6 +1,6 @@
+use super::types::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use super::types::*;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CharacterAnimation {
@@ -56,32 +56,37 @@ impl CharacterAnimation {
 
     pub fn add_keyframe(&mut self, keyframe: TextKeyframe) {
         self.keyframes.push(keyframe);
-        self.keyframes.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap());
+        self.keyframes
+            .sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap());
     }
 
     pub fn remove_keyframe(&mut self, time: f64) -> bool {
         let initial_len = self.keyframes.len();
-        self.keyframes.retain(|kf| (kf.time - time).abs() > f64::EPSILON);
+        self.keyframes
+            .retain(|kf| (kf.time - time).abs() > f64::EPSILON);
         self.keyframes.len() < initial_len
     }
 
     pub fn get_keyframe(&self, time: f64) -> Option<&TextKeyframe> {
-        self.keyframes.iter().find(|kf| (kf.time - time).abs() < f64::EPSILON)
+        self.keyframes
+            .iter()
+            .find(|kf| (kf.time - time).abs() < f64::EPSILON)
     }
 
     pub fn get_keyframe_at_or_before(&self, time: f64) -> Option<&TextKeyframe> {
-        self.keyframes.iter()
-            .rev()
-            .find(|kf| kf.time <= time)
+        self.keyframes.iter().rev().find(|kf| kf.time <= time)
     }
 
     pub fn get_keyframe_at_or_after(&self, time: f64) -> Option<&TextKeyframe> {
-        self.keyframes.iter()
-            .find(|kf| kf.time >= time)
+        self.keyframes.iter().find(|kf| kf.time >= time)
     }
 
     pub fn evaluate(&mut self, time: f64, char_index: usize) -> Option<AnimationValue> {
-        let char_delay = self.character_delays.get(&char_index).copied().unwrap_or(0.0);
+        let char_delay = self
+            .character_delays
+            .get(&char_index)
+            .copied()
+            .unwrap_or(0.0);
         let adjusted_time = time - self.delay - char_delay;
 
         if adjusted_time < 0.0 {
@@ -89,10 +94,7 @@ impl CharacterAnimation {
         }
 
         let mut time = adjusted_time;
-        if self.loops && self.loop_count > 0 {
-            let loop_duration = self.duration;
-            time = adjusted_time % loop_duration;
-        } else if self.loops {
+        if self.loops {
             let loop_duration = self.duration;
             time = adjusted_time % loop_duration;
         } else if adjusted_time > self.duration {
@@ -117,7 +119,8 @@ impl CharacterAnimation {
                 }
 
                 let t = (time - prev.time) / (next.time - prev.time);
-                let interpolated_value = self.interpolate_values(&prev.value, &next.value, t, &prev.easing);
+                let interpolated_value =
+                    self.interpolate_values(&prev.value, &next.value, t, &prev.easing);
 
                 self.current_value = Some(interpolated_value.clone());
                 Some(interpolated_value)
@@ -159,21 +162,23 @@ impl CharacterAnimation {
                     from_y + (to_y - from_y) * eased_t,
                 )
             }
-            (AnimationValue::Vector3(from_x, from_y, from_z), AnimationValue::Vector3(to_x, to_y, to_z)) => {
-                AnimationValue::Vector3(
-                    from_x + (to_x - from_x) * eased_t,
-                    from_y + (to_y - from_y) * eased_t,
-                    from_z + (to_z - from_z) * eased_t,
-                )
-            }
-            (AnimationValue::Color(from_r, from_g, from_b, from_a), AnimationValue::Color(to_r, to_g, to_b, to_a)) => {
-                AnimationValue::Color(
-                    from_r + (to_r - from_r) * eased_t,
-                    from_g + (to_g - from_g) * eased_t,
-                    from_b + (to_b - from_b) * eased_t,
-                    from_a + (to_a - from_a) * eased_t,
-                )
-            }
+            (
+                AnimationValue::Vector3(from_x, from_y, from_z),
+                AnimationValue::Vector3(to_x, to_y, to_z),
+            ) => AnimationValue::Vector3(
+                from_x + (to_x - from_x) * eased_t,
+                from_y + (to_y - from_y) * eased_t,
+                from_z + (to_z - from_z) * eased_t,
+            ),
+            (
+                AnimationValue::Color(from_r, from_g, from_b, from_a),
+                AnimationValue::Color(to_r, to_g, to_b, to_a),
+            ) => AnimationValue::Color(
+                from_r + (to_r - from_r) * eased_t,
+                from_g + (to_g - from_g) * eased_t,
+                from_b + (to_b - from_b) * eased_t,
+                from_a + (to_a - from_a) * eased_t,
+            ),
             (AnimationValue::String(_), AnimationValue::String(to_s)) => {
                 if eased_t >= 0.5 {
                     AnimationValue::String(to_s.clone())
@@ -303,7 +308,9 @@ impl TextAnimator {
     }
 
     pub fn get_animation_mut(&mut self, animation_id: &str) -> Option<&mut CharacterAnimation> {
-        self.animations.iter_mut().find(|anim| anim.id == animation_id)
+        self.animations
+            .iter_mut()
+            .find(|anim| anim.id == animation_id)
     }
 
     pub fn update(&mut self, delta_time: f64) {
@@ -311,9 +318,7 @@ impl TextAnimator {
             self.global_time += delta_time * self.playback_speed;
 
             for animation in &mut self.animations {
-                if animation.playing {
-
-                }
+                if animation.playing {}
             }
         }
     }
@@ -325,14 +330,17 @@ impl TextAnimator {
             .collect()
     }
 
-    pub fn get_character_values(&mut self, char_index: usize) -> HashMap<AnimationType, AnimationValue> {
+    pub fn get_character_values(
+        &mut self,
+        char_index: usize,
+    ) -> HashMap<AnimationType, AnimationValue> {
         let mut values = HashMap::new();
 
         for animation in &mut self.animations {
-            if animation.affects_character(char_index) {
-                if let Some(value) = animation.evaluate(self.global_time, char_index) {
-                    values.insert(animation.animation_type.clone(), value);
-                }
+            if animation.affects_character(char_index)
+                && let Some(value) = animation.evaluate(self.global_time, char_index)
+            {
+                values.insert(animation.animation_type.clone(), value);
             }
         }
 
@@ -384,7 +392,8 @@ impl TextAnimator {
         let mut staggered_animations = Vec::new();
 
         for (i, &char_index) in base_animation.target_characters.iter().enumerate() {
-            let mut anim = base_animation.clone_without_id(format!("{}_stagger_{}", base_animation.id, i));
+            let mut anim =
+                base_animation.clone_without_id(format!("{}_stagger_{}", base_animation.id, i));
             anim.target_characters = vec![char_index];
             anim.delay = base_animation.delay + (i as f64 * stagger_delay);
             staggered_animations.push(anim);
@@ -399,7 +408,9 @@ impl TextAnimator {
 
     pub fn validate(&self) -> Result<(), String> {
         for (i, animation) in self.animations.iter().enumerate() {
-            animation.validate().map_err(|e| format!("Animation {}: {}", i, e))?;
+            animation
+                .validate()
+                .map_err(|e| format!("Animation {}: {}", i, e))?;
         }
         Ok(())
     }

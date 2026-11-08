@@ -1,11 +1,11 @@
-
-
 use anyhow::{Result, anyhow};
-use log::{debug, info};
 use image::RgbImage;
+use log::{debug, info};
 
-use super::{loader::LutLoader, saver::LutSaver, applicator::LutApplicator, config::LutConfig, types::LutData};
-
+use super::{
+    applicator::LutApplicator, config::LutConfig, loader::LutLoader, saver::LutSaver,
+    types::LutData,
+};
 
 pub struct LutProcessor {
     luts: std::collections::HashMap<String, LutData>,
@@ -17,7 +17,6 @@ pub struct LutProcessor {
 }
 
 impl LutProcessor {
-
     pub fn new(config: LutConfig) -> Result<Self> {
         info!("Creating LUT processor with config: {:?}", config);
 
@@ -35,7 +34,6 @@ impl LutProcessor {
         Ok(processor)
     }
 
-
     pub fn load_lut(&mut self, file_path: &std::path::Path) -> Result<String> {
         debug!("Loading LUT from: {:?}", file_path);
 
@@ -49,11 +47,17 @@ impl LutProcessor {
         Ok(lut_name)
     }
 
-
-    pub fn save_lut(&self, lut_name: &str, file_path: &std::path::Path, format: super::types::LutFormat) -> Result<()> {
+    pub fn save_lut(
+        &self,
+        lut_name: &str,
+        file_path: &std::path::Path,
+        format: super::types::LutFormat,
+    ) -> Result<()> {
         debug!("Saving LUT '{}' to: {:?}", lut_name, file_path);
 
-        let lut_data = self.luts.get(lut_name)
+        let lut_data = self
+            .luts
+            .get(lut_name)
             .ok_or_else(|| anyhow!("LUT not found: {}", lut_name))?;
 
         self.saver.save_lut(lut_data, file_path, format)?;
@@ -63,11 +67,12 @@ impl LutProcessor {
         Ok(())
     }
 
-
     pub fn apply_lut(&self, image: &mut RgbImage, lut_name: &str) -> Result<()> {
         debug!("Applying LUT '{}' to image", lut_name);
 
-        let lut_data = self.luts.get(lut_name)
+        let lut_data = self
+            .luts
+            .get(lut_name)
             .ok_or_else(|| anyhow!("LUT not found: {}", lut_name))?;
 
         self.applicator.apply_lut(image, lut_data)?;
@@ -77,12 +82,11 @@ impl LutProcessor {
         Ok(())
     }
 
-
     pub fn set_active_lut(&mut self, lut_name: Option<&str>) -> Result<()> {
-        if let Some(name) = lut_name {
-            if !self.luts.contains_key(name) {
-                return Err(anyhow!("LUT not found: {}", name));
-            }
+        if let Some(name) = lut_name
+            && !self.luts.contains_key(name)
+        {
+            return Err(anyhow!("LUT not found: {}", name));
         }
 
         self.active_lut = lut_name.map(String::from);
@@ -92,7 +96,6 @@ impl LutProcessor {
         Ok(())
     }
 
-
     pub fn apply_active_lut(&self, image: &mut RgbImage) -> Result<()> {
         if let Some(ref lut_name) = self.active_lut {
             self.apply_lut(image, lut_name)
@@ -101,14 +104,15 @@ impl LutProcessor {
         }
     }
 
-
     pub fn create_identity_lut(&mut self, name: &str, size: u32) -> Result<String> {
         debug!("Creating identity LUT: {} (size: {})", name, size);
 
-        let mut lut_data = LutData::default();
-        lut_data.name = name.to_string();
-        lut_data.size = size;
-        lut_data.format = super::types::LutFormat::Cube;
+        let mut lut_data = LutData {
+            name: name.to_string(),
+            size,
+            format: super::types::LutFormat::Cube,
+            ..Default::default()
+        };
         lut_data.generate_identity_lut(size);
 
         let lut_name = name.to_string();
@@ -119,14 +123,20 @@ impl LutProcessor {
         Ok(lut_name)
     }
 
-
-    pub fn create_color_correction_lut(&mut self, name: &str, size: u32, correction: &super::types::ColorCorrection) -> Result<String> {
+    pub fn create_color_correction_lut(
+        &mut self,
+        name: &str,
+        size: u32,
+        correction: &super::types::ColorCorrection,
+    ) -> Result<String> {
         debug!("Creating color correction LUT: {}", name);
 
-        let mut lut_data = LutData::default();
-        lut_data.name = name.to_string();
-        lut_data.size = size;
-        lut_data.format = super::types::LutFormat::Cube;
+        let mut lut_data = LutData {
+            name: name.to_string(),
+            size,
+            format: super::types::LutFormat::Cube,
+            ..Default::default()
+        };
 
         for b in 0..size {
             for g in 0..size {
@@ -134,7 +144,6 @@ impl LutProcessor {
                     let rf = r as f32 / (size - 1) as f32;
                     let gf = g as f32 / (size - 1) as f32;
                     let bf = b as f32 / (size - 1) as f32;
-
 
                     let corrected = self.apply_color_correction([rf, gf, bf], correction);
                     lut_data.data.push(corrected);
@@ -150,26 +159,25 @@ impl LutProcessor {
         Ok(lut_name)
     }
 
-
-    fn apply_color_correction(&self, rgb: [f32; 3], correction: &super::types::ColorCorrection) -> [f32; 3] {
+    fn apply_color_correction(
+        &self,
+        rgb: [f32; 3],
+        correction: &super::types::ColorCorrection,
+    ) -> [f32; 3] {
         let [r, g, b] = rgb;
-
 
         let r_gamma = r.powf(correction.gamma);
         let g_gamma = g.powf(correction.gamma);
         let b_gamma = b.powf(correction.gamma);
 
-
         let r_contrast = ((r_gamma - 0.5) * correction.contrast + 0.5).clamp(0.0, 1.0);
         let g_contrast = ((g_gamma - 0.5) * correction.contrast + 0.5).clamp(0.0, 1.0);
         let b_contrast = ((b_gamma - 0.5) * correction.contrast + 0.5).clamp(0.0, 1.0);
-
 
         let luma = 0.2126 * r_contrast + 0.7152 * g_contrast + 0.0722 * b_contrast;
         let r_saturated = luma + (r_contrast - luma) * correction.saturation;
         let g_saturated = luma + (g_contrast - luma) * correction.saturation;
         let b_saturated = luma + (b_contrast - luma) * correction.saturation;
-
 
         let r_balanced = r_saturated * correction.color_balance[0];
         let g_balanced = g_saturated * correction.color_balance[1];
@@ -178,39 +186,36 @@ impl LutProcessor {
         [r_balanced, g_balanced, b_balanced]
     }
 
-
     pub fn get_loaded_luts(&self) -> Vec<&str> {
         self.luts.keys().map(|s| s.as_str()).collect()
     }
 
-
     pub fn get_lut_info(&self, lut_name: &str) -> Option<super::types::LutInfo> {
-        self.luts.get(lut_name).map(|lut_data| super::types::LutInfo {
-            name: lut_data.name.clone(),
-            size: lut_data.size,
-            format: lut_data.format,
-            data_points: lut_data.data.len(),
-        })
+        self.luts
+            .get(lut_name)
+            .map(|lut_data| super::types::LutInfo {
+                name: lut_data.name.clone(),
+                size: lut_data.size,
+                format: lut_data.format,
+                data_points: lut_data.data.len(),
+            })
     }
-
 
     pub fn remove_lut(&mut self, lut_name: &str) -> Result<()> {
         if self.luts.remove(lut_name).is_none() {
             return Err(anyhow!("LUT not found: {}", lut_name));
         }
 
-
-        if let Some(ref active) = self.active_lut {
-            if active == lut_name {
-                self.active_lut = None;
-            }
+        if let Some(ref active) = self.active_lut
+            && active == lut_name
+        {
+            self.active_lut = None;
         }
 
         info!("LUT removed: {}", lut_name);
 
         Ok(())
     }
-
 
     pub fn update_config(&mut self, config: LutConfig) {
         self.config = config.clone();

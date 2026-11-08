@@ -1,21 +1,18 @@
-
-
-pub mod keyframe;
 pub mod curve;
-pub mod track;
 pub mod interpolation;
+pub mod keyframe;
+pub mod track;
 
-
-pub use keyframe::{Keyframe, KeyframeData, TransformData, KeyframeCollection};
-pub use curve::{AnimationCurve, CurveType, BezierControlPoint, CurveBuilder};
-pub use track::{
-    AnimationTrack, TrackType, TrackValue, ParameterBinding, BindingType,
-    AnimationTrackCollection, TrackCollectionStats, AnimationTrackBuilder, AnimationTrackCollectionBuilder,
-    TrackValueUtils
-};
+pub use curve::{AnimationCurve, BezierControlPoint, CurveBuilder, CurveType};
 pub use interpolation::{
-    InterpolationMethod, EasingFunction, EasingCategory, InterpolationUtils,
-    EasingFunctionsByCharacteristic, EasingUseCase, EasingComparison, BasicInterpolation
+    BasicInterpolation, EasingCategory, EasingComparison, EasingFunction,
+    EasingFunctionsByCharacteristic, EasingUseCase, InterpolationMethod, InterpolationUtils,
+};
+pub use keyframe::{Keyframe, KeyframeCollection, KeyframeData, TransformData};
+pub use track::{
+    AnimationTrack, AnimationTrackBuilder, AnimationTrackCollection,
+    AnimationTrackCollectionBuilder, BindingType, ParameterBinding, TrackCollectionStats,
+    TrackType, TrackValue, TrackValueUtils,
 };
 
 pub type AnimationValue = TrackValue;

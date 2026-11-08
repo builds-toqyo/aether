@@ -1,11 +1,7 @@
-
-
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextOnPath {
-
     pub path_id: String,
 
     pub text: String,
@@ -29,10 +25,8 @@ pub struct TextOnPath {
     pub style_overrides: Option<crate::text::types::TextStyle>,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TextOrientation {
-
     Horizontal,
 
     Tangent,
@@ -42,10 +36,8 @@ pub enum TextOrientation {
     Custom(f64),
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum PathTextAlignment {
-
     Start,
 
     Center,
@@ -55,10 +47,8 @@ pub enum PathTextAlignment {
     Distribute,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PathGlyph {
-
     pub character: char,
 
     pub char_index: usize,
@@ -80,10 +70,8 @@ pub struct PathGlyph {
     pub normal: (f64, f64),
 }
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct PathTextRenderer {
-
     pub path_texts: Vec<TextOnPath>,
 
     pub rendered_glyphs: Vec<PathGlyph>,
@@ -94,7 +82,6 @@ pub struct PathTextRenderer {
 }
 
 impl TextOnPath {
-
     pub fn new(path_id: String, text: String) -> Self {
         Self {
             path_id,
@@ -111,24 +98,20 @@ impl TextOnPath {
         }
     }
 
-
     pub fn with_orientation(mut self, orientation: TextOrientation) -> Self {
         self.orientation = orientation;
         self
     }
-
 
     pub fn with_spacing(mut self, spacing: f64) -> Self {
         self.character_spacing = spacing;
         self
     }
 
-
     pub fn with_alignment(mut self, alignment: PathTextAlignment) -> Self {
         self.alignment = alignment;
         self
     }
-
 
     pub fn with_repeat(mut self, repeat: bool, count: usize) -> Self {
         self.repeat = repeat;
@@ -136,19 +119,16 @@ impl TextOnPath {
         self
     }
 
-
     pub fn get_effective_text(&self) -> String {
         if !self.repeat {
             self.text.clone()
         } else if self.repeat_count == 0 {
-
             let estimated_chars = (100.0 / 10.0) as usize;
             self.text.repeat(estimated_chars)
         } else {
             self.text.repeat(self.repeat_count)
         }
     }
-
 
     pub fn validate(&self) -> Result<(), String> {
         if self.path_id.is_empty() {
@@ -172,7 +152,6 @@ impl TextOnPath {
 }
 
 impl PathTextRenderer {
-
     pub fn new() -> Self {
         Self {
             path_texts: Vec::new(),
@@ -182,13 +161,11 @@ impl PathTextRenderer {
         }
     }
 
-
     pub fn add_text_on_path(&mut self, text_on_path: TextOnPath) {
         text_on_path.validate().unwrap();
         self.path_texts.push(text_on_path);
         self.is_dirty = true;
     }
-
 
     pub fn remove_text_on_path(&mut self, path_id: &str) -> bool {
         let initial_len = self.path_texts.len();
@@ -200,17 +177,14 @@ impl PathTextRenderer {
         removed
     }
 
-
     pub fn get_text_on_path(&self, path_id: &str) -> Option<&TextOnPath> {
         self.path_texts.iter().find(|tp| tp.path_id == path_id)
     }
-
 
     pub fn update_path_cache(&mut self, path_id: &str, path: crate::shapes::paths::Path) {
         self.path_cache.insert(path_id.to_string(), path);
         self.is_dirty = true;
     }
-
 
     pub fn render(&mut self) -> Result<(), String> {
         if !self.is_dirty {
@@ -232,8 +206,11 @@ impl PathTextRenderer {
         Ok(())
     }
 
-
-    fn render_text_on_path(&self, text_on_path: &TextOnPath, path: &crate::shapes::paths::Path) -> Result<Vec<PathGlyph>, String> {
+    fn render_text_on_path(
+        &self,
+        text_on_path: &TextOnPath,
+        path: &crate::shapes::paths::Path,
+    ) -> Result<Vec<PathGlyph>, String> {
         let mut glyphs = Vec::new();
         let effective_text = text_on_path.get_effective_text();
         let path_length = path.length();
@@ -242,14 +219,13 @@ impl PathTextRenderer {
             return Ok(glyphs);
         }
 
-
         let start_param = match text_on_path.alignment {
             PathTextAlignment::Start => text_on_path.start_position,
             PathTextAlignment::Center => text_on_path.start_position - 0.5,
             PathTextAlignment::End => text_on_path.start_position - 1.0,
             PathTextAlignment::Distribute => text_on_path.start_position,
-        }.clamp(0.0, 1.0);
-
+        }
+        .clamp(0.0, 1.0);
 
         let char_count = effective_text.chars().count();
         let total_char_spacing = if char_count > 1 {
@@ -268,24 +244,23 @@ impl PathTextRenderer {
         let mut current_param = start_param;
 
         for (char_index, character) in effective_text.chars().enumerate() {
-
             let (position, tangent, normal) = self.get_path_geometry(path, current_param);
-
 
             let rotation = match text_on_path.orientation {
                 TextOrientation::Horizontal => 0.0,
                 TextOrientation::Tangent => tangent.1.atan2(tangent.0),
-                TextOrientation::Perpendicular => (tangent.1.atan2(tangent.0) + std::f64::consts::PI / 2.0),
+                TextOrientation::Perpendicular => {
+                    tangent.1.atan2(tangent.0) + std::f64::consts::PI / 2.0
+                }
                 TextOrientation::Custom(angle) => angle,
             };
 
-
             let glyph_width = char_width;
-            let glyph_height = text_on_path.style_overrides
+            let glyph_height = text_on_path
+                .style_overrides
                 .as_ref()
                 .map(|style| style.font_size)
                 .unwrap_or(12.0);
-
 
             let glyph = PathGlyph {
                 character,
@@ -302,11 +277,9 @@ impl PathTextRenderer {
 
             glyphs.push(glyph);
 
-
             let advance_distance = glyph_width + text_on_path.character_spacing;
             let advance_param = advance_distance / path_length;
             current_param += advance_param;
-
 
             if current_param >= 1.0 {
                 break;
@@ -316,9 +289,11 @@ impl PathTextRenderer {
         Ok(glyphs)
     }
 
-
-    fn get_path_geometry(&self, path: &crate::shapes::paths::Path, parameter: f64) -> ((f64, f64), (f64, f64), (f64, f64)) {
-
+    fn get_path_geometry(
+        &self,
+        path: &crate::shapes::paths::Path,
+        parameter: f64,
+    ) -> ((f64, f64), (f64, f64), (f64, f64)) {
         let samples = path.sample_points(100);
 
         if samples.is_empty() {
@@ -330,37 +305,22 @@ impl PathTextRenderer {
 
         let position = samples[index];
 
-
         let next_index = (index + 1).min(samples.len() - 1);
         let next_position = samples[next_index];
-        let tangent = (
-            next_position.0 - position.0,
-            next_position.1 - position.1,
-        );
-
+        let tangent = (next_position.0 - position.0, next_position.1 - position.1);
 
         let normal = (-tangent.1, tangent.0);
 
         (position, tangent, normal)
     }
 
-
     pub fn get_rendered_glyphs(&self) -> &[PathGlyph] {
         &self.rendered_glyphs
     }
 
-
-    pub fn get_glyphs_for_path(&self, path_id: &str) -> Vec<&PathGlyph> {
-        self.rendered_glyphs
-            .iter()
-            .filter(|glyph| {
-
-
-                true
-            })
-            .collect()
+    pub fn get_glyphs_for_path(&self, _path_id: &str) -> Vec<&PathGlyph> {
+        self.rendered_glyphs.iter().filter(|_glyph| true).collect()
     }
-
 
     pub fn clear(&mut self) {
         self.path_texts.clear();
@@ -368,21 +328,17 @@ impl PathTextRenderer {
         self.is_dirty = true;
     }
 
-
     pub fn mark_dirty(&mut self) {
         self.is_dirty = true;
     }
-
 
     pub fn is_up_to_date(&self) -> bool {
         !self.is_dirty
     }
 
-
     pub fn glyph_count(&self) -> usize {
         self.rendered_glyphs.len()
     }
-
 
     pub fn get_bounds(&self) -> Option<crate::shapes::primitives::transform::BoundingBox> {
         if self.rendered_glyphs.is_empty() {
@@ -404,13 +360,16 @@ impl PathTextRenderer {
             max_y = max_y.max(glyph.position.1 + half_height);
         }
 
-        Some(crate::shapes::primitives::transform::BoundingBox::new(min_x, min_y, max_x, max_y))
+        Some(crate::shapes::primitives::transform::BoundingBox::new(
+            min_x, min_y, max_x, max_y,
+        ))
     }
-
 
     pub fn validate(&self) -> Result<(), String> {
         for (i, text_on_path) in self.path_texts.iter().enumerate() {
-            text_on_path.validate().map_err(|e| format!("Text on path {}: {}", i, e))?;
+            text_on_path
+                .validate()
+                .map_err(|e| format!("Text on path {}: {}", i, e))?;
         }
         Ok(())
     }
@@ -429,10 +388,7 @@ mod tests {
 
     #[test]
     fn test_text_on_path_creation() {
-        let text_on_path = TextOnPath::new(
-            "path1".to_string(),
-            "Hello World".to_string(),
-        );
+        let text_on_path = TextOnPath::new("path1".to_string(), "Hello World".to_string());
 
         assert_eq!(text_on_path.path_id, "path1");
         assert_eq!(text_on_path.text, "Hello World");
@@ -537,7 +493,6 @@ mod tests {
     fn test_render_with_path() {
         let mut renderer = PathTextRenderer::new();
 
-
         let path = PathBuilder::new()
             .move_to(0.0, 50.0)
             .line_to(200.0, 50.0)
@@ -560,7 +515,6 @@ mod tests {
     fn test_path_geometry() {
         let renderer = PathTextRenderer::new();
 
-
         let path = PathBuilder::new()
             .move_to(0.0, 50.0)
             .line_to(100.0, 50.0)
@@ -568,14 +522,11 @@ mod tests {
 
         let (position, tangent, normal) = renderer.get_path_geometry(&path, 0.5);
 
-
         assert!((position.0 - 50.0).abs() < 10.0);
         assert_eq!(position.1, 50.0);
 
-
         assert!(tangent.0 > 0.0);
         assert!((tangent.1).abs() < f64::EPSILON);
-
 
         assert!((normal.0).abs() < f64::EPSILON);
         assert!(normal.1 > 0.0);
@@ -585,9 +536,7 @@ mod tests {
     fn test_get_bounds() {
         let mut renderer = PathTextRenderer::new();
 
-
         assert!(renderer.get_bounds().is_none());
-
 
         let path = PathBuilder::new()
             .move_to(0.0, 50.0)
@@ -600,7 +549,6 @@ mod tests {
         renderer.add_text_on_path(text_on_path);
 
         let _ = renderer.render();
-
 
         let bounds = renderer.get_bounds();
         assert!(bounds.is_some());

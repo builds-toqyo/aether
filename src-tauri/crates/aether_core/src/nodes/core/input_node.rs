@@ -1,8 +1,8 @@
-use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult};
-use aether_types::{Node, NodeType, PinDataType, ParameterValue};
+use crate::nodes::{ExecutionContext, NodeExecutor, NodeResult};
+use aether_types::{Node, NodeType, ParameterValue};
+use log::debug;
 use std::collections::HashMap;
 use uuid::Uuid;
-use log::debug;
 
 #[derive(Debug)]
 pub struct CoreInputNode {
@@ -12,7 +12,6 @@ pub struct CoreInputNode {
 }
 
 impl CoreInputNode {
-
     pub fn new(node: Node) -> Self {
         Self {
             node,
@@ -29,36 +28,31 @@ impl CoreInputNode {
         self.media_path.as_ref()
     }
 
-
     pub fn clear_cache(&mut self) {
         self.frame_cache.clear();
     }
-
 
     pub fn cache_size(&self) -> usize {
         self.frame_cache.len()
     }
 
-
     pub fn generate_frame(&mut self, frame: u64) -> ParameterValue {
-
         if let Some(cached_frame) = self.frame_cache.get(&frame) {
             return cached_frame.clone();
         }
 
-
         let frame_data = self.load_media_frame(frame);
-
 
         self.frame_cache.insert(frame, frame_data.clone());
 
         frame_data
     }
 
-
     fn load_media_frame(&self, frame: u64) -> ParameterValue {
-        debug!("Loading media frame {} from path: {:?}", frame, self.media_path);
-
+        debug!(
+            "Loading media frame {} from path: {:?}",
+            frame, self.media_path
+        );
 
         ParameterValue::Image(Uuid::new_v4())
     }
@@ -70,9 +64,7 @@ impl NodeExecutor for CoreInputNode {
             return Ok(());
         }
 
-
         let frame_data = self.generate_frame(context.frame);
-
 
         if let Some(output_pin) = self.node.outputs.first() {
             context.set_output(output_pin.id, frame_data);
@@ -101,12 +93,11 @@ impl NodeExecutor for CoreInputNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aether_types::{OutputPin};
+    use aether_types::OutputPin;
 
     #[test]
     fn test_core_input_node_creation() {
         let mut node = Node::new(NodeType::Input, "Test Input".to_string());
-
 
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
@@ -128,10 +119,11 @@ mod tests {
         let node = Node::new(NodeType::Input, "Test".to_string());
         let mut input_node = CoreInputNode::new(node);
 
-
         input_node.set_media_path("/path/to/media.mp4".to_string());
-        assert_eq!(input_node.get_media_path(), Some(&"/path/to/media.mp4".to_string()));
-
+        assert_eq!(
+            input_node.get_media_path(),
+            Some(&"/path/to/media.mp4".to_string())
+        );
 
         input_node.set_media_path("".to_string());
         assert_eq!(input_node.get_media_path(), Some(&"".to_string()));
@@ -142,23 +134,18 @@ mod tests {
         let node = Node::new(NodeType::Input, "Test".to_string());
         let mut input_node = CoreInputNode::new(node);
 
-
         assert_eq!(input_node.cache_size(), 0);
-
 
         input_node.clear_cache();
         assert_eq!(input_node.cache_size(), 0);
-
 
         let frame_data = input_node.generate_frame(1);
         assert_eq!(input_node.cache_size(), 1);
         assert!(matches!(frame_data, ParameterValue::Image(_)));
 
-
         let frame_data2 = input_node.generate_frame(1);
         assert_eq!(input_node.cache_size(), 1);
         assert_eq!(frame_data, frame_data2);
-
 
         input_node.generate_frame(2);
         assert_eq!(input_node.cache_size(), 2);
@@ -167,7 +154,6 @@ mod tests {
     #[test]
     fn test_node_executor_interface() {
         let mut node = Node::new(NodeType::Input, "Test Input".to_string());
-
 
         let output_pin = OutputPin {
             id: Uuid::new_v4(),
@@ -179,13 +165,10 @@ mod tests {
 
         let mut input_node = CoreInputNode::new(node);
 
-
         assert_eq!(input_node.node_type(), NodeType::Input);
-
 
         assert!(input_node.get_inputs().is_empty());
         assert_eq!(input_node.get_outputs().len(), 1);
-
 
         let context = ExecutionContext {
             frame: 1,
@@ -193,7 +176,6 @@ mod tests {
             outputs: std::collections::HashMap::new(),
         };
         assert!(input_node.can_execute(&context));
-
 
         let mut context = ExecutionContext {
             frame: 1,

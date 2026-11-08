@@ -1,39 +1,44 @@
+pub mod animation;
+pub mod color;
 pub mod engine;
+pub mod masking;
 pub mod modules;
 pub mod nodes;
 pub mod scopes;
-pub mod color;
-pub mod animation;
 pub mod shapes;
 pub mod text;
-pub mod masking;
 pub mod types;
 
+pub use animation::{
+    AnimationEngine, AnimationInterpolator, AnimationState, InterpolationResult, PlaybackState,
+};
+pub use color::{
+    AcesConfig, AcesProcessor, ColorCorrection, GamutMappingAlgorithm, HdrConfig, HdrDisplayType,
+    HdrImage, HdrPixel, HdrProcessor, InputTransform, LookTransform, LutConfig, LutData, LutFormat,
+    LutInfo, LutProcessor, OutputTransform, ToneMappingAlgorithm,
+};
 pub use engine::VideoFormat;
-pub use scopes::{VectorscopeProcessor, VectorscopeAnalyzer, ColorDistribution, TargetCompliance,
-                 HistogramProcessor, HistogramAnalyzer, HistogramStatistics, ExposureAnalysis, ColorBalanceAnalysis,
-                 BaseScopeProcessor, ColorConverter, ImageRenderer, FrameProcessor, Statistics, ChannelStatistics};
-pub use color::{AcesProcessor, AcesConfig, InputTransform, OutputTransform, LookTransform, HdrProcessor, HdrConfig, HdrImage, HdrPixel, HdrDisplayType, ToneMappingAlgorithm, GamutMappingAlgorithm, LutProcessor, LutConfig, LutData, LutFormat, LutInfo, ColorCorrection};
-pub use animation::{AnimationInterpolator, InterpolationResult, AnimationEngine, AnimationState, PlaybackState};
+pub use masking::{
+    AnimationValue, EffectQuality, GradientInterpolation, GradientMask, GradientStop, GradientType,
+    MaskAnimationSystem, MaskAnimationTarget, MaskAnimationTrack, MaskBlendMode, MaskCache,
+    MaskChannel, MaskCompositionMode, MaskCompositionOrder, MaskCompositionResult, MaskCompositor,
+    MaskEffect, MaskEffectParameters, MaskEffectProcessor, MaskEffectType, MaskEvaluation,
+    MaskFeatherQuality, MaskInvertMode, MaskKeyframe, MaskLayer, MaskProperties, ShapeMask,
+    ShapeMaskType,
+};
+pub use scopes::{
+    BaseScopeProcessor, ChannelStatistics, ColorBalanceAnalysis, ColorConverter, ColorDistribution,
+    ExposureAnalysis, FrameProcessor, HistogramAnalyzer, HistogramProcessor, HistogramStatistics,
+    ImageRenderer, Statistics, TargetCompliance, VectorscopeAnalyzer, VectorscopeProcessor,
+};
 pub use shapes::{
-    ShapePrimitive, Rectangle, Circle, Ellipse, Line, Polygon, Transform, BoundingBox,
-    Path, PathSegment, PathBuilder, BezierCurve,
-    BooleanOperation, BooleanResult, ShapeBoolean, AdvancedBoolean, BooleanUtils,
-    ShapeLayer, ShapeLayerCollection, LayerBlendMode, LayerVisibility, LayerCollectionStats, ShapeLayerCollectionBuilder
+    AdvancedBoolean, BezierCurve, BooleanOperation, BooleanResult, BooleanUtils, BoundingBox,
+    Circle, Ellipse, LayerBlendMode, LayerCollectionStats, LayerVisibility, Line, Path,
+    PathBuilder, PathSegment, Polygon, Rectangle, ShapeBoolean, ShapeLayer, ShapeLayerCollection,
+    ShapeLayerCollectionBuilder, ShapePrimitive, Transform,
 };
 pub use text::{
-    TextLayer, TextContent, TextStyle, TextAlignment, TextDirection,
-    TypographyControls, FontMetrics, TextLayout,
-    TextAnimator, CharacterAnimation, AnimationType, TextKeyframe,
-    TextOnPath, PathTextRenderer,
-    TextRenderer, GlyphRenderer
-};
-pub use masking::{
-    MaskBlendMode, MaskChannel, MaskInvertMode, MaskFeatherQuality,
-    MaskProperties, MaskEvaluation, MaskCache,
-    ShapeMask, ShapeMaskType,
-    GradientMask, GradientType, GradientStop, GradientInterpolation,
-    MaskAnimationTrack, MaskAnimationTarget, MaskKeyframe, AnimationValue, MaskAnimationSystem,
-    MaskLayer, MaskCompositionMode, MaskCompositionOrder, MaskCompositor, MaskCompositionResult,
-    MaskEffect, MaskEffectType, MaskEffectParameters, EffectQuality, MaskEffectProcessor
+    AnimationType, CharacterAnimation, FontMetrics, GlyphRenderer, PathTextRenderer, TextAlignment,
+    TextAnimator, TextContent, TextDirection, TextKeyframe, TextLayer, TextLayout, TextOnPath,
+    TextRenderer, TextStyle, TypographyControls,
 };

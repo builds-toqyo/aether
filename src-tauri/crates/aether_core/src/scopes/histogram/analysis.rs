@@ -1,29 +1,29 @@
+use anyhow::Result;
 
+use crate::types::{HistogramChannel, HistogramData};
 
-use anyhow::{Result};
-use log::debug;
-
-use crate::types::{HistogramData, HistogramChannel};
-
-use crate::scopes::{Statistics, ChannelStatistics};
-
+use crate::scopes::{ChannelStatistics, Statistics};
 
 pub struct HistogramAnalyzer {
-    statistics: Statistics,
+    _statistics: Statistics,
 }
 
 impl HistogramAnalyzer {
-
     pub fn new() -> Self {
         Self {
-            statistics: Statistics,
+            _statistics: Statistics,
         }
     }
 
     pub fn get_statistics(&self, data: &HistogramData) -> Result<HistogramStatistics> {
         let mut stats = HistogramStatistics::new();
 
-        for channel in [HistogramChannel::Red, HistogramChannel::Green, HistogramChannel::Blue, HistogramChannel::Luma] {
+        for channel in [
+            HistogramChannel::Red,
+            HistogramChannel::Green,
+            HistogramChannel::Blue,
+            HistogramChannel::Luma,
+        ] {
             let channel_data = data.channel_data(channel);
             let channel_stats = Statistics::calculate_channel_stats(channel_data);
 
@@ -75,30 +75,46 @@ impl HistogramAnalyzer {
     pub fn analyze_color_balance(&self, data: &HistogramData) -> Result<ColorBalanceAnalysis> {
         let mut analysis = ColorBalanceAnalysis::new();
 
-        let red_stats = Statistics::calculate_channel_stats(data.channel_data(HistogramChannel::Red));
-        let green_stats = Statistics::calculate_channel_stats(data.channel_data(HistogramChannel::Green));
-        let blue_stats = Statistics::calculate_channel_stats(data.channel_data(HistogramChannel::Blue));
+        let red_stats =
+            Statistics::calculate_channel_stats(data.channel_data(HistogramChannel::Red));
+        let green_stats =
+            Statistics::calculate_channel_stats(data.channel_data(HistogramChannel::Green));
+        let blue_stats =
+            Statistics::calculate_channel_stats(data.channel_data(HistogramChannel::Blue));
 
         analysis.red_mean = red_stats.mean;
         analysis.green_mean = green_stats.mean;
         analysis.blue_mean = blue_stats.mean;
-
 
         let avg_mean = (analysis.red_mean + analysis.green_mean + analysis.blue_mean) as f32 / 3.0;
         analysis.red_cast = analysis.red_mean as f32 - avg_mean;
         analysis.green_cast = analysis.green_mean as f32 - avg_mean;
         analysis.blue_cast = analysis.blue_mean as f32 - avg_mean;
 
-
-        let max_cast = analysis.red_cast.abs().max(analysis.green_cast.abs().max(analysis.blue_cast.abs()));
+        let max_cast = analysis
+            .red_cast
+            .abs()
+            .max(analysis.green_cast.abs().max(analysis.blue_cast.abs()));
         if max_cast < 5.0 {
             analysis.dominant_cast = ColorCast::Neutral;
         } else if analysis.red_cast.abs() == max_cast {
-            analysis.dominant_cast = if analysis.red_cast > 0.0 { ColorCast::Red } else { ColorCast::Cyan };
+            analysis.dominant_cast = if analysis.red_cast > 0.0 {
+                ColorCast::Red
+            } else {
+                ColorCast::Cyan
+            };
         } else if analysis.green_cast.abs() == max_cast {
-            analysis.dominant_cast = if analysis.green_cast > 0.0 { ColorCast::Green } else { ColorCast::Magenta };
+            analysis.dominant_cast = if analysis.green_cast > 0.0 {
+                ColorCast::Green
+            } else {
+                ColorCast::Magenta
+            };
         } else {
-            analysis.dominant_cast = if analysis.blue_cast > 0.0 { ColorCast::Blue } else { ColorCast::Yellow };
+            analysis.dominant_cast = if analysis.blue_cast > 0.0 {
+                ColorCast::Blue
+            } else {
+                ColorCast::Yellow
+            };
         }
 
         Ok(analysis)
@@ -125,14 +141,24 @@ impl HistogramAnalyzer {
 
         let exposure_analysis = self.analyze_exposure(data)?;
         if exposure_analysis.dynamic_range < 200 {
-            issues.push(HistogramIssue::LimitedDynamicRange(exposure_analysis.dynamic_range));
+            issues.push(HistogramIssue::LimitedDynamicRange(
+                exposure_analysis.dynamic_range,
+            ));
         }
 
         let color_analysis = self.analyze_color_balance(data)?;
         if color_analysis.dominant_cast != ColorCast::Neutral {
-            let cast_strength = color_analysis.red_cast.abs().max(color_analysis.green_cast.abs().max(color_analysis.blue_cast.abs()));
+            let cast_strength = color_analysis.red_cast.abs().max(
+                color_analysis
+                    .green_cast
+                    .abs()
+                    .max(color_analysis.blue_cast.abs()),
+            );
             if cast_strength > 10.0 {
-                issues.push(HistogramIssue::ColorCast(color_analysis.dominant_cast, cast_strength));
+                issues.push(HistogramIssue::ColorCast(
+                    color_analysis.dominant_cast,
+                    cast_strength,
+                ));
             }
         }
 
@@ -154,6 +180,12 @@ pub struct HistogramStatistics {
     pub luma: ChannelStatistics,
 }
 
+impl Default for HistogramStatistics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HistogramStatistics {
     pub fn new() -> Self {
         Self {
@@ -165,7 +197,6 @@ impl HistogramStatistics {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct ExposureAnalysis {
     pub shadow_percentage: f32,
@@ -174,6 +205,12 @@ pub struct ExposureAnalysis {
     pub black_clipped: bool,
     pub white_clipped: bool,
     pub dynamic_range: u8,
+}
+
+impl Default for ExposureAnalysis {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ExposureAnalysis {
@@ -189,14 +226,13 @@ impl ExposureAnalysis {
     }
 
     pub fn is_well_exposed(&self) -> bool {
-        !self.black_clipped &&
-        !self.white_clipped &&
-        self.dynamic_range > 200 &&
-        self.shadow_percentage > 5.0 &&
-        self.highlight_percentage > 5.0
+        !self.black_clipped
+            && !self.white_clipped
+            && self.dynamic_range > 200
+            && self.shadow_percentage > 5.0
+            && self.highlight_percentage > 5.0
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct ColorBalanceAnalysis {
@@ -207,6 +243,12 @@ pub struct ColorBalanceAnalysis {
     pub green_cast: f32,
     pub blue_cast: f32,
     pub dominant_cast: ColorCast,
+}
+
+impl Default for ColorBalanceAnalysis {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ColorBalanceAnalysis {
@@ -223,12 +265,11 @@ impl ColorBalanceAnalysis {
     }
 
     pub fn is_balanced(&self, tolerance: f32) -> bool {
-        self.red_cast.abs() < tolerance &&
-        self.green_cast.abs() < tolerance &&
-        self.blue_cast.abs() < tolerance
+        self.red_cast.abs() < tolerance
+            && self.green_cast.abs() < tolerance
+            && self.blue_cast.abs() < tolerance
     }
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorCast {
@@ -240,7 +281,6 @@ pub enum ColorCast {
     Cyan,
     Magenta,
 }
-
 
 #[derive(Debug, Clone)]
 pub enum HistogramIssue {

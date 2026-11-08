@@ -23,7 +23,7 @@ export const ConnectionLine: React.FC<ConnectionLineProps> = ({ start, end, isPr
     <path
       d={getPath()}
       fill="none"
-      stroke={isPreview ? '#60A5FA' : '#6B7280'}
+      stroke={isPreview ? '#60A5FA' : '#555555'}
       strokeWidth={2}
       strokeDasharray={isPreview ? '5,5' : ''}
       opacity={isPreview ? 0.7 : 1}

@@ -6,6 +6,78 @@ interface ScopeControlsProps {
   onSettingsChange: (newSettings: Partial<ScopeSettings>) => void;
 }
 
+const Pill: React.FC<{
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}> = ({ active, onClick, label }) => (
+  <button
+    onClick={onClick}
+    className={`px-2.5 py-1 rounded text-[11px] font-medium border transition-colors ${
+      active
+        ? 'bg-blue-600/15 text-blue-400 border-blue-500/40'
+        : 'bg-[#252525] text-[#777] border-[#333] hover:text-[#aaa] hover:border-[#444]'
+    }`}
+  >
+    {label}
+  </button>
+);
+
+const Check: React.FC<{
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+}> = ({ checked, onChange, label }) => (
+  <label className="flex items-center gap-1.5 cursor-pointer">
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      className="w-3 h-3 accent-blue-500"
+    />
+    <span className="text-[11px] text-[#999]">{label}</span>
+  </label>
+);
+
+const Slider: React.FC<{
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  display: string;
+  onChange: (value: number) => void;
+}> = ({ label, value, min, max, step, display, onChange }) => (
+  <div className="flex items-center gap-1.5">
+    <span className="text-[11px] text-[#777]">{label}</span>
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onChange={(e) => onChange(parseFloat(e.target.value))}
+      className="w-20 h-1 accent-blue-500 bg-[#333] rounded outline-none"
+    />
+    <span className="text-[10px] text-blue-400 tabular-nums w-8">{display}</span>
+  </div>
+);
+
+const SettingsRow: React.FC<{ label: string; children: React.ReactNode }> = ({
+  label,
+  children,
+}) => (
+  <div className="flex items-center gap-4 flex-wrap">
+    <span className="w-[76px] shrink-0 text-[10px] font-semibold uppercase tracking-wider text-[#555]">
+      {label}
+    </span>
+    {children}
+  </div>
+);
+
+const selectClass =
+  'bg-[#252525] border border-[#333] rounded px-1.5 py-0.5 text-[11px] text-[#ccc] outline-none focus:border-blue-500 transition-colors';
+
 export const ScopeControls: React.FC<ScopeControlsProps> = ({
   settings,
   onSettingsChange,
@@ -19,251 +91,30 @@ export const ScopeControls: React.FC<ScopeControlsProps> = ({
     });
   };
 
-  const handleWaveformModeChange = (mode: ScopeSettings['waveform']['mode']) => {
-    onSettingsChange({
-      waveform: {
-        ...settings.waveform,
-        mode,
-      },
-    });
-  };
-
-  const handleVectorscopeSettingChange = (key: keyof ScopeSettings['vectorscope'], value: any) => {
-    onSettingsChange({
-      vectorscope: {
-        ...settings.vectorscope,
-        [key]: value,
-      },
-    });
-  };
-
-  const handleHistogramModeChange = (mode: ScopeSettings['histogram']['mode']) => {
-    onSettingsChange({
-      histogram: {
-        ...settings.histogram,
-        mode,
-      },
-    });
-  };
-
-  const handleUpdateRateChange = (rate: number) => {
-    onSettingsChange({ updateRate: rate });
-  };
-
   return (
-    <div className="bg-gray-900 border-t border-gray-700 p-4">
-      <div className="mb-5">
-        <h5 className="mb-3 text-sm font-semibold text-white border-b border-gray-700 pb-1.5">Enabled Scopes</h5>
-        <div className="flex flex-wrap gap-4">
-          <label className="flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.enabled.waveform}
-              onChange={() => handleToggleScope('waveform')}
-              className="hidden"
-            />
-            <div className="relative w-11 h-6 bg-gray-600 border border-gray-500 rounded-full mr-2 transition-all duration-200">
-              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${settings.enabled.waveform ? 'translate-x-5' : ''}`}></div>
-            </div>
-            <span className="text-sm text-gray-300">Waveform</span>
-          </label>
-          
-          <label className="flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.enabled.vectorscope}
-              onChange={() => handleToggleScope('vectorscope')}
-              className="hidden"
-            />
-            <div className="relative w-11 h-6 bg-gray-600 border border-gray-500 rounded-full mr-2 transition-all duration-200">
-              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${settings.enabled.vectorscope ? 'translate-x-5' : ''}`}></div>
-            </div>
-            <span className="text-sm text-gray-300">Vectorscope</span>
-          </label>
-          
-          <label className="flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.enabled.histogram}
-              onChange={() => handleToggleScope('histogram')}
-              className="hidden"
-            />
-            <div className="relative w-11 h-6 bg-gray-600 border border-gray-500 rounded-full mr-2 transition-all duration-200">
-              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${settings.enabled.histogram ? 'translate-x-5' : ''}`}></div>
-            </div>
-            <span className="text-sm text-gray-300">Histogram</span>
-          </label>
-        </div>
-      </div>
-
-      {settings.enabled.waveform && (
-        <div className="mb-5">
-          <h5 className="mb-3 text-sm font-semibold text-white border-b border-gray-700 pb-1.5">Waveform Settings</h5>
-          <div className="flex items-center gap-3 mb-3">
-            <label className="min-w-20 text-sm text-gray-300">Mode:</label>
-            <select
-              value={settings.waveform.mode}
-              onChange={(e) => handleWaveformModeChange(e.target.value as ScopeSettings['waveform']['mode'])}
-              className="flex-1 max-w-[200px] bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white"
-            >
-              <option value="luma">Luma</option>
-              <option value="rgb">RGB</option>
-              <option value="parade">Parade</option>
-            </select>
-          </div>
-          
-          <div className="flex items-center gap-3 mb-3">
-            <label className="min-w-20 text-sm text-gray-300">Intensity:</label>
-            <input
-              type="range"
-              min="0.1"
-              max="2.0"
-              step="0.1"
-              value={settings.waveform.intensity}
-              onChange={(e) => onSettingsChange({
-                waveform: { ...settings.waveform, intensity: parseFloat(e.target.value) }
-              })}
-              className="flex-1 max-w-[200px] h-1.5 bg-gray-700 rounded outline-none"
-            />
-            <span className="min-w-10 text-xs text-gray-600 text-right">{settings.waveform.intensity.toFixed(1)}</span>
-          </div>
-          
-          <label className="flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.waveform.grid}
-              onChange={(e) => onSettingsChange({
-                waveform: { ...settings.waveform, grid: e.target.checked }
-              })}
-              className="hidden"
-            />
-            <div className="relative w-11 h-6 bg-gray-600 border border-gray-500 rounded-full mr-2 transition-all duration-200">
-              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${settings.waveform.grid ? 'translate-x-5' : ''}`}></div>
-            </div>
-            <span className="text-sm text-gray-300">Grid</span>
-          </label>
-        </div>
-      )}
-
-      {settings.enabled.vectorscope && (
-        <div className="mb-5">
-          <h5 className="mb-3 text-sm font-semibold text-white border-b border-gray-700 pb-1.5">Vectorscope Settings</h5>
-          <div className="flex items-center gap-3 mb-3">
-            <label className="min-w-20 text-sm text-gray-300">Intensity:</label>
-            <input
-              type="range"
-              min="0.1"
-              max="2.0"
-              step="0.1"
-              value={settings.vectorscope.intensity}
-              onChange={(e) => handleVectorscopeSettingChange('intensity', parseFloat(e.target.value))}
-              className="flex-1 max-w-[200px] h-1.5 bg-gray-700 rounded outline-none"
-            />
-            <span className="min-w-10 text-xs text-gray-600 text-right">{settings.vectorscope.intensity.toFixed(1)}</span>
-          </div>
-          
-          <div className="flex items-center gap-3 mb-3">
-            <label className="min-w-20 text-sm text-gray-300">Chroma Scale:</label>
-            <input
-              type="range"
-              min="0.5"
-              max="2.0"
-              step="0.1"
-              value={settings.vectorscope.chromaScale}
-              onChange={(e) => handleVectorscopeSettingChange('chromaScale', parseFloat(e.target.value))}
-              className="flex-1 max-w-[200px] h-1.5 bg-gray-700 rounded outline-none"
-            />
-            <span className="min-w-10 text-xs text-gray-600 text-right">{(settings.vectorscope.chromaScale * 100).toFixed(0)}%</span>
-          </div>
-          
-          <div className="flex flex-wrap gap-4 mb-3">
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.vectorscope.targets}
-                onChange={(e) => handleVectorscopeSettingChange('targets', e.target.checked)}
-                className="hidden"
-              />
-              <div className="relative w-11 h-6 bg-gray-600 border border-gray-500 rounded-full mr-2 transition-all duration-200">
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${settings.vectorscope.targets ? 'translate-x-5' : ''}`}></div>
-              </div>
-              <span className="text-sm text-gray-300">Show Targets</span>
-            </label>
-            
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.vectorscope.grid}
-                onChange={(e) => handleVectorscopeSettingChange('grid', e.target.checked)}
-                className="hidden"
-              />
-              <div className="relative w-11 h-6 bg-gray-600 border border-gray-500 rounded-full mr-2 transition-all duration-200">
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${settings.vectorscope.grid ? 'translate-x-5' : ''}`}></div>
-              </div>
-              <span className="text-sm text-gray-300">Grid</span>
-            </label>
-          </div>
-        </div>
-      )}
-
-      {settings.enabled.histogram && (
-        <div className="mb-5">
-          <h5 className="mb-3 text-sm font-semibold text-white border-b border-gray-700 pb-1.5">Histogram Settings</h5>
-          <div className="flex items-center gap-3 mb-3">
-            <label className="min-w-20 text-sm text-gray-300">Mode:</label>
-            <select
-              value={settings.histogram.mode}
-              onChange={(e) => handleHistogramModeChange(e.target.value as ScopeSettings['histogram']['mode'])}
-              className="flex-1 max-w-[200px] bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white"
-            >
-              <option value="rgb">RGB</option>
-              <option value="luma">Luma</option>
-              <option value="all">All</option>
-            </select>
-          </div>
-          
-          <div className="flex flex-wrap gap-4 mb-3">
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.histogram.logarithmic}
-                onChange={(e) => onSettingsChange({
-                  histogram: { ...settings.histogram, logarithmic: e.target.checked }
-                })}
-                className="hidden"
-              />
-              <div className="relative w-11 h-6 bg-gray-600 border border-gray-500 rounded-full mr-2 transition-all duration-200">
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${settings.histogram.logarithmic ? 'translate-x-5' : ''}`}></div>
-              </div>
-              <span className="text-sm text-gray-300">Logarithmic</span>
-            </label>
-            
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.histogram.grid}
-                onChange={(e) => onSettingsChange({
-                  histogram: { ...settings.histogram, grid: e.target.checked }
-                })}
-                className="hidden"
-              />
-              <div className="relative w-11 h-6 bg-gray-600 border border-gray-500 rounded-full mr-2 transition-all duration-200">
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${settings.histogram.grid ? 'translate-x-5' : ''}`}></div>
-              </div>
-              <span className="text-sm text-gray-300">Grid</span>
-            </label>
-          </div>
-        </div>
-      )}
-
-      <div className="mb-5">
-        <h5 className="mb-3 text-sm font-semibold text-white border-b border-gray-700 pb-1.5">Performance</h5>
-        <div className="flex items-center gap-3">
-          <label className="min-w-20 text-sm text-gray-300">Update Rate:</label>
+    <div className="bg-[#1a1a1a] border-b border-[#222] px-3 py-2 space-y-1.5 shrink-0">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Pill
+          active={settings.enabled.waveform}
+          onClick={() => handleToggleScope('waveform')}
+          label="Waveform"
+        />
+        <Pill
+          active={settings.enabled.vectorscope}
+          onClick={() => handleToggleScope('vectorscope')}
+          label="Vectorscope"
+        />
+        <Pill
+          active={settings.enabled.histogram}
+          onClick={() => handleToggleScope('histogram')}
+          label="Histogram"
+        />
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="text-[10px] text-[#555] uppercase tracking-wider">Rate</span>
           <select
             value={settings.updateRate}
-            onChange={(e) => handleUpdateRateChange(parseInt(e.target.value))}
-            className="flex-1 max-w-[200px] bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+            onChange={(e) => onSettingsChange({ updateRate: parseInt(e.target.value) })}
+            className={selectClass}
           >
             <option value={15}>15 FPS</option>
             <option value={30}>30 FPS</option>
@@ -272,6 +123,107 @@ export const ScopeControls: React.FC<ScopeControlsProps> = ({
           </select>
         </div>
       </div>
+
+      {settings.enabled.waveform && (
+        <SettingsRow label="Waveform">
+          <select
+            value={settings.waveform.mode}
+            onChange={(e) =>
+              onSettingsChange({
+                waveform: { ...settings.waveform, mode: e.target.value as ScopeSettings['waveform']['mode'] },
+              })
+            }
+            className={selectClass}
+          >
+            <option value="luma">Luma</option>
+            <option value="rgb">RGB</option>
+            <option value="parade">Parade</option>
+          </select>
+          <Slider
+            label="Intensity"
+            value={settings.waveform.intensity}
+            min={0.1}
+            max={2.0}
+            step={0.1}
+            display={settings.waveform.intensity.toFixed(1)}
+            onChange={(v) => onSettingsChange({ waveform: { ...settings.waveform, intensity: v } })}
+          />
+          <Check
+            checked={settings.waveform.grid}
+            onChange={(c) => onSettingsChange({ waveform: { ...settings.waveform, grid: c } })}
+            label="Grid"
+          />
+        </SettingsRow>
+      )}
+
+      {settings.enabled.vectorscope && (
+        <SettingsRow label="Vectorscope">
+          <Slider
+            label="Intensity"
+            value={settings.vectorscope.intensity}
+            min={0.1}
+            max={2.0}
+            step={0.1}
+            display={settings.vectorscope.intensity.toFixed(1)}
+            onChange={(v) =>
+              onSettingsChange({ vectorscope: { ...settings.vectorscope, intensity: v } })
+            }
+          />
+          <Slider
+            label="Chroma"
+            value={settings.vectorscope.chromaScale}
+            min={0.5}
+            max={2.0}
+            step={0.1}
+            display={`${(settings.vectorscope.chromaScale * 100).toFixed(0)}%`}
+            onChange={(v) =>
+              onSettingsChange({ vectorscope: { ...settings.vectorscope, chromaScale: v } })
+            }
+          />
+          <Check
+            checked={settings.vectorscope.targets}
+            onChange={(c) =>
+              onSettingsChange({ vectorscope: { ...settings.vectorscope, targets: c } })
+            }
+            label="Targets"
+          />
+          <Check
+            checked={settings.vectorscope.grid}
+            onChange={(c) => onSettingsChange({ vectorscope: { ...settings.vectorscope, grid: c } })}
+            label="Grid"
+          />
+        </SettingsRow>
+      )}
+
+      {settings.enabled.histogram && (
+        <SettingsRow label="Histogram">
+          <select
+            value={settings.histogram.mode}
+            onChange={(e) =>
+              onSettingsChange({
+                histogram: { ...settings.histogram, mode: e.target.value as ScopeSettings['histogram']['mode'] },
+              })
+            }
+            className={selectClass}
+          >
+            <option value="rgb">RGB</option>
+            <option value="luma">Luma</option>
+            <option value="all">All</option>
+          </select>
+          <Check
+            checked={settings.histogram.logarithmic}
+            onChange={(c) =>
+              onSettingsChange({ histogram: { ...settings.histogram, logarithmic: c } })
+            }
+            label="Log"
+          />
+          <Check
+            checked={settings.histogram.grid}
+            onChange={(c) => onSettingsChange({ histogram: { ...settings.histogram, grid: c } })}
+            label="Grid"
+          />
+        </SettingsRow>
+      )}
     </div>
   );
 };

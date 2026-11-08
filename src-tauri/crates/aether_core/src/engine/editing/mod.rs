@@ -1,23 +1,22 @@
-mod timeline;
-mod import;
-mod preview;
 mod effects;
 mod export;
+mod import;
+mod preview;
+mod timeline;
 pub mod types;
 
-pub use timeline::{Timeline, TimelineTrack, TimelineClip, TimelineEffect};
-pub use import::{MediaImporter, ImportOptions};
-pub use preview::{PreviewEngine, PreviewFrame};
 pub use effects::{Effect, EffectType, Transition, TransitionType};
-pub use export::{IntermediateExporter, ExportOptions, ExportProgress};
-pub use types::{EditingError, MediaInfo, ClipInfo, TrackType};
+pub use export::{ExportOptions, ExportProgress, IntermediateExporter};
+pub use import::{ImportOptions, MediaImporter};
+pub use preview::{PreviewEngine, PreviewFrame, PreviewQuality};
+pub use timeline::{Timeline, TimelineClip, TimelineEffect, TimelineTrack};
+pub use types::{ClipInfo, EditingError, MediaInfo, TrackType};
 
-use std::sync::{Arc, Mutex};
-use anyhow::{Context, Result};
-use gstreamer as gst;
-use gst::prelude::*;
-use gstreamer_editing_services as ges;
+use anyhow::Result;
 use ges::prelude::*;
+use gstreamer as gst;
+use gstreamer_editing_services as ges;
+use std::sync::{Arc, Mutex};
 
 pub struct EditingEngine {
     ges_timeline: Option<ges::Timeline>,
@@ -31,12 +30,10 @@ pub struct EditingEngine {
     timeline: Arc<Mutex<Timeline>>,
 }
 
-// TODO: GES types are not Send/Sync; this is a compilation workaround.
-// All GES access should happen from a single thread.
-unsafe impl Send for EditingEngine {}
-unsafe impl Sync for EditingEngine {}
-
 impl EditingEngine {
+    // GES elements in the wrapped engines are intentionally !Send/!Sync;
+    // they are only ever accessed through the EditingEngineProxy command thread.
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn new() -> Result<Self, EditingError> {
         gst::init()?;
 
@@ -68,8 +65,14 @@ impl EditingEngine {
         self.project_path = project_path;
 
         if let Some(timeline) = &self.ges_timeline {
-            self.timeline.lock().unwrap().set_ges_timeline(timeline.clone())?;
-            self.preview_engine.lock().unwrap().set_pipeline(self.ges_pipeline.clone())?;
+            self.timeline
+                .lock()
+                .unwrap()
+                .set_ges_timeline(timeline.clone())?;
+            self.preview_engine
+                .lock()
+                .unwrap()
+                .set_pipeline(self.ges_pipeline.clone())?;
         }
 
         Ok(())
@@ -87,10 +90,30 @@ impl EditingEngine {
         self.preview_engine.clone()
     }
 
-    pub fn create_intermediate_export(&self, options: ExportOptions) -> Result<IntermediateExporter, EditingError> {
+    pub fn add_clip_to_timeline(
+        &mut self,
+        uri: &str,
+        track_type: TrackType,
+        start_time: i64,
+        duration: i64,
+        in_point: i64,
+    ) -> Result<(), EditingError> {
+        self.timeline
+            .lock()
+            .unwrap()
+            .add_clip(uri, track_type, start_time, duration, in_point)?;
+        Ok(())
+    }
+
+    pub fn create_intermediate_export(
+        &self,
+        options: ExportOptions,
+    ) -> Result<IntermediateExporter, EditingError> {
         let exporter = IntermediateExporter::new(
-            self.ges_timeline.clone().ok_or(EditingError::NotInitialized)?,
-            options
+            self.ges_timeline
+                .clone()
+                .ok_or(EditingError::NotInitialized)?,
+            options,
         )?;
 
         Ok(exporter)

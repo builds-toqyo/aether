@@ -1,12 +1,8 @@
-
-
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TrackType {
-
     Position,
 
     Rotation,
@@ -21,7 +17,6 @@ pub enum TrackType {
 }
 
 impl TrackType {
-
     pub fn name(&self) -> &'static str {
         match self {
             TrackType::Position => "position",
@@ -64,10 +59,8 @@ impl fmt::Display for TrackType {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum BindingType {
-
     Direct,
 
     Additive,
@@ -78,7 +71,6 @@ pub enum BindingType {
 }
 
 impl BindingType {
-
     pub fn name(&self) -> &'static str {
         match self {
             BindingType::Direct => "direct",
@@ -95,10 +87,8 @@ impl fmt::Display for BindingType {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParameterBinding {
-
     pub target_id: String,
 
     pub parameter_name: String,
@@ -109,7 +99,6 @@ pub struct ParameterBinding {
 }
 
 impl ParameterBinding {
-
     pub fn new(target_id: String, parameter_name: String) -> Self {
         Self {
             target_id,
@@ -119,18 +108,15 @@ impl ParameterBinding {
         }
     }
 
-
     pub fn with_path(mut self, path: Vec<String>) -> Self {
         self.parameter_path = path;
         self
     }
 
-
     pub fn with_binding_type(mut self, binding_type: BindingType) -> Self {
         self.binding_type = binding_type;
         self
     }
-
 
     pub fn full_path(&self) -> String {
         if self.parameter_path.is_empty() {
@@ -139,7 +125,6 @@ impl ParameterBinding {
             format!("{}.{}", self.parameter_path.join("."), self.parameter_name)
         }
     }
-
 
     pub fn validate(&self) -> Result<(), String> {
         if self.target_id.is_empty() {

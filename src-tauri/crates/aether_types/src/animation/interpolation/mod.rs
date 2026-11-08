@@ -1,10 +1,9 @@
-
-
-pub mod methods;
 pub mod easing;
+pub mod methods;
 pub mod utils;
 
-
-pub use methods::{InterpolationMethod, BasicInterpolation};
-pub use easing::{EasingFunction, EasingCategory};
-pub use utils::{InterpolationUtils, EasingFunctionsByCharacteristic, EasingUseCase, EasingComparison};
+pub use easing::{EasingCategory, EasingFunction};
+pub use methods::{BasicInterpolation, InterpolationMethod};
+pub use utils::{
+    EasingComparison, EasingFunctionsByCharacteristic, EasingUseCase, InterpolationUtils,
+};

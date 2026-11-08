@@ -42,9 +42,10 @@ impl PathSegment {
     pub fn point_at(&self, t: f64, start_x: f64, start_y: f64) -> (f64, f64) {
         match self.segment_type {
             PathSegmentType::MoveTo => (self.x, self.y),
-            PathSegmentType::LineTo => {
-                (start_x + t * (self.x - start_x), start_y + t * (self.y - start_y))
-            }
+            PathSegmentType::LineTo => (
+                start_x + t * (self.x - start_x),
+                start_y + t * (self.y - start_y),
+            ),
             PathSegmentType::QuadraticTo => {
                 let one_t = 1.0 - t;
                 let x = one_t * one_t * start_x + 2.0 * one_t * t * self.cp1_x + t * t * self.x;
@@ -57,8 +58,14 @@ impl PathSegment {
                 let one_t3 = one_t2 * one_t;
                 let t2 = t * t;
                 let t3 = t2 * t;
-                let x = one_t3 * start_x + 3.0 * one_t2 * t * self.cp1_x + 3.0 * one_t * t2 * self.cp2_x + t3 * self.x;
-                let y = one_t3 * start_y + 3.0 * one_t2 * t * self.cp1_y + 3.0 * one_t * t2 * self.cp2_y + t3 * self.y;
+                let x = one_t3 * start_x
+                    + 3.0 * one_t2 * t * self.cp1_x
+                    + 3.0 * one_t * t2 * self.cp2_x
+                    + t3 * self.x;
+                let y = one_t3 * start_y
+                    + 3.0 * one_t2 * t * self.cp1_y
+                    + 3.0 * one_t * t2 * self.cp2_y
+                    + t3 * self.y;
                 (x, y)
             }
             PathSegmentType::Close => (self.x, self.y),
@@ -140,29 +147,46 @@ impl PathSegment {
             }
             PathSegmentType::QuadraticTo => {
                 // Approximate quadratic bezier length
-                self.approximate_quadratic_bezier_length(start_x, start_y, self.cp1_x, self.cp1_y, self.x, self.y, 10)
+                self.approximate_quadratic_bezier_length(
+                    (start_x, start_y),
+                    (self.cp1_x, self.cp1_y),
+                    (self.x, self.y),
+                    10,
+                )
             }
             PathSegmentType::CubicTo => {
                 // Approximate cubic bezier length
-                self.approximate_bezier_length(start_x, start_y, self.cp1_x, self.cp1_y, self.cp2_x, self.cp2_y, self.x, self.y, 20)
+                self.approximate_bezier_length(
+                    (start_x, start_y),
+                    (self.cp1_x, self.cp1_y),
+                    (self.cp2_x, self.cp2_y),
+                    (self.x, self.y),
+                    20,
+                )
             }
             PathSegmentType::Close => 0.0,
         }
     }
 
     /// Approximate quadratic bezier curve length using subdivision
-    fn approximate_quadratic_bezier_length(&self, x0: f64, y0: f64, x1: f64, y1: f64, x2: f64, y2: f64, subdivisions: usize) -> f64 {
+    fn approximate_quadratic_bezier_length(
+        &self,
+        p0: (f64, f64),
+        p1: (f64, f64),
+        p2: (f64, f64),
+        subdivisions: usize,
+    ) -> f64 {
         let mut length = 0.0;
-        let mut prev_x = x0;
-        let mut prev_y = y0;
+        let mut prev_x = p0.0;
+        let mut prev_y = p0.1;
 
         for i in 1..=subdivisions {
             let t = i as f64 / subdivisions as f64;
             let mt = 1.0 - t;
             let mt2 = mt * mt;
             let t2 = t * t;
-            let x = mt2 * x0 + 2.0 * mt * t * x1 + t2 * x2;
-            let y = mt2 * y0 + 2.0 * mt * t * y1 + t2 * y2;
+            let x = mt2 * p0.0 + 2.0 * mt * t * p1.0 + t2 * p2.0;
+            let y = mt2 * p0.1 + 2.0 * mt * t * p1.1 + t2 * p2.1;
             let dx = x - prev_x;
             let dy = y - prev_y;
             length += (dx * dx + dy * dy).sqrt();
@@ -174,14 +198,21 @@ impl PathSegment {
     }
 
     /// Approximate bezier curve length using subdivision
-    fn approximate_bezier_length(&self, x0: f64, y0: f64, x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64, subdivisions: usize) -> f64 {
+    fn approximate_bezier_length(
+        &self,
+        p0: (f64, f64),
+        p1: (f64, f64),
+        p2: (f64, f64),
+        p3: (f64, f64),
+        subdivisions: usize,
+    ) -> f64 {
         let mut length = 0.0;
-        let mut prev_x = x0;
-        let mut prev_y = y0;
+        let mut prev_x = p0.0;
+        let mut prev_y = p0.1;
 
         for i in 1..=subdivisions {
             let t = i as f64 / subdivisions as f64;
-            let point = self.evaluate_bezier_point(t, x0, y0, x1, y1, x2, y2, x3, y3);
+            let point = self.evaluate_bezier_point(t, p0, p1, p2, p3);
             let dx = point.0 - prev_x;
             let dy = point.1 - prev_y;
             length += (dx * dx + dy * dy).sqrt();
@@ -193,15 +224,22 @@ impl PathSegment {
     }
 
     /// Evaluate point on bezier curve at parameter t
-    fn evaluate_bezier_point(&self, t: f64, x0: f64, y0: f64, x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64) -> (f64, f64) {
+    fn evaluate_bezier_point(
+        &self,
+        t: f64,
+        p0: (f64, f64),
+        p1: (f64, f64),
+        p2: (f64, f64),
+        p3: (f64, f64),
+    ) -> (f64, f64) {
         let mt = 1.0 - t;
         let mt2 = mt * mt;
         let mt3 = mt2 * mt;
         let t2 = t * t;
         let t3 = t2 * t;
 
-        let x = mt3 * x0 + 3.0 * mt2 * t * x1 + 3.0 * mt * t2 * x2 + t3 * x3;
-        let y = mt3 * y0 + 3.0 * mt2 * t * y1 + 3.0 * mt * t2 * y2 + t3 * y3;
+        let x = mt3 * p0.0 + 3.0 * mt2 * t * p1.0 + 3.0 * mt * t2 * p2.0 + t3 * p3.0;
+        let y = mt3 * p0.1 + 3.0 * mt2 * t * p1.1 + 3.0 * mt * t2 * p2.1 + t3 * p3.1;
 
         (x, y)
     }
@@ -225,14 +263,25 @@ impl PathSegment {
             PathSegmentType::QuadraticTo => {
                 for i in 0..num_samples {
                     let t = i as f64 / (num_samples - 1) as f64;
-                    let point = self.evaluate_quadratic_bezier(t, start_x, start_y, self.cp1_x, self.cp1_y, self.x, self.y);
+                    let point = self.evaluate_quadratic_bezier(
+                        t,
+                        (start_x, start_y),
+                        (self.cp1_x, self.cp1_y),
+                        (self.x, self.y),
+                    );
                     points.push(point);
                 }
             }
             PathSegmentType::CubicTo => {
                 for i in 0..num_samples {
                     let t = i as f64 / (num_samples - 1) as f64;
-                    let point = self.evaluate_bezier_point(t, start_x, start_y, self.cp1_x, self.cp1_y, self.cp2_x, self.cp2_y, self.x, self.y);
+                    let point = self.evaluate_bezier_point(
+                        t,
+                        (start_x, start_y),
+                        (self.cp1_x, self.cp1_y),
+                        (self.cp2_x, self.cp2_y),
+                        (self.x, self.y),
+                    );
                     points.push(point);
                 }
             }
@@ -244,34 +293,37 @@ impl PathSegment {
         points
     }
 
-
-    fn evaluate_quadratic_bezier(&self, t: f64, x0: f64, y0: f64, x1: f64, y1: f64, x2: f64, y2: f64) -> (f64, f64) {
+    fn evaluate_quadratic_bezier(
+        &self,
+        t: f64,
+        p0: (f64, f64),
+        p1: (f64, f64),
+        p2: (f64, f64),
+    ) -> (f64, f64) {
         let mt = 1.0 - t;
-        let x = mt * mt * x0 + 2.0 * mt * t * x1 + t * t * x2;
-        let y = mt * mt * y0 + 2.0 * mt * t * y1 + t * t * y2;
+        let x = mt * mt * p0.0 + 2.0 * mt * t * p1.0 + t * t * p2.0;
+        let y = mt * mt * p0.1 + 2.0 * mt * t * p1.1 + t * t * p2.1;
         (x, y)
     }
-
 
     pub fn is_move(&self) -> bool {
         matches!(self.segment_type, PathSegmentType::MoveTo)
     }
 
-
     pub fn is_drawing(&self) -> bool {
-        matches!(self.segment_type, PathSegmentType::LineTo | PathSegmentType::QuadraticTo | PathSegmentType::CubicTo)
+        matches!(
+            self.segment_type,
+            PathSegmentType::LineTo | PathSegmentType::QuadraticTo | PathSegmentType::CubicTo
+        )
     }
-
 
     pub fn is_close(&self) -> bool {
         matches!(self.segment_type, PathSegmentType::Close)
     }
 
-
     pub fn end_point(&self) -> (f64, f64) {
         (self.x, self.y)
     }
-
 
     pub fn control_points(&self) -> Option<[(f64, f64); 2]> {
         match self.segment_type {

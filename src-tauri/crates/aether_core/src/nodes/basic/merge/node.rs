@@ -1,8 +1,8 @@
-use crate::nodes::{NodeExecutor, ExecutionContext, NodeResult};
 use crate::nodes::basic::merge::BlendOperations;
-use aether_types::{Node, NodeType, ParameterValue, PinDataType, InputPin, OutputPin, BlendMode};
-use uuid::Uuid;
+use crate::nodes::{ExecutionContext, NodeExecutor, NodeResult};
+use aether_types::{BlendMode, InputPin, Node, NodeType, OutputPin, ParameterValue, PinDataType};
 use log::debug;
+use uuid::Uuid;
 
 pub struct MergeNode {
     node: Node,
@@ -13,10 +13,7 @@ impl MergeNode {
     pub fn new(node: Node) -> Self {
         let blend_ops = BlendOperations::new(BlendMode::Normal, 1.0);
 
-        Self {
-            node,
-            blend_ops,
-        }
+        Self { node, blend_ops }
     }
 
     pub fn set_blend_mode(&mut self, mode: BlendMode) {
@@ -59,7 +56,6 @@ impl MergeNode {
         };
         node.add_output(output_pin);
 
-
         let blend_mode_param = aether_types::Parameter {
             id: Uuid::new_v4(),
             name: "blend_mode".to_string(),
@@ -100,21 +96,19 @@ impl MergeNode {
 
         let mut result = inputs[0].clone();
 
-        for i in 1..inputs.len() {
-            result = self.blend_ops.apply_blend(result, inputs[i].clone());
+        for input in inputs.iter().skip(1) {
+            result = self.blend_ops.apply_blend(result, input.clone());
         }
         result
     }
 }
 
 impl NodeExecutor for MergeNode {
-    fn execute(&mut self, context: &mut ExecutionContext) -> NodeResult<()> {
-
+    fn execute(&mut self, _context: &mut ExecutionContext) -> NodeResult<()> {
         let mut inputs = Vec::new();
         let mut i = 0;
 
         while let Some(input_value) = self.node.get_input_value(&format!("input_{}", i)) {
-            let input_value = input_value;
             inputs.push(input_value);
             i += 1;
         }
@@ -139,7 +133,6 @@ impl NodeExecutor for MergeNode {
     fn get_outputs(&self) -> Vec<Uuid> {
         self.node.outputs.iter().map(|pin| pin.id).collect()
     }
-
 }
 
 #[cfg(test)]
@@ -179,10 +172,7 @@ mod tests {
         assert!(!node.inputs[1].required);
         assert!(!node.inputs[2].required);
 
-
-        let param_names: Vec<String> = node.parameters.iter()
-            .map(|p| p.name.clone())
-            .collect();
+        let param_names: Vec<String> = node.parameters.iter().map(|p| p.name.clone()).collect();
         assert!(param_names.contains(&"blend_mode".to_string()));
         assert!(param_names.contains(&"opacity".to_string()));
     }
@@ -191,7 +181,6 @@ mod tests {
     fn test_opacity_clamping() {
         let node = MergeNode::create_standard("Test".to_string(), 2);
         let mut merge_node = MergeNode::new(node);
-
 
         merge_node.set_opacity(1.5);
         assert_eq!(merge_node.get_opacity(), 1.0);

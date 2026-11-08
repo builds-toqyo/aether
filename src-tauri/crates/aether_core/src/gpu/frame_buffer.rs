@@ -36,7 +36,7 @@ impl FrameBufferManager {
             texture_cache: Arc::new(Mutex::new(TextureCache::new(config.max_cache_size))),
             config,
             stats: Arc::new(Mutex::new(FrameBufferStats::new())),
-        ))
+        })
     }
 
 

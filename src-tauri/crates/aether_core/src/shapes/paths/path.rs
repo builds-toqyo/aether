@@ -12,7 +12,6 @@ pub struct Path {
 }
 
 impl Path {
-
     pub fn new() -> Self {
         Self {
             segments: Vec::new(),
@@ -24,11 +23,9 @@ impl Path {
         }
     }
 
-
     pub fn from_segments(segments: Vec<super::segments::PathSegment>) -> Self {
         let mut path = Self::new();
         path.segments = segments;
-
 
         for segment in &path.segments {
             match segment.segment_type {
@@ -40,9 +37,9 @@ impl Path {
                     path.current_x = segment.x;
                     path.current_y = segment.y;
                 }
-                super::segments::PathSegmentType::LineTo |
-                super::segments::PathSegmentType::QuadraticTo |
-                super::segments::PathSegmentType::CubicTo => {
+                super::segments::PathSegmentType::LineTo
+                | super::segments::PathSegmentType::QuadraticTo
+                | super::segments::PathSegmentType::CubicTo => {
                     path.current_x = segment.x;
                     path.current_y = segment.y;
                 }
@@ -57,7 +54,6 @@ impl Path {
         path
     }
 
-
     pub fn length(&self) -> f64 {
         let mut length = 0.0;
         let mut current_x = self.start_x;
@@ -71,9 +67,9 @@ impl Path {
                     current_x = segment.x;
                     current_y = segment.y;
                 }
-                super::segments::PathSegmentType::LineTo |
-                super::segments::PathSegmentType::QuadraticTo |
-                super::segments::PathSegmentType::CubicTo => {
+                super::segments::PathSegmentType::LineTo
+                | super::segments::PathSegmentType::QuadraticTo
+                | super::segments::PathSegmentType::CubicTo => {
                     current_x = segment.x;
                     current_y = segment.y;
                 }
@@ -108,10 +104,10 @@ impl Path {
             let seg_len = segment.length(seg_start_x, seg_start_y);
             if seg_len == 0.0 {
                 match segment.segment_type {
-                    super::segments::PathSegmentType::MoveTo |
-                    super::segments::PathSegmentType::LineTo |
-                    super::segments::PathSegmentType::QuadraticTo |
-                    super::segments::PathSegmentType::CubicTo => {
+                    super::segments::PathSegmentType::MoveTo
+                    | super::segments::PathSegmentType::LineTo
+                    | super::segments::PathSegmentType::QuadraticTo
+                    | super::segments::PathSegmentType::CubicTo => {
                         seg_start_x = segment.x;
                         seg_start_y = segment.y;
                     }
@@ -124,7 +120,11 @@ impl Path {
             }
 
             while current_dist <= seg_len + f64::EPSILON {
-                let t = if seg_len > 0.0 { current_dist / seg_len } else { 0.0 };
+                let t = if seg_len > 0.0 {
+                    current_dist / seg_len
+                } else {
+                    0.0
+                };
                 let (px, py) = segment.point_at(t, seg_start_x, seg_start_y);
                 points.push((px, py));
                 current_dist += step;
@@ -135,10 +135,10 @@ impl Path {
             current_dist -= seg_len;
 
             match segment.segment_type {
-                super::segments::PathSegmentType::MoveTo |
-                super::segments::PathSegmentType::LineTo |
-                super::segments::PathSegmentType::QuadraticTo |
-                super::segments::PathSegmentType::CubicTo => {
+                super::segments::PathSegmentType::MoveTo
+                | super::segments::PathSegmentType::LineTo
+                | super::segments::PathSegmentType::QuadraticTo
+                | super::segments::PathSegmentType::CubicTo => {
                     seg_start_x = segment.x;
                     seg_start_y = segment.y;
                 }
@@ -169,14 +169,12 @@ impl Path {
         let mut current_x = self.start_x;
         let mut current_y = self.start_y;
 
-
         min_x = min_x.min(current_x);
         min_y = min_y.min(current_y);
         max_x = max_x.max(current_x);
         max_y = max_y.max(current_y);
 
         for segment in &self.segments {
-
             let samples = match segment.segment_type {
                 super::segments::PathSegmentType::MoveTo => 1,
                 super::segments::PathSegmentType::LineTo => 2,
@@ -199,9 +197,9 @@ impl Path {
                     current_x = segment.x;
                     current_y = segment.y;
                 }
-                super::segments::PathSegmentType::LineTo |
-                super::segments::PathSegmentType::QuadraticTo |
-                super::segments::PathSegmentType::CubicTo => {
+                super::segments::PathSegmentType::LineTo
+                | super::segments::PathSegmentType::QuadraticTo
+                | super::segments::PathSegmentType::CubicTo => {
                     current_x = segment.x;
                     current_y = segment.y;
                 }
@@ -215,7 +213,6 @@ impl Path {
         crate::shapes::primitives::transform::BoundingBox::new(min_x, min_y, max_x, max_y)
     }
 
-
     pub fn contains_point(&self, x: f64, y: f64) -> bool {
         if !self.closed || self.segments.is_empty() {
             return false;
@@ -224,7 +221,6 @@ impl Path {
         let mut inside = false;
         let mut current_x = self.start_x;
         let mut current_y = self.start_y;
-
 
         let mut edges = Vec::new();
 
@@ -240,19 +236,17 @@ impl Path {
                     current_y = segment.y;
                 }
                 super::segments::PathSegmentType::QuadraticTo => {
-
                     let points = segment.sample_points(current_x, current_y, 10);
                     for i in 1..points.len() {
-                        edges.push((points[i-1].0, points[i-1].1, points[i].0, points[i].1));
+                        edges.push((points[i - 1].0, points[i - 1].1, points[i].0, points[i].1));
                     }
                     current_x = segment.x;
                     current_y = segment.y;
                 }
                 super::segments::PathSegmentType::CubicTo => {
-
                     let points = segment.sample_points(current_x, current_y, 20);
                     for i in 1..points.len() {
-                        edges.push((points[i-1].0, points[i-1].1, points[i].0, points[i].1));
+                        edges.push((points[i - 1].0, points[i - 1].1, points[i].0, points[i].1));
                     }
                     current_x = segment.x;
                     current_y = segment.y;
@@ -265,10 +259,8 @@ impl Path {
             }
         }
 
-
         for (x1, y1, x2, y2) in edges {
-            if ((y1 > y) != (y2 > y)) &&
-               (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1) {
+            if ((y1 > y) != (y2 > y)) && (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1) {
                 inside = !inside;
             }
         }
@@ -276,16 +268,14 @@ impl Path {
         inside
     }
 
-
     pub fn area(&self) -> f64 {
         if !self.closed || self.segments.is_empty() {
             return 0.0;
         }
 
-        let mut area = 0.0;
+        let _area = 0.0;
         let mut current_x = self.start_x;
         let mut current_y = self.start_y;
-
 
         let mut vertices = vec![(current_x, current_y)];
 
@@ -302,7 +292,6 @@ impl Path {
                     current_y = segment.y;
                 }
                 super::segments::PathSegmentType::QuadraticTo => {
-
                     let points = segment.sample_points(current_x, current_y, 10);
                     for point in points.iter().skip(1) {
                         vertices.push(*point);
@@ -311,7 +300,6 @@ impl Path {
                     current_y = segment.y;
                 }
                 super::segments::PathSegmentType::CubicTo => {
-
                     let points = segment.sample_points(current_x, current_y, 20);
                     for point in points.iter().skip(1) {
                         vertices.push(*point);
@@ -320,7 +308,6 @@ impl Path {
                     current_y = segment.y;
                 }
                 super::segments::PathSegmentType::Close => {
-
                     current_x = self.start_x;
                     current_y = self.start_y;
                 }
@@ -336,7 +323,7 @@ impl Path {
         area.abs() / 2.0
     }
 
-    pub fn vertices(&self, tolerance: f64) -> Vec<(f64, f64)> {
+    pub fn vertices(&self, _tolerance: f64) -> Vec<(f64, f64)> {
         let mut verts = vec![(self.start_x, self.start_y)];
         let mut current_x = self.start_x;
         let mut current_y = self.start_y;
@@ -397,9 +384,10 @@ impl Path {
                     current_y = segment.y;
                 }
                 super::segments::PathSegmentType::LineTo => {
-
-                    if let Some(last_segment) = simplified_segments.last() {
-                        let distance = ((segment.x - current_x).powi(2) + (segment.y - current_y).powi(2)).sqrt();
+                    if let Some(_last_segment) = simplified_segments.last() {
+                        let distance = ((segment.x - current_x).powi(2)
+                            + (segment.y - current_y).powi(2))
+                        .sqrt();
 
                         if distance > tolerance {
                             simplified_segments.push(segment.clone());
@@ -416,8 +404,8 @@ impl Path {
                     simplified_segments.push(segment.clone());
                 }
 
-                super::segments::PathSegmentType::QuadraticTo |
-                super::segments::PathSegmentType::CubicTo => {
+                super::segments::PathSegmentType::QuadraticTo
+                | super::segments::PathSegmentType::CubicTo => {
                     simplified_segments.push(segment.clone());
                     current_x = segment.x;
                     current_y = segment.y;
@@ -434,36 +422,50 @@ impl Path {
         simplified_path
     }
 
-
     pub fn reverse(&self) -> Path {
         let mut reversed = Path::new();
         reversed.closed = self.closed;
         reversed.start_x = self.current_x;
         reversed.start_y = self.current_y;
 
-
         for segment in self.segments.iter().rev() {
             match segment.segment_type {
                 super::segments::PathSegmentType::MoveTo => {
-                    reversed.segments.push(super::segments::PathSegment::move_to(segment.x, segment.y));
+                    reversed
+                        .segments
+                        .push(super::segments::PathSegment::move_to(segment.x, segment.y));
                 }
                 super::segments::PathSegmentType::LineTo => {
-                    reversed.segments.push(super::segments::PathSegment::line_to(segment.x, segment.y));
+                    reversed
+                        .segments
+                        .push(super::segments::PathSegment::line_to(segment.x, segment.y));
                 }
                 super::segments::PathSegmentType::QuadraticTo => {
-
-                    reversed.segments.push(super::segments::PathSegment::quadratic_to(
-                        segment.cp1_x, segment.cp1_y, segment.x, segment.y
-                    ));
+                    reversed
+                        .segments
+                        .push(super::segments::PathSegment::quadratic_to(
+                            segment.cp1_x,
+                            segment.cp1_y,
+                            segment.x,
+                            segment.y,
+                        ));
                 }
                 super::segments::PathSegmentType::CubicTo => {
-
-                    reversed.segments.push(super::segments::PathSegment::cubic_to(
-                        segment.cp2_x, segment.cp2_y, segment.cp1_x, segment.cp1_y, segment.x, segment.y
-                    ));
+                    reversed
+                        .segments
+                        .push(super::segments::PathSegment::cubic_to(
+                            segment.cp2_x,
+                            segment.cp2_y,
+                            segment.cp1_x,
+                            segment.cp1_y,
+                            segment.x,
+                            segment.y,
+                        ));
                 }
                 super::segments::PathSegmentType::Close => {
-                    reversed.segments.push(super::segments::PathSegment::close());
+                    reversed
+                        .segments
+                        .push(super::segments::PathSegment::close());
                 }
             }
         }
@@ -471,30 +473,30 @@ impl Path {
         reversed
     }
 
-
     pub fn segment_count(&self) -> usize {
         self.segments.len()
     }
-
 
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty()
     }
 
-
     pub fn segment(&self, index: usize) -> Option<&super::segments::PathSegment> {
         self.segments.get(index)
     }
 
-
     pub fn add_segment(&mut self, segment: super::segments::PathSegment) {
-        if self.segments.is_empty() && matches!(segment.segment_type, super::segments::PathSegmentType::MoveTo) {
+        if self.segments.is_empty()
+            && matches!(
+                segment.segment_type,
+                super::segments::PathSegmentType::MoveTo
+            )
+        {
             self.start_x = segment.x;
             self.start_y = segment.y;
         }
 
         self.segments.push(segment);
-
 
         if let Some(last_segment) = self.segments.last() {
             match last_segment.segment_type {
@@ -502,9 +504,9 @@ impl Path {
                     self.current_x = last_segment.x;
                     self.current_y = last_segment.y;
                 }
-                super::segments::PathSegmentType::LineTo |
-                super::segments::PathSegmentType::QuadraticTo |
-                super::segments::PathSegmentType::CubicTo => {
+                super::segments::PathSegmentType::LineTo
+                | super::segments::PathSegmentType::QuadraticTo
+                | super::segments::PathSegmentType::CubicTo => {
                     self.current_x = last_segment.x;
                     self.current_y = last_segment.y;
                 }
@@ -517,7 +519,6 @@ impl Path {
         }
     }
 
-
     pub fn clear(&mut self) {
         self.segments.clear();
         self.closed = false;
@@ -526,7 +527,6 @@ impl Path {
         self.start_x = 0.0;
         self.start_y = 0.0;
     }
-
 
     pub fn transform(&mut self, transform: &crate::shapes::primitives::transform::Transform) {
         let mut current_x = self.start_x;
@@ -588,7 +588,6 @@ impl Path {
         self.current_y = current_y;
     }
 
-
     pub fn transformed(&self, transform: &crate::shapes::primitives::transform::Transform) -> Path {
         let mut copy = self.clone();
         copy.transform(transform);
@@ -604,14 +603,19 @@ impl Default for Path {
 
 impl fmt::Display for Path {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Path({} segments, closed: {})", self.segments.len(), self.closed)
+        write!(
+            f,
+            "Path({} segments, closed: {})",
+            self.segments.len(),
+            self.closed
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::segments::PathSegment;
+    use super::*;
 
     #[test]
     fn test_path_creation() {
@@ -734,7 +738,6 @@ mod tests {
         let reversed = path.reverse();
         assert_eq!(reversed.segment_count(), path.segment_count());
         assert!(reversed.closed);
-
 
         assert_eq!(reversed.start_x, path.current_x);
         assert_eq!(reversed.start_y, path.current_y);

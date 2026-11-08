@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ContainerFormat {
@@ -136,38 +136,18 @@ impl VideoFormat {
                 self,
                 VideoFormat::H264 | VideoFormat::H265 | VideoFormat::ProRes | VideoFormat::Mjpeg
             ),
-            ContainerFormat::Webm => matches!(
-                self,
-                VideoFormat::Vp8 | VideoFormat::Vp9
-            ),
-            ContainerFormat::Avi => matches!(
-                self,
-                VideoFormat::Mjpeg | VideoFormat::Mpeg4
-            ),
-            ContainerFormat::Flv => matches!(
-                self,
-                VideoFormat::H264
-            ),
-            ContainerFormat::Wmv => matches!(
-                self,
-                VideoFormat::Mpeg4
-            ),
-            ContainerFormat::Mpg | ContainerFormat::Ts => matches!(
-                self,
-                VideoFormat::Mpeg2 | VideoFormat::H264
-            ),
-            ContainerFormat::Mxf => matches!(
-                self,
-                VideoFormat::Dnxhd | VideoFormat::Mpeg2
-            ),
-            ContainerFormat::Gif => matches!(
-                self,
-                VideoFormat::Mjpeg
-            ),
-            ContainerFormat::PngSequence | ContainerFormat::JpegSequence => matches!(
-                self,
-                VideoFormat::Mjpeg | VideoFormat::Raw
-            ),
+            ContainerFormat::Webm => matches!(self, VideoFormat::Vp8 | VideoFormat::Vp9),
+            ContainerFormat::Avi => matches!(self, VideoFormat::Mjpeg | VideoFormat::Mpeg4),
+            ContainerFormat::Flv => matches!(self, VideoFormat::H264),
+            ContainerFormat::Wmv => matches!(self, VideoFormat::Mpeg4),
+            ContainerFormat::Mpg | ContainerFormat::Ts => {
+                matches!(self, VideoFormat::Mpeg2 | VideoFormat::H264)
+            }
+            ContainerFormat::Mxf => matches!(self, VideoFormat::Dnxhd | VideoFormat::Mpeg2),
+            ContainerFormat::Gif => matches!(self, VideoFormat::Mjpeg),
+            ContainerFormat::PngSequence | ContainerFormat::JpegSequence => {
+                matches!(self, VideoFormat::Mjpeg | VideoFormat::Raw)
+            }
         }
     }
 }
@@ -186,7 +166,7 @@ pub enum AudioFormat {
 }
 
 impl AudioFormat {
-   pub fn to_ffmpeg_name(&self) -> &'static str {
+    pub fn to_ffmpeg_name(&self) -> &'static str {
         match self {
             AudioFormat::Aac => "aac",
             AudioFormat::Mp3 => "libmp3lame",
@@ -221,34 +201,15 @@ impl AudioFormat {
                 AudioFormat::Aac | AudioFormat::Ac3 | AudioFormat::Eac3
             ),
             ContainerFormat::Mkv => true,
-            ContainerFormat::Mov => matches!(
-                self,
-                AudioFormat::Aac | AudioFormat::Pcm
-            ),
-            ContainerFormat::Webm => matches!(
-                self,
-                AudioFormat::Opus | AudioFormat::Vorbis
-            ),
-            ContainerFormat::Avi => matches!(
-                self,
-                AudioFormat::Mp3 | AudioFormat::Pcm
-            ),
-            ContainerFormat::Flv => matches!(
-                self,
-                AudioFormat::Aac | AudioFormat::Mp3
-            ),
-            ContainerFormat::Wmv => matches!(
-                self,
-                AudioFormat::Wma
-            ),
-            ContainerFormat::Mpg | ContainerFormat::Ts => matches!(
-                self,
-                AudioFormat::Mp3 | AudioFormat::Ac3
-            ),
-            ContainerFormat::Mxf => matches!(
-                self,
-                AudioFormat::Pcm
-            ),
+            ContainerFormat::Mov => matches!(self, AudioFormat::Aac | AudioFormat::Pcm),
+            ContainerFormat::Webm => matches!(self, AudioFormat::Opus | AudioFormat::Vorbis),
+            ContainerFormat::Avi => matches!(self, AudioFormat::Mp3 | AudioFormat::Pcm),
+            ContainerFormat::Flv => matches!(self, AudioFormat::Aac | AudioFormat::Mp3),
+            ContainerFormat::Wmv => matches!(self, AudioFormat::Wma),
+            ContainerFormat::Mpg | ContainerFormat::Ts => {
+                matches!(self, AudioFormat::Mp3 | AudioFormat::Ac3)
+            }
+            ContainerFormat::Mxf => matches!(self, AudioFormat::Pcm),
             ContainerFormat::Gif => false,
             ContainerFormat::PngSequence | ContainerFormat::JpegSequence => false,
         }
@@ -313,9 +274,15 @@ pub fn get_available_formats() -> Vec<FormatInfo> {
     let use_cases = HashMap::from([
         (ContainerFormat::Mp4, "Web, mobile, and general purpose"),
         (ContainerFormat::Mkv, "High quality archival and storage"),
-        (ContainerFormat::Mov, "Professional video editing and Apple devices"),
+        (
+            ContainerFormat::Mov,
+            "Professional video editing and Apple devices",
+        ),
         (ContainerFormat::Webm, "Web video optimized for browsers"),
-        (ContainerFormat::Avi, "Legacy format with wide compatibility"),
+        (
+            ContainerFormat::Avi,
+            "Legacy format with wide compatibility",
+        ),
         (ContainerFormat::Flv, "Legacy web streaming format"),
         (ContainerFormat::Wmv, "Windows-specific playback"),
         (ContainerFormat::Mpg, "DVD and broadcast compatibility"),
@@ -324,29 +291,37 @@ pub fn get_available_formats() -> Vec<FormatInfo> {
         (ContainerFormat::Gif, "Short animations without audio"),
     ]);
 
-    let web_friendly = vec![
+    let web_friendly = [
         ContainerFormat::Mp4,
         ContainerFormat::Webm,
         ContainerFormat::Gif,
     ];
 
-    containers.into_iter().map(|container| {
-        let compatible_video = video_formats.iter()
-            .filter(|format| format.is_compatible_with(container))
-            .copied()
-            .collect();
+    containers
+        .into_iter()
+        .map(|container| {
+            let compatible_video = video_formats
+                .iter()
+                .filter(|format| format.is_compatible_with(container))
+                .copied()
+                .collect();
 
-        let compatible_audio = audio_formats.iter()
-            .filter(|format| format.is_compatible_with(container))
-            .copied()
-            .collect();
+            let compatible_audio = audio_formats
+                .iter()
+                .filter(|format| format.is_compatible_with(container))
+                .copied()
+                .collect();
 
-        FormatInfo {
-            container,
-            video_formats: compatible_video,
-            audio_formats: compatible_audio,
-            use_case: use_cases.get(&container).unwrap_or(&"General purpose").to_string(),
-            web_friendly: web_friendly.contains(&container),
-        }
-    }).collect()
+            FormatInfo {
+                container,
+                video_formats: compatible_video,
+                audio_formats: compatible_audio,
+                use_case: use_cases
+                    .get(&container)
+                    .unwrap_or(&"General purpose")
+                    .to_string(),
+                web_friendly: web_friendly.contains(&container),
+            }
+        })
+        .collect()
 }

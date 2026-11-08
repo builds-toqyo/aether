@@ -1,3 +1,7 @@
+pub type BezierPoint = (f64, f64);
+pub type CubicBezierPoints = (BezierPoint, BezierPoint, BezierPoint, BezierPoint);
+pub type QuadraticBezierPoints = (BezierPoint, BezierPoint, BezierPoint);
+
 pub struct BezierCurve;
 
 impl BezierCurve {
@@ -32,7 +36,6 @@ impl BezierCurve {
         (x, y)
     }
 
-
     pub fn cubic_bezier_tangent(
         t: f64,
         p0: (f64, f64),
@@ -50,7 +53,6 @@ impl BezierCurve {
         (x, y)
     }
 
-
     pub fn quadratic_bezier_tangent(
         t: f64,
         p0: (f64, f64),
@@ -62,7 +64,6 @@ impl BezierCurve {
         let y = 2.0 * mt * (p1.1 - p0.1) + 2.0 * t * (p2.1 - p1.1);
         (x, y)
     }
-
 
     pub fn cubic_bezier_normal(
         t: f64,
@@ -117,7 +118,6 @@ impl BezierCurve {
         }
     }
 
-
     pub fn quadratic_bezier_curvature(
         t: f64,
         p0: (f64, f64),
@@ -137,7 +137,6 @@ impl BezierCurve {
         }
     }
 
-
     fn cubic_bezier_derivative2(
         t: f64,
         p0: (f64, f64),
@@ -153,7 +152,6 @@ impl BezierCurve {
         (x, y)
     }
 
-
     fn quadratic_bezier_derivative2(
         _t: f64,
         p0: (f64, f64),
@@ -166,14 +164,13 @@ impl BezierCurve {
         (x, y)
     }
 
-
     pub fn subdivide_cubic_bezier(
-        t: f64,
+        _t: f64,
         p0: (f64, f64),
         p1: (f64, f64),
         p2: (f64, f64),
         p3: (f64, f64),
-    ) -> (((f64, f64), (f64, f64), (f64, f64), (f64, f64)), ((f64, f64), (f64, f64), (f64, f64), (f64, f64))) {
+    ) -> (CubicBezierPoints, CubicBezierPoints) {
         let p01 = ((p0.0 + p1.0) / 2.0, (p0.1 + p1.1) / 2.0);
         let p12 = ((p1.0 + p2.0) / 2.0, (p1.1 + p2.1) / 2.0);
         let p23 = ((p2.0 + p3.0) / 2.0, (p2.1 + p3.1) / 2.0);
@@ -190,11 +187,11 @@ impl BezierCurve {
     }
 
     pub fn subdivide_quadratic_bezier(
-        t: f64,
+        _t: f64,
         p0: (f64, f64),
         p1: (f64, f64),
         p2: (f64, f64),
-    ) -> (((f64, f64), (f64, f64), (f64, f64)), ((f64, f64), (f64, f64), (f64, f64))) {
+    ) -> (QuadraticBezierPoints, QuadraticBezierPoints) {
         let p01 = ((p0.0 + p1.0) / 2.0, (p0.1 + p1.1) / 2.0);
         let p12 = ((p1.0 + p2.0) / 2.0, (p1.1 + p2.1) / 2.0);
         let p012 = ((p01.0 + p12.0) / 2.0, (p01.1 + p12.1) / 2.0);
@@ -216,7 +213,6 @@ impl BezierCurve {
         let mut t_min = 0.0;
         let mut min_dist = f64::INFINITY;
 
-
         for i in 0..=20 {
             let t = i as f64 / 20.0;
             let bezier_point = Self::cubic_bezier_point(t, p0, p1, p2, p3);
@@ -227,7 +223,6 @@ impl BezierCurve {
                 t_min = t;
             }
         }
-
 
         for _ in 0..10 {
             let bezier_point = Self::quadratic_bezier_point(t_min, p0, p1, p2);
@@ -254,7 +249,6 @@ impl BezierCurve {
         t_min
     }
 
-
     pub fn cubic_bezier_length(
         p0: (f64, f64),
         p1: (f64, f64),
@@ -274,12 +268,10 @@ impl BezierCurve {
             let d3 = Self::point_to_line_distance(cp2, cp0, cp3);
 
             if d1.max(d2).max(d3) <= tolerance {
-
                 let dx = cp3.0 - cp0.0;
                 let dy = cp3.1 - cp0.1;
                 length += (dx * dx + dy * dy).sqrt();
             } else {
-
                 let (left, right) = Self::subdivide_cubic_bezier(0.5, cp0, cp1, cp2, cp3);
 
                 stack.push((right.0, right.1, right.2, right.3, mid_t, t1));
@@ -311,7 +303,6 @@ impl BezierCurve {
                 let dy = cp2.1 - cp0.1;
                 length += (dx * dx + dy * dy).sqrt();
             } else {
-
                 let (left, right) = Self::subdivide_quadratic_bezier(0.5, cp0, cp1, cp2);
 
                 stack.push((right.0, right.1, right.2, mid_t, t1));
@@ -322,18 +313,22 @@ impl BezierCurve {
         length
     }
 
-    fn point_to_line_distance(point: (f64, f64), line_start: (f64, f64), line_end: (f64, f64)) -> f64 {
+    fn point_to_line_distance(
+        point: (f64, f64),
+        line_start: (f64, f64),
+        line_end: (f64, f64),
+    ) -> f64 {
         let dx = line_end.0 - line_start.0;
         let dy = line_end.1 - line_start.1;
 
         if dx == 0.0 && dy == 0.0 {
-
             let dx = point.0 - line_start.0;
             let dy = point.1 - line_start.1;
             return (dx * dx + dy * dy).sqrt();
         }
 
-        let t = ((point.0 - line_start.0) * dx + (point.1 - line_start.1) * dy) / (dx * dx + dy * dy);
+        let t =
+            ((point.0 - line_start.0) * dx + (point.1 - line_start.1) * dy) / (dx * dx + dy * dy);
         let t_clamped = t.clamp(0.0, 1.0);
 
         let closest_x = line_start.0 + t_clamped * dx;
@@ -345,25 +340,21 @@ impl BezierCurve {
     }
 }
 
-
 pub struct BezierUtils;
 
 impl BezierUtils {
-
     pub fn cubic_to_quadratic(
         p0: (f64, f64),
         p1: (f64, f64),
         p2: (f64, f64),
         p3: (f64, f64),
-    ) -> Vec<((f64, f64), (f64, f64), (f64, f64))> {
+    ) -> Vec<QuadraticBezierPoints> {
         let mut result = Vec::new();
         let mut stack = vec![(p0, p1, p2, p3)];
 
         while let Some((cp0, cp1, cp2, cp3)) = stack.pop() {
-
             let mid_t = 0.5;
             let cubic_mid = BezierCurve::cubic_bezier_point(mid_t, cp0, cp1, cp2, cp3);
-
 
             let qp1 = (
                 2.0 * cp1.0 - (cp0.0 + cp3.0) / 2.0,
@@ -376,7 +367,6 @@ impl BezierUtils {
             if error < 0.1 {
                 result.push((cp0, qp1, cp3));
             } else {
-
                 let (left, right) = BezierCurve::subdivide_cubic_bezier(0.5, cp0, cp1, cp2, cp3);
                 stack.push((right.0, right.1, right.2, right.3));
                 stack.push((left.0, left.1, left.2, left.3));
@@ -385,7 +375,6 @@ impl BezierUtils {
 
         result
     }
-
 
     pub fn cubic_bezier_bounds(
         p0: (f64, f64),
@@ -398,20 +387,18 @@ impl BezierUtils {
         let mut min_y = p0.1.min(p3.1);
         let mut max_y = p0.1.max(p3.1);
 
-
         let x_extrema = Self::cubic_bezier_extrema(p0.0, p1.0, p2.0, p3.0);
         for t in x_extrema {
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 let point = BezierCurve::cubic_bezier_point(t, p0, p1, p2, p3);
                 min_x = min_x.min(point.0);
                 max_x = max_x.max(point.0);
             }
         }
 
-
         let y_extrema = Self::cubic_bezier_extrema(p0.1, p1.1, p2.1, p3.1);
         for t in y_extrema {
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 let point = BezierCurve::cubic_bezier_point(t, p0, p1, p2, p3);
                 min_y = min_y.min(point.1);
                 max_y = max_y.max(point.1);
@@ -420,7 +407,6 @@ impl BezierUtils {
 
         ((min_x, min_y), (max_x, max_y))
     }
-
 
     fn cubic_bezier_extrema(p0: f64, p1: f64, p2: f64, p3: f64) -> Vec<f64> {
         let mut extrema = Vec::new();
@@ -436,23 +422,22 @@ impl BezierUtils {
                 let t1 = (-b + sqrt_d) / (2.0 * a);
                 let t2 = (-b - sqrt_d) / (2.0 * a);
 
-                if t1 >= 0.0 && t1 <= 1.0 {
+                if (0.0..=1.0).contains(&t1) {
                     extrema.push(t1);
                 }
-                if t2 >= 0.0 && t2 <= 1.0 && (t2 - t1).abs() > f64::EPSILON {
+                if (0.0..=1.0).contains(&t2) && (t2 - t1).abs() > f64::EPSILON {
                     extrema.push(t2);
                 }
             }
         } else if b.abs() > f64::EPSILON {
             let t = -c / b;
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 extrema.push(t);
             }
         }
 
         extrema
     }
-
 
     pub fn quadratic_bezier_bounds(
         p0: (f64, f64),
@@ -464,20 +449,18 @@ impl BezierUtils {
         let mut min_y = p0.1.min(p2.1);
         let mut max_y = p0.1.max(p2.1);
 
-
         let x_extrema = Self::quadratic_bezier_extrema(p0.0, p1.0, p2.0);
         for t in x_extrema {
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 let point = BezierCurve::quadratic_bezier_point(t, p0, p1, p2);
                 min_x = min_x.min(point.0);
                 max_x = max_x.max(point.0);
             }
         }
 
-
         let y_extrema = Self::quadratic_bezier_extrema(p0.1, p1.1, p2.1);
         for t in y_extrema {
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 let point = BezierCurve::quadratic_bezier_point(t, p0, p1, p2);
                 min_y = min_y.min(point.1);
                 max_y = max_y.max(point.1);
@@ -487,24 +470,21 @@ impl BezierUtils {
         ((min_x, min_y), (max_x, max_y))
     }
 
-
     fn quadratic_bezier_extrema(p0: f64, p1: f64, p2: f64) -> Vec<f64> {
         let mut extrema = Vec::new();
-
 
         let a = 2.0 * (p2 - 2.0 * p1 + p0);
         let b = 2.0 * (p1 - p0);
 
         if a.abs() > f64::EPSILON {
             let t = -b / a;
-            if t >= 0.0 && t <= 1.0 {
+            if (0.0..=1.0).contains(&t) {
                 extrema.push(t);
             }
         }
 
         extrema
     }
-
 
     pub fn approximate_with_lines(
         p0: (f64, f64),
@@ -525,16 +505,13 @@ impl BezierUtils {
             let mid_t = (t0 + t1) / 2.0;
             let mid_point = BezierCurve::cubic_bezier_point(mid_t, cp0, cp1, cp2, cp3);
 
-
             let d1 = BezierCurve::point_to_line_distance(mid_point, cp0, cp3);
             let d2 = BezierCurve::point_to_line_distance(cp1, cp0, cp3);
             let d3 = BezierCurve::point_to_line_distance(cp2, cp0, cp3);
 
             if d1.max(d2).max(d3) <= tolerance || (t1 - t0) < 0.01 {
-
                 points.push(cp3);
             } else {
-
                 let (left, right) = BezierCurve::subdivide_cubic_bezier(0.5, cp0, cp1, cp2, cp3);
 
                 stack.push((right.0, right.1, right.2, right.3, mid_t, t1));
@@ -561,7 +538,6 @@ mod tests {
         assert!(point.0 > 40.0 && point.0 < 60.0);
         assert!(point.1 > 20.0 && point.1 < 30.0);
 
-
         assert_eq!(BezierCurve::cubic_bezier_point(0.0, p0, p1, p2, p3), p0);
         assert_eq!(BezierCurve::cubic_bezier_point(1.0, p0, p1, p2, p3), p3);
     }
@@ -574,7 +550,6 @@ mod tests {
 
         let point = BezierCurve::quadratic_bezier_point(0.5, p0, p1, p2);
         assert_eq!(point, (50.0, 0.0));
-
 
         assert_eq!(BezierCurve::quadratic_bezier_point(0.0, p0, p1, p2), p0);
         assert_eq!(BezierCurve::quadratic_bezier_point(1.0, p0, p1, p2), p2);
@@ -602,7 +577,6 @@ mod tests {
         let normal = BezierCurve::cubic_bezier_normal(0.5, p0, p1, p2, p3);
         let tangent = BezierCurve::cubic_bezier_tangent(0.5, p0, p1, p2, p3);
 
-
         let dot_product = normal.0 * tangent.0 + normal.1 * tangent.1;
         assert!(dot_product.abs() < 0.001);
     }
@@ -616,13 +590,23 @@ mod tests {
 
         let (left, right) = BezierCurve::subdivide_cubic_bezier(0.5, p0, p1, p2, p3);
 
-
         assert_eq!((left.0, left.1), p0);
         assert_eq!((right.6, right.7), p3);
 
-
-        let left_mid = BezierCurve::cubic_bezier_point(1.0, (left.0, left.1), (left.2, left.3), (left.4, left.5), (left.6, left.7));
-        let right_mid = BezierCurve::cubic_bezier_point(0.0, (right.0, right.1), (right.2, right.3), (right.4, right.5), (right.6, right.7));
+        let left_mid = BezierCurve::cubic_bezier_point(
+            1.0,
+            (left.0, left.1),
+            (left.2, left.3),
+            (left.4, left.5),
+            (left.6, left.7),
+        );
+        let right_mid = BezierCurve::cubic_bezier_point(
+            0.0,
+            (right.0, right.1),
+            (right.2, right.3),
+            (right.4, right.5),
+            (right.6, right.7),
+        );
         assert!((left_mid.0 - right_mid.0).abs() < 0.001);
         assert!((left_mid.1 - right_mid.1).abs() < 0.001);
     }
@@ -679,7 +663,6 @@ mod tests {
         let quads = BezierUtils::cubic_to_quadratic(p0, p1, p2, p3);
         assert!(!quads.is_empty());
 
-
         for (qp0, qp1, qp2) in &quads {
             assert!(qp0.0 <= qp2.0);
         }
@@ -695,7 +678,6 @@ mod tests {
         let points = BezierUtils::approximate_with_lines(p0, p1, p2, p3, 1.0, 10);
         assert!(!points.is_empty());
         assert!(points.len() <= 10);
-
 
         assert_eq!(points[0], p3);
     }

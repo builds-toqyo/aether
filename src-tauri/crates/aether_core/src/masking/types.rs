@@ -38,7 +38,6 @@ pub enum MaskChannel {
     Value,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum MaskInvertMode {
     None,
@@ -46,7 +45,6 @@ pub enum MaskInvertMode {
     InvertAlpha,
     InvertLuma,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum MaskFeatherQuality {
@@ -241,7 +239,6 @@ impl MaskProperties {
     }
 
     pub fn get_bounds(&self) -> Option<(f64, f64, f64, f64)> {
-
         Some((
             self.position.0 - 100.0,
             self.position.1 - 100.0,
@@ -267,7 +264,6 @@ impl MaskProperties {
         clone
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaskEvaluation {
@@ -315,8 +311,6 @@ impl MaskEvaluation {
                 self.value = 1.0 - self.value;
             }
             MaskInvertMode::InvertLuma => {
-
-
                 self.value = 1.0 - self.value;
             }
             MaskInvertMode::None => {}
@@ -325,7 +319,6 @@ impl MaskEvaluation {
         self
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct MaskCache {
@@ -392,7 +385,8 @@ impl MaskCache {
     }
 
     pub fn get_memory_usage(&self) -> usize {
-        self.cache_data.values()
+        self.cache_data
+            .values()
             .map(|data| data.len() * std::mem::size_of::<f64>())
             .sum()
     }
@@ -524,9 +518,13 @@ mod tests {
 
     #[test]
     fn test_mask_properties_clone() {
-        let original = MaskProperties::new("original".to_string(), "Original".to_string(), MaskType::Shape)
-            .with_opacity(0.7)
-            .with_position(50.0, 100.0);
+        let original = MaskProperties::new(
+            "original".to_string(),
+            "Original".to_string(),
+            MaskType::Shape,
+        )
+        .with_opacity(0.7)
+        .with_position(50.0, 100.0);
 
         let cloned = original.clone_with_id("cloned".to_string());
 

@@ -1,8 +1,8 @@
+use super::gradients::*;
+use super::shapes::*;
+use super::types::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use super::types::*;
-use super::shapes::*;
-use super::gradients::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum MaskCompositionMode {
@@ -44,7 +44,6 @@ pub struct MaskCompositionResult {
     pub final_blend_mode: MaskBlendMode,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MaskCompositor {
     pub layers: Vec<MaskLayer>,
@@ -55,7 +54,6 @@ pub struct MaskCompositor {
     pub cache_resolution: (u32, u32),
     pub cache_data: HashMap<String, Vec<f64>>,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MaskType {
@@ -115,8 +113,11 @@ impl MaskLayer {
 
         let mut result = evaluation
             .apply_opacity(self.opacity)
-            .apply_invert(if self.invert { MaskInvertMode::Invert } else { MaskInvertMode::None });
-
+            .apply_invert(if self.invert {
+                MaskInvertMode::Invert
+            } else {
+                MaskInvertMode::None
+            });
 
         result.value = self.apply_blend_mode(result.value);
 
@@ -160,7 +161,9 @@ impl MaskLayer {
 
     pub fn get_bounds(&self) -> Option<(f64, f64, f64, f64)> {
         match &self.mask {
-            MaskType::Shape(shape_mask) => shape_mask.get_bounds().map(|b| (b.min_x, b.min_y, b.max_x, b.max_y)),
+            MaskType::Shape(shape_mask) => shape_mask
+                .get_bounds()
+                .map(|b| (b.min_x, b.min_y, b.max_x, b.max_y)),
             MaskType::Gradient(gradient_mask) => gradient_mask.get_bounds(),
         }
     }
@@ -259,18 +262,17 @@ impl MaskCompositor {
     pub fn evaluate_at(&mut self, x: f64, y: f64) -> MaskCompositionResult {
         let cache_key = format!("{:.2}_{:.2}", x, y);
 
-        if self.cache_enabled {
-            if let Some(cached_value) = self.cache_data.get(&cache_key) {
-                if !cached_value.is_empty() {
-                    return MaskCompositionResult {
-                        value: cached_value[0],
-                        position: (x, y),
-                        layers_used: vec![],
-                        composition_mode: MaskCompositionMode::Add,
-                        final_blend_mode: MaskBlendMode::Normal,
-                    };
-                }
-            }
+        if self.cache_enabled
+            && let Some(cached_value) = self.cache_data.get(&cache_key)
+            && !cached_value.is_empty()
+        {
+            return MaskCompositionResult {
+                value: cached_value[0],
+                position: (x, y),
+                layers_used: vec![],
+                composition_mode: MaskCompositionMode::Add,
+                final_blend_mode: MaskBlendMode::Normal,
+            };
         }
 
         let mut final_value = 0.0;
@@ -278,25 +280,22 @@ impl MaskCompositor {
         let mut current_composition_mode = MaskCompositionMode::Add;
 
         for layer in &self.layers {
-            if let Some(evaluation) = layer.evaluate_at(x, y) {
-                if evaluation.value > 0.0 {
-                    layers_used.push(layer.id.clone());
+            if let Some(evaluation) = layer.evaluate_at(x, y)
+                && evaluation.value > 0.0
+            {
+                layers_used.push(layer.id.clone());
 
-                    if layers_used.len() == 1 {
-
-                        final_value = evaluation.value;
-                        current_composition_mode = layer.composition_mode;
-                    } else {
-
-                        final_value = self.compose_values(final_value, evaluation.value, layer.composition_mode);
-                    }
+                if layers_used.len() == 1 {
+                    final_value = evaluation.value;
+                    current_composition_mode = layer.composition_mode;
+                } else {
+                    final_value =
+                        self.compose_values(final_value, evaluation.value, layer.composition_mode);
                 }
             }
         }
 
-
         final_value *= self.global_opacity;
-
 
         if self.global_invert {
             final_value = 1.0 - final_value;
@@ -313,7 +312,6 @@ impl MaskCompositor {
                 MaskBlendMode::Normal
             },
         };
-
 
         if self.cache_enabled {
             self.cache_data.insert(cache_key, vec![final_value]);
@@ -347,7 +345,11 @@ impl MaskCompositor {
         }
     }
 
-    pub fn evaluate_region(&mut self, bounds: (f64, f64, f64, f64), resolution: (u32, u32)) -> Vec<f64> {
+    pub fn evaluate_region(
+        &mut self,
+        bounds: (f64, f64, f64, f64),
+        resolution: (u32, u32),
+    ) -> Vec<f64> {
         let (min_x, min_y, max_x, max_y) = bounds;
         let (width, height) = resolution;
         let mut result = Vec::with_capacity((width * height) as usize);
@@ -414,7 +416,8 @@ impl MaskCompositor {
     }
 
     pub fn get_memory_usage(&self) -> usize {
-        self.cache_data.values()
+        self.cache_data
+            .values()
             .map(|data| data.len() * std::mem::size_of::<f64>())
             .sum()
     }
@@ -431,7 +434,8 @@ impl MaskCompositor {
                 format!("shape_{}", i),
                 format!("Shape Layer {}", i),
                 MaskType::Shape(shape_mask),
-            ).with_z_index(i as i32);
+            )
+            .with_z_index(i as i32);
             compositor.add_layer(layer);
         }
 
@@ -440,7 +444,8 @@ impl MaskCompositor {
                 format!("gradient_{}", i),
                 format!("Gradient Layer {}", i),
                 MaskType::Gradient(gradient_mask),
-            ).with_z_index((shape_masks_len + i) as i32);
+            )
+            .with_z_index((shape_masks_len + i) as i32);
             compositor.add_layer(layer);
         }
 
@@ -449,9 +454,10 @@ impl MaskCompositor {
 
     pub fn validate(&self) -> Result<(), String> {
         for (i, layer) in self.layers.iter().enumerate() {
-            layer.validate().map_err(|e| format!("Layer {}: {}", i, e))?;
+            layer
+                .validate()
+                .map_err(|e| format!("Layer {}: {}", i, e))?;
         }
-
 
         let mut ids = std::collections::HashSet::new();
         for layer in &self.layers {
@@ -477,8 +483,19 @@ mod tests {
 
     #[test]
     fn test_mask_layer_creation() {
-        let shape_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
-        let layer = MaskLayer::new("layer1".to_string(), "Test Layer".to_string(), MaskType::Shape(shape_mask));
+        let shape_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
+        let layer = MaskLayer::new(
+            "layer1".to_string(),
+            "Test Layer".to_string(),
+            MaskType::Shape(shape_mask),
+        );
 
         assert_eq!(layer.id, "layer1");
         assert_eq!(layer.name, "Test Layer");
@@ -492,13 +509,24 @@ mod tests {
 
     #[test]
     fn test_mask_layer_builder() {
-        let shape_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
-        let layer = MaskLayer::new("layer1".to_string(), "Test".to_string(), MaskType::Shape(shape_mask))
-            .with_opacity(0.8)
-            .with_blend_mode(MaskBlendMode::Multiply)
-            .with_invert(true)
-            .with_composition_mode(MaskCompositionMode::Intersect)
-            .with_z_index(5);
+        let shape_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
+        let layer = MaskLayer::new(
+            "layer1".to_string(),
+            "Test".to_string(),
+            MaskType::Shape(shape_mask),
+        )
+        .with_opacity(0.8)
+        .with_blend_mode(MaskBlendMode::Multiply)
+        .with_invert(true)
+        .with_composition_mode(MaskCompositionMode::Intersect)
+        .with_z_index(5);
 
         assert_eq!(layer.opacity, 0.8);
         assert_eq!(layer.blend_mode, MaskBlendMode::Multiply);
@@ -512,7 +540,10 @@ mod tests {
         let compositor = MaskCompositor::new();
 
         assert!(compositor.layers.is_empty());
-        assert_eq!(compositor.composition_order, MaskCompositionOrder::TopToBottom);
+        assert_eq!(
+            compositor.composition_order,
+            MaskCompositionOrder::TopToBottom
+        );
         assert_eq!(compositor.global_opacity, 1.0);
         assert!(!compositor.global_invert);
         assert!(compositor.cache_enabled);
@@ -527,7 +558,10 @@ mod tests {
             .with_global_invert(true)
             .with_cache(false, (256, 256));
 
-        assert_eq!(compositor.composition_order, MaskCompositionOrder::BottomToTop);
+        assert_eq!(
+            compositor.composition_order,
+            MaskCompositionOrder::BottomToTop
+        );
         assert_eq!(compositor.global_opacity, 0.7);
         assert!(compositor.global_invert);
         assert!(!compositor.cache_enabled);
@@ -537,8 +571,19 @@ mod tests {
     #[test]
     fn test_add_mask_layer() {
         let mut compositor = MaskCompositor::new();
-        let shape_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
-        let layer = MaskLayer::new("layer1".to_string(), "Test".to_string(), MaskType::Shape(shape_mask));
+        let shape_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
+        let layer = MaskLayer::new(
+            "layer1".to_string(),
+            "Test".to_string(),
+            MaskType::Shape(shape_mask),
+        );
 
         compositor.add_layer(layer);
         assert_eq!(compositor.layers.len(), 1);
@@ -548,8 +593,19 @@ mod tests {
     #[test]
     fn test_remove_mask_layer() {
         let mut compositor = MaskCompositor::new();
-        let shape_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
-        let layer = MaskLayer::new("layer1".to_string(), "Test".to_string(), MaskType::Shape(shape_mask));
+        let shape_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
+        let layer = MaskLayer::new(
+            "layer1".to_string(),
+            "Test".to_string(),
+            MaskType::Shape(shape_mask),
+        );
 
         compositor.add_layer(layer);
         assert_eq!(compositor.layers.len(), 1);
@@ -566,18 +622,38 @@ mod tests {
     fn test_mask_composition() {
         let mut compositor = MaskCompositor::new();
 
+        let rect1 = ShapeMask::create_rectangle_mask(
+            "rect1".to_string(),
+            "Rect1".to_string(),
+            -25.0,
+            0.0,
+            50.0,
+            50.0,
+        );
+        let rect2 = ShapeMask::create_rectangle_mask(
+            "rect2".to_string(),
+            "Rect2".to_string(),
+            0.0,
+            0.0,
+            50.0,
+            50.0,
+        );
 
-        let rect1 = ShapeMask::create_rectangle_mask("rect1".to_string(), "Rect1".to_string(), -25.0, 0.0, 50.0, 50.0);
-        let rect2 = ShapeMask::create_rectangle_mask("rect2".to_string(), "Rect2".to_string(), 0.0, 0.0, 50.0, 50.0);
-
-        let layer1 = MaskLayer::new("layer1".to_string(), "Layer1".to_string(), MaskType::Shape(rect1))
-            .with_z_index(1);
-        let layer2 = MaskLayer::new("layer2".to_string(), "Layer2".to_string(), MaskType::Shape(rect2))
-            .with_z_index(2);
+        let layer1 = MaskLayer::new(
+            "layer1".to_string(),
+            "Layer1".to_string(),
+            MaskType::Shape(rect1),
+        )
+        .with_z_index(1);
+        let layer2 = MaskLayer::new(
+            "layer2".to_string(),
+            "Layer2".to_string(),
+            MaskType::Shape(rect2),
+        )
+        .with_z_index(2);
 
         compositor.add_layer(layer1);
         compositor.add_layer(layer2);
-
 
         let result = compositor.evaluate_at(0.0, 0.0);
         assert!(result.value > 0.0);
@@ -590,19 +666,47 @@ mod tests {
     fn test_composition_modes() {
         let compositor = MaskCompositor::new();
 
-        assert_eq!(compositor.compose_values(0.5, 0.5, MaskCompositionMode::Add), 1.0);
-        assert_eq!(compositor.compose_values(0.7, 0.3, MaskCompositionMode::Subtract), 0.4);
-        assert_eq!(compositor.compose_values(0.5, 0.5, MaskCompositionMode::Intersect), 0.25);
-        assert_eq!(compositor.compose_values(0.7, 0.3, MaskCompositionMode::Difference), 0.4);
-        assert_eq!(compositor.compose_values(0.5, 0.5, MaskCompositionMode::Union), 0.75);
-        assert_eq!(compositor.compose_values(0.5, 0.5, MaskCompositionMode::Exclude), 0.5);
+        assert_eq!(
+            compositor.compose_values(0.5, 0.5, MaskCompositionMode::Add),
+            1.0
+        );
+        assert_eq!(
+            compositor.compose_values(0.7, 0.3, MaskCompositionMode::Subtract),
+            0.4
+        );
+        assert_eq!(
+            compositor.compose_values(0.5, 0.5, MaskCompositionMode::Intersect),
+            0.25
+        );
+        assert_eq!(
+            compositor.compose_values(0.7, 0.3, MaskCompositionMode::Difference),
+            0.4
+        );
+        assert_eq!(
+            compositor.compose_values(0.5, 0.5, MaskCompositionMode::Union),
+            0.75
+        );
+        assert_eq!(
+            compositor.compose_values(0.5, 0.5, MaskCompositionMode::Exclude),
+            0.5
+        );
     }
 
     #[test]
     fn test_blend_modes() {
-        let shape_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
-        let layer = MaskLayer::new("layer1".to_string(), "Test".to_string(), MaskType::Shape(shape_mask));
-
+        let shape_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
+        let layer = MaskLayer::new(
+            "layer1".to_string(),
+            "Test".to_string(),
+            MaskType::Shape(shape_mask),
+        );
 
         let test_values = vec![
             (MaskBlendMode::Normal, 0.5),
@@ -616,7 +720,11 @@ mod tests {
         for (blend_mode, expected) in test_values {
             let test_layer = layer.clone().with_blend_mode(blend_mode);
             let result = test_layer.apply_blend_mode(0.5);
-            assert!((result - expected).abs() < 0.001, "Failed for blend mode: {:?}", blend_mode);
+            assert!(
+                (result - expected).abs() < 0.001,
+                "Failed for blend mode: {:?}",
+                blend_mode
+            );
         }
     }
 
@@ -626,8 +734,19 @@ mod tests {
             .with_global_opacity(0.5)
             .with_global_invert(true);
 
-        let shape_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
-        let layer = MaskLayer::new("layer1".to_string(), "Test".to_string(), MaskType::Shape(shape_mask));
+        let shape_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
+        let layer = MaskLayer::new(
+            "layer1".to_string(),
+            "Test".to_string(),
+            MaskType::Shape(shape_mask),
+        );
         compositor.add_layer(layer);
 
         let result = compositor.evaluate_at(0.0, 0.0);
@@ -637,21 +756,28 @@ mod tests {
 
     #[test]
     fn test_cache_functionality() {
-        let mut compositor = MaskCompositor::new()
-            .with_cache(true, (64, 64));
+        let mut compositor = MaskCompositor::new().with_cache(true, (64, 64));
 
-        let shape_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
-        let layer = MaskLayer::new("layer1".to_string(), "Test".to_string(), MaskType::Shape(shape_mask));
+        let shape_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
+        let layer = MaskLayer::new(
+            "layer1".to_string(),
+            "Test".to_string(),
+            MaskType::Shape(shape_mask),
+        );
         compositor.add_layer(layer);
-
 
         let result1 = compositor.evaluate_at(10.0, 10.0);
         assert_eq!(compositor.get_cache_size(), 1);
 
-
         let result2 = compositor.evaluate_at(10.0, 10.0);
         assert_eq!(result1.value, result2.value);
-
 
         compositor.clear_cache();
         assert_eq!(compositor.get_cache_size(), 0);
@@ -660,13 +786,23 @@ mod tests {
     #[test]
     fn test_evaluate_region() {
         let mut compositor = MaskCompositor::new();
-        let shape_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
-        let layer = MaskLayer::new("layer1".to_string(), "Test".to_string(), MaskType::Shape(shape_mask));
+        let shape_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
+        let layer = MaskLayer::new(
+            "layer1".to_string(),
+            "Test".to_string(),
+            MaskType::Shape(shape_mask),
+        );
         compositor.add_layer(layer);
 
         let result = compositor.evaluate_region((-50.0, -25.0, 50.0, 25.0), (10, 10));
         assert_eq!(result.len(), 100);
-
 
         let inside_count = result.iter().filter(|&&value| value > 0.5).count();
         assert!(inside_count > 0);
@@ -676,12 +812,21 @@ mod tests {
     fn test_composition_bounds() {
         let mut compositor = MaskCompositor::new();
 
-
         assert!(compositor.get_bounds().is_none());
 
-
-        let shape_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
-        let layer = MaskLayer::new("layer1".to_string(), "Test".to_string(), MaskType::Shape(shape_mask));
+        let shape_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
+        let layer = MaskLayer::new(
+            "layer1".to_string(),
+            "Test".to_string(),
+            MaskType::Shape(shape_mask),
+        );
         compositor.add_layer(layer);
 
         let bounds = compositor.get_bounds();
@@ -695,12 +840,20 @@ mod tests {
 
     #[test]
     fn test_simple_composition_creation() {
-        let shape_masks = vec![
-            ShapeMask::create_rectangle_mask("rect1".to_string(), "Rect1".to_string(), 0.0, 0.0, 100.0, 50.0),
-        ];
-        let gradient_masks = vec![
-            GradientMask::create_linear_gradient("grad1".to_string(), "Grad1".to_string(), (-50.0, 0.0), (50.0, 0.0)),
-        ];
+        let shape_masks = vec![ShapeMask::create_rectangle_mask(
+            "rect1".to_string(),
+            "Rect1".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        )];
+        let gradient_masks = vec![GradientMask::create_linear_gradient(
+            "grad1".to_string(),
+            "Grad1".to_string(),
+            (-50.0, 0.0),
+            (50.0, 0.0),
+        )];
 
         let compositor = MaskCompositor::create_simple_composition(shape_masks, gradient_masks);
         assert_eq!(compositor.layers.len(), 2);
@@ -712,40 +865,69 @@ mod tests {
     fn test_validation() {
         let mut compositor = MaskCompositor::new();
 
-
         assert!(compositor.validate().is_ok());
 
-
-        let shape_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
-        let layer = MaskLayer::new("layer1".to_string(), "Test".to_string(), MaskType::Shape(shape_mask));
+        let shape_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
+        let layer = MaskLayer::new(
+            "layer1".to_string(),
+            "Test".to_string(),
+            MaskType::Shape(shape_mask),
+        );
         compositor.add_layer(layer);
         assert!(compositor.validate().is_ok());
 
-
-        let layer2 = MaskLayer::new("layer1".to_string(), "Test2".to_string(), MaskType::Shape(shape_mask.clone()));
+        let layer2 = MaskLayer::new(
+            "layer1".to_string(),
+            "Test2".to_string(),
+            MaskType::Shape(shape_mask.clone()),
+        );
         compositor.add_layer(layer2);
         assert!(compositor.validate().is_err());
     }
 
     #[test]
     fn test_layer_sorting() {
-        let mut compositor = MaskCompositor::new()
-            .with_composition_order(MaskCompositionOrder::TopToBottom);
+        let mut compositor =
+            MaskCompositor::new().with_composition_order(MaskCompositionOrder::TopToBottom);
 
-        let shape_mask = ShapeMask::create_rectangle_mask("rect".to_string(), "Rect".to_string(), 0.0, 0.0, 100.0, 50.0);
+        let shape_mask = ShapeMask::create_rectangle_mask(
+            "rect".to_string(),
+            "Rect".to_string(),
+            0.0,
+            0.0,
+            100.0,
+            50.0,
+        );
 
-
-        let layer1 = MaskLayer::new("layer1".to_string(), "Layer1".to_string(), MaskType::Shape(shape_mask.clone()))
-            .with_z_index(3);
-        let layer2 = MaskLayer::new("layer2".to_string(), "Layer2".to_string(), MaskType::Shape(shape_mask.clone()))
-            .with_z_index(1);
-        let layer3 = MaskLayer::new("layer3".to_string(), "Layer3".to_string(), MaskType::Shape(shape_mask))
-            .with_z_index(2);
+        let layer1 = MaskLayer::new(
+            "layer1".to_string(),
+            "Layer1".to_string(),
+            MaskType::Shape(shape_mask.clone()),
+        )
+        .with_z_index(3);
+        let layer2 = MaskLayer::new(
+            "layer2".to_string(),
+            "Layer2".to_string(),
+            MaskType::Shape(shape_mask.clone()),
+        )
+        .with_z_index(1);
+        let layer3 = MaskLayer::new(
+            "layer3".to_string(),
+            "Layer3".to_string(),
+            MaskType::Shape(shape_mask),
+        )
+        .with_z_index(2);
 
         compositor.add_layer(layer1);
         compositor.add_layer(layer2);
         compositor.add_layer(layer3);
-
 
         assert_eq!(compositor.layers[0].z_index, 3);
         assert_eq!(compositor.layers[1].z_index, 2);

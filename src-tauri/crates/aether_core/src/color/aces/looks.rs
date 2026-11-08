@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use anyhow::{Result, anyhow};
 use log::debug;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct LookTransform {
@@ -18,11 +18,7 @@ impl LookTransform {
             saturation: 1.0,
             contrast: 1.0,
             pivot: 0.18,
-            color_matrix: [
-                [1.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0],
-            ],
+            color_matrix: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
         }
     }
 
@@ -31,9 +27,15 @@ impl LookTransform {
         let gf = rgb[1] as f32 / 65535.0;
         let bf = rgb[2] as f32 / 65535.0;
 
-        let r = self.color_matrix[0][0] * rf + self.color_matrix[0][1] * gf + self.color_matrix[0][2] * bf;
-        let g = self.color_matrix[1][0] * rf + self.color_matrix[1][1] * gf + self.color_matrix[1][2] * bf;
-        let b = self.color_matrix[2][0] * rf + self.color_matrix[2][1] * gf + self.color_matrix[2][2] * bf;
+        let r = self.color_matrix[0][0] * rf
+            + self.color_matrix[0][1] * gf
+            + self.color_matrix[0][2] * bf;
+        let g = self.color_matrix[1][0] * rf
+            + self.color_matrix[1][1] * gf
+            + self.color_matrix[1][2] * bf;
+        let b = self.color_matrix[2][0] * rf
+            + self.color_matrix[2][1] * gf
+            + self.color_matrix[2][2] * bf;
 
         let r = (r - self.pivot) * self.contrast + self.pivot;
         let g = (g - self.pivot) * self.contrast + self.pivot;
@@ -73,11 +75,7 @@ impl LookTransform {
 
     pub fn new_vintage() -> Self {
         let mut look = Self::new("vintage".to_string());
-        look.color_matrix = [
-            [1.2, 0.1, 0.0],
-            [0.0, 0.9, 0.1],
-            [0.0, 0.0, 0.8],
-        ];
+        look.color_matrix = [[1.2, 0.1, 0.0], [0.0, 0.9, 0.1], [0.0, 0.0, 0.8]];
         look.saturation = 0.8;
         look.contrast = 0.9;
         look
@@ -85,11 +83,7 @@ impl LookTransform {
 
     pub fn new_dramatic() -> Self {
         let mut look = Self::new("dramatic".to_string());
-        look.color_matrix = [
-            [1.3, -0.1, -0.1],
-            [-0.1, 1.2, -0.1],
-            [-0.1, -0.1, 1.1],
-        ];
+        look.color_matrix = [[1.3, -0.1, -0.1], [-0.1, 1.2, -0.1], [-0.1, -0.1, 1.1]];
         look.saturation = 1.3;
         look.contrast = 1.2;
         look
@@ -101,7 +95,6 @@ pub struct LookManager {
 }
 
 impl LookManager {
-
     pub fn new() -> Self {
         Self {
             looks: HashMap::new(),
@@ -111,14 +104,19 @@ impl LookManager {
     pub fn initialize_default_looks(&mut self) {
         debug!("Initializing default looks");
 
-        self.looks.insert("neutral".to_string(), LookTransform::new_neutral());
-        self.looks.insert("teal_orange".to_string(), LookTransform::new_teal_orange());
-        self.looks.insert("vintage".to_string(), LookTransform::new_vintage());
-        self.looks.insert("dramatic".to_string(), LookTransform::new_dramatic());
+        self.looks
+            .insert("neutral".to_string(), LookTransform::new_neutral());
+        self.looks
+            .insert("teal_orange".to_string(), LookTransform::new_teal_orange());
+        self.looks
+            .insert("vintage".to_string(), LookTransform::new_vintage());
+        self.looks
+            .insert("dramatic".to_string(), LookTransform::new_dramatic());
     }
 
     pub fn get_look(&self, look_name: &str) -> Result<&LookTransform> {
-        self.looks.get(look_name)
+        self.looks
+            .get(look_name)
             .ok_or_else(|| anyhow!("Look not found: {}", look_name))
     }
 
@@ -128,7 +126,8 @@ impl LookManager {
     }
 
     pub fn remove_look(&mut self, look_name: &str) -> Result<()> {
-        self.looks.remove(look_name)
+        self.looks
+            .remove(look_name)
             .ok_or_else(|| anyhow!("Look not found: {}", look_name))?;
         Ok(())
     }

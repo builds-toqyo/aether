@@ -1,5 +1,3 @@
-
-
 #[derive(Debug, Clone)]
 pub struct LutData {
     pub name: String,
@@ -9,7 +7,6 @@ pub struct LutData {
 }
 
 impl LutData {
-
     pub fn generate_identity_lut(&mut self, size: u32) {
         self.data.clear();
 
@@ -26,7 +23,6 @@ impl LutData {
         }
     }
 
-
     pub fn new(name: String, size: u32, format: LutFormat) -> Self {
         Self {
             name,
@@ -36,36 +32,38 @@ impl LutData {
         }
     }
 
-
     pub fn dimensions(&self) -> (u32, u32, u32) {
         (self.size, self.size, self.size)
     }
-
 
     pub fn total_points(&self) -> usize {
         self.data.len()
     }
 
-
     pub fn validate(&self) -> Result<(), String> {
         let expected_size = self.size * self.size * self.size;
 
         if self.data.len() != expected_size as usize {
-            return Err(format!("Invalid data size: expected {}, got {}", expected_size, self.data.len()));
+            return Err(format!(
+                "Invalid data size: expected {}, got {}",
+                expected_size,
+                self.data.len()
+            ));
         }
-
 
         for (i, rgb) in self.data.iter().enumerate() {
             for (c, &value) in rgb.iter().enumerate() {
-                if value < 0.0 || value > 1.0 {
-                    return Err(format!("Invalid value at index {}, channel {}: {}", i, c, value));
+                if !(0.0..=1.0).contains(&value) {
+                    return Err(format!(
+                        "Invalid value at index {}, channel {}: {}",
+                        i, c, value
+                    ));
                 }
             }
         }
 
         Ok(())
     }
-
 
     pub fn get_value(&self, r: u32, g: u32, b: u32) -> Option<[f32; 3]> {
         if r >= self.size || g >= self.size || b >= self.size {
@@ -75,7 +73,6 @@ impl LutData {
         let index = ((b * self.size + g) * self.size + r) as usize;
         self.data.get(index).copied()
     }
-
 
     pub fn set_value(&mut self, r: u32, g: u32, b: u32, value: [f32; 3]) -> Result<(), String> {
         if r >= self.size || g >= self.size || b >= self.size {
@@ -104,16 +101,15 @@ impl Default for LutData {
     }
 }
 
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LutFormat {
+    #[default]
     Cube,
     ThreeDL,
     Look,
 }
 
 impl LutFormat {
-
     pub fn extension(&self) -> &'static str {
         match self {
             LutFormat::Cube => ".cube",
@@ -131,7 +127,6 @@ impl LutFormat {
         }
     }
 
-
     pub fn from_extension(extension: &str) -> Option<Self> {
         match extension.to_lowercase().as_str() {
             "cube" => Some(LutFormat::Cube),
@@ -142,13 +137,6 @@ impl LutFormat {
     }
 }
 
-impl Default for LutFormat {
-    fn default() -> Self {
-        LutFormat::Cube
-    }
-}
-
-
 #[derive(Debug, Clone)]
 pub struct LutConfig {
     pub interpolation_quality: InterpolationQuality,
@@ -157,23 +145,19 @@ pub struct LutConfig {
 }
 
 impl LutConfig {
-
     pub fn new() -> Self {
         Self::default()
     }
-
 
     pub fn with_interpolation_quality(mut self, quality: InterpolationQuality) -> Self {
         self.interpolation_quality = quality;
         self
     }
 
-
     pub fn with_color_space(mut self, color_space: crate::types::ColorSpace) -> Self {
         self.color_space = color_space;
         self
     }
-
 
     pub fn with_clamp_output(mut self, clamp: bool) -> Self {
         self.clamp_output = clamp;
@@ -191,24 +175,24 @@ impl Default for LutConfig {
     }
 }
 
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum InterpolationQuality {
     Nearest,
     Linear,
+    #[default]
     Trilinear,
 }
 
 impl InterpolationQuality {
-
     pub fn description(&self) -> &'static str {
         match self {
             InterpolationQuality::Nearest => "Nearest neighbor - Fast but low quality",
-            InterpolationQuality::Linear => "Linear interpolation - Good balance of speed and quality",
+            InterpolationQuality::Linear => {
+                "Linear interpolation - Good balance of speed and quality"
+            }
             InterpolationQuality::Trilinear => "Trilinear interpolation - Highest quality",
         }
     }
-
 
     pub fn computational_cost(&self) -> f32 {
         match self {
@@ -219,13 +203,6 @@ impl InterpolationQuality {
     }
 }
 
-impl Default for InterpolationQuality {
-    fn default() -> Self {
-        InterpolationQuality::Trilinear
-    }
-}
-
-
 #[derive(Debug, Clone)]
 pub struct ColorCorrection {
     pub gamma: f32,
@@ -235,35 +212,29 @@ pub struct ColorCorrection {
 }
 
 impl ColorCorrection {
-
     pub fn new() -> Self {
         Self::default()
     }
-
 
     pub fn with_gamma(mut self, gamma: f32) -> Self {
         self.gamma = gamma;
         self
     }
 
-
     pub fn with_contrast(mut self, contrast: f32) -> Self {
         self.contrast = contrast;
         self
     }
-
 
     pub fn with_saturation(mut self, saturation: f32) -> Self {
         self.saturation = saturation;
         self
     }
 
-
     pub fn with_color_balance(mut self, balance: [f32; 3]) -> Self {
         self.color_balance = balance;
         self
     }
-
 
     pub fn validate(&self) -> Result<(), String> {
         if self.gamma <= 0.0 {
@@ -287,26 +258,21 @@ impl ColorCorrection {
         Ok(())
     }
 
-
     pub fn apply(&self, rgb: [f32; 3]) -> [f32; 3] {
         let [r, g, b] = rgb;
-
 
         let r_gamma = r.powf(self.gamma);
         let g_gamma = g.powf(self.gamma);
         let b_gamma = b.powf(self.gamma);
 
-
         let r_contrast = ((r_gamma - 0.5) * self.contrast + 0.5).clamp(0.0, 1.0);
         let g_contrast = ((g_gamma - 0.5) * self.contrast + 0.5).clamp(0.0, 1.0);
         let b_contrast = ((b_gamma - 0.5) * self.contrast + 0.5).clamp(0.0, 1.0);
 
-
         let luma = 0.2126 * r_contrast + 0.7152 * g_contrast + 0.0722 * b_contrast;
         let r_saturated = luma + (r_contrast - luma) * self.saturation;
         let g_saturated = luma + (g_contrast - luma) * self.saturation;
-        let b_saturated = luma + (b_contrast - luma) * self.saturation;
-
+        let _b_saturated = luma + (b_contrast - luma) * self.saturation;
 
         let r_balanced = r_saturated * self.color_balance[0];
         let g_balanced = g_saturated * self.color_balance[1];
@@ -327,7 +293,6 @@ impl Default for ColorCorrection {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct LutInfo {
     pub name: String,
@@ -337,11 +302,9 @@ pub struct LutInfo {
 }
 
 impl LutInfo {
-
     pub fn memory_usage(&self) -> usize {
         self.data_points * 3 * std::mem::size_of::<f32>()
     }
-
 
     pub fn memory_usage_string(&self) -> String {
         let bytes = self.memory_usage();
@@ -354,7 +317,6 @@ impl LutInfo {
             format!("{:.1} MB", bytes as f32 / (1024.0 * 1024.0))
         }
     }
-
 
     pub fn is_valid(&self) -> bool {
         self.data_points == (self.size * self.size * self.size) as usize
@@ -385,7 +347,6 @@ mod tests {
         let mut lut_data = LutData::new("test".to_string(), 3, LutFormat::Cube);
         lut_data.generate_identity_lut(3);
 
-
         let value = lut_data.get_value(0, 0, 0);
         assert!(value.is_some());
         assert_eq!(value.unwrap(), [0.0, 0.0, 0.0]);
@@ -394,14 +355,12 @@ mod tests {
         assert!(value.is_some());
         assert_eq!(value.unwrap(), [1.0, 1.0, 1.0]);
 
-
         let result = lut_data.set_value(1, 1, 1, [0.5, 0.5, 0.5]);
         assert!(result.is_ok());
 
         let value = lut_data.get_value(1, 1, 1);
         assert!(value.is_some());
         assert_eq!(value.unwrap(), [0.5, 0.5, 0.5]);
-
 
         let value = lut_data.get_value(3, 0, 0);
         assert!(value.is_none());
@@ -435,9 +394,7 @@ mod tests {
         let input = [0.5, 0.5, 0.5];
         let output = correction.apply(input);
 
-
         assert_ne!(input, output);
-
 
         for &value in &output {
             assert!(value >= 0.0);

@@ -1,8 +1,8 @@
 use anyhow::{Result, anyhow};
 use log::debug;
 
-use super::types::HdrImage;
 use super::config::GamutMappingConfig;
+use super::types::HdrImage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GamutMappingAlgorithm {
@@ -24,10 +24,13 @@ impl GamutMapper {
     pub fn apply_gamut_mapping(
         &self,
         hdr_image: &HdrImage,
-        target_color_space: crate::types::ColorSpace,
+        _target_color_space: crate::types::ColorSpace,
         config: &GamutMappingConfig,
     ) -> Result<HdrImage> {
-        debug!("Applying gamut mapping with algorithm: {:?}", config.algorithm);
+        debug!(
+            "Applying gamut mapping with algorithm: {:?}",
+            config.algorithm
+        );
 
         let mut gamut_mapped = hdr_image.clone();
 
@@ -43,7 +46,11 @@ impl GamutMapper {
         Ok(gamut_mapped)
     }
 
-    fn itp_gamut_map(&self, pixel: super::types::HdrPixel, config: &GamutMappingConfig) -> super::types::HdrPixel {
+    fn itp_gamut_map(
+        &self,
+        pixel: super::types::HdrPixel,
+        config: &GamutMappingConfig,
+    ) -> super::types::HdrPixel {
         let (l, m, s) = self.rgb_to_itp(pixel.r, pixel.g, pixel.b);
 
         let (l_mapped, m_mapped, s_mapped) = self.map_itp_gamut(l, m, s, config);
@@ -54,7 +61,6 @@ impl GamutMapper {
     }
 
     fn rgb_to_itp(&self, r: f32, g: f32, b: f32) -> (f32, f32, f32) {
-
         let l = (r + g + b) / 3.0;
         let m = (r - g) / 2.0;
         let s = (r + g - 2.0 * b) / 6.0;
@@ -70,7 +76,13 @@ impl GamutMapper {
         (r, g, b)
     }
 
-    fn map_itp_gamut(&self, l: f32, m: f32, s: f32, config: &GamutMappingConfig) -> (f32, f32, f32) {
+    fn map_itp_gamut(
+        &self,
+        l: f32,
+        m: f32,
+        s: f32,
+        config: &GamutMappingConfig,
+    ) -> (f32, f32, f32) {
         let saturation_factor = config.saturation_preservation;
 
         let l_mapped = l;
@@ -80,8 +92,11 @@ impl GamutMapper {
         (l_mapped, m_mapped, s_mapped)
     }
 
-    fn yuv_gamut_map(&self, pixel: super::types::HdrPixel, config: &GamutMappingConfig) -> super::types::HdrPixel {
-
+    fn yuv_gamut_map(
+        &self,
+        pixel: super::types::HdrPixel,
+        config: &GamutMappingConfig,
+    ) -> super::types::HdrPixel {
         let y = 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
         let u = (pixel.b - y) * 0.5;
         let v = (pixel.r - y) * 0.5;
@@ -98,7 +113,11 @@ impl GamutMapper {
         super::types::HdrPixel { r, g, b }
     }
 
-    fn saturation_gamut_map(&self, pixel: super::types::HdrPixel, config: &GamutMappingConfig) -> super::types::HdrPixel {
+    fn saturation_gamut_map(
+        &self,
+        pixel: super::types::HdrPixel,
+        config: &GamutMappingConfig,
+    ) -> super::types::HdrPixel {
         let luma = 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
         let saturation_factor = config.saturation_preservation;
 
@@ -109,7 +128,11 @@ impl GamutMapper {
         super::types::HdrPixel { r, g, b }
     }
 
-    fn perceptual_gamut_map(&self, pixel: super::types::HdrPixel, config: &GamutMappingConfig) -> super::types::HdrPixel {
+    fn perceptual_gamut_map(
+        &self,
+        pixel: super::types::HdrPixel,
+        config: &GamutMappingConfig,
+    ) -> super::types::HdrPixel {
         let luma = 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
         let saturation_factor = config.saturation_preservation;
 
@@ -150,7 +173,10 @@ impl GamutMapper {
         }
     }
 
-    pub fn get_algorithm_characteristics(&self, algorithm: GamutMappingAlgorithm) -> GamutMappingCharacteristics {
+    pub fn get_algorithm_characteristics(
+        &self,
+        algorithm: GamutMappingAlgorithm,
+    ) -> GamutMappingCharacteristics {
         match algorithm {
             GamutMappingAlgorithm::Itp => GamutMappingCharacteristics {
                 preserves_saturation: 0.9,
@@ -197,29 +223,37 @@ impl GamutMapper {
         Ok(super::types::HdrPixel { r, g, b })
     }
 
-    fn get_conversion_matrix(&self, from: super::types::ColorPrimaries, to: super::types::ColorPrimaries) -> Result<[[f32; 3]; 3]> {
+    fn get_conversion_matrix(
+        &self,
+        from: super::types::ColorPrimaries,
+        to: super::types::ColorPrimaries,
+    ) -> Result<[[f32; 3]; 3]> {
         match (from, to) {
-            (super::types::ColorPrimaries::Rec709, super::types::ColorPrimaries::Rec2020) => {
-                Ok([[0.627404, 0.329283, 0.043313],
-                    [0.069097, 0.919540, 0.011363],
-                    [0.016391, 0.087013, 0.896596]])
-            }
-            (super::types::ColorPrimaries::Rec2020, super::types::ColorPrimaries::Rec709) => {
-                Ok([[1.641023, -0.324803, -0.316216],
-                    [-0.418194, 1.279050, 0.139144],
-                    [-0.016279, -0.042748, 1.059027]])
-            }
-            (super::types::ColorPrimaries::Rec709, super::types::ColorPrimaries::P3) => {
-                Ok([[0.822462, 0.177538, 0.0],
-                    [0.033194, 0.966806, 0.0],
-                    [0.017083, 0.072697, 0.910220]])
-            }
-            (super::types::ColorPrimaries::P3, super::types::ColorPrimaries::Rec709) => {
-                Ok([[1.224940, -0.224940, 0.0],
-                    [-0.042057, 1.042057, 0.0],
-                    [-0.019637, -0.078636, 1.098273]])
-            }
-            _ => Err(anyhow!("Unsupported color space conversion: {:?} to {:?}", from, to))
+            (super::types::ColorPrimaries::Rec709, super::types::ColorPrimaries::Rec2020) => Ok([
+                [0.627404, 0.329283, 0.043313],
+                [0.069097, 0.919540, 0.011363],
+                [0.016391, 0.087013, 0.896596],
+            ]),
+            (super::types::ColorPrimaries::Rec2020, super::types::ColorPrimaries::Rec709) => Ok([
+                [1.641023, -0.324803, -0.316216],
+                [-0.418194, 1.279_05, 0.139144],
+                [-0.016279, -0.042748, 1.059027],
+            ]),
+            (super::types::ColorPrimaries::Rec709, super::types::ColorPrimaries::P3) => Ok([
+                [0.822462, 0.177538, 0.0],
+                [0.033194, 0.966806, 0.0],
+                [0.017083, 0.072697, 0.910220],
+            ]),
+            (super::types::ColorPrimaries::P3, super::types::ColorPrimaries::Rec709) => Ok([
+                [1.224_94, -0.224940, 0.0],
+                [-0.042057, 1.042057, 0.0],
+                [-0.019637, -0.078636, 1.098273],
+            ]),
+            _ => Err(anyhow!(
+                "Unsupported color space conversion: {:?} to {:?}",
+                from,
+                to
+            )),
         }
     }
 }
@@ -246,7 +280,10 @@ mod tests {
     fn test_gamut_mapper_creation() {
         let config = GamutMappingConfig::default();
         let mapper = GamutMapper::new(config);
-        assert!(matches!(mapper.config.algorithm, GamutMappingAlgorithm::Itp));
+        assert!(matches!(
+            mapper.config.algorithm,
+            GamutMappingAlgorithm::Itp
+        ));
     }
 
     #[test]
@@ -280,7 +317,8 @@ mod tests {
         assert!(itp_chars.preserves_hue > 0.8);
         assert!(itp_chars.computational_cost > 1.0);
 
-        let saturation_chars = mapper.get_algorithm_characteristics(GamutMappingAlgorithm::Saturation);
+        let saturation_chars =
+            mapper.get_algorithm_characteristics(GamutMappingAlgorithm::Saturation);
         assert_eq!(saturation_chars.preserves_saturation, 1.0);
         assert!(saturation_chars.computational_cost < 1.0);
     }
@@ -289,8 +327,11 @@ mod tests {
     fn test_color_primaries_conversion() {
         let mapper = GamutMapper::default();
 
-        let pixel = super::types::HdrPixel { r: 100.0, g: 200.0, b: 300.0 };
-
+        let pixel = super::types::HdrPixel {
+            r: 100.0,
+            g: 200.0,
+            b: 300.0,
+        };
 
         let converted = mapper.convert_color_primaries(
             pixel,
@@ -301,8 +342,11 @@ mod tests {
 
         let converted_pixel = converted.unwrap();
 
-        assert!(converted_pixel.r != pixel.r || converted_pixel.g != pixel.g || converted_pixel.b != pixel.b);
-
+        assert!(
+            converted_pixel.r != pixel.r
+                || converted_pixel.g != pixel.g
+                || converted_pixel.b != pixel.b
+        );
 
         let identity = mapper.convert_color_primaries(
             pixel,
@@ -327,9 +371,12 @@ mod tests {
             saturation_preservation: 0.5,
         };
 
-        let pixel = super::types::HdrPixel { r: 100.0, g: 200.0, b: 300.0 };
+        let pixel = super::types::HdrPixel {
+            r: 100.0,
+            g: 200.0,
+            b: 300.0,
+        };
         let mapped = mapper.saturation_gamut_map(pixel, &config);
-
 
         let original_luma = 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
         let mapped_luma = 0.2126 * mapped.r + 0.7152 * mapped.g + 0.0722 * mapped.b;

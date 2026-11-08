@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+/* Aether uses a neutral dark palette — Tailwind's default grays are
+   blue-tinted, so remap the gray ramp to pure neutrals matching the
+   app's established hex tokens (#141414/#1a1a1a/#252525/#333/#555/#777/#999/#ccc). */
+@theme {
+  --color-gray-50: #fafafa;
+  --color-gray-100: #f0f0f0;
+  --color-gray-200: #e0e0e0;
+  --color-gray-300: #cccccc;
+  --color-gray-400: #999999;
+  --color-gray-500: #777777;
+  --color-gray-600: #555555;
+  --color-gray-700: #3a3a3a;
+  --color-gray-750: #303030;
+  --color-gray-800: #252525;
+  --color-gray-850: #202020;
+  --color-gray-900: #1a1a1a;
+  --color-gray-950: #141414;
+}

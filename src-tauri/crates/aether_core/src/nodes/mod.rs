@@ -1,14 +1,16 @@
-pub mod core;
-pub mod validation;
-pub mod execution_order;
 pub mod basic;
+pub mod core;
+pub mod execution_order;
+pub mod gpu;
+pub mod validation;
 
-pub use core::*;
-pub use validation::*;
-pub use execution_order::*;
 pub use basic::*;
+pub use core::*;
+pub use execution_order::*;
+pub use gpu::*;
+pub use validation::*;
 
-use aether_types::{Node, Graph, Connection, NodeType, PinDataType, ParameterValue};
+use aether_types::{Node, NodeType, ParameterValue};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -59,7 +61,7 @@ pub trait NodeExecutor {
 
     fn get_outputs(&self) -> Vec<Uuid>;
 
-    fn can_execute(&self, context: &ExecutionContext) -> bool {
+    fn can_execute(&self, _context: &ExecutionContext) -> bool {
         true
     }
 }
@@ -78,8 +80,8 @@ pub struct ExecutionContext {
 
 #[derive(Debug, Clone)]
 pub struct GpuContext {
-    pub device: u64,
-    pub command_queue: u64,
+    pub device: Option<std::sync::Arc<wgpu::Device>>,
+    pub queue: Option<std::sync::Arc<wgpu::Queue>>,
     pub available_memory: u64,
 }
 
@@ -116,7 +118,7 @@ impl ExecutionContext {
 
 pub struct NodeRegistry {
     node_types: HashMap<NodeType, Box<dyn NodeExecutor + Send + Sync>>,
-    factories: HashMap<NodeType, Box<dyn Fn() -> Box<dyn NodeExecutor + Send + Sync>>>
+    factories: HashMap<NodeType, Box<dyn Fn() -> Box<dyn NodeExecutor + Send + Sync>>>,
 }
 
 impl std::fmt::Debug for NodeRegistry {
@@ -143,9 +145,13 @@ impl NodeRegistry {
         self.factories.insert(node_type, Box::new(factory));
     }
 
-    pub fn create_node(&self, node_type: &NodeType) -> NodeResult<Box<dyn NodeExecutor + Send + Sync>> {
-        let factory = self.factories.get(node_type)
-            .ok_or_else(|| NodeError::ExecutionFailed(format!("Unknown node type: {:?}", node_type)))?;
+    pub fn create_node(
+        &self,
+        node_type: &NodeType,
+    ) -> NodeResult<Box<dyn NodeExecutor + Send + Sync>> {
+        let factory = self.factories.get(node_type).ok_or_else(|| {
+            NodeError::ExecutionFailed(format!("Unknown node type: {:?}", node_type))
+        })?;
 
         Ok(factory())
     }
@@ -197,11 +203,14 @@ impl NodeManager {
         Ok(())
     }
 
-    pub fn remove_node(&mut self, node_id: &Uuid) -> NodeResult<Box<dyn NodeExecutor + Send + Sync>> {
-
-        let executor = self.nodes.remove(node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(*node_id))?;
-
+    pub fn remove_node(
+        &mut self,
+        node_id: &Uuid,
+    ) -> NodeResult<Box<dyn NodeExecutor + Send + Sync>> {
+        let executor = self
+            .nodes
+            .remove(node_id)
+            .ok_or(NodeError::NodeNotFound(*node_id))?;
 
         self.node_metadata.remove(node_id);
 
@@ -226,38 +235,46 @@ impl NodeManager {
         self.node_metadata.get(node_id)
     }
 
-
     pub fn get_node_metadata_mut(&mut self, node_id: &Uuid) -> Option<&mut Node> {
         self.node_metadata.get_mut(node_id)
     }
 
-
     pub fn get_nodes(&self) -> impl Iterator<Item = (&Uuid, &dyn NodeExecutor)> {
-        self.nodes.iter().map(|(id, executor)| (id, executor.as_ref() as &dyn NodeExecutor))
+        self.nodes
+            .iter()
+            .map(|(id, executor)| (id, executor.as_ref() as &dyn NodeExecutor))
     }
 
-
-    pub fn execute_node(&mut self, node_id: &Uuid, context: &mut ExecutionContext) -> NodeResult<()> {
-        let executor = self.nodes.get_mut(node_id)
-            .ok_or_else(|| NodeError::NodeNotFound(*node_id))?;
+    pub fn execute_node(
+        &mut self,
+        node_id: &Uuid,
+        context: &mut ExecutionContext,
+    ) -> NodeResult<()> {
+        let executor = self
+            .nodes
+            .get_mut(node_id)
+            .ok_or(NodeError::NodeNotFound(*node_id))?;
 
         if !executor.can_execute(context) {
-            return Err(NodeError::ExecutionFailed("Node cannot execute".to_string()));
+            return Err(NodeError::ExecutionFailed(
+                "Node cannot execute".to_string(),
+            ));
         }
 
         executor.execute(context)
     }
 
-
     pub fn validate_all(&self) -> NodeResult<()> {
         for (node_id, executor) in &self.nodes {
             if let Err(e) = executor.validate() {
-                return Err(NodeError::ExecutionFailed(format!("Node {} validation failed: {}", node_id, e)));
+                return Err(NodeError::ExecutionFailed(format!(
+                    "Node {} validation failed: {}",
+                    node_id, e
+                )));
             }
         }
         Ok(())
     }
-
 
     pub fn node_count(&self) -> usize {
         self.nodes.len()
@@ -267,28 +284,6 @@ impl NodeManager {
 impl Default for NodeManager {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-
-#[derive(Debug)]
-struct DummyNode;
-
-impl NodeExecutor for DummyNode {
-    fn execute(&mut self, _context: &mut ExecutionContext) -> NodeResult<()> {
-        Ok(())
-    }
-
-    fn node_type(&self) -> NodeType {
-        NodeType::Custom("dummy".to_string())
-    }
-
-    fn get_inputs(&self) -> Vec<Uuid> {
-        vec![]
-    }
-
-    fn get_outputs(&self) -> Vec<Uuid> {
-        vec![]
     }
 }
 
@@ -311,9 +306,7 @@ mod tests {
         let mut context = ExecutionContext::new(0, 0.0, 30.0, (1920, 1080));
         let pin_id = Uuid::new_v4();
 
-
         assert!(context.get_input(&pin_id).is_none());
-
 
         context.set_output(pin_id, ParameterValue::Float(1.0));
         assert!(context.outputs.contains_key(&pin_id));

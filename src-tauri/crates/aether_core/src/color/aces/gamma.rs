@@ -50,9 +50,8 @@ pub fn srgb_gamma_encode(value: f32) -> f32 {
 mod tests {
     use super::*;
 
-   #[test]
+    #[test]
     fn test_gamma_roundtrip() {
-
         let original = 0.5;
         let decoded = srgb_gamma_decode(original);
         let encoded = srgb_gamma_encode(decoded);
@@ -62,7 +61,6 @@ mod tests {
 
     #[test]
     fn test_rec709_gamma() {
-
         let linear = 0.18;
         let encoded = rec709_gamma_encode(linear);
         let decoded = rec709_gamma_decode(encoded);
@@ -72,7 +70,6 @@ mod tests {
 
     #[test]
     fn test_rec2020_gamma() {
-
         let linear = 0.18;
         let encoded = rec2020_gamma_encode(linear);
         let decoded = rec2020_gamma_decode(encoded);

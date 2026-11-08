@@ -1,29 +1,25 @@
-
-
-use std::io::Read;
 use anyhow::{Result, anyhow};
 use log::debug;
+use std::io::Read;
 
 use super::types::{LutData, LutFormat};
 
-
 pub struct LutLoader {
-    config: crate::color::luts::config::LutConfig,
+    _config: crate::color::luts::config::LutConfig,
 }
 
 impl LutLoader {
-
     pub fn new() -> Self {
         Self {
-            config: crate::color::luts::config::LutConfig::default(),
+            _config: crate::color::luts::config::LutConfig::default(),
         }
     }
-
 
     pub fn load_lut(&self, file_path: &std::path::Path) -> Result<LutData> {
         debug!("Loading LUT from: {:?}", file_path);
 
-        let file_extension = file_path.extension()
+        let file_extension = file_path
+            .extension()
             .and_then(|ext| ext.to_str())
             .ok_or_else(|| anyhow!("Invalid file extension"))?;
 
@@ -38,7 +34,6 @@ impl LutLoader {
 
         Ok(lut_data)
     }
-
 
     fn load_cube_file(&self, file_path: &std::path::Path) -> Result<LutData> {
         debug!("Loading Cube LUT file: {:?}", file_path);
@@ -59,15 +54,19 @@ impl LutLoader {
             }
 
             if line.starts_with("TITLE") {
-                title = line.split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
+                title = line
+                    .split_whitespace()
+                    .skip(1)
+                    .collect::<Vec<_>>()
+                    .join(" ");
             } else if line.starts_with("LUT_3D_SIZE") {
-                size = line.split_whitespace()
+                size = line
+                    .split_whitespace()
                     .nth(1)
                     .ok_or_else(|| anyhow!("Invalid LUT_3D_SIZE line"))?
                     .parse()
                     .map_err(|e| anyhow!("Invalid LUT size: {}", e))?;
             } else if line.contains(' ') {
-
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 3 {
                     let r = parts[0].parse::<f32>()?;
@@ -83,15 +82,17 @@ impl LutLoader {
         lut_data.size = size;
         lut_data.format = LutFormat::Cube;
 
-
         let expected_size = size * size * size;
         if lut_data.data.len() != expected_size as usize {
-            debug!("LUT data size mismatch: expected {}, got {}", expected_size, lut_data.data.len());
+            debug!(
+                "LUT data size mismatch: expected {}, got {}",
+                expected_size,
+                lut_data.data.len()
+            );
         }
 
         Ok(lut_data)
     }
-
 
     fn load_3dl_file(&self, file_path: &std::path::Path) -> Result<LutData> {
         debug!("Loading 3DL LUT file: {:?}", file_path);
@@ -101,7 +102,6 @@ impl LutLoader {
         file.read_to_string(&mut content)?;
 
         let mut lut_data = LutData::default();
-        let mut size = 33;
 
         for line in content.lines() {
             let line = line.trim();
@@ -113,7 +113,6 @@ impl LutLoader {
             if line.contains(' ') {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 6 {
-
                     let r_out = parts[3].parse::<f32>()?;
                     let g_out = parts[4].parse::<f32>()?;
                     let b_out = parts[5].parse::<f32>()?;
@@ -123,11 +122,11 @@ impl LutLoader {
             }
         }
 
-
         let data_len = lut_data.data.len();
-        size = (data_len as f32).cbrt() as u32;
+        let size = (data_len as f32).cbrt() as u32;
 
-        lut_data.name = file_path.file_stem()
+        lut_data.name = file_path
+            .file_stem()
             .and_then(|name| name.to_str())
             .unwrap_or("3dl_lut")
             .to_string();
@@ -136,7 +135,6 @@ impl LutLoader {
 
         Ok(lut_data)
     }
-
 
     fn load_look_file(&self, file_path: &std::path::Path) -> Result<LutData> {
         debug!("Loading LOOK LUT file: {:?}", file_path);
@@ -154,7 +152,11 @@ impl LutLoader {
             let line = line.trim();
 
             if line.contains("<Name>") {
-                name = line.replace("<Name>", "").replace("</Name>", "").trim().to_string();
+                name = line
+                    .replace("<Name>", "")
+                    .replace("</Name>", "")
+                    .trim()
+                    .to_string();
             } else if line.contains("<Size>") {
                 let size_str = line.replace("<Size>", "").replace("</Size>", "");
                 size = size_str.trim().parse().unwrap_or(33);
@@ -178,7 +180,6 @@ impl LutLoader {
         lut_data.size = size;
         lut_data.format = LutFormat::Look;
 
-
         if lut_data.data.is_empty() {
             lut_data.generate_identity_lut(size);
         }
@@ -186,8 +187,12 @@ impl LutLoader {
         Ok(lut_data)
     }
 
-
-    pub fn load_lut_from_memory(&self, data: &[u8], format: LutFormat, name: &str) -> Result<LutData> {
+    pub fn load_lut_from_memory(
+        &self,
+        data: &[u8],
+        format: LutFormat,
+        name: &str,
+    ) -> Result<LutData> {
         debug!("Loading LUT from memory: {} ({:?})", name, format);
 
         let content = String::from_utf8(data.to_vec())?;
@@ -203,7 +208,6 @@ impl LutLoader {
         Ok(lut_data)
     }
 
-
     fn load_cube_from_string(&self, content: &str, name: &str) -> Result<LutData> {
         let mut lut_data = LutData::default();
         let mut size = 33;
@@ -216,7 +220,8 @@ impl LutLoader {
             }
 
             if line.starts_with("LUT_3D_SIZE") {
-                size = line.split_whitespace()
+                size = line
+                    .split_whitespace()
                     .nth(1)
                     .ok_or_else(|| anyhow!("Invalid LUT_3D_SIZE line"))?
                     .parse()
@@ -240,10 +245,8 @@ impl LutLoader {
         Ok(lut_data)
     }
 
-
     fn load_3dl_from_string(&self, content: &str, name: &str) -> Result<LutData> {
         let mut lut_data = LutData::default();
-        let mut size = 33;
 
         for line in content.lines() {
             let line = line.trim();
@@ -264,9 +267,8 @@ impl LutLoader {
             }
         }
 
-
         let data_len = lut_data.data.len();
-        size = (data_len as f32).cbrt() as u32;
+        let size = (data_len as f32).cbrt() as u32;
 
         lut_data.name = name.to_string();
         lut_data.size = size;
@@ -274,7 +276,6 @@ impl LutLoader {
 
         Ok(lut_data)
     }
-
 
     fn load_look_from_string(&self, content: &str, name: &str) -> Result<LutData> {
         let mut lut_data = LutData::default();
@@ -307,14 +308,12 @@ impl LutLoader {
         lut_data.size = size;
         lut_data.format = LutFormat::Look;
 
-
         if lut_data.data.is_empty() {
             lut_data.generate_identity_lut(size);
         }
 
         Ok(lut_data)
     }
-
 
     pub fn validate_lut_file(&self, file_path: &std::path::Path) -> Result<LutValidationResult> {
         debug!("Validating LUT file: {:?}", file_path);
@@ -340,26 +339,29 @@ impl LutLoader {
         Ok(result)
     }
 
-
     fn collect_warnings(&self, lut_data: &LutData) -> Vec<String> {
         let mut warnings = Vec::new();
 
-
         if lut_data.size != 33 && lut_data.size != 65 {
-            warnings.push(format!("Non-standard LUT size: {} (common sizes are 33 and 65)", lut_data.size));
+            warnings.push(format!(
+                "Non-standard LUT size: {} (common sizes are 33 and 65)",
+                lut_data.size
+            ));
         }
-
 
         let expected_size = lut_data.size * lut_data.size * lut_data.size;
         if lut_data.data.len() != expected_size as usize {
-            warnings.push(format!("Data size mismatch: expected {}, got {}", expected_size, lut_data.data.len()));
+            warnings.push(format!(
+                "Data size mismatch: expected {}, got {}",
+                expected_size,
+                lut_data.data.len()
+            ));
         }
-
 
         let mut out_of_range_count = 0;
         for rgb in &lut_data.data {
             for &value in rgb {
-                if value < 0.0 || value > 1.0 {
+                if !(0.0..=1.0).contains(&value) {
                     out_of_range_count += 1;
                 }
             }
@@ -378,7 +380,6 @@ impl Default for LutLoader {
         Self::new()
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct LutValidationResult {
@@ -455,7 +456,9 @@ LUT_3D_SIZE 2
 "#;
 
         let loader = LutLoader::new();
-        let lut_data = loader.load_lut_from_memory(cube_content.as_bytes(), LutFormat::Cube, "memory_test").unwrap();
+        let lut_data = loader
+            .load_lut_from_memory(cube_content.as_bytes(), LutFormat::Cube, "memory_test")
+            .unwrap();
 
         assert_eq!(lut_data.name, "memory_test");
         assert_eq!(lut_data.size, 2);
@@ -466,7 +469,6 @@ LUT_3D_SIZE 2
     fn test_lut_validation() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("invalid.cube");
-
 
         let cube_content = r#"TITLE Invalid LUT
 LUT_3D_SIZE 3

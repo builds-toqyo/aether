@@ -118,7 +118,6 @@ impl Polygon {
         true
     }
 
-
     pub fn centroid(&self) -> Option<(f64, f64)> {
         if self.vertices.is_empty() {
             return None;
@@ -132,9 +131,11 @@ impl Polygon {
             cy += y;
         }
 
-        Some((cx / self.vertices.len() as f64, cy / self.vertices.len() as f64))
+        Some((
+            cx / self.vertices.len() as f64,
+            cy / self.vertices.len() as f64,
+        ))
     }
-
 
     pub fn perimeter(&self) -> f64 {
         if self.vertices.len() < 2 {
@@ -160,7 +161,6 @@ impl Polygon {
         perimeter
     }
 
-
     pub fn simplify(&self, tolerance: f64) -> Self {
         if self.vertices.len() < 3 {
             return self.clone();
@@ -177,8 +177,8 @@ impl Polygon {
             let prev = self.vertices[i - 1];
             let next = self.vertices[(i + 1) % self.vertices.len()];
 
-
-            let area = (prev.0 - vertex.0) * (next.1 - vertex.1) - (prev.1 - vertex.1) * (next.0 - vertex.0);
+            let area = (prev.0 - vertex.0) * (next.1 - vertex.1)
+                - (prev.1 - vertex.1) * (next.0 - vertex.0);
 
             if area.abs() > tolerance {
                 simplified.push(vertex);
@@ -240,7 +240,6 @@ impl super::types::ShapePrimitive for Polygon {
             return false;
         }
 
-
         let mut inside = false;
         let n = self.vertices.len();
 
@@ -248,8 +247,8 @@ impl super::types::ShapePrimitive for Polygon {
             let p1 = self.vertices[i];
             let p2 = self.vertices[(i + 1) % n];
 
-            if ((p1.1 > y) != (p2.1 > y)) &&
-               (x < (p2.0 - p1.0) * (y - p1.1) / (p2.1 - p1.1) + p1.0) {
+            if ((p1.1 > y) != (p2.1 > y)) && (x < (p2.0 - p1.0) * (y - p1.1) / (p2.1 - p1.1) + p1.0)
+            {
                 inside = !inside;
             }
         }
@@ -261,7 +260,6 @@ impl super::types::ShapePrimitive for Polygon {
         if !self.closed || self.vertices.len() < 3 {
             return 0.0;
         }
-
 
         let mut area = 0.0;
         let n = self.vertices.len();
@@ -316,8 +314,8 @@ impl super::types::ShapePrimitive for Polygon {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::ShapePrimitive;
+    use super::*;
 
     #[test]
     fn test_polygon_creation() {
@@ -355,9 +353,7 @@ mod tests {
 
     #[test]
     fn test_polygon_area_perimeter() {
-        let square = Polygon::new(vec![
-            (0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)
-        ]);
+        let square = Polygon::new(vec![(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
 
         assert_eq!(square.area(), 100.0);
         assert_eq!(square.perimeter(), 40.0);
@@ -365,9 +361,7 @@ mod tests {
 
     #[test]
     fn test_polygon_contains_point() {
-        let square = Polygon::new(vec![
-            (0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)
-        ]);
+        let square = Polygon::new(vec![(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
 
         assert!(square.contains_point(5.0, 5.0));
         assert!(square.contains_point(1.0, 1.0));
@@ -377,9 +371,7 @@ mod tests {
 
     #[test]
     fn test_polygon_transform() {
-        let mut polygon = Polygon::new(vec![
-            (0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)
-        ]);
+        let mut polygon = Polygon::new(vec![(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
         let transform = super::transform::Transform::translation(5.0, 10.0);
 
         polygon.transform(&transform);
@@ -392,9 +384,7 @@ mod tests {
 
     #[test]
     fn test_polygon_validation() {
-        let valid_polygon = Polygon::new(vec![
-            (0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)
-        ]);
+        let valid_polygon = Polygon::new(vec![(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
         assert!(valid_polygon.validate().is_ok());
 
         let empty_polygon = Polygon::new(vec![]);
@@ -410,7 +400,10 @@ mod tests {
     #[test]
     fn test_polygon_bounds() {
         let polygon = Polygon::new(vec![
-            (10.0, 20.0), (100.0, 30.0), (80.0, 90.0), (20.0, 80.0)
+            (10.0, 20.0),
+            (100.0, 30.0),
+            (80.0, 90.0),
+            (20.0, 80.0),
         ]);
         let bounds = polygon.bounds();
 
@@ -423,9 +416,7 @@ mod tests {
 
     #[test]
     fn test_polygon_to_path() {
-        let polygon = Polygon::new(vec![
-            (0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)
-        ]);
+        let polygon = Polygon::new(vec![(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]);
         let path = polygon.to_path();
 
         assert!(path.closed);
@@ -435,7 +426,11 @@ mod tests {
     #[test]
     fn test_polygon_simplify() {
         let polygon = Polygon::new(vec![
-            (0.0, 0.0), (5.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)
+            (0.0, 0.0),
+            (5.0, 0.0),
+            (10.0, 0.0),
+            (10.0, 10.0),
+            (0.0, 10.0),
         ]);
 
         let simplified = polygon.simplify(0.1);
@@ -463,7 +458,6 @@ mod tests {
         let rotated = Polygon::regular_rotated(50.0, 50.0, 30.0, 4, std::f64::consts::PI / 4.0);
 
         assert_eq!(rotated.vertex_count(), 4);
-
 
         let first_vertex = rotated.vertex(0).unwrap();
         let expected_x = 50.0 + 30.0 * (std::f64::consts::PI / 4.0).cos();

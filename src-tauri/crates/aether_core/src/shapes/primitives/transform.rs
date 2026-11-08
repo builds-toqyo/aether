@@ -1,5 +1,3 @@
-
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -26,7 +24,6 @@ pub struct Transform {
 }
 
 impl Transform {
-
     pub fn identity() -> Self {
         Self {
             tx: 0.0,
@@ -38,7 +35,6 @@ impl Transform {
             ky: 0.0,
         }
     }
-
 
     pub fn translation(tx: f64, ty: f64) -> Self {
         Self {
@@ -52,7 +48,6 @@ impl Transform {
         }
     }
 
-
     pub fn scale(sx: f64, sy: f64) -> Self {
         Self {
             tx: 0.0,
@@ -64,7 +59,6 @@ impl Transform {
             ky: 0.0,
         }
     }
-
 
     pub fn rotation(angle: f64) -> Self {
         Self {
@@ -78,23 +72,18 @@ impl Transform {
         }
     }
 
-
     pub fn transform_point(&self, x: f64, y: f64) -> (f64, f64) {
         let cos_r = self.rotation.cos();
         let sin_r = self.rotation.sin();
 
-
         let x_rot = x * self.sx * cos_r - y * self.sy * sin_r;
         let y_rot = x * self.sx * sin_r + y * self.sy * cos_r;
-
 
         let x_skew = x_rot + y_rot * self.kx;
         let y_skew = y_rot + x_rot * self.ky;
 
-
         (x_skew + self.tx, y_skew + self.ty)
     }
-
 
     pub fn inverse(&self) -> Option<Self> {
         if self.sx == 0.0 || self.sy == 0.0 {
@@ -104,14 +93,11 @@ impl Transform {
         let cos_r = self.rotation.cos();
         let sin_r = self.rotation.sin();
 
-
         let inv_sx = 1.0 / self.sx;
         let inv_sy = 1.0 / self.sy;
 
-
         let inv_cos = cos_r;
         let inv_sin = -sin_r;
-
 
         let inv_tx = -(self.tx * inv_cos - self.ty * inv_sin) * inv_sx;
         let inv_ty = -(self.tx * inv_sin + self.ty * inv_cos) * inv_sy;
@@ -127,22 +113,18 @@ impl Transform {
         })
     }
 
-
     pub fn combine(&self, other: &Transform) -> Self {
         let cos_r1 = self.rotation.cos();
         let sin_r1 = self.rotation.sin();
-        let cos_r2 = other.rotation.cos();
-        let sin_r2 = other.rotation.sin();
-
+        let _cos_r2 = other.rotation.cos();
+        let _sin_r2 = other.rotation.sin();
 
         let sx = self.sx * other.sx;
         let sy = self.sy * other.sy;
         let rotation = self.rotation + other.rotation;
 
-
         let tx = self.tx + other.tx * self.sx * cos_r1 - other.ty * self.sy * sin_r1;
         let ty = self.ty + other.tx * self.sx * sin_r1 + other.ty * self.sy * cos_r1;
-
 
         let kx = self.kx + other.kx;
         let ky = self.ky + other.ky;
@@ -165,10 +147,8 @@ impl Default for Transform {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct BoundingBox {
-
     pub min_x: f64,
 
     pub min_y: f64,
@@ -179,7 +159,6 @@ pub struct BoundingBox {
 }
 
 impl BoundingBox {
-
     pub fn new(min_x: f64, min_y: f64, max_x: f64, max_y: f64) -> Self {
         Self {
             min_x: min_x.min(max_x),
@@ -189,32 +168,31 @@ impl BoundingBox {
         }
     }
 
-
     pub fn width(&self) -> f64 {
         self.max_x - self.min_x
     }
-
 
     pub fn height(&self) -> f64 {
         self.max_y - self.min_y
     }
 
-
     pub fn center(&self) -> (f64, f64) {
-        ((self.min_x + self.max_x) / 2.0, (self.min_y + self.max_y) / 2.0)
+        (
+            (self.min_x + self.max_x) / 2.0,
+            (self.min_y + self.max_y) / 2.0,
+        )
     }
-
 
     pub fn contains_point(&self, x: f64, y: f64) -> bool {
         x >= self.min_x && x <= self.max_x && y >= self.min_y && y <= self.max_y
     }
 
-
     pub fn intersects(&self, other: &BoundingBox) -> bool {
-        !(self.max_x < other.min_x || self.min_x > other.max_x ||
-          self.max_y < other.min_y || self.min_y > other.max_y)
+        !(self.max_x < other.min_x
+            || self.min_x > other.max_x
+            || self.max_y < other.min_y
+            || self.min_y > other.max_y)
     }
-
 
     pub fn union(&self, other: &BoundingBox) -> BoundingBox {
         BoundingBox::new(
@@ -225,7 +203,6 @@ impl BoundingBox {
         )
     }
 
-
     pub fn transform(&self, transform: &Transform) -> BoundingBox {
         let corners = [
             transform.transform_point(self.min_x, self.min_y),
@@ -234,10 +211,22 @@ impl BoundingBox {
             transform.transform_point(self.min_x, self.max_y),
         ];
 
-        let min_x = corners.iter().map(|(x, _)| *x).fold(f64::INFINITY, f64::min);
-        let max_x = corners.iter().map(|(x, _)| *x).fold(f64::NEG_INFINITY, f64::max);
-        let min_y = corners.iter().map(|(_, y)| *y).fold(f64::INFINITY, f64::min);
-        let max_y = corners.iter().map(|(_, y)| *y).fold(f64::NEG_INFINITY, f64::max);
+        let min_x = corners
+            .iter()
+            .map(|(x, _)| *x)
+            .fold(f64::INFINITY, f64::min);
+        let max_x = corners
+            .iter()
+            .map(|(x, _)| *x)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let min_y = corners
+            .iter()
+            .map(|(_, y)| *y)
+            .fold(f64::INFINITY, f64::min);
+        let max_y = corners
+            .iter()
+            .map(|(_, y)| *y)
+            .fold(f64::NEG_INFINITY, f64::max);
 
         BoundingBox::new(min_x, min_y, max_x, max_y)
     }

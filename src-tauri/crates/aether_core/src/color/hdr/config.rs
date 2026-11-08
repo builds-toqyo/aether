@@ -1,18 +1,8 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct HdrConfig {
     pub display_config: HdrDisplayConfig,
     pub tone_mapping_config: ToneMappingConfig,
     pub gamut_mapping_config: GamutMappingConfig,
-}
-
-impl Default for HdrConfig {
-    fn default() -> Self {
-        Self {
-            display_config: HdrDisplayConfig::default(),
-            tone_mapping_config: ToneMappingConfig::default(),
-            gamut_mapping_config: GamutMappingConfig::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -94,17 +84,26 @@ impl HdrConfig {
         self
     }
 
-    pub fn with_default_display(mut self, display_type: crate::color::hdr::types::HdrDisplayType) -> Self {
+    pub fn with_default_display(
+        mut self,
+        display_type: crate::color::hdr::types::HdrDisplayType,
+    ) -> Self {
         self.display_config.default_display = display_type;
         self
     }
 
-    pub fn with_tone_mapping_algorithm(mut self, algorithm: crate::color::hdr::tone::ToneMappingAlgorithm) -> Self {
+    pub fn with_tone_mapping_algorithm(
+        mut self,
+        algorithm: crate::color::hdr::tone::ToneMappingAlgorithm,
+    ) -> Self {
         self.tone_mapping_config.algorithm = algorithm;
         self
     }
 
-    pub fn with_gamut_mapping_algorithm(mut self, algorithm: crate::color::hdr::gamut::GamutMappingAlgorithm) -> Self {
+    pub fn with_gamut_mapping_algorithm(
+        mut self,
+        algorithm: crate::color::hdr::gamut::GamutMappingAlgorithm,
+    ) -> Self {
         self.gamut_mapping_config.algorithm = algorithm;
         self
     }
@@ -118,20 +117,35 @@ mod tests {
     fn test_default_config() {
         let config = HdrConfig::default();
 
-        assert!(matches!(config.display_config.default_display, crate::color::hdr::types::HdrDisplayType::DolbyVision));
+        assert!(matches!(
+            config.display_config.default_display,
+            crate::color::hdr::types::HdrDisplayType::DolbyVision
+        ));
         assert_eq!(config.display_config.max_display_nits, 10000.0);
         assert_eq!(config.display_config.min_display_nits, 0.001);
         assert_eq!(config.display_config.peak_luminance, 1000.0);
 
-        assert!(matches!(config.tone_mapping_config.algorithm, crate::color::hdr::tone::ToneMappingAlgorithm::Reinhard));
+        assert!(matches!(
+            config.tone_mapping_config.algorithm,
+            crate::color::hdr::tone::ToneMappingAlgorithm::Reinhard
+        ));
         assert_eq!(config.tone_mapping_config.shoulder_strength, 0.8);
         assert_eq!(config.tone_mapping_config.mid_tone, 0.5);
         assert_eq!(config.tone_mapping_config.highlight_strength, 0.9);
         assert_eq!(config.tone_mapping_config.contrast, 1.0);
 
-        assert!(matches!(config.gamut_mapping_config.algorithm, crate::color::hdr::gamut::GamutMappingAlgorithm::Itp));
-        assert!(matches!(config.gamut_mapping_config.source_gamut, crate::color::hdr::types::ColorPrimaries::Rec2020));
-        assert!(matches!(config.gamut_mapping_config.target_gamut, crate::color::hdr::types::ColorPrimaries::Rec709));
+        assert!(matches!(
+            config.gamut_mapping_config.algorithm,
+            crate::color::hdr::gamut::GamutMappingAlgorithm::Itp
+        ));
+        assert!(matches!(
+            config.gamut_mapping_config.source_gamut,
+            crate::color::hdr::types::ColorPrimaries::Rec2020
+        ));
+        assert!(matches!(
+            config.gamut_mapping_config.target_gamut,
+            crate::color::hdr::types::ColorPrimaries::Rec709
+        ));
         assert_eq!(config.gamut_mapping_config.saturation_preservation, 0.8);
     }
 
@@ -142,8 +156,17 @@ mod tests {
             .with_tone_mapping_algorithm(crate::color::hdr::tone::ToneMappingAlgorithm::Aces)
             .with_gamut_mapping_algorithm(crate::color::hdr::gamut::GamutMappingAlgorithm::Yuv);
 
-        assert!(matches!(config.display_config.default_display, crate::color::hdr::types::HdrDisplayType::Hdr10));
-        assert!(matches!(config.tone_mapping_config.algorithm, crate::color::hdr::tone::ToneMappingAlgorithm::Aces));
-        assert!(matches!(config.gamut_mapping_config.algorithm, crate::color::hdr::gamut::GamutMappingAlgorithm::Yuv));
+        assert!(matches!(
+            config.display_config.default_display,
+            crate::color::hdr::types::HdrDisplayType::Hdr10
+        ));
+        assert!(matches!(
+            config.tone_mapping_config.algorithm,
+            crate::color::hdr::tone::ToneMappingAlgorithm::Aces
+        ));
+        assert!(matches!(
+            config.gamut_mapping_config.algorithm,
+            crate::color::hdr::gamut::GamutMappingAlgorithm::Yuv
+        ));
     }
 }

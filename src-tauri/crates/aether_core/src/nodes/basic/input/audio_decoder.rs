@@ -1,35 +1,26 @@
-use aether_types::{ParameterValue};
+use ffmpeg::{format, frame, media};
 use ffmpeg_next as ffmpeg;
-use ffmpeg::{codec, format, frame, media};
-use std::ffi::CString;
-use uuid::Uuid;
 use log::{debug, error, warn};
+use uuid::Uuid;
 
 pub struct AudioDecoder {
-
-    frame_cache: std::collections::HashMap<u64, Uuid>,
+    _frame_cache: std::collections::HashMap<u64, Uuid>,
 }
 
 impl AudioDecoder {
-
     pub fn new() -> Self {
         Self {
-            frame_cache: std::collections::HashMap::new(),
+            _frame_cache: std::collections::HashMap::new(),
         }
     }
 
-
     pub fn decode_audio_frame_with_ffmpeg(&mut self, frame: u64, media_path: &str) -> Uuid {
-
-
         debug!("Decoding audio frame {} from {}", frame, media_path);
-
 
         if let Err(e) = ffmpeg::init() {
             error!("Failed to initialize FFmpeg for audio: {}", e);
             return Uuid::new_v4();
         }
-
 
         let mut input_format_context = match format::input(media_path) {
             Ok(context) => context,
@@ -47,68 +38,133 @@ impl AudioDecoder {
             }
         };
 
+        let mut decoder =
+            match ffmpeg::codec::context::Context::from_parameters(input_stream.parameters()) {
+                Ok(context) => match context.decoder().audio() {
+                    Ok(decoder) => decoder,
+                    Err(e) => {
+                        error!("Failed to create audio decoder: {}", e);
+                        return Uuid::new_v4();
+                    }
+                },
+                Err(e) => {
+                    error!("Failed to create decoder context: {}", e);
+                    return Uuid::new_v4();
+                }
+            };
 
-        // TODO: ffmpeg-next API has changed - codec_params no longer exposes sample_rate/channels directly
-        // For now, return early with a placeholder node ID
-        error!("Audio decoder API needs updating for ffmpeg-next 8.x");
-        return Uuid::new_v4();
-
-        // Unreachable code below - kept for reference when updating API
-        /*
+        let sample_rate = decoder.rate() as u32;
+        let channels = decoder.channels() as u8;
+        let format = decoder.format();
         let samples_per_frame = sample_rate / 30;
+        let bit_depth: u8 = match format.name() {
+            "s16" | "s16p" | "s16be" | "s16le" => 16,
+            "s32" | "s32p" | "s32be" | "s32le" => 32,
+            "flt" | "fltp" => 32,
+            "dbl" | "dblp" => 64,
+            "u8" | "u8p" => 8,
+            _ => 16,
+        };
 
-
-        let mut audio_frame = frame::Audio::new(codec::AVSampleFormat::F32(sample_rate), samples_per_frame, channels);
-
-
-        let timestamp = frame as f64 / 30.0;
-        let seek_timestamp = (timestamp * sample_rate as f64) as i64;
-
+        let mut audio_frame = frame::Audio::empty();
 
         let mut packet_iter = input_format_context.packets();
-        let mut audio_id = Uuid::new_v4();
+        let audio_id = Uuid::new_v4();
 
         if let Some((_, packet)) = packet_iter.next() {
-            if let Err(e) = decoder_context.send_packet(&packet) {
+            if let Err(e) = decoder.send_packet(&packet) {
                 error!("Failed to send audio packet: {}", e);
                 return audio_id;
             }
 
-            if let Err(e) = decoder_context.receive_frame(&mut audio_frame) {
+            if let Err(e) = decoder.receive_frame(&mut audio_frame) {
                 error!("Failed to receive audio frame: {}", e);
                 return audio_id;
             }
 
-
-            let audio_data = self.extract_audio_samples(&audio_frame, channels);
-
+            let _audio_data = self.extract_audio_samples(&audio_frame, channels);
 
             let audio_metadata = AudioMetadata {
                 frame_number: frame,
-                sample_rate: sample_rate as u32,
+                sample_rate,
                 channels,
                 bit_depth,
-                samples_per_frame: samples_per_frame as u32,
+                samples_per_frame,
                 audio_id,
             };
 
-            debug!("Audio decoded via FFmpeg: {}Hz, {} channels, {} bits, {} samples/frame",
-                sample_rate, channels, bit_depth, samples_per_frame);
+            debug!(
+                "Audio decoded via FFmpeg: {}Hz, {} channels, {} bits, {} samples/frame",
+                sample_rate, channels, bit_depth, samples_per_frame
+            );
 
             debug!("Audio metadata: {:?}", audio_metadata);
-
         } else {
             warn!("No audio packet found for frame {}", frame);
         }
 
         audio_id
-        */
     }
 
+    fn extract_audio_samples(&self, frame: &frame::Audio, channels: u8) -> Vec<f32> {
+        use ffmpeg::format::sample::Sample;
 
-    fn extract_audio_samples(&self, _frame: &frame::Audio, _channels: u8) -> Vec<f32> {
-        // TODO: Update for ffmpeg-next 8.x API changes
-        Vec::new()
+        fn decode_plane(data: &[u8], sample_fmt: Sample) -> Vec<f32> {
+            match sample_fmt {
+                Sample::U8(_) => data.iter().map(|&v| (v as f32 - 128.0) / 128.0).collect(),
+                Sample::I16(_) => data
+                    .chunks_exact(2)
+                    .map(|c| i16::from_ne_bytes([c[0], c[1]]) as f32 / i16::MAX as f32)
+                    .collect(),
+                Sample::I32(_) => data
+                    .chunks_exact(4)
+                    .map(|c| i32::from_ne_bytes([c[0], c[1], c[2], c[3]]) as f32 / i32::MAX as f32)
+                    .collect(),
+                Sample::I64(_) => data
+                    .chunks_exact(8)
+                    .map(|c| i64::from_ne_bytes(c.try_into().unwrap()) as f32 / i64::MAX as f32)
+                    .collect(),
+                Sample::F32(_) => data
+                    .chunks_exact(4)
+                    .map(|c| f32::from_ne_bytes([c[0], c[1], c[2], c[3]]))
+                    .collect(),
+                Sample::F64(_) => data
+                    .chunks_exact(8)
+                    .map(|c| f64::from_ne_bytes(c.try_into().unwrap()) as f32)
+                    .collect(),
+                Sample::None => Vec::new(),
+            }
+        }
+
+        let sample_fmt = frame.format();
+        let channels = (channels as usize).max(1);
+        let sample_count = frame.samples();
+
+        if frame.is_packed() {
+            // Interleaved samples live in plane 0
+            let mut samples = decode_plane(frame.data(0), sample_fmt);
+            samples.truncate(sample_count * channels);
+            samples
+        } else {
+            // Planar layout: one plane per channel, deinterleave into output
+            let plane_count = frame.planes().min(channels);
+            let channel_data: Vec<Vec<f32>> = (0..plane_count)
+                .map(|ch| decode_plane(frame.data(ch), sample_fmt))
+                .collect();
+
+            let mut samples = Vec::with_capacity(sample_count * channels);
+            for i in 0..sample_count {
+                for ch in 0..channels {
+                    let sample = channel_data
+                        .get(ch)
+                        .and_then(|c| c.get(i))
+                        .copied()
+                        .unwrap_or(0.0);
+                    samples.push(sample);
+                }
+            }
+            samples
+        }
     }
 }
 

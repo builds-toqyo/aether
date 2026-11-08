@@ -61,7 +61,7 @@ pub async fn preview_get_settings(state: State<'_, AppState>) -> Result<PreviewS
 }
 ```
 
-**Important:** `Mutex<EditingEngine>` (not `Arc<Mutex<...>>`) is used here because Tauri's `State<T>` requires `T: Send + Sync`, and `EditingEngine` currently has `unsafe impl Send/Sync` (see Thread Safety section).
+**Important:** `Mutex<EditingEngineProxy>` is used here. `EditingEngineProxy` is naturally `Send + Sync` because it only holds an `mpsc::Sender`. The real `EditingEngine` lives on a dedicated background thread.
 
 ---
 
@@ -205,23 +205,11 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
 
 ## Thread Safety Architecture
 
-### Current State (Workaround)
+### Current State (Implemented)
 
 GStreamer/GES objects (`ges::Timeline`, `ges::Pipeline`, `gst::Element`, etc.) are GObject-based and do **not** implement `Send` or `Sync`.
 
-To store `EditingEngine` in Tauri `State`, the codebase uses:
-
-```rust
-// aether_core/src/engine/editing/mod.rs:34-37
-unsafe impl Send for EditingEngine {}
-unsafe impl Sync for EditingEngine {}
-```
-
-This compiles but is **unsafe** because GStreamer objects are bound to the thread/main context that created them.
-
-### Planned Fix (from `plans.md`)
-
-Replace direct ownership with an **mpsc proxy pattern**:
+The codebase uses an **mpsc proxy pattern** to solve this safely:
 
 ```
 Tauri Command Thread
@@ -303,7 +291,7 @@ GstExporter
 └── Output file
 ```
 
-**Current issues:** GES API changes broke `set_render_settings()` and encoding profile construction. See `plans.md` §3.2, §3.3.
+**Current issues:** Encoding profile construction needs verification. See `plans.md` §3.2.
 
 ---
 
@@ -372,15 +360,15 @@ src-tauri/
 
 1. **Dual `init_app()` handlers** — `src-tauri/src/lib.rs` and `aether_api/src/lib.rs` both define command handlers. Only the former is used at runtime. Consolidation needed.
 
-2. **`unsafe impl Send/Sync`** on `EditingEngine` — Must be replaced with mpsc proxy pattern before production use.
+2. **Thread safety** — `EditingEngineProxy` already uses mpsc proxy pattern with dedicated GStreamer thread. No `unsafe impl Send/Sync` workarounds exist.
 
 3. **Stubbed preview commands** — `get_preview_info`, `preview_seek`, `preview_get_frame`, etc. return mock data. They need to be wired to `PreviewEngine`.
 
 4. **Stubbed timeline commands** — Many timeline operations return `"TODO"` errors.
 
-5. **GStreamer API drift** — `parse_launch`, `set_render_settings`, `Transition::new()`, etc. were removed in GStreamer 0.25+.
+5. **GStreamer pipeline completion** — Export pipeline (`IntermediateExporter`) needs completion: encodebin → filesink wiring.
 
-6. **ffmpeg-next API drift** — `codec::find_by_name`, `codec_params` direct access changed in 7.x/8.x.
+6. **ffmpeg-next encoder access** — Verify `encoder::find_by_name()` behavior for all target codecs.
 
 7. **No project persistence** — Projects exist only in memory. Save/load is stubbed.
 

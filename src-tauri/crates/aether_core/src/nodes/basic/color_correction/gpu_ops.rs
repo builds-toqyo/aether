@@ -1,33 +1,30 @@
-use crate::nodes::basic::color_correction::{TextureInfo, TextureFormat, TextureInternalFormat, PixelType};
-use uuid::Uuid;
+use crate::nodes::basic::color_correction::{
+    PixelType, TextureFormat, TextureInfo, TextureInternalFormat,
+};
 use log::debug;
-
+use uuid::Uuid;
 
 pub struct GpuOperations {
-
     texture_cache: std::collections::HashMap<Uuid, TextureInfo>,
 }
 
 impl GpuOperations {
-
     pub fn new() -> Self {
         Self {
             texture_cache: std::collections::HashMap::new(),
         }
     }
 
-
     pub fn bind_texture(&mut self, texture_id: Uuid) -> Result<TextureInfo, String> {
-
-
         debug!("Binding texture {:?}", texture_id);
 
-
         if let Some(texture_info) = self.texture_cache.get(&texture_id) {
-            debug!("Texture found in cache: {}x{}", texture_info.width, texture_info.height);
+            debug!(
+                "Texture found in cache: {}x{}",
+                texture_info.width, texture_info.height
+            );
             return Ok(texture_info.clone());
         }
-
 
         let texture_info = TextureInfo {
             id: texture_id,
@@ -40,20 +37,21 @@ impl GpuOperations {
             mipmap_count: 1,
         };
 
-
         self.texture_cache.insert(texture_id, texture_info.clone());
 
-        debug!("Texture info: {}x{}, format={:?}, mipmapped={}",
-            texture_info.width, texture_info.height, texture_info.format, texture_info.mipmapped);
+        debug!(
+            "Texture info: {}x{}, format={:?}, mipmapped={}",
+            texture_info.width, texture_info.height, texture_info.format, texture_info.mipmapped
+        );
 
         Ok(texture_info)
     }
 
-
     pub fn read_pixel_data(&self, texture_info: &TextureInfo) -> Vec<u8> {
-
-
-        debug!("Reading {}x{} pixel data from GPU", texture_info.width, texture_info.height);
+        debug!(
+            "Reading {}x{} pixel data from GPU",
+            texture_info.width, texture_info.height
+        );
 
         let total_pixels = texture_info.width * texture_info.height;
         let bytes_per_pixel = match texture_info.format {
@@ -71,10 +69,8 @@ impl GpuOperations {
         let total_bytes = total_pixels * bytes_per_pixel;
         let mut raw_data = Vec::with_capacity(total_bytes);
 
-
         for y in 0..texture_info.height {
             for x in 0..texture_info.width {
-
                 let r = (x * 255 / texture_info.width) as u8;
                 let g = (y * 255 / texture_info.height) as u8;
                 let b = ((x + y) * 255 / (texture_info.width + texture_info.height)) as u8;
@@ -88,7 +84,8 @@ impl GpuOperations {
                         raw_data.extend_from_slice(&[r, g, b]);
                     }
                     TextureFormat::R8 => {
-                        raw_data.push((r as f32 * 0.299 + g as f32 * 0.587 + b as f32 * 0.114) as u8);
+                        raw_data
+                            .push((r as f32 * 0.299 + g as f32 * 0.587 + b as f32 * 0.114) as u8);
                     }
                     TextureFormat::RGBA16 => {
                         raw_data.extend_from_slice(&[r, r, g, g, b, b, a, a]);
@@ -100,7 +97,6 @@ impl GpuOperations {
                         raw_data.extend_from_slice(&[r, r]);
                     }
                     TextureFormat::RGBA32F => {
-
                         let rf = r as f32 / 255.0;
                         let gf = g as f32 / 255.0;
                         let bf = b as f32 / 255.0;
@@ -134,13 +130,20 @@ impl GpuOperations {
             }
         }
 
-        debug!("Read {} bytes from GPU ({} pixels)", raw_data.len(), total_pixels);
+        debug!(
+            "Read {} bytes from GPU ({} pixels)",
+            raw_data.len(),
+            total_pixels
+        );
 
         raw_data
     }
 
-
-    pub fn convert_to_rgb_float(&self, raw_data: &[u8], texture_info: &TextureInfo) -> Vec<(f32, f32, f32)> {
+    pub fn convert_to_rgb_float(
+        &self,
+        raw_data: &[u8],
+        texture_info: &TextureInfo,
+    ) -> Vec<(f32, f32, f32)> {
         debug!("Converting {} bytes to RGB float format", raw_data.len());
 
         let total_pixels = texture_info.width * texture_info.height;
@@ -148,7 +151,6 @@ impl GpuOperations {
 
         match texture_info.format {
             TextureFormat::RGBA8 => {
-
                 for chunk in raw_data.chunks_exact(4) {
                     let r = chunk[0] as f32 / 255.0;
                     let g = chunk[1] as f32 / 255.0;
@@ -158,7 +160,6 @@ impl GpuOperations {
                 }
             }
             TextureFormat::RGB8 => {
-
                 for chunk in raw_data.chunks_exact(3) {
                     let r = chunk[0] as f32 / 255.0;
                     let g = chunk[1] as f32 / 255.0;
@@ -167,14 +168,12 @@ impl GpuOperations {
                 }
             }
             TextureFormat::R8 => {
-
                 for &l in raw_data {
                     let gray = l as f32 / 255.0;
                     rgb_data.push((gray, gray, gray));
                 }
             }
             TextureFormat::RGBA16 => {
-
                 for chunk in raw_data.chunks_exact(8) {
                     let r = u16::from_le_bytes([chunk[0], chunk[1]]) as f32 / 65535.0;
                     let g = u16::from_le_bytes([chunk[2], chunk[3]]) as f32 / 65535.0;
@@ -184,7 +183,6 @@ impl GpuOperations {
                 }
             }
             TextureFormat::RGB16 => {
-
                 for chunk in raw_data.chunks_exact(6) {
                     let r = u16::from_le_bytes([chunk[0], chunk[1]]) as f32 / 65535.0;
                     let g = u16::from_le_bytes([chunk[2], chunk[3]]) as f32 / 65535.0;
@@ -193,14 +191,12 @@ impl GpuOperations {
                 }
             }
             TextureFormat::R16 => {
-
                 for chunk in raw_data.chunks_exact(2) {
                     let gray = u16::from_le_bytes([chunk[0], chunk[1]]) as f32 / 65535.0;
                     rgb_data.push((gray, gray, gray));
                 }
             }
             TextureFormat::RGBA32F => {
-
                 for chunk in raw_data.chunks_exact(16) {
                     let r = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
                     let g = f32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]);
@@ -210,7 +206,6 @@ impl GpuOperations {
                 }
             }
             TextureFormat::RGB32F => {
-
                 for chunk in raw_data.chunks_exact(12) {
                     let r = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
                     let g = f32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]);
@@ -219,7 +214,6 @@ impl GpuOperations {
                 }
             }
             TextureFormat::R32F => {
-
                 for chunk in raw_data.chunks_exact(4) {
                     let gray = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
                     rgb_data.push((gray, gray, gray));
@@ -232,8 +226,11 @@ impl GpuOperations {
         rgb_data
     }
 
-
-    pub fn convert_from_rgb_float(&self, rgb_data: &[(f32, f32, f32)], texture_info: &TextureInfo) -> Vec<u8> {
+    pub fn convert_from_rgb_float(
+        &self,
+        rgb_data: &[(f32, f32, f32)],
+        _texture_info: &TextureInfo,
+    ) -> Vec<u8> {
         debug!("Converting {} RGB pixels to raw format", rgb_data.len());
 
         let mut raw_data = Vec::with_capacity(rgb_data.len() * 4);
@@ -247,17 +244,26 @@ impl GpuOperations {
             raw_data.extend_from_slice(&[r_u8, g_u8, b_u8, a_u8]);
         }
 
-        debug!("Converted {} pixels to {} bytes", rgb_data.len(), raw_data.len());
+        debug!(
+            "Converted {} pixels to {} bytes",
+            rgb_data.len(),
+            raw_data.len()
+        );
 
         raw_data
     }
 
-
-    pub fn upload_corrected_texture(&mut self, corrected_id: Uuid, raw_data: &[u8], texture_info: &TextureInfo) -> Result<(), String> {
-
-
-        debug!("Uploading corrected texture {:?} ({} bytes)", corrected_id, raw_data.len());
-
+    pub fn upload_corrected_texture(
+        &mut self,
+        corrected_id: Uuid,
+        raw_data: &[u8],
+        texture_info: &TextureInfo,
+    ) -> Result<(), String> {
+        debug!(
+            "Uploading corrected texture {:?} ({} bytes)",
+            corrected_id,
+            raw_data.len()
+        );
 
         let corrected_info = TextureInfo {
             id: corrected_id,
@@ -270,21 +276,20 @@ impl GpuOperations {
             mipmap_count: 1,
         };
 
-
         self.texture_cache.insert(corrected_id, corrected_info);
-
 
         debug!("Corrected texture uploaded successfully");
 
         Ok(())
     }
 
-
     pub fn clear_cache(&mut self) {
-        debug!("Clearing texture cache ({} textures)", self.texture_cache.len());
+        debug!(
+            "Clearing texture cache ({} textures)",
+            self.texture_cache.len()
+        );
         self.texture_cache.clear();
     }
-
 
     pub fn cache_size(&self) -> usize {
         self.texture_cache.len()

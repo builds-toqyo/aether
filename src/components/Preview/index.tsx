@@ -5,8 +5,10 @@ import { PreviewCanvas } from './PreviewCanvas';
 import { PreviewControls } from './PreviewControls';
 import { PreviewSettings } from './PreviewSettings';
 import { PreviewProvider, usePreview } from './PreviewContext';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Maximize2, Settings } from 'lucide-react';
+import { Maximize2, Settings } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { useMediaItems, useTimelineClips } from '@/store';
+import { formatTime } from '@/lib/utils';
 
 // Types
 interface PreviewFrame {
@@ -36,6 +38,11 @@ interface PreviewState {
 }
 
 export const PreviewWindow: React.FC = () => {
+  const mediaItems = useMediaItems();
+  const timelineClips = useTimelineClips();
+  // Preview engine only exists once media/timeline content is loaded
+  const hasMedia = mediaItems.length > 0 || timelineClips.length > 0;
+
   const [state, setState] = useState<PreviewState>({
     isPlaying: false,
     currentTime: 0,
@@ -87,6 +94,10 @@ export const PreviewWindow: React.FC = () => {
 
   // Playback controls
   const handlePlay = useCallback(async () => {
+    if (!hasMedia) {
+      setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
+      return;
+    }
     try {
       // Call backend to control preview playback
       const action = state.isPlaying ? 'pause' : 'play';
@@ -100,9 +111,13 @@ export const PreviewWindow: React.FC = () => {
       // Fallback to local state update
       setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
     }
-  }, [state.isPlaying, state.currentTime]);
+  }, [state.isPlaying, state.currentTime, hasMedia]);
 
   const handleStop = useCallback(async () => {
+    if (!hasMedia) {
+      setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
+      return;
+    }
     try {
       // Call backend to stop preview playback
       await invoke('preview_playback_control', { action: 'stop' });
@@ -115,11 +130,16 @@ export const PreviewWindow: React.FC = () => {
       // Fallback to local state update
       setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }));
     }
-  }, []);
+  }, [hasMedia]);
 
   const handleSkipBack = useCallback(async () => {
     try {
       const newTime = Math.max(0, state.currentTime - 10);
+
+      if (!hasMedia) {
+        setState(prev => ({ ...prev, currentTime: newTime }));
+        return;
+      }
       
       // Call backend to seek preview
       await invoke('preview_seek', { time: newTime });
@@ -132,11 +152,16 @@ export const PreviewWindow: React.FC = () => {
       // Fallback to local state update
       setState(prev => ({ ...prev, currentTime: Math.max(0, prev.currentTime - 10) }));
     }
-  }, [state.currentTime]);
+  }, [state.currentTime, hasMedia]);
 
   const handleSkipForward = useCallback(async () => {
     try {
       const newTime = Math.min(state.duration, state.currentTime + 10);
+
+      if (!hasMedia) {
+        setState(prev => ({ ...prev, currentTime: newTime }));
+        return;
+      }
       
       // Call backend to seek preview
       await invoke('preview_seek', { time: newTime });
@@ -149,7 +174,7 @@ export const PreviewWindow: React.FC = () => {
       // Fallback to local state update
       setState(prev => ({ ...prev, currentTime: Math.min(prev.duration, prev.currentTime + 10) }));
     }
-  }, [state.currentTime, state.duration]);
+  }, [state.currentTime, state.duration, hasMedia]);
 
   const handleTimeChange = useCallback((newTime: number) => {
     setState(prev => ({ ...prev, currentTime: Math.max(0, Math.min(prev.duration, newTime)) }));
@@ -245,8 +270,13 @@ export const PreviewWindow: React.FC = () => {
 
   // Frame loading from backend
   const loadFrame = useCallback(async (timestamp: number) => {
+    if (!hasMedia) {
+      setState(prev => ({ ...prev, isLoading: false }));
+      return;
+    }
+
     setState(prev => ({ ...prev, isLoading: true }));
-    
+
     try {
       // Call backend to get frame at timestamp
       const frameData = await invoke<any>('preview_get_frame', { timestamp });
@@ -278,7 +308,7 @@ export const PreviewWindow: React.FC = () => {
       
       setState(prev => ({ ...prev, currentFrame: mockFrame, isLoading: false }));
     }
-  }, []);
+  }, [hasMedia]);
 
   // Load frame when time changes
   useEffect(() => {
@@ -351,8 +381,8 @@ export const PreviewWindow: React.FC = () => {
         <PreviewCanvas />
 
         {state.isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="text-white text-lg">Loading frame...</div>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+            <div className="text-[#888] text-[13px]">Loading frame...</div>
           </div>
         )}
 
@@ -370,28 +400,28 @@ export const PreviewWindow: React.FC = () => {
           showControls || state.showSettings ? 'opacity-100' : 'opacity-0'
         }`}>
           <div className="flex items-center justify-between">
-            <div className="text-white text-sm font-mono">
+            <div className="text-[#ccc] text-[12px] font-mono">
               {formatTime(state.currentTime)} / {formatTime(state.duration)}
             </div>
           <div className="flex items-center space-x-4">
-              <div className="text-white text-sm">
+              <div className="text-[#888] text-[11px]">
                 {state.quality.toUpperCase()}
               </div>
 
-              <div className="text-white text-sm">
+              <div className="text-[#888] text-[11px]">
                 {Math.round(state.zoom * 100)}%
               </div>
 
               <button
                 onClick={handleSettingsToggle}
-                className="p-2 bg-gray-800 hover:bg-gray-700 rounded text-white transition-colors"
+                className="p-1.5 bg-[#1a1a1a]/80 hover:bg-[#2a2a2a] rounded-md text-[#ccc] transition-colors"
               >
                 <Settings className="w-4 h-4" />
               </button>
 
               <button
                 onClick={handleFullscreenToggle}
-                className="p-2 bg-gray-800 hover:bg-gray-700 rounded text-white transition-colors"
+                className="p-1.5 bg-[#1a1a1a]/80 hover:bg-[#2a2a2a] rounded-md text-[#ccc] transition-colors"
               >
                 <Maximize2 className="w-4 h-4" />
               </button>
@@ -400,7 +430,7 @@ export const PreviewWindow: React.FC = () => {
         </div>
 
         {!showControls && !state.showSettings && (
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-sm opacity-50 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#555] text-[11px] pointer-events-none">
             Move mouse to show controls
           </div>
         )}
@@ -408,18 +438,5 @@ export const PreviewWindow: React.FC = () => {
     </PreviewProvider>
   );
 };
-
-// Helper function to format time
-function formatTime(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-  const frames = Math.floor((seconds % 1) * 30); // Assuming 30 fps
-  
-  if (hours > 0) {
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
-  }
-  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
-}
 
 export default PreviewWindow;
