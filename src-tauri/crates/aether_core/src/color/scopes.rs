@@ -24,6 +24,12 @@ pub struct Vectorscope {
 pub struct Waveform {
     /// Luminance values per scanline (height x width)
     pub luminance_per_scanline: Vec<Vec<u8>>,
+    /// Red channel values per scanline (height x width)
+    pub red_per_scanline: Vec<Vec<u8>>,
+    /// Green channel values per scanline (height x width)
+    pub green_per_scanline: Vec<Vec<u8>>,
+    /// Blue channel values per scanline (height x width)
+    pub blue_per_scanline: Vec<Vec<u8>>,
 }
 
 /// Analyze image data to generate histogram
@@ -37,7 +43,7 @@ pub fn analyze_histogram(image_data: &[u8], _width: usize, _height: usize) -> Hi
     };
 
     // Process pixels (assuming RGBA format)
-    for chunk in image_data.chunks_exact(4) {
+    for chunk in image_data.as_chunks::<4>().0 {
         let r = chunk[0] as usize;
         let g = chunk[1] as usize;
         let b = chunk[2] as usize;
@@ -69,7 +75,7 @@ pub fn analyze_vectorscope(image_data: &[u8], width: usize, height: usize) -> Ve
     // Sample pixels (downsample for performance)
     let sample_step = if width * height > 1_000_000 { 100 } else { 10 };
 
-    for (i, chunk) in image_data.chunks_exact(4).enumerate() {
+    for (i, chunk) in image_data.as_chunks::<4>().0.iter().enumerate() {
         if i % sample_step != 0 {
             continue;
         }
@@ -102,11 +108,15 @@ pub fn analyze_vectorscope(image_data: &[u8], width: usize, height: usize) -> Ve
 
 /// Analyze image data to generate waveform
 pub fn analyze_waveform(image_data: &[u8], width: usize, height: usize) -> Waveform {
-    let mut waveform = Waveform::default();
-    let mut luminance_per_scanline = vec![vec![0u8; width]; height];
+    let mut waveform = Waveform {
+        luminance_per_scanline: vec![vec![0u8; width]; height],
+        red_per_scanline: vec![vec![0u8; width]; height],
+        green_per_scanline: vec![vec![0u8; width]; height],
+        blue_per_scanline: vec![vec![0u8; width]; height],
+    };
 
     // Process each scanline
-    for (y, scanline) in luminance_per_scanline.iter_mut().enumerate() {
+    for y in 0..height {
         let row_start = y * width * 4;
         let row_end = row_start + width * 4;
 
@@ -116,26 +126,34 @@ pub fn analyze_waveform(image_data: &[u8], width: usize, height: usize) -> Wavef
 
         let row_data = &image_data[row_start..row_end];
 
-        for (x, chunk) in row_data.chunks_exact(4).enumerate() {
-            let r = chunk[0] as f32;
-            let g = chunk[1] as f32;
-            let b = chunk[2] as f32;
+        for (x, chunk) in row_data.as_chunks::<4>().0.iter().enumerate() {
+            if x >= width {
+                break;
+            }
+
+            let r = chunk[0];
+            let g = chunk[1];
+            let b = chunk[2];
             let a = chunk[3];
 
-            // Use luminance for waveform
-            let luminance = if a > 0 {
-                (0.2126 * r + 0.7152 * g + 0.0722 * b) as u8
+            let (luma, rv, gv, bv) = if a > 0 {
+                (
+                    (0.2126 * r as f32 + 0.7152 * g as f32 + 0.0722 * b as f32) as u8,
+                    r,
+                    g,
+                    b,
+                )
             } else {
-                0
+                (0, 0, 0, 0)
             };
 
-            if x < width {
-                scanline[x] = luminance;
-            }
+            waveform.luminance_per_scanline[y][x] = luma;
+            waveform.red_per_scanline[y][x] = rv;
+            waveform.green_per_scanline[y][x] = gv;
+            waveform.blue_per_scanline[y][x] = bv;
         }
     }
 
-    waveform.luminance_per_scanline = luminance_per_scanline;
     waveform
 }
 
@@ -157,6 +175,18 @@ pub fn vectorscope_to_list(vectorscope: &Vectorscope) -> Vec<(f32, f32)> {
 /// Convert waveform to serializable format for frontend
 pub fn waveform_to_list(waveform: &Waveform) -> Vec<Vec<u8>> {
     waveform.luminance_per_scanline.clone()
+}
+
+/// Per-scanline channel data (height x width)
+pub type ScanlineData = Vec<Vec<u8>>;
+
+/// Convert waveform RGB channels to serializable format for frontend
+pub fn waveform_rgb_to_lists(waveform: &Waveform) -> (ScanlineData, ScanlineData, ScanlineData) {
+    (
+        waveform.red_per_scanline.clone(),
+        waveform.green_per_scanline.clone(),
+        waveform.blue_per_scanline.clone(),
+    )
 }
 
 #[cfg(test)]
