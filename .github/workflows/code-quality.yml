@@ -64,10 +64,11 @@ jobs:
         cargo install cargo-machete
         cargo machete
 
+    # Informational: cargo-dup doesn't exist on crates.io; cargo tree's
+    # built-in --duplicates flag lists them instead. Non-blocking since
+    # duplicate transitive deps are expected (syn/bitflags/etc).
     - name: Check for duplicate dependencies
-      run: |
-        cargo install cargo-dup
-        cargo dup
+      run: cargo tree --workspace --duplicates || true
 
   frontend-quality:
     name: Frontend Code Quality
@@ -141,9 +142,18 @@ jobs:
       run: |
         cargo bench -p aether_api -p aether_types --all-features || true
 
+    - name: Check benchmark output exists
+      id: bench-output
+      run: |
+        if [ -f target/criterion/reports/index.html ]; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Store benchmark result
       uses: benchmark-action/github-action-benchmark@v1
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.bench-output.outputs.exists == 'true'
       with:
         tool: 'cargo'
         output-file-path: target/criterion/reports/index.html
