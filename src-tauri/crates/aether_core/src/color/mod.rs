@@ -11,5 +11,5 @@ pub use hdr::{
 pub use luts::{ColorCorrection, LutConfig, LutData, LutFormat, LutInfo, LutProcessor};
 pub use scopes::{
     Histogram, Vectorscope, Waveform, analyze_histogram, analyze_vectorscope, analyze_waveform,
-    histogram_to_map, vectorscope_to_list, waveform_to_list,
+    histogram_to_map, vectorscope_to_list, waveform_rgb_to_lists, waveform_to_list,
 };

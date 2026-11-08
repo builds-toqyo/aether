@@ -43,6 +43,11 @@ interface Graph {
 }
 
 // Backend NodeInfo shape (get_graph_info)
+interface BackendPinInfo {
+  name: string;
+  data_type: string;
+}
+
 interface BackendNodeInfo {
   id: string;
   name: string;
@@ -50,6 +55,18 @@ interface BackendNodeInfo {
   input_count: number;
   output_count: number;
   enabled: boolean;
+  position?: [number, number] | null;
+  input_pins?: BackendPinInfo[];
+  output_pins?: BackendPinInfo[];
+  parameters?: Record<string, any>;
+}
+
+interface BackendConnectionInfo {
+  id: string;
+  output_node_id: string;
+  output_pin_name: string;
+  input_node_id: string;
+  input_pin_name: string;
 }
 
 // Backend emits node_type as Debug names ("ColorCorrection", "Merge") from
@@ -58,32 +75,75 @@ interface BackendNodeInfo {
 const normalizeNodeType = (t: string) =>
   t.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 
-// Map a backend node description onto the local Node shape, synthesizing
-// ports from the pin counts and a layout position when none is known.
+// ParameterValue serializes as single-key enums, e.g. {"Float": 1.0},
+// {"Vector3": [1,2,3]}, "None" — flatten to the inner scalar/array.
+const flattenParamValue = (v: any): any => {
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const keys = Object.keys(v);
+    if (keys.length === 1) {
+      const inner = v[keys[0]];
+      return Array.isArray(inner) && inner.length === 1 ? inner[0] : inner;
+    }
+  }
+  return v === 'None' ? null : v;
+};
+
+// Approximate on-node port positions so connection lines land on the port
+// rows (node is ~200px wide with a ~36px header, ports ~24px tall).
+const portPosition = (type: 'input' | 'output', index: number) => ({
+  x: type === 'input' ? 6 : 194,
+  y: 48 + index * 24,
+});
+
+// Map a backend node description onto the local Node shape. Prefers real
+// pin names from the backend; falls back to synthesized ports from counts.
 const toFrontendNode = (
   n: Pick<BackendNodeInfo, 'id' | 'name' | 'node_type'> & Partial<BackendNodeInfo>,
-  position: { x: number; y: number }
-): Node => ({
-  id: n.id,
-  type: normalizeNodeType(n.node_type),
-  name: n.name,
-  position,
-  inputs: Array.from({ length: n.input_count ?? 0 }, (_, p) => ({
-    id: `${n.id}-in-${p}`,
-    name: `in_${p}`,
-    type: 'input' as const,
-    dataType: 'any',
-    position: { x: 0, y: 0 },
-  })),
-  outputs: Array.from({ length: n.output_count ?? 0 }, (_, p) => ({
-    id: `${n.id}-out-${p}`,
-    name: `out_${p}`,
-    type: 'output' as const,
-    dataType: 'any',
-    position: { x: 0, y: 0 },
-  })),
-  parameters: {},
-});
+  fallbackPosition: { x: number; y: number }
+): Node => {
+  const position = Array.isArray(n.position)
+    ? { x: n.position[0], y: n.position[1] }
+    : fallbackPosition;
+
+  const inputs = (n.input_pins ?? []).length
+    ? n.input_pins!.map((pin, i) => ({
+        id: pin.name,
+        name: pin.name,
+        type: 'input' as const,
+        dataType: pin.data_type.toLowerCase(),
+        position: portPosition('input', i),
+      }))
+    : Array.from({ length: n.input_count ?? 0 }, (_, i) => ({
+        id: `input_${i}`,
+        name: `input_${i}`,
+        type: 'input' as const,
+        dataType: 'image',
+        position: portPosition('input', i),
+      }));
+
+  const outputs = (n.output_pins ?? []).length
+    ? n.output_pins!.map((pin, i) => ({
+        id: pin.name,
+        name: pin.name,
+        type: 'output' as const,
+        dataType: pin.data_type.toLowerCase(),
+        position: portPosition('output', i),
+      }))
+    : Array.from({ length: n.output_count ?? 0 }, (_, i) => ({
+        id: `output_${i}`,
+        name: `output_${i}`,
+        type: 'output' as const,
+        dataType: 'image',
+        position: portPosition('output', i),
+      }));
+
+  const parameters: Record<string, any> = {};
+  for (const [key, value] of Object.entries(n.parameters ?? {})) {
+    parameters[key] = flattenParamValue(value);
+  }
+
+  return { id: n.id, type: normalizeNodeType(n.node_type), name: n.name, position, inputs, outputs, parameters };
+};
 
 export const NodeGraphEditor: React.FC = () => {
   const [graph, setGraph] = useState<Graph>({
@@ -107,19 +167,29 @@ export const NodeGraphEditor: React.FC = () => {
   // Fetch the backend graph and merge it into local state, preserving
   // positions/parameters of nodes we already know about.
   const refreshGraph = useCallback(async () => {
-    const graphInfo = await invoke<{ nodes?: BackendNodeInfo[] }>('get_graph_info');
+    const graphInfo = await invoke<{ nodes?: BackendNodeInfo[]; connections?: BackendConnectionInfo[] }>('get_graph_info');
     setGraph(prev => ({
       ...prev,
       nodes: (graphInfo?.nodes ?? []).map((n, i) => {
         const existing = prev.nodes.find(p => p.id === n.id);
-        return {
-          ...toFrontendNode(n, existing?.position ?? {
-            x: 100 + (i % 4) * 220,
-            y: 100 + Math.floor(i / 4) * 160,
-          }),
-          parameters: existing?.parameters ?? {},
-        };
+        const mapped = toFrontendNode(n, existing?.position ?? {
+          x: 100 + (i % 4) * 220,
+          y: 100 + Math.floor(i / 4) * 160,
+        });
+        // Prefer a locally-dragged position over the backend's stored one
+        if (existing) mapped.position = existing.position;
+        if (existing && Object.keys(mapped.parameters).length === 0) {
+          mapped.parameters = existing.parameters;
+        }
+        return mapped;
       }),
+      connections: (graphInfo?.connections ?? []).map(c => ({
+        id: c.id,
+        sourceNodeId: c.output_node_id,
+        sourcePortId: c.output_pin_name,
+        targetNodeId: c.input_node_id,
+        targetPortId: c.input_pin_name,
+      })),
     }));
   }, []);
 
@@ -131,7 +201,7 @@ export const NodeGraphEditor: React.FC = () => {
         // node_types, nodes: NodeInfo[] } — NodeInfo has node_type/input_count/
         // output_count but no position/ports/parameters, so map it onto the
         // local Node shape and lay nodes out in a grid.
-        const graphInfo = await invoke<{ nodes?: BackendNodeInfo[] }>('get_graph_info');
+        const graphInfo = await invoke<{ nodes?: BackendNodeInfo[]; connections?: BackendConnectionInfo[] }>('get_graph_info');
         console.log('Graph initialized:', graphInfo);
 
         // Load existing graph if available
@@ -141,7 +211,13 @@ export const NodeGraphEditor: React.FC = () => {
             nodes: graphInfo.nodes!.map((n, i) =>
               toFrontendNode(n, { x: 100 + (i % 4) * 220, y: 100 + Math.floor(i / 4) * 160 })
             ),
-            connections: [],
+            connections: (graphInfo.connections ?? []).map(c => ({
+              id: c.id,
+              sourceNodeId: c.output_node_id,
+              sourcePortId: c.output_pin_name,
+              targetNodeId: c.input_node_id,
+              targetPortId: c.input_pin_name,
+            })),
           }));
         }
       } catch (error) {
@@ -243,6 +319,23 @@ export const NodeGraphEditor: React.FC = () => {
     }
   }, [selectedNode]);
 
+  // Move a node (live drag or sidebar X/Y inputs). `persist` syncs the
+  // position to the backend — fired once on drag end, not per mousemove.
+  const handleMoveNode = useCallback((nodeId: string, x: number, y: number, persist = true) => {
+    setGraph(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: { x, y } } : n)
+    }));
+
+    setSelectedNode(prev => prev?.id === nodeId ? { ...prev, position: { x, y } } : prev);
+
+    if (persist) {
+      invoke('update_node_position', { nodeId, x, y }).catch(err =>
+        console.error('Failed to persist node position:', err)
+      );
+    }
+  }, []);
+
   // Handle connection creation
   const handleCreateConnection = useCallback(async (sourceNodeId: string, sourcePortId: string, targetNodeId: string, targetPortId: string) => {
     try {
@@ -297,6 +390,25 @@ export const NodeGraphEditor: React.FC = () => {
     }
   }, []);
 
+  // Port-to-port wiring: click an output port to start a wire, then click
+  // an input port to complete it. Clicking elsewhere cancels.
+  const handlePortClick = useCallback((nodeId: string, portId: string, portType: 'input' | 'output') => {
+    if (!isConnecting) {
+      if (portType === 'output') {
+        setIsConnecting(true);
+        setConnectionStart({ nodeId, portId });
+      }
+      return;
+    }
+
+    if (portType === 'input' && connectionStart && connectionStart.nodeId !== nodeId) {
+      handleCreateConnection(connectionStart.nodeId, connectionStart.portId, nodeId, portId);
+    }
+
+    setIsConnecting(false);
+    setConnectionStart(null);
+  }, [isConnecting, connectionStart, handleCreateConnection]);
+
   // Handle connection deletion
   const handleDeleteConnection = useCallback(async (connectionId: string) => {
     try {
@@ -334,12 +446,17 @@ export const NodeGraphEditor: React.FC = () => {
       // Update local state immediately for responsiveness
       setGraph(prev => ({
         ...prev,
-        nodes: prev.nodes.map(node => 
-          node.id === nodeId 
+        nodes: prev.nodes.map(node =>
+          node.id === nodeId
             ? { ...node, parameters: { ...node.parameters, [parameterName]: value } }
             : node
         )
       }));
+
+      setSelectedNode(prev => prev?.id === nodeId
+        ? { ...prev, parameters: { ...prev.parameters, [parameterName]: value } }
+        : prev
+      );
       
       // Backend parameter update would go here when implemented
       console.log('Node parameter updated:', nodeId, parameterName, value);
@@ -370,8 +487,12 @@ export const NodeGraphEditor: React.FC = () => {
     } else {
       setSelectedNode(null);
       setSelectedConnection(null);
+      if (isConnecting) {
+        setIsConnecting(false);
+        setConnectionStart(null);
+      }
     }
-  }, [viewport]);
+  }, [viewport, isConnecting]);
 
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (isPanning) {
@@ -432,6 +553,8 @@ export const NodeGraphEditor: React.FC = () => {
     setViewport,
     handleCreateNode,
     handleDeleteNode,
+    handleMoveNode,
+    handlePortClick,
     handleCreateConnection,
     handleDeleteConnection,
     handleUpdateNodeParameter,

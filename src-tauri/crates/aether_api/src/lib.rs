@@ -13,6 +13,7 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
         .invoke_handler(tauri::generate_handler![
             create_node,
             delete_node,
+            update_node_position,
             connect_nodes,
             disconnect_nodes,
             execute_graph,
@@ -104,6 +105,7 @@ pub fn init_app() -> tauri::Builder<tauri::Wry> {
             color_analyze_histogram,
             color_analyze_vectorscope,
             color_analyze_waveform,
+            color_analyze_scopes,
             send_real_time_event,
         ])
 }

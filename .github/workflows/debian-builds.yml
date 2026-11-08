@@ -109,8 +109,9 @@ jobs:
         mkdir -p debian-package/usr/share/applications
         mkdir -p debian-plugin/usr/share/icons/hicolor/256x256/apps
 
-        # Copy built binary
-        cp src-tauri/target/${{ matrix.target }}/release/aether debian-package/usr/bin/
+        # Copy built binary (workspace target dir is the repo root; the
+        # binary is named src-tauri — install it as /usr/bin/aether)
+        cp target/${{ matrix.target }}/release/src-tauri debian-package/usr/bin/aether
 
         # Create control file
         cat > debian-package/DEBIAN/control << EOF
@@ -152,7 +153,7 @@ jobs:
       with:
         name: aether-${{ matrix.distro }}-${{ matrix.version }}-${{ matrix.arch }}
         path: |
-          src-tauri/target/${{ matrix.target }}/release/bundle/
+          target/${{ matrix.target }}/release/bundle/
           aether_${{ matrix.version }}_${{ matrix.arch }}.deb
         retention-days: 30
 

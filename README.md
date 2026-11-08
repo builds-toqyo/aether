@@ -223,7 +223,7 @@ Aether supports hardware-accelerated video decoding and encoding via GStreamer p
 ### Setup
 ```sh
 # Clone and install
-git clone <repository>
+git clone https://github.com/builds-toqyo/aether.git
 cd aether
 npm install
 cargo build

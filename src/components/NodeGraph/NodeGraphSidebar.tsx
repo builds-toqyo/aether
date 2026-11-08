@@ -4,7 +4,7 @@ import React from 'react';
 import { useNodeGraph } from './NodeGraphContext';
 
 export const NodeGraphSidebar: React.FC = () => {
-  const { selectedNode, selectedConnection, handleUpdateNodeParameter, graph } = useNodeGraph();
+  const { selectedNode, selectedConnection, handleUpdateNodeParameter, handleMoveNode, graph } = useNodeGraph();
 
   if (!selectedNode && !selectedConnection) {
     return (
@@ -78,7 +78,7 @@ export const NodeGraphSidebar: React.FC = () => {
                 type="number"
                 value={selectedNode?.position?.x || 0}
                 onChange={(e) => {
-                  // Handle position update
+                  if (selectedNode) handleMoveNode(selectedNode.id, parseFloat(e.target.value) || 0, selectedNode.position?.y ?? 0);
                 }}
                 className="bg-[#252525] border border-[#333] text-[#ccc] text-sm px-2 py-1 rounded w-20 outline-none focus:border-blue-500"
               />
@@ -89,7 +89,7 @@ export const NodeGraphSidebar: React.FC = () => {
                 type="number"
                 value={selectedNode?.position?.y || 0}
                 onChange={(e) => {
-                  // Handle position update
+                  if (selectedNode) handleMoveNode(selectedNode.id, selectedNode.position?.x ?? 0, parseFloat(e.target.value) || 0);
                 }}
                 className="bg-[#252525] border border-[#333] text-[#ccc] text-sm px-2 py-1 rounded w-20 outline-none focus:border-blue-500"
               />

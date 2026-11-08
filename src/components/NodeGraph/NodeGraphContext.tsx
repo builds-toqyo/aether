@@ -59,6 +59,8 @@ interface NodeGraphContextType {
   setViewport: (viewport: Viewport | ((prev: Viewport) => Viewport)) => void;
   handleCreateNode: (nodeType: string, position: { x: number; y: number }) => Promise<void>;
   handleDeleteNode: (nodeId: string) => Promise<void>;
+  handleMoveNode: (nodeId: string, x: number, y: number, persist?: boolean) => void;
+  handlePortClick: (nodeId: string, portId: string, portType: 'input' | 'output') => void;
   handleCreateConnection: (sourceNodeId: string, sourcePortId: string, targetNodeId: string, targetPortId: string) => Promise<void>;
   handleDeleteConnection: (connectionId: string) => Promise<void>;
   handleUpdateNodeParameter: (nodeId: string, parameterName: string, value: any) => Promise<void>;

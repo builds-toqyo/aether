@@ -16,6 +16,7 @@ export const NodeGraphCanvas: React.FC = () => {
     viewport,
     canvasRef,
     svgRef,
+    handleMoveNode,
     handleCanvasMouseDown,
     handleCanvasMouseMove,
     handleCanvasMouseUp,
@@ -65,20 +66,20 @@ export const NodeGraphCanvas: React.FC = () => {
       if (rect) {
         const mouseX = (e.clientX - rect.left - viewport.x) / viewport.zoom;
         const mouseY = (e.clientY - rect.top - viewport.y) / viewport.zoom;
-        
-        const newX = mouseX - dragOffset.x;
-        const newY = mouseY - dragOffset.y;
-        
-        // Update node position (this would need to be handled in the context)
-        // For now, we'll just update the local state
+
+        // Live-update position locally; persisted on mouse-up
+        handleMoveNode(draggedNode, mouseX - dragOffset.x, mouseY - dragOffset.y, false);
       }
     }
   };
 
   const handleNodeMouseUp = () => {
     if (draggedNode) {
+      const node = graph.nodes.find(n => n.id === draggedNode);
+      if (node) {
+        handleMoveNode(draggedNode, node.position?.x ?? 0, node.position?.y ?? 0, true);
+      }
       setDraggedNode(null);
-      // Update the node position in the graph
     }
   };
 
